@@ -27,20 +27,32 @@ import logging
 import numpy
 import numpy.random as rng
 import theano
-import theano.tensor as T
+import theano.tensor as TT
 
 
 FLOAT = theano.config.floatX
 
 
 class Network(object):
-    '''The network base class is a basic feedforward architecture.'''
+    '''The network class is a fairly basic fully-connected feedforward net.
+    '''
 
-    def __init__(self, layers, nonlinearity, decode=1):
-        if nonlinearity is None:
-            nonlinearity = T.nnet.sigmoid
+    def __init__(self, layers, nonlinearity=TT.nnet.sigmoid, decode=1):
+        '''Create a new feedforward network of a specific topology.
 
-        self.x = T.matrix('x')
+        layers: A sequence of integers specifying the number of units at each
+          layer. As an example, layers=(10, 20, 3) has one "input" layer with 10
+          units, one "hidden" layer with 20 units, and one "output" layer with 3
+          units.
+        nonlinearity: A callable that takes one argument (a matrix) and returns
+          another matrix. This is the nonlinearity that each hidden unit in the
+          network uses.
+        decode: A twist on the architecture is that any of the hidden layers can
+          be tapped at the output. Just specify a value greater than 1 to tap
+          the last hidden N layers.
+        '''
+        # in this module, x refers to a network's input, and y to its output.
+        self.x = TT.matrix('x')
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -52,7 +64,7 @@ class Network(object):
             arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
-            self.y = nonlinearity(T.dot(self.hiddens[-1] if i else self.x, Wi) + bi)
+            self.y = nonlinearity(TT.dot(self.hiddens[-1] if i else self.x, Wi) + bi)
             self.hiddens.append(self.y)
             self.weights.append(Wi)
             self.biases.append(bi)
@@ -73,7 +85,7 @@ class Network(object):
 
         logging.info('%d total network parameters', count)
 
-        self.y = sum(T.dot(*z) for z in zip(self.hiddens[::-1], decoders[::-1])) + bias
+        self.y = sum(TT.dot(*z) for z in zip(self.hiddens[::-1], decoders[::-1])) + bias
         self.f = theano.function(*self.args)
 
     @property
@@ -95,22 +107,25 @@ class Network(object):
     @property
     def sparsities(self):
         #return [abs(h).mean(axis=0).sum() for h in self.hiddens]
-        return [T.eq(h, 0).mean() for h in self.hiddens]
+        return [TT.eq(h, 0).mean() for h in self.hiddens]
 
     @property
     def covariances(self):
-        return [T.dot(h.T, h) for h in self.hiddens]
+        return [TT.dot(h.T, h) for h in self.hiddens]
 
     def __call__(self, *inputs):
+        '''Networks can be called with inputs to yield outputs.'''
         return self.f(*inputs)
 
     def save(self, filename):
+        '''Save the parameters of this network to disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
         cPickle.dump([param.get_value().copy() for param in self.params], handle, -1)
         handle.close()
 
     def load(self, filename):
+        '''Load the parameters for this network from disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
         for param, s in zip(self.params, cPickle.load(handle)):
@@ -119,6 +134,7 @@ class Network(object):
         logging.info('%s: loaded model parameters', filename)
 
     def J(self, param_l1=None, param_l2=None, activity_l1=None, **unused):
+        '''Return a cost function for this network.'''
         cost = self.cost
         if param_l1 > 0:
             cost += param_l1 * sum(abs(i).mean(axis=0).sum() for i in self.weights)
@@ -130,20 +146,20 @@ class Network(object):
 
 
 class Autoencoder(Network):
-    '''An autoencoder is a network that attempts to reproduce its input.'''
+    '''An autoencoder attempts to reproduce its input.'''
 
     @property
     def cost(self):
         err = self.y - self.x
-        return T.mean((err * err).sum(axis=1))
+        return TT.mean((err * err).sum(axis=1))
 
 
 class Regressor(Network):
-    '''A regressor is a network that attempts to reproduce a target output.'''
+    '''A regressor attempts to produce a target output.'''
 
     def __init__(self, *args, **kwargs):
         super(Regressor, self).__init__(*args, **kwargs)
-        self.k = T.matrix('k')
+        self.k = TT.matrix('k')
 
     @property
     def inputs(self):
@@ -152,21 +168,21 @@ class Regressor(Network):
     @property
     def cost(self):
         err = self.k - self.y
-        return T.mean((err * err).sum(axis=1))
+        return TT.mean((err * err).sum(axis=1))
 
 
 class Classifier(Network):
-    '''A classifier is a network that attempts to match a 1-of-k output.'''
+    '''A classifier attempts to match a 1-hot target output.'''
 
     def __init__(self, *args, **kwargs):
         super(Classifier, self).__init__(*args, **kwargs)
         self.y = self.softmax(self.y)
-        self.k = T.ivector('k')
+        self.k = TT.ivector('k')
 
     @staticmethod
     def softmax(x):
-        # T.nnet.softmax doesn't work with the HF trainer.
-        z = T.exp(x - x.max(axis=1)[:, None])
+        # TT.nnet.softmax doesn't work with the HF trainer.
+        z = TT.exp(x - x.max(axis=1)[:, None])
         return z / z.sum(axis=1)[:, None]
 
     @property
@@ -175,15 +191,15 @@ class Classifier(Network):
 
     @property
     def prediction(self):
-        return T.argmax(self.y, axis=1)
+        return TT.argmax(self.y, axis=1)
 
     @property
     def cost(self):
-        return -T.mean(T.log(self.y)[T.arange(self.k.shape[0]), self.k])
+        return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
 
     @property
     def incorrect(self):
-        return T.mean(T.neq(self.prediction, self.k))
+        return TT.mean(TT.neq(self.prediction, self.k))
 
     @property
     def monitors(self):

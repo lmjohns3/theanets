@@ -1,43 +1,63 @@
+# Copyright (c) 2012 Leif Johnson <leif@leifjohnson.net>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+'''This file contains recurrent network structures.'''
+
 import numpy
 import numpy.random as rng
 import theano
 import theano.tensor as T
 
-import ff
-
-FLOAT = ff.FLOAT
+import .feedforward
 
 
-class Network(ff.Network):
-    def __init__(self, input, size, output, nonlinearity=None, gain=1.2, damping=0.01):
-        if nonlinearity is None:
-            nonlinearity = T.nnet.sigmoid
-        self.nonlinearity = nonlinearity
+class Network(feedforward.Network):
+    '''A fully connected recurrent network with inputs and outputs.'''
 
+    def __init__(self, layers, nonlinearity=TT.nnet.sigmoid, gain=1.2, damping=0.01):
         self.x = T.matrix('x')
-        self.s = theano.shared(numpy.zeros(size, dtype=FLOAT), name='state')
+        self.state = theano.shared(
+            numpy.zeros(size, dtype=feedforward.FLOAT), name='state')
 
-        arr = rng.normal(size=(input, size)) / numpy.sqrt(input + size)
-        W_in = theano.shared(arr.astype(FLOAT), name='W_in')
+        i, h, o = layers
+        arr = rng.normal(size=(i, h)) / numpy.sqrt(i + h)
+        W_in = theano.shared(arr.astype(feedforward.FLOAT), name='W_in')
 
-        arr = rng.normal(size=(size, size)) * gain / numpy.sqrt(size + size)
-        W_pool = theano.shared(arr.astype(FLOAT), name='W_pool')
+        arr = gain * rng.normal(size=(h, h)) / numpy.sqrt(h + h)
+        W_pool = theano.shared(arr.astype(feedforward.FLOAT), name='W_pool')
 
-        arr = rng.normal(size=(size, output)) / numpy.sqrt(size + output)
-        W_out = theano.shared(arr.astype(FLOAT), name='W_out')
-        b_out = theano.shared(numpy.zeros((output, ), FLOAT), name='b_out')
+        arr = rng.normal(size=(h, o)) / numpy.sqrt(h + o)
+        W_out = theano.shared(arr.astype(feedforward.FLOAT), name='W_out')
+        b_out = theano.shared(numpy.zeros((o, ), feedforward.FLOAT), name='b_out')
 
-        self.hiddens = [self.s]
+        self.hiddens = [self.state]
         self.weights = [W_in, W_pool, W_out]
         self.biases = [b_out]
 
-        logging.info('%d total network parameters', (input + size + output) * (size + 1))
+        logging.info('%d total network parameters', h * (i + h + o) + o)
 
-        st = nonlinearity(T.dot(self.x, W_in) + T.dot(self.s, W_pool) + b_pool)
-        self.st = damping * s + (1 - damping) * st
-        self.y = T.dot(self.st, W_out) + b_out
+        z = nonlinearity(T.dot(self.x, W_in) + T.dot(self.state, W_pool) + b_pool)
+        self.next_state = damping * self.state + (1 - damping) * z
+        self.y = T.dot(self.next_state, W_out) + b_out
 
-        self.f = theano.function(*self.args, updates={self.s: self.st})
+        self.f = theano.function(*self.args, updates={self.state: self.next_state})
 
     @property
     def inputs(self):
@@ -46,29 +66,3 @@ class Network(ff.Network):
     @property
     def args(self):
         return [self.x], [self.y]
-
-
-class FORCE(ff.Trainer):
-    def __init__(self, network, **kwargs):
-        W_in, W_pool, W_out = network.weights
-
-        n = len(W_pool.get_value(shared=True))
-        alpha = kwargs.get('learning_rate', 1. / n)
-        P = theano.shared(numpy.eye(n).astype(FLOAT) * alpha)
-
-        k = T.dot(P, network.s)
-        rPr = 1 + T.dot(network.s, k)
-        J = network.J(**kwargs)
-
-        updates = {}
-        updates[P] = P - T.dot(k, k) / rPr
-        updates[W_pool] = W_pool - J * k / rPr
-        updates[W_out] = W_out - J * k / rPr
-        updates[b_out] = b_out - alpha * T.grad(J, b_out)
-
-        costs = [J] + network.monitors
-        self.f_eval = theano.function(network.inputs, costs)
-        self.f_train = theano.function(network.inputs, costs, updates=updates)
-
-    def train(self, train_set, valid_set=None):
-        pass

@@ -23,9 +23,8 @@
 import logging
 import numpy
 import theano
-import theano.tensor as T
+import theano.tensor as TT
 
-import .hf
 
 class Trainer(object):
     '''This is an abstract base class for all trainers.'''
@@ -55,7 +54,7 @@ class SGD(Trainer):
         t = theano.shared(numpy.cast['float32'](0), name='t')
         updates = {t: t + 1}
         for param in network.params:
-            grad = T.grad(J, param)
+            grad = TT.grad(J, param)
             heading = theano.shared(
                 numpy.zeros_like(param.get_value(borrow=True)),
                 name='g_%s' % param.name)
@@ -89,6 +88,7 @@ class HF(Trainer):
 
         self.f_eval = theano.function(network.inputs, c)
 
+        import hf  # TODO: publish this module ?
         self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
 
         kwargs['num_updates'] = sys.maxint
@@ -104,3 +104,30 @@ class HF(Trainer):
         self.opt.train(train_set, self.kwargs['cg_set'], **self.kwargs)
 
 
+class FORCE(Trainer):
+    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.'''
+
+    def __init__(self, network, **kwargs):
+        W_in, W_pool, W_out = network.weights
+
+        n = len(W_pool.get_value(shared=True))
+        alpha = kwargs.get('learning_rate', 1. / n)
+        P = theano.shared(numpy.eye(n).astype(FLOAT) * alpha)
+
+        k = T.dot(P, network.state)
+        rPr = 1 + T.dot(network.state, k)
+        J = network.J(**kwargs)
+
+        updates = {}
+        updates[P] = P - T.dot(k, k) / rPr
+        updates[W_pool] = W_pool - J * k / rPr
+        updates[W_out] = W_out - J * k / rPr
+        updates[b_out] = b_out - alpha * T.grad(J, b_out)
+
+        costs = [J] + network.monitors
+        self.f_eval = theano.function(network.inputs, costs)
+        self.f_train = theano.function(network.inputs, costs, updates=updates)
+
+    def train(self, train_set, valid_set=None):
+        # TODO !
+        pass

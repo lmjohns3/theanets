@@ -43,7 +43,8 @@ class Network(object):
         layers: A sequence of integers specifying the number of units at each
           layer. As an example, layers=(10, 20, 3) has one "input" layer with 10
           units, one "hidden" layer with 20 units, and one "output" layer with 3
-          units.
+          units. That is, inputs should be of length 10, and outputs will be of
+          length 3.
         nonlinearity: A callable that takes one argument (a matrix) and returns
           another matrix. This is the nonlinearity that each hidden unit in the
           network uses.
@@ -60,7 +61,7 @@ class Network(object):
         count = 0
         for i, (a, b) in enumerate(zip(layers[:-2], layers[1:-1])):
             count += (1 + a) * b
-            logging.info('network layer %d: %s x %s', i + 1, a, b)
+            logging.info('encoding weights for layer %d: %s x %s', i + 1, a, b)
             arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
@@ -71,11 +72,11 @@ class Network(object):
 
         k = layers[-1]
         decoders = []
-        for i, W in enumerate(self.weights[-decode::-1]):
-            i = len(layers) - i - 2
+        for i, W in enumerate(reversed(self.weights[-decode:])):
+            i = len(self.weights) - i
             b = W.get_value(borrow=True).shape[1]
             count += b * k
-            logging.info('decoding from layer %d: %s x %s', i, b, k)
+            logging.info('decoding weights from layer %d: %s x %s', i, b, k)
             arr = rng.normal(size=(b, k)) / numpy.sqrt(b + k)
             decoders.append(theano.shared(arr.astype(FLOAT), name='decode_%d' % i))
         count += k

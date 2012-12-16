@@ -24,14 +24,11 @@ import logging
 import numpy
 import theano
 import theano.tensor as TT
+import sys
 
 
 class Trainer(object):
     '''This is an abstract base class for all trainers.'''
-
-    def __init__(self, network):
-        self.network = network
-        self.f_eval = None
 
     def train(self, train_set, valid_set=None):
         raise NotImplementedError
@@ -44,7 +41,6 @@ class SGD(Trainer):
     '''Stochastic gradient descent network trainer.'''
 
     def __init__(self, network, **kwargs):
-        self.network = network
         self.vf = kwargs.get('validate', 3)
         self.epochs = kwargs.get('epochs', sys.maxint)
         decay = kwargs.get('decay', 1)
@@ -88,12 +84,9 @@ class HF(Trainer):
     Martens and Sutskever. If you don't have a copy of the module handy, this
     class will attempt to download it from github.
     '''
-
-    URL = 'https://raw.github.com/boulanni/theano-hf/blob/master/hf.py'
+    URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
-        self.network = network
-
         try:
             import hf
         except:
@@ -109,9 +102,11 @@ class HF(Trainer):
             del urllib
             import hf
 
-        c = [self.J(**kwargs)] + network.monitors
+        c = [network.J(**kwargs)] + network.monitors
         self.f_eval = theano.function(network.inputs, c)
         self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
+
+        self.cg_set = kwargs.pop('cg_set')
 
         # copy command line arguments into a dict to send to the hf optimizer
         kwargs['num_updates'] = sys.maxint
@@ -120,11 +115,15 @@ class HF(Trainer):
         kwargs['validation_frequency'] = sys.maxint
         if 'validate' in kwargs:
             kwargs['validation_frequency'] = kwargs.pop('validate')
+
+        # remove kwargs that are not in the train method signature.
+        for k in set(kwargs) - set(self.opt.train.im_func.func_code.co_varnames[1:]):
+            kwargs.pop(k)
+
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None):
-        self.kwargs['validation'] = valid_set
-        self.opt.train(train_set, self.kwargs['cg_set'], **self.kwargs)
+        self.opt.train(train_set, self.cg_set, validation=valid_set, **self.kwargs)
 
 
 class FORCE(Trainer):
@@ -134,8 +133,6 @@ class FORCE(Trainer):
     '''
 
     def __init__(self, network, **kwargs):
-        self.network = network
-
         W_in, W_pool, W_out = network.weights
 
         n = len(W_pool.get_value(shared=True))

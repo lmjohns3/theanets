@@ -93,12 +93,10 @@ class HF(Trainer):
         except:
             # if hf failed to import, try downloading it and saving it locally.
             import os, urllib
+            logging.error('hf import failed, attempting to download %s', HF.URL)
             path = os.path.join(os.getcwd(), 'hf.py')
-            logging.error('hf import failed, attempting to download to %s', path)
-            with open(path, 'w') as target:
-                h = urllib.urlopen(HF.URL)
-                target.write(h.read())
-                h.close()
+            urllib.urlretrieve(HF.URL, path)
+            logging.error('downloaded hf code to %s', path)
             del os
             del urllib
             import hf

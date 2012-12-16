@@ -41,9 +41,10 @@ class Trainer(object):
 
 
 class SGD(Trainer):
-    def __init__(self, network, **kwargs):
-        super(SGD, self).__init__(network)
+    '''Stochastic gradient descent network trainer.'''
 
+    def __init__(self, network, **kwargs):
+        self.network = network
         self.vf = kwargs.get('validate', 3)
         self.epochs = kwargs.get('epochs', sys.maxint)
         decay = kwargs.get('decay', 1)
@@ -81,16 +82,38 @@ class SGD(Trainer):
 
 
 class HF(Trainer):
+    '''The hessian free trainer shells out to an external implementation.
+
+    hf.py was implemented by Nicholas Boulanger-Lewandowski and developed by
+    Martens and Sutskever. If you don't have a copy of the module handy, this
+    class will attempt to download it from github.
+    '''
+
+    URL = 'https://raw.github.com/boulanni/theano-hf/blob/master/hf.py'
+
     def __init__(self, network, **kwargs):
-        super(HF, self).__init__(network)
+        self.network = network
+
+        try:
+            import hf
+        except:
+            # if hf failed to import, try downloading it and saving it locally.
+            import os, urllib
+            path = os.path.join(os.getcwd(), 'hf.py')
+            logging.error('hf import failed, attempting to download to %s', path)
+            with open(path, 'w') as target:
+                h = urllib.urlopen(HF.URL)
+                target.write(h.read())
+                h.close()
+            del os
+            del urllib
+            import hf
 
         c = [self.J(**kwargs)] + network.monitors
-
         self.f_eval = theano.function(network.inputs, c)
-
-        import hf  # TODO: publish this module ?
         self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
 
+        # copy command line arguments into a dict to send to the hf optimizer
         kwargs['num_updates'] = sys.maxint
         if 'epochs' in kwargs:
             kwargs['num_updates'] = kwargs.pop('epochs')
@@ -105,9 +128,14 @@ class HF(Trainer):
 
 
 class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.'''
+    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
+
+    The code here still needs implementation and testing.
+    '''
 
     def __init__(self, network, **kwargs):
+        self.network = network
+
         W_in, W_pool, W_out = network.weights
 
         n = len(W_pool.get_value(shared=True))

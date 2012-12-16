@@ -60,7 +60,7 @@ class Network(object):
         count = 0
         for i, (a, b) in enumerate(zip(layers[:-2], layers[1:-1])):
             count += (1 + a) * b
-            logging.info('network layer %d: %s x %s', i, a, b)
+            logging.info('network layer %d: %s x %s', i + 1, a, b)
             arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
@@ -72,7 +72,7 @@ class Network(object):
         k = layers[-1]
         decoders = []
         for i, W in enumerate(self.weights[-decode::-1]):
-            i = len(layers) - i - 1
+            i = len(layers) - i - 2
             b = W.get_value(borrow=True).shape[1]
             count += b * k
             logging.info('decoding from layer %d: %s x %s', i, b, k)

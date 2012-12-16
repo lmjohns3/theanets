@@ -23,5 +23,5 @@
 from .flags import FLAGS, main
 from .feedforward import Network, Autoencoder, Regressor, Classifier
 from .dataset import Dataset
-import .recurrent
-import .trainer
+from . import recurrent
+from . import trainer

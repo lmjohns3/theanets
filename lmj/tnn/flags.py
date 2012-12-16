@@ -23,8 +23,8 @@
 import optparse
 import sys
 
-import .dataset
-import .trainer
+from . import dataset
+from . import trainer
 
 FLAGS = optparse.OptionParser()
 FLAGS.add_option('', '--dataset', default='mnist.pkl.gz', metavar='FILE',

@@ -22,6 +22,6 @@
 
 from .flags import FLAGS, main
 from .feedforward import Network, Autoencoder, Regressor, Classifier
-from .dataset import Dataset
+from .dataset import SequenceDataset as Dataset
 from . import recurrent
 from . import trainer

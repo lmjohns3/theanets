@@ -25,7 +25,7 @@ import optparse
 import sys
 import theano.tensor as TT
 
-from . import dataset
+from .dataset import SequenceDataset as Dataset
 from . import trainer
 
 FLAGS = optparse.OptionParser()
@@ -98,10 +98,10 @@ def main(Network, get_datasets):
     net = Network(eval(opts.layers), hidden_nonlin, opts.decode)
 
     train_, valid_, test_ = get_datasets(opts, args)
-    train_set = dataset.Dataset('train', *train_, size=opts.batch_size)
-    valid_set = dataset.Dataset('valid', *valid_, size=opts.batch_size)
-    kwargs['test_set'] = dataset.Dataset('test', *test_, size=opts.batch_size)
-    kwargs['cg_set'] = dataset.Dataset('cg', *train_, size=opts.batch_size, batches=opts.cg_batches)
+    train_set = Dataset('train', *train_, size=opts.batch_size)
+    valid_set = Dataset('valid', *valid_, size=opts.batch_size)
+    kwargs['test_set'] = Dataset('test', *test_, size=opts.batch_size)
+    kwargs['cg_set'] = Dataset('cg', *train_, size=opts.batch_size, batches=opts.cg_batches)
 
     Trainer = {'hf': trainer.HF}.get(opts.optimize, trainer.SGD)
     Trainer(net, **kwargs).train(train_set, valid_set)

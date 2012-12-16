@@ -24,20 +24,45 @@ import logging
 import numpy.random as rng
 
 
-class Dataset(object):
+class SequenceDataset(object):
     '''This class handles batching and shuffling a dataset.
 
-    It's heavily inspired by the dataset class from hf.py.
+    It's mostly copied from the dataset class from hf.py, except that the
+    constructor has slightly different semantics.
     '''
 
     def __init__(self, label, *data, **kwargs):
+        '''Create a minibatch dataset from a number of different data arrays.
+
+        Arguments:
+
+        label: A string that is used to describe this dataset. Usually something
+          like 'test' or 'train'.
+
+        Positional arguments:
+
+        There should be one unnamed keyword argument for each input in the
+        neural network that will be processing this dataset. For instance, if
+        you are dealing with a classifier network, you'll need one argument for
+        the inputs (e.g., mnist digit pixels), and another argument for the
+        target outputs (e.g., digit class labels). The order of the arguments
+        should be the same as the order of inputs in the network. All arguments
+        are expected to have the same number of elements along the first axis.
+
+        Keyword arguments:
+
+        size or batch_size: The size of the mini-batches to create from the
+          data matrices. Defaults to 10.
+        batches: The number of batches to yield for each call to iterate().
+          Defaults to the length of the data divided by batch_size.
+        '''
         self.label = label
 
-        n = kwargs.get('size', kwargs.get('batch_size', 100))
-        self.batches = [
+        n = kwargs.get('size', kwargs.get('batch_size', 10))
+        self.minibatches = [
             [d[i:i + n] for d in data] for i in xrange(0, len(data[0]), n)]
 
-        d = self.batches
+        d = self.minibatches
         shape = []
         while True:
             try:
@@ -48,28 +73,28 @@ class Dataset(object):
         logging.info('data %s: %s', label, shape)
 
         self.current = 0
-        self.limit = kwargs.get('batches') or len(self.batches)
+        self.limit = kwargs.get('batches') or len(self.minibatches)
         self.shuffle()
+
+    def __iter__(self):
+        return self.iterate(True)
 
     @property
     def number_batches(self):
         return self.limit
 
     def shuffle(self):
-        rng.shuffle(self.batches)
-
-    def __iter__(self):
-        return self.iterate(True)
+        rng.shuffle(self.minibatches)
 
     def iterate(self, update=True):
-        k = len(self.batches)
+        k = len(self.minibatches)
         for b in xrange(self.limit):
-            yield self.batches[(self.current + b) % k]
+            yield self.minibatches[(self.current + b) % k]
         if update:
             self.update()
 
     def update(self):
-        if self.current + self.limit >= len(self.batches):
+        if self.current + self.limit >= len(self.minibatches):
             self.shuffle()
             self.current = 0
         else:

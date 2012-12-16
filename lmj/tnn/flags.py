@@ -41,7 +41,7 @@ FLAGS.add_option('', '--param-l2', type=float, default=0., metavar='K',
                  help='regularize network parameters with K on the L2 term')
 FLAGS.add_option('', '--activity-l1', type=float, default=0., metavar='K',
                  help='regularize network activity with K on the L1 term')
-FLAGS.add_option('', '--optimize', metavar='[sgd|hf]',
+FLAGS.add_option('', '--optimize', metavar='[sgd|hf|sgd+hf]',
                  help='use the given optimization method')
 
 g = optparse.OptionGroup(FLAGS, 'Training')
@@ -51,15 +51,15 @@ g.add_option('', '--train-batches', type=int, metavar='N',
              help='use at most N batches during gradient computations')
 g.add_option('', '--valid-batches', type=int, metavar='N',
              help='use at most N batches during validation')
-g.add_option('', '--epochs', type=int, default=300, metavar='N',
-             help='train for at most N epochs')
+g.add_option('', '--min-improvement', type=float, default=1e-4, metavar='N',
+             help='train until relative cost decrease is less than N')
 g.add_option('', '--validate', type=int, default=3, metavar='N',
              help='validate the model every N updates')
 g.add_option('', '--save-progress', metavar='FILE',
              help='save the model periodically to FILE')
 FLAGS.add_option_group(g)
 
-g = optparse.OptionGroup(FLAGS, 'Stochastic Gradient Optimization')
+g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
 g.add_option('', '--decay', type=float, default=1., metavar='R',
              help='train the network with a learning rate of R')
 g.add_option('', '--learning-rate', type=float, default=0.1, metavar='R',
@@ -68,7 +68,7 @@ g.add_option('', '--momentum', type=float, default=0.1, metavar='R',
              help='train the network with momentum of R')
 FLAGS.add_option_group(g)
 
-g = optparse.OptionGroup(FLAGS, 'Hessian-Free Optimization')
+g = optparse.OptionGroup(FLAGS, 'HF Optimization')
 g.add_option('', '--cg-batches', type=int, metavar='N',
              help='use at most N batches for CG computation')
 g.add_option('', '--patience', type=int, default=10, metavar='N',
@@ -101,7 +101,7 @@ def main(Network, get_datasets):
     kwargs['test_set'] = Dataset('test', *test_, size=opts.batch_size)
     kwargs['cg_set'] = Dataset('cg', *train_, size=opts.batch_size, batches=opts.cg_batches)
 
-    Trainer = {'hf': trainer.HF}.get(opts.optimize, trainer.SGD)
+    Trainer = {'hf': trainer.HF, 'sgd+hf': trainer.Cascaded}.get(opts.optimize, trainer.SGD)
     Trainer(net, **kwargs).train(train_set, valid_set)
 
     return net

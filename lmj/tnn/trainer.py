@@ -34,17 +34,18 @@ class Trainer(object):
         raise NotImplementedError
 
     def evaluate(self, test_set):
-        return [self.f_eval(*i) for i in test_set]
+        return numpy.mean([self.f_eval(*i) for i in test_set], axis=0)
 
 
 class SGD(Trainer):
     '''Stochastic gradient descent network trainer.'''
 
     def __init__(self, network, **kwargs):
-        self.vf = kwargs.get('validate', 3)
-        self.epochs = kwargs.get('epochs', sys.maxint)
-        decay = kwargs.get('decay', 1)
-        m = kwargs.get('momentum', 0)
+        self.validation_frequency = kwargs.get('validate', 3)
+        self.min_improvement = kwargs.get('min_improvement', 1e-4)
+
+        decay = kwargs.get('decay', 1.)
+        m = kwargs.get('momentum', 0.)
         lr = kwargs.get('learning_rate', 0.1)
 
         J = network.J(**kwargs)
@@ -66,22 +67,30 @@ class SGD(Trainer):
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
 
     def train(self, train_set, valid_set=None):
-        for u in xrange(self.epochs):
-            acc = [self.f_train(*i) for i in train_set]
+        prev_cost = 1e101
+        cost = 1e100
+        iter = 0
+        while (prev_cost - cost) / prev_cost > self.min_improvement:
+            iter += 1
             fmt = 'epoch %i[%.2g]: train %s'
-            args = (u, self.f_rate()[0], numpy.mean(acc, axis=0))
-            if valid_set is not None and self.vf > 0 and u % self.vf == 0:
-                acc = [self.f_eval(*i) for i in valid_set]
+            args = (iter,
+                    self.f_rate()[0],
+                    numpy.mean([self.f_train(*i) for i in train_set], axis=0),
+                    )
+            if iter % self.validation_frequency == 0:
+                metrics = numpy.mean([self.f_eval(*i) for i in valid_set], axis=0)
                 fmt += ' valid %s'
-                args += (numpy.mean(acc, axis=0), )
+                args += (metrics, )
+                prev_cost, cost = cost, metrics[0]
             logging.info(fmt, *args)
+        return cost
 
 
 class HF(Trainer):
     '''The hessian free trainer shells out to an external implementation.
 
-    hf.py was implemented by Nicholas Boulanger-Lewandowski and developed by
-    Martens and Sutskever. If you don't have a copy of the module handy, this
+    hf.py was implemented by Nicholas Boulanger-Lewandowski and made available
+    to the public (yay !). If you don't have a copy of the module handy, this
     class will attempt to download it from github.
     '''
 
@@ -107,7 +116,6 @@ class HF(Trainer):
         self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
-        kwargs['num_updates'] = kwargs.pop('epochs', sys.maxint)
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
         for k in set(kwargs) - set(self.opt.train.im_func.func_code.co_varnames[1:]):
             kwargs.pop(k)
@@ -115,6 +123,39 @@ class HF(Trainer):
 
     def train(self, train_set, valid_set=None):
         self.opt.train(train_set, self.cg_set, validation=valid_set, **self.kwargs)
+
+
+class Cascaded(Trainer):
+    '''This trainer uses SGD first, then HF.
+
+    HF is slow, but SGD is inaccurate. So we start with SGD, when HF will be
+    making poor updates anyway because the parameters are (probably) not near
+    their optimal values. Then, after SGD appears to taper off, we run HF for a
+    final tweaking.
+    '''
+
+    def __init__(self, network, **kwargs):
+        self.network = network
+
+        self.decay = kwargs.pop('decay', 0.9)
+        assert self.decay < 1, '--decay must be < 1 for this trainer'
+
+        if kwargs.get('learning_rate') is None:
+            kwargs['learning_rate'] = 0.3
+        if kwargs.get('min_improvement') is None:
+            kwargs['min_improvement'] = 1e-4
+
+        self.kwargs = kwargs
+
+    def train(self, train_set, valid_set=None):
+        prev_cost = 1e101
+        cost = 1e100
+        while (prev_cost - cost) / prev_cost > self.kwargs['min_improvement']:
+            logging.info('sgd learning rate: %s', self.kwargs['learning_rate'])
+            t = SGD(self.network, **self.kwargs)
+            prev_cost, cost = cost, t.train(train_set, valid_set)
+            self.kwargs['learning_rate'] *= self.decay
+        HF(self.network, **self.kwargs).train(train_set, valid_set)
 
 
 class FORCE(Trainer):

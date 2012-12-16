@@ -30,51 +30,53 @@ from . import trainer
 
 FLAGS = optparse.OptionParser()
 FLAGS.add_option('', '--layers', default='784,100,10', metavar='N0,N1,...',
-                 help='construct the network with layers of N0, N1, ... units')
+                 help='construct a network with layers of size N0, N1, ... (None)')
 FLAGS.add_option('', '--decode', type=int, default=1, metavar='N',
-                 help='decode from the final N layers of the net')
+                 help='decode from the final N layers of the net (1)')
 FLAGS.add_option('', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
-                 help='use the given nonlinearity for hidden unit activations')
+                 help='use the given nonlinearity for hidden unit activations (sig)')
 FLAGS.add_option('', '--param-l1', type=float, default=0., metavar='K',
-                 help='regularize network parameters with K on the L1 term')
+                 help='regularize network parameters with K on the L1 term (0.)')
 FLAGS.add_option('', '--param-l2', type=float, default=0., metavar='K',
-                 help='regularize network parameters with K on the L2 term')
+                 help='regularize network parameters with K on the L2 term (0.)')
 FLAGS.add_option('', '--activity-l1', type=float, default=0., metavar='K',
-                 help='regularize network activity with K on the L1 term')
+                 help='regularize network activity with K on the L1 term (0.)')
 FLAGS.add_option('', '--optimize', metavar='[sgd|hf|sgd+hf]',
-                 help='use the given optimization method')
+                 help='use the given optimization method (sgd)')
 
 g = optparse.OptionGroup(FLAGS, 'Training')
 g.add_option('', '--batch-size', type=int, default=100, metavar='N',
-             help='split all data sets into batches of size N')
+             help='split all data sets into batches of size N (100)')
 g.add_option('', '--train-batches', type=int, metavar='N',
-             help='use at most N batches during gradient computations')
+             help='use at most N batches during gradient computations (None)')
 g.add_option('', '--valid-batches', type=int, metavar='N',
-             help='use at most N batches during validation')
+             help='use at most N batches during validation (None)')
 g.add_option('', '--min-improvement', type=float, default=1e-4, metavar='N',
-             help='train until relative cost decrease is less than N')
+             help='train until relative cost decrease is less than N (1e-4)')
 g.add_option('', '--validate', type=int, default=3, metavar='N',
-             help='validate the model every N updates')
+             help='validate the model every N updates (3)')
 g.add_option('', '--save-progress', metavar='FILE',
-             help='save the model periodically to FILE')
+             help='save the model periodically to FILE (None)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
 g.add_option('', '--decay', type=float, default=1., metavar='R',
-             help='train the network with a learning rate of R')
+             help='decay the learning rate by R each epoch (1.)')
 g.add_option('', '--learning-rate', type=float, default=0.1, metavar='R',
-             help='train the network with a learning rate of R')
+             help='train the network with a learning rate of R (0.1)')
 g.add_option('', '--momentum', type=float, default=0.1, metavar='R',
-             help='train the network with momentum of R')
+             help='train the network with momentum of R (0.1)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'HF Optimization')
 g.add_option('', '--cg-batches', type=int, metavar='N',
-             help='use at most N batches for CG computation')
+             help='use at most N batches for CG computation (None)')
 g.add_option('', '--patience', type=int, default=10, metavar='N',
-             help='stop training if no improvement for N validations')
+             help='stop training if no improvement for N validations (10)')
+g.add_option('', '--num-updates', type=int, default=100, metavar='N',
+             help='perform at most N HF parameter updates (100)')
 g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
-             help='start CG with a lambda of K')
+             help='start CG with a lambda of K (1.)')
 FLAGS.add_option_group(g)
 
 

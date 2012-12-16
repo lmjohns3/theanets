@@ -29,8 +29,6 @@ from .dataset import SequenceDataset as Dataset
 from . import trainer
 
 FLAGS = optparse.OptionParser()
-FLAGS.add_option('', '--dataset', default='mnist.pkl.gz', metavar='FILE',
-                 help='train on a pickled dataset from FILE')
 FLAGS.add_option('', '--layers', default='784,100,10', metavar='N0,N1,...',
                  help='construct the network with layers of N0, N1, ... units')
 FLAGS.add_option('', '--decode', type=int, default=1, metavar='N',

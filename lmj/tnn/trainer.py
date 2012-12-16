@@ -84,6 +84,7 @@ class HF(Trainer):
     Martens and Sutskever. If you don't have a copy of the module handy, this
     class will attempt to download it from github.
     '''
+
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
@@ -104,22 +105,14 @@ class HF(Trainer):
 
         c = [network.J(**kwargs)] + network.monitors
         self.f_eval = theano.function(network.inputs, c)
+        self.cg_set = kwargs.pop('cg_set')
         self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
 
-        self.cg_set = kwargs.pop('cg_set')
-
-        # copy command line arguments into a dict to send to the hf optimizer
-        kwargs['num_updates'] = sys.maxint
-        if 'epochs' in kwargs:
-            kwargs['num_updates'] = kwargs.pop('epochs')
-        kwargs['validation_frequency'] = sys.maxint
-        if 'validate' in kwargs:
-            kwargs['validation_frequency'] = kwargs.pop('validate')
-
-        # remove kwargs that are not in the train method signature.
+        # fix mapping from kwargs into a dict to send to the hf optimizer
+        kwargs['num_updates'] = kwargs.pop('epochs', sys.maxint)
+        kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
         for k in set(kwargs) - set(self.opt.train.im_func.func_code.co_varnames[1:]):
             kwargs.pop(k)
-
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None):

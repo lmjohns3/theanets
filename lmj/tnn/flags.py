@@ -20,8 +20,10 @@
 
 '''This file contains command line flags and a main method.'''
 
+import logging
 import optparse
 import sys
+import theano.tensor as TT
 
 from . import dataset
 from . import trainer
@@ -88,11 +90,11 @@ def main(Network, get_datasets):
     for k in sorted(kwargs):
         logging.info('--%s = %s', k, kwargs[k])
 
-    hidden_nonlin = T.tanh
+    hidden_nonlin = TT.tanh
     if opts.nonlinearity.lower().startswith('r'):
-        hidden_nonlin = lambda z: T.maximum(0, z)
+        hidden_nonlin = lambda z: TT.maximum(0, z)
     if opts.nonlinearity.lower().startswith('s'):
-        hidden_nonlin = T.nnet.sigmoid
+        hidden_nonlin = TT.nnet.sigmoid
     net = Network(eval(opts.layers), hidden_nonlin, opts.decode)
 
     train_, valid_, test_ = get_datasets(opts, args)

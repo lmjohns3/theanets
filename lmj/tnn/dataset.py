@@ -20,6 +20,7 @@
 
 '''This file contains a class for handling batched datasets.'''
 
+import logging
 import numpy.random as rng
 
 

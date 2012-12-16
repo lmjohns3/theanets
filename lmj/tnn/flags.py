@@ -76,7 +76,9 @@ g.add_option('', '--patience', type=int, default=10, metavar='N',
 g.add_option('', '--num-updates', type=int, default=100, metavar='N',
              help='perform at most N HF parameter updates (100)')
 g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
-             help='start CG with a lambda of K (1.)')
+             help='start the HF method with Tikhonov damping of K (1.)')
+g.add_option('', '--preconditioner', default=False, action='store_true',
+             help='precondition the system during CG')
 FLAGS.add_option_group(g)
 
 

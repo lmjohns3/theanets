@@ -33,14 +33,14 @@ FLAGS = optparse.OptionParser()
 g = optparse.OptionGroup(FLAGS, 'Architecture')
 g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
-g.add_option('-n', '--layers', default='784,100,10', metavar='N0,N1,...',
+g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ... (None)')
 g.add_option('-g', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
              help='use the given nonlinearity for hidden unit activations (sig)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
-g.add_option('-o', '--optimize', metavar='[sgd|hf|sgd+hf]',
+g.add_option('-o', '--optimize', default='sgd', metavar='[sgd|hf|sgd+hf]',
              help='train with the given optimization method (sgd)')
 g.add_option('-v', '--validate', type=int, default=3, metavar='N',
              help='validate the model every N updates (3)')

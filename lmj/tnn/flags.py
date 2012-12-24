@@ -31,84 +31,121 @@ from . import trainer
 FLAGS = optparse.OptionParser()
 
 g = optparse.OptionGroup(FLAGS, 'Architecture')
-g.add_option('', '--layers', default='784,100,10', metavar='N0,N1,...',
-             help='construct a network with layers of size N0, N1, ... (None)')
 g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
-g.add_option('', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
+g.add_option('-n', '--layers', default='784,100,10', metavar='N0,N1,...',
+             help='construct a network with layers of size N0, N1, ... (None)')
+g.add_option('-g', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
              help='use the given nonlinearity for hidden unit activations (sig)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
+g.add_option('-o', '--optimize', metavar='[sgd|hf|sgd+hf]',
+             help='train with the given optimization method (sgd)')
+g.add_option('-v', '--validate', type=int, default=3, metavar='N',
+             help='validate the model every N updates (3)')
+g.add_option('-s', '--batch-size', type=int, default=100, metavar='N',
+             help='split all data sets into batches of size N (100)')
+g.add_option('-b', '--train-batches', type=int, metavar='N',
+             help='use at most N batches during gradient computations (None)')
+g.add_option('-B', '--valid-batches', type=int, metavar='N',
+             help='use at most N batches during validation (None)')
+g.add_option('', '--test-batches', type=int, metavar='N',
+             help='use at most N batches during testing (None)')
+g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
+             help='regularize network activity with K on the L1 term (0.)')
 g.add_option('', '--weight-l1', type=float, default=0., metavar='K',
              help='regularize network weights with K on the L1 term (0.)')
 g.add_option('', '--weight-l2', type=float, default=0., metavar='K',
              help='regularize network weights with K on the L2 term (0.)')
-g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
-             help='regularize network activity with K on the L1 term (0.)')
-g.add_option('', '--optimize', metavar='[sgd|hf|sgd+hf]',
-             help='use the given optimization method (sgd)')
-g.add_option('', '--batch-size', type=int, default=100, metavar='N',
-             help='split all data sets into batches of size N (100)')
-g.add_option('', '--train-batches', type=int, metavar='N',
-             help='use at most N batches during gradient computations (None)')
-g.add_option('', '--valid-batches', type=int, metavar='N',
-             help='use at most N batches during validation (None)')
-g.add_option('', '--min-improvement', type=float, default=1e-4, metavar='N',
-             help='train until relative cost decrease is less than N (1e-4)')
-g.add_option('', '--validate', type=int, default=3, metavar='N',
-             help='validate the model every N updates (3)')
-g.add_option('', '--save-progress', metavar='FILE',
-             help='save the model periodically to FILE (None)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
-g.add_option('', '--decay', type=float, default=1., metavar='R',
+g.add_option('-d', '--decay', type=float, default=1., metavar='R',
              help='decay the learning rate by R each epoch (1.)')
-g.add_option('', '--learning-rate', type=float, default=0.1, metavar='R',
+g.add_option('-l', '--learning-rate', type=float, default=0.1, metavar='R',
              help='train the network with a learning rate of R (0.1)')
-g.add_option('', '--momentum', type=float, default=0.1, metavar='R',
+g.add_option('', '--min-improvement', type=float, default=1e-4, metavar='N',
+             help='train until relative cost decrease is less than N (1e-4)')
+g.add_option('-m', '--momentum', type=float, default=0.1, metavar='R',
              help='train the network with momentum of R (0.1)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'HF Optimization')
 g.add_option('', '--cg-batches', type=int, metavar='N',
              help='use at most N batches for CG computation (None)')
-g.add_option('', '--patience', type=int, default=10, metavar='N',
-             help='stop training if no improvement for N validations (10)')
-g.add_option('', '--num-updates', type=int, default=100, metavar='N',
-             help='perform at most N HF parameter updates (100)')
 g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
              help='start the HF method with Tikhonov damping of K (1.)')
+g.add_option('', '--num-updates', type=int, default=100, metavar='N',
+             help='perform at most N HF parameter updates (100)')
+g.add_option('', '--patience', type=int, default=10, metavar='N',
+             help='stop training if no improvement for N validations (10)')
 g.add_option('', '--preconditioner', default=False, action='store_true',
              help='precondition the system during CG')
+g.add_option('', '--save-progress', metavar='FILE',
+             help='save the model periodically to FILE (None)')
 FLAGS.add_option_group(g)
 
 
-def main(Network, get_datasets):
-    '''This main function is a generic TODO for training a neural net.'''
-    opts, args = FLAGS.parse_args()
+class Main(object):
+    '''This class sets up the infrastructure to train a net.
 
-    kwargs = eval(str(opts))
+    Two methods must be implemented by subclasses -- get_network must return the
+    Network subclass to instantiate, and get_datasets must return a tuple of
+    training, validation, and testing datasets. Subclasses have access to
+    self.opts (command line options) and self.args (command line arguments).
+    '''
 
-    logging.info('command-line options:')
-    for k in sorted(kwargs):
-        logging.info('--%s = %s', k, kwargs[k])
+    def __init__(self):
+        self.opts, self.args = FLAGS.parse_args()
 
-    hidden_nonlin = TT.tanh
-    if opts.nonlinearity.lower().startswith('r'):
-        hidden_nonlin = lambda z: TT.maximum(0, z)
-    if opts.nonlinearity.lower().startswith('s'):
-        hidden_nonlin = TT.nnet.sigmoid
-    net = Network(eval(opts.layers), hidden_nonlin, opts.decode)
+        kwargs = eval(str(self.opts))
+        logging.info('command-line options:')
+        for k in sorted(kwargs):
+            logging.info('--%s = %s', k, kwargs[k])
 
-    train_, valid_, test_ = get_datasets(opts, args)
-    train_set = Dataset('train', *train_, size=opts.batch_size)
-    valid_set = Dataset('valid', *valid_, size=opts.batch_size)
-    kwargs['test_set'] = Dataset('test', *test_, size=opts.batch_size)
-    kwargs['cg_set'] = Dataset('cg', *train_, size=opts.batch_size, batches=opts.cg_batches)
+        self.net = self.get_network()(
+            eval(self.opts.layers),
+            self.get_nonlinearity(self.opts),
+            self.opts.decode)
 
-    Trainer = {'hf': trainer.HF, 'sgd+hf': trainer.Cascaded}.get(opts.optimize, trainer.SGD)
-    Trainer(net, **kwargs).train(train_set, valid_set)
+        kw = dict(size=self.opts.batch_size)
+        train_, valid_, test_ = self.get_datasets()
 
-    return net
+        kw['batches'] = self.opts.train_batches
+        self.train_set = Dataset('train', *train_, **kw)
+
+        kw['batches'] = self.opts.valid_batches
+        self.valid_set = Dataset('valid', *valid_, **kw)
+
+        kw['batches'] = self.opts.test_batches
+        kwargs['test_set'] = Dataset('test', *test_, **kw)
+
+        kw['batches'] = self.opts.cg_batches
+        kwargs['cg_set'] = Dataset('cg', *train_, **kw)
+
+        self.trainer = self.get_trainer(self.opts)(self.net, **kwargs)
+
+    def train(self):
+        self.trainer.train(self.train_set, self.valid_set)
+        return self.net
+
+    def get_nonlinearity(self, opts):
+        if opts.nonlinearity.lower().startswith('r'):
+            return lambda z: TT.maximum(0, z)
+        if opts.nonlinearity.lower().startswith('s'):
+            return TT.nnet.sigmoid
+        return TT.tanh
+
+    def get_trainer(self, opts):
+        if opts.optimize.lower().startswith('h'):
+            return trainer.HF
+        if '+' in opts.optimize or opts.optimize.lower().startswith('c'):
+            return trainer.Cascaded
+        return trainer.SGD
+
+    def get_network(self):
+        raise NotImplementedError
+
+    def get_datasets(self):
+        raise NotImplementedError

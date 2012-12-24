@@ -9,7 +9,6 @@ import urllib
 
 import lmj.tnn
 
-
 logging.basicConfig(
     stream=sys.stdout,
     format='%(levelname).1s %(asctime)s %(message)s',
@@ -23,8 +22,11 @@ if not os.path.isfile(DATASET):
     urllib.urlretrieve(URL, DATASET)
     logging.info('saved mnist digits to %s' % DATASET)
 
-read = lambda s: cPickle.load(gzip.open(s))
+class Main(lmj.tnn.Main):
+    def get_network(self):
+        return lmj.tnn.Classifier
 
-lmj.tnn.main(
-    lmj.tnn.Classifier,
-    lambda *_: [(x, y.astype('int32')) for x, y in read(DATASET)])
+    def get_datasets(self):
+        return [(x, y.astype('int32')) for x, y in cPickle.load(gzip.open(DATASET))]
+
+Main().train().save('mnist-classifier.pkl.gz')

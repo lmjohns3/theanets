@@ -155,7 +155,9 @@ class Cascaded(Trainer):
             t = SGD(self.network, **self.kwargs)
             prev_cost, cost = cost, t.train(train_set, valid_set)
             self.kwargs['learning_rate'] *= self.decay
-        HF(self.network, **self.kwargs).train(train_set, valid_set)
+        best = HF(self.network, **self.kwargs).train(train_set, valid_set)
+        for param, b in zip(self.network.params, best):
+            param.set_value(b)
 
 
 class FORCE(Trainer):

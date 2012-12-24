@@ -27,6 +27,6 @@ read = lambda s: cPickle.load(gzip.open(s))
 
 net = lmj.tnn.main(
     lmj.tnn.Autoencoder,
-    lambda *_: [(x, y.astype('int32')) for x, y in read(DATASET)])
+    lambda *_: [(x, ) for x, _ in read(DATASET)])
 
 net.save('net.pkl.gz')

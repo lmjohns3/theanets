@@ -29,22 +29,25 @@ from .dataset import SequenceDataset as Dataset
 from . import trainer
 
 FLAGS = optparse.OptionParser()
-FLAGS.add_option('', '--layers', default='784,100,10', metavar='N0,N1,...',
-                 help='construct a network with layers of size N0, N1, ... (None)')
-FLAGS.add_option('', '--decode', type=int, default=1, metavar='N',
-                 help='decode from the final N layers of the net (1)')
-FLAGS.add_option('', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
-                 help='use the given nonlinearity for hidden unit activations (sig)')
-FLAGS.add_option('', '--param-l1', type=float, default=0., metavar='K',
-                 help='regularize network parameters with K on the L1 term (0.)')
-FLAGS.add_option('', '--param-l2', type=float, default=0., metavar='K',
-                 help='regularize network parameters with K on the L2 term (0.)')
-FLAGS.add_option('', '--activity-l1', type=float, default=0., metavar='K',
-                 help='regularize network activity with K on the L1 term (0.)')
-FLAGS.add_option('', '--optimize', metavar='[sgd|hf|sgd+hf]',
-                 help='use the given optimization method (sgd)')
+
+g = optparse.OptionGroup(FLAGS, 'Architecture')
+g.add_option('', '--layers', default='784,100,10', metavar='N0,N1,...',
+             help='construct a network with layers of size N0, N1, ... (None)')
+g.add_option('', '--decode', type=int, default=1, metavar='N',
+             help='decode from the final N layers of the net (1)')
+g.add_option('', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
+             help='use the given nonlinearity for hidden unit activations (sig)')
+FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
+g.add_option('', '--weight-l1', type=float, default=0., metavar='K',
+             help='regularize network weights with K on the L1 term (0.)')
+g.add_option('', '--weight-l2', type=float, default=0., metavar='K',
+             help='regularize network weights with K on the L2 term (0.)')
+g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
+             help='regularize network activity with K on the L1 term (0.)')
+g.add_option('', '--optimize', metavar='[sgd|hf|sgd+hf]',
+             help='use the given optimization method (sgd)')
 g.add_option('', '--batch-size', type=int, default=100, metavar='N',
              help='split all data sets into batches of size N (100)')
 g.add_option('', '--train-batches', type=int, metavar='N',

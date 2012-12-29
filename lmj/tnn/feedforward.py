@@ -37,7 +37,7 @@ class Network(object):
     '''The network class is a fairly basic fully-connected feedforward net.
     '''
 
-    def __init__(self, layers, nonlinearity=TT.nnet.sigmoid, decode=1):
+    def __init__(self, layers, activation, decode=1):
         '''Create a new feedforward network of a specific topology.
 
         layers: A sequence of integers specifying the number of units at each
@@ -45,15 +45,15 @@ class Network(object):
           units, one "hidden" layer with 20 units, and one "output" layer with 3
           units. That is, inputs should be of length 10, and outputs will be of
           length 3.
-        nonlinearity: A callable that takes one argument (a matrix) and returns
-          another matrix. This is the nonlinearity that each hidden unit in the
-          network uses.
-        decode: A twist on the architecture is that any of the hidden layers can
-          be tapped at the output. Just specify a value greater than 1 to tap
-          the last hidden N layers.
+        activation: A callable that takes one argument (a matrix) and returns
+          another matrix. This is the activation function that each hidden unit
+          in the network uses.
+        decode: Any of the hidden layers can be tapped at the output. Just
+          specify a value greater than 1 to tap the last N hidden layers.
         '''
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
+
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -65,8 +65,8 @@ class Network(object):
             arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
-            self.y = nonlinearity(TT.dot(self.hiddens[-1] if i else self.x, Wi) + bi)
-            self.hiddens.append(self.y)
+            z = activation(TT.dot(self.hiddens[-1] if i else self.x, Wi) + bi)
+            self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
 
@@ -87,7 +87,8 @@ class Network(object):
         logging.info('%d total network parameters', count)
 
         self.y = sum(TT.dot(*z) for z in zip(self.hiddens[::-1], decoders[::-1])) + bias
-        self.f = theano.function(*self.args)
+        self.forward = theano.function(*self.args)
+        self.encode = theano.function(self.inputs, self.hiddens)
 
     @property
     def inputs(self):
@@ -107,7 +108,6 @@ class Network(object):
 
     @property
     def sparsities(self):
-        #return [abs(h).mean(axis=0).sum() for h in self.hiddens]
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
     @property
@@ -115,8 +115,9 @@ class Network(object):
         return [TT.dot(h.T, h) for h in self.hiddens]
 
     def __call__(self, *inputs):
-        '''Networks can be called with inputs to yield outputs.'''
-        return self.f(*inputs)
+        '''Compute a forward pass of the given inputs, returning the net output.
+        '''
+        return self.forward(*inputs)
 
     def save(self, filename):
         '''Save the parameters of this network to disk.'''

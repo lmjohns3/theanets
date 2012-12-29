@@ -34,9 +34,13 @@ g = optparse.OptionGroup(FLAGS, 'Architecture')
 g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
 g.add_option('-n', '--layers', metavar='N0,N1,...',
-             help='construct a network with layers of size N0, N1, ... (None)')
-g.add_option('-g', '--nonlinearity', default='sigmoid', metavar='[sig|tanh|relu]',
-             help='use the given nonlinearity for hidden unit activations (sig)')
+             help='construct a network with layers of size N0, N1, ...')
+g.add_option('-g', '--activation', default='sigmoid', metavar='[sig|tanh|linear]',
+             help='use the given function for hidden unit activations (linear)')
+g.add_option('', '--scale-sigmoid', type=float, metavar='V',
+             help='scale sigmoid activations to the range [-V, V]')
+g.add_option('-r', '--rectify', action='store_true',
+             help='rectify (clip at 0) hidden unit activations')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
@@ -47,11 +51,11 @@ g.add_option('-v', '--validate', type=int, default=3, metavar='N',
 g.add_option('-s', '--batch-size', type=int, default=100, metavar='N',
              help='split all data sets into batches of size N (100)')
 g.add_option('-b', '--train-batches', type=int, metavar='N',
-             help='use at most N batches during gradient computations (None)')
+             help='use at most N batches during gradient computations')
 g.add_option('-B', '--valid-batches', type=int, metavar='N',
-             help='use at most N batches during validation (None)')
+             help='use at most N batches during validation')
 g.add_option('', '--test-batches', type=int, metavar='N',
-             help='use at most N batches during testing (None)')
+             help='use at most N batches during testing')
 g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
              help='regularize network activity with K on the L1 term (0.)')
 g.add_option('', '--weight-l1', type=float, default=0., metavar='K',
@@ -73,17 +77,17 @@ FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'HF Optimization')
 g.add_option('', '--cg-batches', type=int, metavar='N',
-             help='use at most N batches for CG computation (None)')
+             help='use at most N batches for CG computation')
 g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
              help='start the HF method with Tikhonov damping of K (1.)')
 g.add_option('', '--num-updates', type=int, default=100, metavar='N',
              help='perform at most N HF parameter updates (100)')
 g.add_option('', '--patience', type=int, default=10, metavar='N',
              help='stop training if no improvement for N validations (10)')
-g.add_option('', '--preconditioner', default=False, action='store_true',
+g.add_option('', '--preconditioner', action='store_true',
              help='precondition the system during CG')
 g.add_option('', '--save-progress', metavar='FILE',
-             help='save the model periodically to FILE (None)')
+             help='save the model periodically to FILE')
 FLAGS.add_option_group(g)
 
 
@@ -106,7 +110,7 @@ class Main(object):
 
         self.net = self.get_network()(
             eval(self.opts.layers),
-            self.get_nonlinearity(self.opts),
+            self.get_activation(self.opts),
             self.opts.decode)
 
         kw = dict(size=self.opts.batch_size)
@@ -130,19 +134,26 @@ class Main(object):
         self.trainer.train(self.train_set, self.valid_set)
         return self.net
 
-    def get_nonlinearity(self, opts):
-        if opts.nonlinearity.lower().startswith('r'):
-            return lambda z: TT.maximum(0, z)
-        if opts.nonlinearity.lower().startswith('s'):
-            return TT.nnet.sigmoid
-        return TT.tanh
+    def get_activation(self, opts):
+        f = lambda z: z
+        if opts.activation.lower().startswith('t'):
+            f = TT.tanh
+        if opts.activation.lower().startswith('s'):
+            if opts.scale_sigmoid:
+                f = lambda z: opts.scale_sigmoid * 2 * (TT.nnet.sigmoid(z) - 0.5)
+            else:
+                f = TT.nnet.sigmoid
+        if opts.rectify:
+            return lambda z: TT.maximum(0, f(z))
+        return f
 
     def get_trainer(self, opts):
+        t = trainer.SGD
         if opts.optimize.lower().startswith('h'):
-            return trainer.HF
+            t = trainer.HF
         if '+' in opts.optimize or opts.optimize.lower().startswith('c'):
-            return trainer.Cascaded
-        return trainer.SGD
+            t = trainer.Cascaded
+        return t
 
     def get_network(self):
         raise NotImplementedError

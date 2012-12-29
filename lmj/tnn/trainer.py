@@ -97,6 +97,8 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
+        self.network = network
+
         try:
             import hf
         except:

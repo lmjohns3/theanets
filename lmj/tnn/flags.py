@@ -35,33 +35,37 @@ g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
 g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ...')
-g.add_option('-g', '--activation', default='sigmoid', metavar='[sig|tanh|linear]',
-             help='use the given function for hidden unit activations (linear)')
-g.add_option('', '--scale-sigmoid', type=float, metavar='V',
-             help='scale sigmoid activations to the range [-V, V]')
-g.add_option('-r', '--rectify', action='store_true',
-             help='rectify (clip at 0) hidden unit activations')
+g.add_option('-g', '--activation', default='', metavar='[linear|relu|tanh]',
+             help='use g(z) for hidden unit activations (logistic)')
+g.add_option('-z', '--normalize', default='', metavar='[max]',
+             help='normalize hidden unit activations')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
-g.add_option('-o', '--optimize', default='sgd', metavar='[sgd|hf|sgd+hf]',
+g.add_option('-O', '--optimize', default='sgd', metavar='[hf|sgd+hf]',
              help='train with the given optimization method (sgd)')
 g.add_option('-v', '--validate', type=int, default=3, metavar='N',
              help='validate the model every N updates (3)')
 g.add_option('-s', '--batch-size', type=int, default=100, metavar='N',
              help='split all data sets into batches of size N (100)')
-g.add_option('-b', '--train-batches', type=int, metavar='N',
+g.add_option('-B', '--train-batches', type=int, metavar='N',
              help='use at most N batches during gradient computations')
-g.add_option('-B', '--valid-batches', type=int, metavar='N',
+g.add_option('-V', '--valid-batches', type=int, metavar='N',
              help='use at most N batches during validation')
 g.add_option('', '--test-batches', type=int, metavar='N',
              help='use at most N batches during testing')
 g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
-             help='regularize network activity with K on the L1 term (0.)')
+             help='regularize hidden activity with K on the L1 term (0.)')
+g.add_option('', '--activity-l2', type=float, default=0., metavar='K',
+             help='regularize hidden activity with K on the L2 term (0.)')
 g.add_option('', '--weight-l1', type=float, default=0., metavar='K',
              help='regularize network weights with K on the L1 term (0.)')
 g.add_option('', '--weight-l2', type=float, default=0., metavar='K',
              help='regularize network weights with K on the L2 term (0.)')
+g.add_option('', '--num-updates', type=int, default=100, metavar='N',
+             help='perform at most N parameter updates (100)')
+g.add_option('', '--patience', type=int, default=10, metavar='N',
+             help='stop training if no improvement for N updates (10)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
@@ -69,8 +73,8 @@ g.add_option('-d', '--decay', type=float, default=1., metavar='R',
              help='decay the learning rate by R each epoch (1.)')
 g.add_option('-l', '--learning-rate', type=float, default=0.1, metavar='R',
              help='train the network with a learning rate of R (0.1)')
-g.add_option('', '--min-improvement', type=float, default=1e-4, metavar='N',
-             help='train until relative cost decrease is less than N (1e-4)')
+g.add_option('', '--min-improvement', type=float, default=0., metavar='N',
+             help='train until relative cost decrease is less than N (0.)')
 g.add_option('-m', '--momentum', type=float, default=0.1, metavar='R',
              help='train the network with momentum of R (0.1)')
 FLAGS.add_option_group(g)
@@ -80,10 +84,6 @@ g.add_option('', '--cg-batches', type=int, metavar='N',
              help='use at most N batches for CG computation')
 g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
              help='start the HF method with Tikhonov damping of K (1.)')
-g.add_option('', '--num-updates', type=int, default=100, metavar='N',
-             help='perform at most N HF parameter updates (100)')
-g.add_option('', '--patience', type=int, default=10, metavar='N',
-             help='stop training if no improvement for N validations (10)')
 g.add_option('', '--preconditioner', action='store_true',
              help='precondition the system during CG')
 g.add_option('', '--save-progress', metavar='FILE',
@@ -135,16 +135,19 @@ class Main(object):
         return self.net
 
     def get_activation(self, opts):
-        f = lambda z: z
+        g = TT.nnet.sigmoid
         if opts.activation.lower().startswith('t'):
-            f = TT.tanh
-        if opts.activation.lower().startswith('s'):
-            if opts.scale_sigmoid:
-                f = lambda z: opts.scale_sigmoid * 2 * (TT.nnet.sigmoid(z) - 0.5)
-            else:
-                f = TT.nnet.sigmoid
-        if opts.rectify:
-            return lambda z: TT.maximum(0, f(z))
+            g = TT.tanh
+        if opts.activation.lower().startswith('l'):
+            g = lambda z: z
+        if opts.activation.lower().startswith('r'):
+            g = lambda z: TT.maximum(0, z)
+
+        f = g
+        if opts.normalize.lower().startswith('m'):
+            n = lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None])
+            f = lambda z: n(g(z))
+
         return f
 
     def get_trainer(self, opts):

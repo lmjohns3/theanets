@@ -41,8 +41,11 @@ class SGD(Trainer):
     '''Stochastic gradient descent network trainer.'''
 
     def __init__(self, network, **kwargs):
+        self.network = network
         self.validation_frequency = kwargs.get('validate', 3)
         self.min_improvement = kwargs.get('min_improvement', 1e-4)
+        self.iterations = kwargs.get('num_updates', 1e100)
+        self.patience = kwargs.get('patience', 1e100)
 
         decay = kwargs.get('decay', 1.)
         m = kwargs.get('momentum', 0.)
@@ -67,23 +70,31 @@ class SGD(Trainer):
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
 
     def train(self, train_set, valid_set=None):
-        prev_cost = 1e101
-        cost = 1e100
-        iter = 0
-        while (prev_cost - cost) / prev_cost > self.min_improvement:
-            iter += 1
+        best_cost = 1e100
+        best_iter = 0
+        best_params = [p.get_value().copy() for p in self.network.params]
+        for i in xrange(self.iterations):
+            if i - best_iter > self.patience:
+                logging.error('patience elapsed, bailing out')
+                break
             fmt = 'epoch %i[%.2g]: train %s'
-            args = (iter,
+            args = (i + 1,
                     self.f_rate()[0],
-                    numpy.mean([self.f_train(*i) for i in train_set], axis=0),
+                    numpy.mean([self.f_train(*x) for x in train_set], axis=0),
                     )
-            if iter % self.validation_frequency == 0:
-                metrics = numpy.mean([self.f_eval(*i) for i in valid_set], axis=0)
+            if i % self.validation_frequency == 0:
+                metrics = numpy.mean([self.f_eval(*x) for x in valid_set], axis=0)
                 fmt += ' valid %s'
                 args += (metrics, )
-                prev_cost, cost = cost, metrics[0]
+                if (best_cost - metrics[0]) / best_cost > self.min_improvement:
+                    best_cost = metrics[0]
+                    best_iter = i
+                    best_params = [p.get_value().copy() for p in self.network.params]
+                    fmt += ' * BEST'
             logging.info(fmt, *args)
-        return cost
+        for param, b in zip(self.network.params, best_params):
+            param.set_value(b)
+        return best_cost
 
 
 class HF(Trainer):

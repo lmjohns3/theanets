@@ -37,6 +37,8 @@ g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ...')
 g.add_option('-g', '--activation', default='', metavar='[linear|relu|tanh]',
              help='use g(z) for hidden unit activations (logistic)')
+g.add_option('-t', '--tied-weights', action='store_true',
+             help='tie decoding weights to encoding weights')
 g.add_option('-z', '--normalize', default='', metavar='[max]',
              help='normalize hidden unit activations')
 FLAGS.add_option_group(g)
@@ -109,9 +111,10 @@ class Main(object):
             logging.info('--%s = %s', k, kwargs[k])
 
         self.net = self.get_network()(
-            eval(self.opts.layers),
-            self.get_activation(self.opts),
-            self.opts.decode)
+            layers=eval(self.opts.layers),
+            activation=self.get_activation(self.opts),
+            decode=self.opts.decode,
+            tied_weights=self.opts.tied_weights)
 
         kw = dict(size=self.opts.batch_size)
         train_, valid_, test_ = self.get_datasets()

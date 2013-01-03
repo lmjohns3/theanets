@@ -37,7 +37,7 @@ class Network(object):
     '''The network class is a fairly basic fully-connected feedforward net.
     '''
 
-    def __init__(self, layers, activation, decode=1):
+    def __init__(self, layers, activation, decode=1, tied_weights=False):
         '''Create a new feedforward network of a specific topology.
 
         layers: A sequence of integers specifying the number of units at each
@@ -50,6 +50,9 @@ class Network(object):
           in the network uses.
         decode: Any of the hidden layers can be tapped at the output. Just
           specify a value greater than 1 to tap the last N hidden layers.
+        tied_weights: Construct decoding weights using the transpose of the
+          encoding weights on corresponding layers. If not true, decoding
+          weights will be constructed using a separate weight matrix.
         '''
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
@@ -75,13 +78,17 @@ class Network(object):
         for i, W in enumerate(reversed(self.weights[-decode:])):
             i = len(self.weights) - i
             b = W.get_value(borrow=True).shape[1]
-            count += b * k
             logging.info('decoding weights from layer %d: %s x %s', i, b, k)
-            arr = rng.normal(size=(b, k)) / numpy.sqrt(b + k)
-            decoders.append(theano.shared(arr.astype(FLOAT), name='decode_%d' % i))
+            if tied_weights:
+                decoders.append(W.T)
+            else:
+                count += b * k
+                arr = rng.normal(size=(b, k)) / numpy.sqrt(b + k)
+                decoders.append(theano.shared(arr.astype(FLOAT), name='decode_%d' % i))
+        if not tied_weights:
+            self.weights.extend(decoders)
         count += k
         bias = theano.shared(numpy.zeros((k, ), FLOAT), name='b_out')
-        self.weights.extend(decoders)
         self.biases.append(bias)
 
         logging.info('%d total network parameters', count)

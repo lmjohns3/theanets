@@ -135,15 +135,17 @@ class Network(object):
         handle.close()
         logging.info('%s: loaded model parameters', filename)
 
-    def J(self, weight_l1=None, weight_l2=None, activity_l1=None, **unused):
+    def J(self, weight_l1=None, weight_l2=None, activity_l1=None, activity_l2=None, **unused):
         '''Return a cost function for this network.'''
         cost = self.cost
         if weight_l1 > 0:
-            cost += weight_l1 * sum(abs(i).mean(axis=0).sum() for i in self.weights)
+            cost += weight_l1 * sum(abs(w).sum() for w in self.weights)
         if weight_l2 > 0:
-            cost += weight_l2 * sum(abs(i * i).mean(axis=0).sum() for i in self.weights)
+            cost += weight_l2 * sum((w * w).sum() for w in self.weights)
         if activity_l1 > 0:
             cost += activity_l1 * sum(abs(h).mean(axis=0).sum() for h in self.hiddens)
+        if activity_l2 > 0:
+            cost += activity_l2 * sum((h * h).mean(axis=0).sum() for h in self.hiddens)
         return cost
 
 

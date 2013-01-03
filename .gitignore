@@ -1,4 +1,7 @@
+# Downloaded files for examples
+mnist.pkl.gz
 hf.py
+
 *.py[cod]
 
 # C extensions

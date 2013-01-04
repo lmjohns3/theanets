@@ -29,12 +29,15 @@ import numpy.random as rng
 import theano
 import theano.tensor as TT
 
-
 FLOAT = theano.config.floatX
 
 
 class Network(object):
-    '''The network class is a fairly basic fully-connected feedforward net.
+    '''The network class is a fully-connected feedforward net.
+
+    This class permits "decoding" (computing final network output) from
+    more than just the final hidden layer of units ; however, decoding must
+    always include the final k hidden layers in the network.
     '''
 
     def __init__(self, layers, activation, decode=1, tied_weights=False):
@@ -68,7 +71,8 @@ class Network(object):
             arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
-            z = activation(TT.dot(self.hiddens[-1] if i else self.x, Wi) + bi)
+            x = self.x if i == 0 else self.hiddens[-1]
+            z = activation(TT.dot(x, Wi) + bi)
             self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
@@ -94,16 +98,11 @@ class Network(object):
         logging.info('%d total network parameters', count)
 
         self.y = sum(TT.dot(*z) for z in zip(self.hiddens[::-1], decoders[::-1])) + bias
-        self.forward = theano.function(*self.args)
-        self.encode = theano.function(self.inputs, self.hiddens)
+        self.f = theano.function([self.x], self.hiddens + [self.y])
 
     @property
     def inputs(self):
         return [self.x]
-
-    @property
-    def args(self):
-        return [self.x], [self.y]
 
     @property
     def monitors(self):
@@ -117,14 +116,10 @@ class Network(object):
     def sparsities(self):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
-    @property
-    def covariances(self):
-        return [TT.dot(h.T, h) for h in self.hiddens]
-
-    def __call__(self, *inputs):
+    def __call__(self, x):
         '''Compute a forward pass of the given inputs, returning the net output.
         '''
-        return self.forward(*inputs)
+        return self.f(x)
 
     def save(self, filename):
         '''Save the parameters of this network to disk.'''
@@ -169,8 +164,8 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def __init__(self, *args, **kwargs):
-        super(Regressor, self).__init__(*args, **kwargs)
         self.k = TT.matrix('k')
+        super(Regressor, self).__init__(*args, **kwargs)
 
     @property
     def inputs(self):
@@ -178,7 +173,7 @@ class Regressor(Network):
 
     @property
     def cost(self):
-        err = self.k - self.y
+        err = self.y - self.k
         return TT.mean((err * err).sum(axis=1))
 
 
@@ -186,9 +181,9 @@ class Classifier(Network):
     '''A classifier attempts to match a 1-hot target output.'''
 
     def __init__(self, *args, **kwargs):
+        self.k = TT.ivector('k')
         super(Classifier, self).__init__(*args, **kwargs)
         self.y = self.softmax(self.y)
-        self.k = TT.ivector('k')
 
     @staticmethod
     def softmax(x):

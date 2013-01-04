@@ -22,6 +22,7 @@
 
 import logging
 import numpy
+import tempfile
 import theano
 import theano.tensor as TT
 import sys
@@ -110,13 +111,14 @@ class HF(Trainer):
     def __init__(self, network, **kwargs):
         self.network = network
 
+        sys.path.append(tempfile.gettempdir())
         try:
             import hf
         except:
             # if hf failed to import, try downloading it and saving it locally.
             import os, urllib
             logging.error('hf import failed, attempting to download %s', HF.URL)
-            path = os.path.join(os.getcwd(), 'hf.py')
+            path = os.path.join(tempfile.gettempdir(), 'hf.py')
             urllib.urlretrieve(HF.URL, path)
             logging.error('downloaded hf code to %s', path)
             del os

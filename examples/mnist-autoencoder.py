@@ -5,6 +5,7 @@ import gzip
 import logging
 import os
 import sys
+import tempfile
 import urllib
 
 import lmj.tnn
@@ -15,7 +16,7 @@ logging.basicConfig(
     level=logging.INFO)
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
-DATASET = 'mnist.pkl.gz'
+DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')
 
 if not os.path.isfile(DATASET):
     logging.info('downloading mnist digit dataset from %s' % URL)
@@ -29,4 +30,6 @@ class Main(lmj.tnn.Main):
     def get_datasets(self):
         return [(x, ) for x, _ in cPickle.load(gzip.open(DATASET))]
 
-Main().train().save('mnist-autoencoder.pkl.gz')
+path = os.path.join(tempfile.gettempdir(), 'mnist-autoencoder.pkl.gz')
+Main().train().save(path)
+print 'saved network to', path

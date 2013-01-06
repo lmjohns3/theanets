@@ -25,9 +25,9 @@ import cPickle
 import gzip
 import logging
 import numpy
-import numpy.random as rng
 import theano
 import theano.tensor as TT
+from theano.tensor.shared_randomstreams import RandomStreams
 
 FLOAT = theano.config.floatX
 
@@ -35,12 +35,16 @@ FLOAT = theano.config.floatX
 class Network(object):
     '''The network class is a fully-connected feedforward net.
 
-    This class permits "decoding" (computing final network output) from
+    It can add random noise to the inputs, or to the hidden unit activations.
+    Adding noise to these quantities can be seen as a form of regularization.
+
+    This class also permits "decoding" (computing final network output) from
     more than just the final hidden layer of units ; however, decoding must
     always include the final k hidden layers in the network.
     '''
 
-    def __init__(self, layers, activation, decode=1, tied_weights=False):
+    def __init__(self, layers, activation, decode=1, tied_weights=False,
+                 rng=None, input_noise=0, hidden_noise=0):
         '''Create a new feedforward network of a specific topology.
 
         layers: A sequence of integers specifying the number of units at each
@@ -56,6 +60,11 @@ class Network(object):
         tied_weights: Construct decoding weights using the transpose of the
           encoding weights on corresponding layers. If not true, decoding
           weights will be constructed using a separate weight matrix.
+        rng: Use a specific Theano random number generator. A new one will be
+          created if this is None.
+        input_noise: Standard deviation of desired noise to inject into input.
+        hidden_noise: Standard deviation of desired noise to inject into
+          hidden unit activation output.
         '''
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
@@ -64,15 +73,21 @@ class Network(object):
         self.weights = []
         self.biases = []
 
+        rng = rng or RandomStreams()
+
         count = 0
         for i, (a, b) in enumerate(zip(layers[:-2], layers[1:-1])):
             count += (1 + a) * b
             logging.info('encoding weights for layer %d: %s x %s', i + 1, a, b)
-            arr = rng.normal(size=(a, b)) / numpy.sqrt(a + b)
+            arr = numpy.random.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
             x = self.x if i == 0 else self.hiddens[-1]
+            if input_noise > 0 and i == 0:
+                x += rng.normal(size=x.shape, std=input_noise)
             z = activation(TT.dot(x, Wi) + bi)
+            if hidden_noise > 0:
+                z += rng.normal(size=z.shape, std=hidden_noise)
             self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
@@ -87,7 +102,7 @@ class Network(object):
                 decoders.append(W.T)
             else:
                 count += b * k
-                arr = rng.normal(size=(b, k)) / numpy.sqrt(b + k)
+                arr = numpy.random.normal(size=(b, k)) / numpy.sqrt(b + k)
                 decoders.append(theano.shared(arr.astype(FLOAT), name='decode_%d' % i))
         if not tied_weights:
             self.weights.extend(decoders)
@@ -125,15 +140,22 @@ class Network(object):
         '''Save the parameters of this network to disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
-        cPickle.dump([param.get_value().copy() for param in self.params], handle, -1)
+        cPickle.dump(
+            dict(weights=[p.get_value().copy() for p in self.weights],
+                 biases=[p.get_value().copy() for p in self.biases]),
+            handle, -1)
         handle.close()
+        logging.info('%s: saved model parameters', filename)
 
     def load(self, filename):
         '''Load the parameters for this network from disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
-        for param, s in zip(self.params, cPickle.load(handle)):
-            param.set_value(s)
+        params = cPickle.load(handle)
+        for target, source in zip(self.weights, params['weights']):
+            target.set_value(source)
+        for target, source in zip(self.biases, params['biases']):
+            target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)
 

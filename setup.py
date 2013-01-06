@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name='lmj.tnn',
-    version='0.2.1',
+    version='0.3.0',
     namespace_packages=['lmj'],
     packages=setuptools.find_packages(),
     author='Leif Johnson',

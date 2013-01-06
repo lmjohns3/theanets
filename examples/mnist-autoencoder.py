@@ -28,7 +28,7 @@ class Main(lmj.tnn.Main):
         return lmj.tnn.Autoencoder
 
     def get_datasets(self):
-        return [(x, ) for x, _ in cPickle.load(gzip.open(DATASET))]
+        return [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
 path = os.path.join(tempfile.gettempdir(), 'mnist-autoencoder.pkl.gz')
 Main().train().save(path)

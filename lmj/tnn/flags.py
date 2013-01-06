@@ -41,6 +41,10 @@ g.add_option('-t', '--tied-weights', action='store_true',
              help='tie decoding weights to encoding weights')
 g.add_option('-z', '--normalize', default='', metavar='[max]',
              help='normalize hidden unit activations')
+g.add_option('', '--input-noise', type=float, default=0, metavar='S',
+             help='add noise to network inputs drawn from N(0, S) (0)')
+g.add_option('', '--hidden-noise', type=float, default=0, metavar='S',
+             help='add noise to hidden activations drawn from N(0, S) (0)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
@@ -48,35 +52,33 @@ g.add_option('-O', '--optimize', default='sgd', metavar='[hf|sgd+hf]',
              help='train with the given optimization method (sgd)')
 g.add_option('-v', '--validate', type=int, default=3, metavar='N',
              help='validate the model every N updates (3)')
-g.add_option('-s', '--batch-size', type=int, default=100, metavar='N',
-             help='split all data sets into batches of size N (100)')
+g.add_option('-s', '--batch-size', type=int, default=64, metavar='N',
+             help='split all data sets into batches of size N (64)')
 g.add_option('-B', '--train-batches', type=int, metavar='N',
              help='use at most N batches during gradient computations')
 g.add_option('-V', '--valid-batches', type=int, metavar='N',
              help='use at most N batches during validation')
-g.add_option('', '--test-batches', type=int, metavar='N',
-             help='use at most N batches during testing')
-g.add_option('', '--activity-l1', type=float, default=0., metavar='K',
-             help='regularize hidden activity with K on the L1 term (0.)')
-g.add_option('', '--activity-l2', type=float, default=0., metavar='K',
-             help='regularize hidden activity with K on the L2 term (0.)')
-g.add_option('', '--weight-l1', type=float, default=0., metavar='K',
-             help='regularize network weights with K on the L1 term (0.)')
-g.add_option('', '--weight-l2', type=float, default=0., metavar='K',
-             help='regularize network weights with K on the L2 term (0.)')
-g.add_option('', '--num-updates', type=int, default=100, metavar='N',
-             help='perform at most N parameter updates (100)')
-g.add_option('', '--patience', type=int, default=10, metavar='N',
-             help='stop training if no improvement for N updates (10)')
+g.add_option('', '--hidden-l1', type=float, metavar='K',
+             help='regularize hidden activity with K on the L1 term')
+g.add_option('', '--hidden-l2', type=float, metavar='K',
+             help='regularize hidden activity with K on the L2 term')
+g.add_option('', '--weight-l1', type=float, metavar='K',
+             help='regularize network weights with K on the L1 term')
+g.add_option('', '--weight-l2', type=float, metavar='K',
+             help='regularize network weights with K on the L2 term')
+g.add_option('', '--num-updates', type=int, default=128, metavar='N',
+             help='perform at most N parameter updates (128)')
+g.add_option('', '--patience', type=int, default=16, metavar='N',
+             help='stop training if no improvement for N updates (16)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
-g.add_option('-d', '--decay', type=float, default=1., metavar='R',
-             help='decay the learning rate by R each epoch (1.)')
+g.add_option('-d', '--decay', type=float, default=0.99, metavar='R',
+             help='decay the learning rate by R each epoch (0.99)')
 g.add_option('-l', '--learning-rate', type=float, default=0.1, metavar='R',
              help='train the network with a learning rate of R (0.1)')
-g.add_option('', '--min-improvement', type=float, default=0., metavar='N',
-             help='train until relative cost decrease is less than N (0.)')
+g.add_option('', '--min-improvement', type=float, default=0, metavar='N',
+             help='train until relative cost decrease is less than N (0)')
 g.add_option('-m', '--momentum', type=float, default=0.1, metavar='R',
              help='train the network with momentum of R (0.1)')
 FLAGS.add_option_group(g)
@@ -98,8 +100,8 @@ class Main(object):
 
     Two methods must be implemented by subclasses -- get_network must return the
     Network subclass to instantiate, and get_datasets must return a tuple of
-    training, validation, and testing datasets. Subclasses have access to
-    self.opts (command line options) and self.args (command line arguments).
+    training and validation datasets. Subclasses have access to self.opts
+    (command line options) and self.args (command line arguments).
     '''
 
     def __init__(self):
@@ -114,19 +116,23 @@ class Main(object):
             layers=eval(self.opts.layers),
             activation=self.get_activation(self.opts),
             decode=self.opts.decode,
-            tied_weights=self.opts.tied_weights)
+            tied_weights=self.opts.tied_weights,
+            input_noise=self.opts.input_noise,
+            hidden_noise=self.opts.hidden_noise,
+            )
 
         kw = dict(size=self.opts.batch_size)
-        train_, valid_, test_ = self.get_datasets()
+        train_, valid_ = tuple(self.get_datasets())[:2]
+        if not isinstance(train_, (tuple, list)):
+            train_ = (train_, )
+        if not isinstance(valid_, (tuple, list)):
+            valid_ = (valid_, )
 
         kw['batches'] = self.opts.train_batches
         self.train_set = Dataset('train', *train_, **kw)
 
         kw['batches'] = self.opts.valid_batches
         self.valid_set = Dataset('valid', *valid_, **kw)
-
-        kw['batches'] = self.opts.test_batches
-        kwargs['test_set'] = Dataset('test', *test_, **kw)
 
         kw['batches'] = self.opts.cg_batches
         kwargs['cg_set'] = Dataset('cg', *train_, **kw)

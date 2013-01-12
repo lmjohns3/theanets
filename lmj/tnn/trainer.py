@@ -78,20 +78,24 @@ class SGD(Trainer):
             if i - best_iter > self.patience:
                 logging.error('patience elapsed, bailing out')
                 break
-            fmt = 'epoch %i[%.2g]: train %s'
-            args = (i + 1,
-                    self.f_rate()[0],
-                    numpy.mean([self.f_train(*x) for x in train_set], axis=0),
-                    )
-            if i % self.validation_frequency == 0:
-                metrics = numpy.mean([self.f_eval(*x) for x in valid_set], axis=0)
-                fmt += ' valid %s'
-                args += (metrics, )
-                if (best_cost - metrics[0]) / best_cost > self.min_improvement:
-                    best_cost = metrics[0]
-                    best_iter = i
-                    best_params = [p.get_value().copy() for p in self.network.params]
-                    fmt += ' * BEST'
+            try:
+                fmt = 'epoch %i[%.2g]: train %s'
+                args = (i + 1,
+                        self.f_rate()[0],
+                        numpy.mean([self.f_train(*x) for x in train_set], axis=0),
+                        )
+                if i % self.validation_frequency == 0:
+                    metrics = numpy.mean([self.f_eval(*x) for x in valid_set], axis=0)
+                    fmt += ' valid %s'
+                    args += (metrics, )
+                    if (best_cost - metrics[0]) / best_cost > self.min_improvement:
+                        best_cost = metrics[0]
+                        best_iter = i
+                        best_params = [p.get_value().copy() for p in self.network.params]
+                        fmt += ' * BEST'
+            except KeyboardInterrupt:
+                logging.info('interrupted !')
+                break
             logging.info(fmt, *args)
         for param, b in zip(self.network.params, best_params):
             param.set_value(b)

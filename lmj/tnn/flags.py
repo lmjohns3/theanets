@@ -35,7 +35,7 @@ g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
 g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ...')
-g.add_option('-g', '--activation', default='', metavar='[linear|relu|tanh]',
+g.add_option('-g', '--activation', default='', metavar='[linear|relu|tanh|retanh]',
              help='use g(z) for hidden unit activations (logistic)')
 g.add_option('-t', '--tied-weights', action='store_true',
              help='tie decoding weights to encoding weights')
@@ -114,7 +114,7 @@ class Main(object):
 
         self.net = self.get_network()(
             layers=eval(self.opts.layers),
-            activation=self.get_activation(self.opts),
+            activation=self.get_activation(),
             decode=self.opts.decode,
             tied_weights=self.opts.tied_weights,
             input_noise=self.opts.input_noise,
@@ -137,33 +137,36 @@ class Main(object):
         kw['batches'] = self.opts.cg_batches
         kwargs['cg_set'] = Dataset('cg', *train_, **kw)
 
-        self.trainer = self.get_trainer(self.opts)(self.net, **kwargs)
+        self.trainer = self.get_trainer()(self.net, **kwargs)
 
     def train(self):
         self.trainer.train(self.train_set, self.valid_set)
         return self.net
 
-    def get_activation(self, opts):
+    def get_activation(self):
         g = TT.nnet.sigmoid
-        if opts.activation.lower().startswith('t'):
+        if self.opts.activation.lower() == 'tanh':
             g = TT.tanh
-        if opts.activation.lower().startswith('l'):
+        if self.opts.activation.lower() == 'linear':
             g = lambda z: z
-        if opts.activation.lower().startswith('r'):
+        if self.opts.activation.lower() == 'relu':
             g = lambda z: TT.maximum(0, z)
+        if self.opts.activation.lower() == 'retanh':
+            g = lambda z: TT.maximum(0, TT.tanh(z))
 
         f = g
-        if opts.normalize.lower().startswith('m'):
+        if self.opts.normalize.lower().startswith('m'):
             n = lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None])
             f = lambda z: n(g(z))
 
         return f
 
-    def get_trainer(self, opts):
+    def get_trainer(self):
         t = trainer.SGD
-        if opts.optimize.lower().startswith('h'):
+        O = (self.opts.optimize or '').lower()
+        if O.startswith('h'):
             t = trainer.HF
-        if '+' in opts.optimize or opts.optimize.lower().startswith('c'):
+        if '+' in O or O.startswith('c'):
             t = trainer.Cascaded
         return t
 

@@ -30,6 +30,9 @@ class Main(lmj.tnn.Main):
     def get_datasets(self):
         return [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
-path = os.path.join(tempfile.gettempdir(), 'mnist-autoencoder.pkl.gz')
-Main().train().save(path)
-print 'saved network to', path
+m = Main()
+path = os.path.join(tempfile.gettempdir(), 'mnist-autoencoder-%s.pkl.gz' % m.opts.layers)
+if os.path.exists(path):
+    m.net.load(path)
+m.train()
+m.net.save(path)

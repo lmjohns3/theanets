@@ -20,8 +20,10 @@
 
 '''This file contains optimization methods for neural networks.'''
 
+import itertools
 import logging
-import numpy
+import numpy as np
+import numpy.random as rng
 import tempfile
 import theano
 import theano.tensor as TT
@@ -29,13 +31,41 @@ import sys
 
 
 class Trainer(object):
-    '''This is an abstract base class for all trainers.'''
+    '''This is a base class for all trainers.'''
 
     def train(self, train_set, valid_set=None):
-        raise NotImplementedError
+        '''By default, we train in iterations and evaluate periodically.'''
+        best_cost = 1e100
+        best_iter = 0
+        best_params = [p.get_value().copy() for p in self.network.params]
+        for i in xrange(self.iterations):
+            if i - best_iter > self.patience:
+                logging.error('patience elapsed, bailing out')
+                break
+            try:
+                fmt = 'epoch %i[%.2g]: train %s'
+                args = (i + 1,
+                        self.learning_rate,
+                        np.mean([self.f_train(*x) for x in train_set], axis=0),
+                        )
+                if (i + 1) % self.validation_frequency == 0:
+                    metrics = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+                    fmt += ' valid %s'
+                    args += (metrics, )
+                    if (best_cost - metrics[0]) / best_cost > self.min_improvement:
+                        best_cost = metrics[0]
+                        best_iter = i
+                        best_params = [p.get_value().copy() for p in self.network.params]
+                        fmt += ' *'
+            except KeyboardInterrupt:
+                logging.info('interrupted !')
+                break
+            logging.info(fmt, *args)
+        for param, b in zip(self.network.params, best_params):
+            param.set_value(b)
 
     def evaluate(self, test_set):
-        return numpy.mean([self.f_eval(*i) for i in test_set], axis=0)
+        return np.mean([self.f_eval(*i) for i in test_set], axis=0)
 
 
 class SGD(Trainer):
@@ -53,12 +83,12 @@ class SGD(Trainer):
         lr = kwargs.get('learning_rate', 0.1)
 
         J = network.J(**kwargs)
-        t = theano.shared(numpy.cast['float32'](0), name='t')
+        t = theano.shared(np.cast['float32'](0), name='t')
         updates = {t: t + 1}
         for param in network.params:
             grad = TT.grad(J, param)
             heading = theano.shared(
-                numpy.zeros_like(param.get_value(borrow=True)),
+                np.zeros_like(param.get_value(borrow=True)),
                 name='g_%s' % param.name)
             updates[param] = param + heading
             updates[heading] = m * heading - lr * (decay ** t) * grad
@@ -70,36 +100,9 @@ class SGD(Trainer):
         #theano.printing.pydotprint(
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
 
-    def train(self, train_set, valid_set=None):
-        best_cost = 1e100
-        best_iter = 0
-        best_params = [p.get_value().copy() for p in self.network.params]
-        for i in xrange(self.iterations):
-            if i - best_iter > self.patience:
-                logging.error('patience elapsed, bailing out')
-                break
-            try:
-                fmt = 'epoch %i[%.2g]: train %s'
-                args = (i + 1,
-                        self.f_rate()[0],
-                        numpy.mean([self.f_train(*x) for x in train_set], axis=0),
-                        )
-                if i % self.validation_frequency == 0:
-                    metrics = numpy.mean([self.f_eval(*x) for x in valid_set], axis=0)
-                    fmt += ' valid %s'
-                    args += (metrics, )
-                    if (best_cost - metrics[0]) / best_cost > self.min_improvement:
-                        best_cost = metrics[0]
-                        best_iter = i
-                        best_params = [p.get_value().copy() for p in self.network.params]
-                        fmt += ' * BEST'
-            except KeyboardInterrupt:
-                logging.info('interrupted !')
-                break
-            logging.info(fmt, *args)
-        for param, b in zip(self.network.params, best_params):
-            param.set_value(b)
-        return best_cost
+    @property
+    def learning_rate(self):
+        return self.f_rate()[0]
 
 
 class HF(Trainer):
@@ -148,65 +151,75 @@ class HF(Trainer):
 
 
 class Cascaded(Trainer):
-    '''This trainer uses SGD first, then HF.
+    '''This trainer allows running multiple trainers sequentially.'''
 
-    HF is slow, but SGD is inaccurate. So we start with SGD, when HF will be
-    making poor updates anyway because the parameters are (probably) not near
-    their optimal values. Then, after SGD appears to taper off, we run HF for a
-    final tweaking.
-    '''
+    def __init__(self, trainers):
+        self.trainers = trainers
+
+    def __call__(self, network, **kwargs):
+        self.trainers = (t(network, **kwargs) for t in self.trainers)
+        return self
+
+    def train(self, train_set, valid_set=None):
+        for trainer in self.trainers:
+            trainer.train(train_set, valid_set)
+
+
+def reservoir(xs, n):
+    '''Select a random sample of n items from xs.'''
+    pool = []
+    for i, x in enumerate(xs):
+        if len(pool) < n:
+            pool.append(x / np.linalg.norm(x))
+            continue
+        if n * rng.random() > i:
+            pool[rng.randint(n)] = x / np.linalg.norm(x)
+    return pool
+
+
+class Data(Trainer):
+    '''This trainer replaces network weights with samples from the input.'''
 
     def __init__(self, network, **kwargs):
         self.network = network
 
-        self.decay = kwargs.pop('decay', 0.9)
-        assert self.decay < 1, '--decay must be < 1 for this trainer'
-
-        if kwargs.get('learning_rate') is None:
-            kwargs['learning_rate'] = 0.3
-        if kwargs.get('min_improvement') is None:
-            kwargs['min_improvement'] = 1e-4
-
-        self.kwargs = kwargs
-
     def train(self, train_set, valid_set=None):
-        prev_cost = 1e101
-        cost = 1e100
-        while (prev_cost - cost) / prev_cost > self.kwargs['min_improvement']:
-            logging.info('sgd learning rate: %s', self.kwargs['learning_rate'])
-            t = SGD(self.network, **self.kwargs)
-            prev_cost, cost = cost, t.train(train_set, valid_set)
-            self.kwargs['learning_rate'] *= self.decay
-        HF(self.network, **self.kwargs).train(train_set, valid_set)
+        ifci = itertools.chain.from_iterable
+        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
+        samples = ifci(first(t) for t in train_set)
+        for i, h in enumerate(self.network.hiddens):
+            w = self.network.weights[i]
+            m, k = w.get_value(borrow=True).shape
+            logging.info('setting weights for layer %d: %d x %d', i + 1, m, k)
+            w.set_value(np.vstack(reservoir(samples, k)).T)
+            samples = ifci(self.network(first(t))[i-1] for t in train_set)
 
 
 class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
-
-    The code here still needs implementation and testing.
-    '''
+    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.'''
 
     def __init__(self, network, **kwargs):
         W_in, W_pool, W_out = network.weights
 
-        n = len(W_pool.get_value(shared=True))
+        n = W_pool.get_value(shared=True).shape[0]
         alpha = kwargs.get('learning_rate', 1. / n)
-        P = theano.shared(numpy.eye(n).astype(FLOAT) * alpha)
+        P = theano.shared(np.eye(n).astype(FLOAT) * alpha)
 
-        k = T.dot(P, network.state)
-        rPr = 1 + T.dot(network.state, k)
-        J = network.J(**kwargs)
+        k = TT.dot(P, network.state)
+        rPr = TT.dot(network.state, k)
+        c = 1. / (1. + rPr)
+        dw = network.error(**kwargs) * c * k
 
         updates = {}
-        updates[P] = P - T.dot(k, k) / rPr
-        updates[W_pool] = W_pool - J * k / rPr
-        updates[W_out] = W_out - J * k / rPr
-        updates[b_out] = b_out - alpha * T.grad(J, b_out)
+        updates[P] = P - c * TT.outer(k, k)
+        updates[W_pool] = W_pool - dw
+        updates[W_out] = W_out - dw
+        updates[b_out] = b_out - alpha * TT.grad(J, b_out)
 
         costs = [J] + network.monitors
         self.f_eval = theano.function(network.inputs, costs)
         self.f_train = theano.function(network.inputs, costs, updates=updates)
 
-    def train(self, train_set, valid_set=None):
-        # TODO !
-        pass
+    @property
+    def learning_rate(self):
+        return self.alpha

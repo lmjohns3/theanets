@@ -94,7 +94,7 @@ class Network(object):
 
         k = layers[-1]
         decoders = []
-        for i, W in enumerate(reversed(self.weights[-decode:])):
+        for i, W in enumerate(self.weights[:-decode-1:-1]):
             i = len(self.weights) - i
             b = W.get_value(borrow=True).shape[1]
             logging.info('decoding weights from layer %d: %s x %s', i, b, k)

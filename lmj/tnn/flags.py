@@ -48,7 +48,7 @@ g.add_option('', '--hidden-noise', type=float, default=0, metavar='S',
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
-g.add_option('-O', '--optimize', default='sgd', metavar='[hf|sgd+hf]',
+g.add_option('-O', '--optimize', default='sgd', metavar='[data|hf|sgd]',
              help='train with the given optimization method (sgd)')
 g.add_option('-v', '--validate', type=int, default=3, metavar='N',
              help='validate the model every N updates (3)')
@@ -56,7 +56,7 @@ g.add_option('-s', '--batch-size', type=int, default=64, metavar='N',
              help='split all data sets into batches of size N (64)')
 g.add_option('-B', '--train-batches', type=int, metavar='N',
              help='use at most N batches during gradient computations')
-g.add_option('-V', '--valid-batches', type=int, metavar='N',
+g.add_option('', '--valid-batches', type=int, metavar='N',
              help='use at most N batches during validation')
 g.add_option('', '--hidden-l1', type=float, metavar='K',
              help='regularize hidden activity with K on the L1 term')
@@ -68,8 +68,8 @@ g.add_option('', '--weight-l2', type=float, metavar='K',
              help='regularize network weights with K on the L2 term')
 g.add_option('', '--num-updates', type=int, default=128, metavar='N',
              help='perform at most N parameter updates (128)')
-g.add_option('', '--patience', type=int, default=16, metavar='N',
-             help='stop training if no improvement for N updates (16)')
+g.add_option('', '--patience', type=int, default=15, metavar='N',
+             help='stop training if no improvement for N updates (15)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
@@ -77,8 +77,8 @@ g.add_option('-d', '--decay', type=float, default=0.99, metavar='R',
              help='decay the learning rate by R each epoch (0.99)')
 g.add_option('-l', '--learning-rate', type=float, default=0.1, metavar='R',
              help='train the network with a learning rate of R (0.1)')
-g.add_option('', '--min-improvement', type=float, default=0, metavar='N',
-             help='train until relative cost decrease is less than N (0)')
+g.add_option('', '--min-improvement', type=float, default=0.01, metavar='N',
+             help='train until relative cost decrease is less than N (0.01)')
 g.add_option('-m', '--momentum', type=float, default=0.1, metavar='R',
              help='train the network with momentum of R (0.1)')
 FLAGS.add_option_group(g)
@@ -144,15 +144,14 @@ class Main(object):
         return self.net
 
     def get_activation(self):
-        g = TT.nnet.sigmoid
-        if self.opts.activation.lower() == 'tanh':
-            g = TT.tanh
-        if self.opts.activation.lower() == 'linear':
-            g = lambda z: z
-        if self.opts.activation.lower() == 'relu':
-            g = lambda z: TT.maximum(0, z)
-        if self.opts.activation.lower() == 'retanh':
-            g = lambda z: TT.maximum(0, TT.tanh(z))
+        g = {
+            'tanh': TT.tanh,
+            'linear': lambda z: z,
+            'logistic': TT.nnet.sigmoid,
+            'relu': lambda z: TT.maximum(0, z),
+            'trelu': lambda z: TT.maximum(0, TT.minimum(z, 1)),
+            'ttanh': lambda z: TT.maximum(0, TT.tanh(z)),
+            }[self.opts.activation.lower()]
 
         f = g
         if self.opts.normalize.lower().startswith('m'):
@@ -161,14 +160,16 @@ class Main(object):
 
         return f
 
-    def get_trainer(self):
-        t = trainer.SGD
-        O = (self.opts.optimize or '').lower()
-        if O.startswith('h'):
-            t = trainer.HF
-        if '+' in O or O.startswith('c'):
-            t = trainer.Cascaded
-        return t
+    def get_trainer(self, opt=None):
+        opt = opt or self.opts.optimize.lower()
+        if '+' in opt:
+            return trainer.Cascaded(self.get_trainer(o) for o in opt.split('+'))
+        return {
+            'hf': trainer.HF,
+            'sgd': trainer.SGD,
+            'data': trainer.Data,
+            'force': trainer.FORCE,
+            }[opt]
 
     def get_network(self):
         raise NotImplementedError

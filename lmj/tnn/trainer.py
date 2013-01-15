@@ -78,7 +78,7 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         self.network = network
         self.validation_frequency = kwargs.get('validate', 3)
-        self.min_improvement = kwargs.get('min_improvement', 1e-4)
+        self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1e100)
         self.patience = kwargs.get('patience', 1e100)
 
@@ -93,7 +93,7 @@ class SGD(Trainer):
             grad = TT.grad(J, param)
             heading = theano.shared(
                 np.zeros_like(param.get_value(borrow=True)),
-                name='g_%s' % param.name)
+                name='grad_%s' % param.name)
             updates[param] = param + heading
             updates[heading] = m * heading - lr * (decay ** t) * grad
 

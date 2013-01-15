@@ -44,7 +44,8 @@ class Network(object):
     '''
 
     def __init__(self, layers, activation, decode=1, tied_weights=False,
-                 rng=None, input_noise=0, hidden_noise=0):
+                 rng=None, input_noise=0, hidden_noise=0,
+                 input_dropouts=0, hidden_dropouts=0):
         '''Create a new feedforward network of a specific topology.
 
         layers: A sequence of integers specifying the number of units at each
@@ -65,6 +66,9 @@ class Network(object):
         input_noise: Standard deviation of desired noise to inject into input.
         hidden_noise: Standard deviation of desired noise to inject into
           hidden unit activation output.
+        input_dropouts: Proportion of input units to randomly set to 0.
+        hidden_dropouts: Proportion of hidden unit activations to randomly set
+          to 0.
         '''
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
@@ -82,12 +86,19 @@ class Network(object):
             arr = numpy.random.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
+
             x = self.x if i == 0 else self.hiddens[-1]
             if input_noise > 0 and i == 0:
                 x += rng.normal(size=x.shape, std=input_noise)
+            if input_dropouts > 0 and i == 0:
+                x *= (rng.uniform(low=0, high=1, size=x.shape) > input_dropouts)
+
             z = activation(TT.dot(x, Wi) + bi)
             if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)
+            if hidden_dropouts > 0:
+                z *= (rng.uniform(low=0, high=1, size=z.shape) > hidden_dropouts)
+
             self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
@@ -159,7 +170,7 @@ class Network(object):
         handle.close()
         logging.info('%s: loaded model parameters', filename)
 
-    def J(self, weight_l1=None, weight_l2=None, hidden_l1=None, hidden_l2=None, **unused):
+    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
         '''Return a cost function for this network.'''
         cost = self.cost
         if weight_l1 > 0:

@@ -45,6 +45,10 @@ g.add_option('', '--input-noise', type=float, default=0, metavar='S',
              help='add noise to network inputs drawn from N(0, S) (0)')
 g.add_option('', '--hidden-noise', type=float, default=0, metavar='S',
              help='add noise to hidden activations drawn from N(0, S) (0)')
+g.add_option('', '--input-dropouts', type=float, default=0, metavar='R',
+             help='randomly set fraction R of input activations to 0 (0)')
+g.add_option('', '--hidden-dropouts', type=float, default=0, metavar='R',
+             help='randomly set fraction R of hidden activations to 0 (0)')
 FLAGS.add_option_group(g)
 
 g = optparse.OptionGroup(FLAGS, 'Training')
@@ -119,6 +123,8 @@ class Main(object):
             tied_weights=self.opts.tied_weights,
             input_noise=self.opts.input_noise,
             hidden_noise=self.opts.hidden_noise,
+            input_dropouts=self.opts.input_dropouts,
+            hidden_dropouts=self.opts.hidden_dropouts,
             )
 
         kw = dict(size=self.opts.batch_size)

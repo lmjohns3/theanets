@@ -57,12 +57,16 @@ class Trainer(object):
                         best_iter = i
                         best_params = [p.get_value().copy() for p in self.network.params]
                         fmt += ' *'
+                self.finish_iteration()
             except KeyboardInterrupt:
                 logging.info('interrupted !')
                 break
             logging.info(fmt, *args)
         for param, b in zip(self.network.params, best_params):
             param.set_value(b)
+
+    def finish_iteration(self):
+        pass
 
     def evaluate(self, test_set):
         return np.mean([self.f_eval(*i) for i in test_set], axis=0)
@@ -84,7 +88,7 @@ class SGD(Trainer):
 
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
-        updates = {t: t + 1}
+        updates = {}
         for param in network.params:
             grad = TT.grad(J, param)
             heading = theano.shared(
@@ -95,14 +99,18 @@ class SGD(Trainer):
 
         costs = [J] + network.monitors
         self.f_eval = theano.function(network.inputs, costs)
-        self.f_rate = theano.function([], [lr * (decay ** t)])
         self.f_train = theano.function(network.inputs, costs, updates=updates)
+        self.f_rate = theano.function([], [lr * (decay ** t)])
+        self.f_finish = theano.function([], [t], updates={t: t + 1})
         #theano.printing.pydotprint(
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
 
     @property
     def learning_rate(self):
         return self.f_rate()[0]
+
+    def finish_iteration(self):
+        self.f_finish()
 
 
 class HF(Trainer):

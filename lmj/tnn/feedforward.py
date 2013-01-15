@@ -97,7 +97,7 @@ class Network(object):
             if input_dropouts > 0 and i == 0:
                 x *= rng.uniform(low=0, high=1, size=x.shape) > input_dropouts
 
-            z = gi * activation(TT.dot(x, Wi) + bi)
+            z = activation(gi * TT.dot(x, Wi) + bi)
 
             if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)
@@ -116,7 +116,7 @@ class Network(object):
             b = W.get_value(borrow=True).shape[1]
             logging.info('decoding weights from layer %d: %s x %s', i, b, k)
             if tied_weights:
-                decoders.append(W.T / self.gains[i])
+                decoders.append((W / self.gains[i-1]).T)
             else:
                 count += b * k
                 arr = numpy.random.normal(size=(b, k)) / numpy.sqrt(b + k)
@@ -145,8 +145,10 @@ class Network(object):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
     def params(self, **kwargs):
-        params = self.weights + self.biases
-        if 'learn_gains' in kwargs:
+        params = self.weights
+        if not kwargs.get('nolearn_biases'):
+            params.extend(self.biases)
+        if kwargs.get('learn_gains'):
             params.extend(self.gains)
         return params
 

@@ -73,10 +73,10 @@ class Network(object):
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
 
-        self.gains = []
         self.hiddens = []
         self.weights = []
         self.biases = []
+        self.gains = []
 
         rng = rng or RandomStreams()
 
@@ -97,7 +97,7 @@ class Network(object):
             if input_dropouts > 0 and i == 0:
                 x *= rng.uniform(low=0, high=1, size=x.shape) > input_dropouts
 
-            z = activation(gi * TT.dot(x, Wi) + bi)
+            z = gi * activation(TT.dot(x, Wi) + bi)
 
             if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)

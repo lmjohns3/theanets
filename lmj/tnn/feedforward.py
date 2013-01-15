@@ -146,7 +146,7 @@ class Network(object):
 
     def params(self, **kwargs):
         params = self.weights + self.biases
-        if 'learn_gains' in self.kwargs:
+        if 'learn_gains' in kwargs:
             params.extend(self.gains)
         return params
 

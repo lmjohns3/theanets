@@ -35,8 +35,8 @@ g.add_option('', '--decode', type=int, default=1, metavar='N',
              help='decode from the final N layers of the net (1)')
 g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ...')
-g.add_option('-g', '--activation', default='', metavar='[linear|relu|tanh|retanh]',
-             help='use g(z) for hidden unit activations (logistic)')
+g.add_option('-g', '--activation', default='', metavar='[linear|logistic|tanh|relu]',
+             help='function for hidden unit activations (logistic)')
 g.add_option('-t', '--tied-weights', action='store_true',
              help='tie decoding weights to encoding weights')
 g.add_option('-z', '--normalize', default='', metavar='[max]',
@@ -70,6 +70,8 @@ g.add_option('', '--weight-l1', type=float, metavar='K',
              help='regularize network weights with K on the L1 term')
 g.add_option('', '--weight-l2', type=float, metavar='K',
              help='regularize network weights with K on the L2 term')
+g.add_option('', '--learn-gains', action='store_true',
+             help='update gain parameters during learning')
 g.add_option('', '--num-updates', type=int, default=128, metavar='N',
              help='perform at most N parameter updates (128)')
 g.add_option('', '--patience', type=int, default=15, metavar='N',
@@ -147,24 +149,30 @@ class Main(object):
 
     def train(self):
         self.trainer.train(self.train_set, self.valid_set)
-        return self.net
 
-    def get_activation(self):
-        g = {
+    def get_activation(self, act=None):
+        act = act or self.opts.activation.lower()
+        if '+' in act:
+            return compose(self.get_activation(a) for a in act.split('+'))
+        return {
             'tanh': TT.tanh,
             'linear': lambda z: z,
             'logistic': TT.nnet.sigmoid,
+            # TODO: remove these if/when composition works ?
             'relu': lambda z: TT.maximum(0, z),
             'trelu': lambda z: TT.maximum(0, TT.minimum(z, 1)),
             'ttanh': lambda z: TT.maximum(0, TT.tanh(z)),
-            }[self.opts.activation.lower()]
 
-        f = g
-        if self.opts.normalize.lower().startswith('m'):
-            n = lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None])
-            f = lambda z: n(g(z))
+            # modifiers
+            'abs': lambda z: abs(z),
+            'cap': lambda z: TT.minimum(1, z),
+            'rectify': lambda z: TT.maximum(0, z),
 
-        return f
+            # normalization
+            'norm:dc': lambda z: z - z.mean(axis=1)[:, None],
+            'norm:max': lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None]),
+            'norm:std': lambda z: z / TT.maximum(1e-10, z.std(axis=1)[:, None]),
+            }[act]
 
     def get_trainer(self, opt=None):
         opt = opt or self.opts.optimize.lower()

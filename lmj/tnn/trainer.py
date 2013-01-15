@@ -37,7 +37,7 @@ class Trainer(object):
         '''By default, we train in iterations and evaluate periodically.'''
         best_cost = 1e100
         best_iter = 0
-        best_params = [p.get_value().copy() for p in self.network.params]
+        best_params = [p.get_value().copy() for p in self.params]
         for i in xrange(self.iterations):
             if i - best_iter > self.patience:
                 logging.error('patience elapsed, bailing out')
@@ -55,15 +55,18 @@ class Trainer(object):
                     if (best_cost - metrics[0]) / best_cost > self.min_improvement:
                         best_cost = metrics[0]
                         best_iter = i
-                        best_params = [p.get_value().copy() for p in self.network.params]
+                        best_params = [p.get_value().copy() for p in self.params]
                         fmt += ' *'
                 self.finish_iteration()
             except KeyboardInterrupt:
                 logging.info('interrupted !')
                 break
             logging.info(fmt, *args)
-        for param, b in zip(self.network.params, best_params):
-            param.set_value(b)
+        self.update_params(best_params)
+
+    def update_params(self, targets):
+        for param, target in zip(self.params, targets):
+            param.set_value(target)
 
     def finish_iteration(self):
         pass
@@ -76,7 +79,7 @@ class SGD(Trainer):
     '''Stochastic gradient descent network trainer.'''
 
     def __init__(self, network, **kwargs):
-        self.network = network
+        self.params = network.params(**kwargs)
         self.validation_frequency = kwargs.get('validate', 3)
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1e100)
@@ -89,7 +92,7 @@ class SGD(Trainer):
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
         updates = {}
-        for param in network.params:
+        for param in self.params:
             grad = TT.grad(J, param)
             heading = theano.shared(
                 np.zeros_like(param.get_value(borrow=True)),
@@ -124,8 +127,6 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
-        self.network = network
-
         sys.path.append(tempfile.gettempdir())
         try:
             import hf
@@ -143,7 +144,8 @@ class HF(Trainer):
         c = [network.J(**kwargs)] + network.monitors
         self.f_eval = theano.function(network.inputs, c)
         self.cg_set = kwargs.pop('cg_set')
-        self.opt = hf.hf_optimizer(network.params, network.inputs, network.y, c)
+        self.params = network.params(**kwargs)
+        self.opt = hf.hf_optimizer(self.params, network.inputs, network.y, c)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
@@ -152,10 +154,8 @@ class HF(Trainer):
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None):
-        best = self.opt.train(
-            train_set, self.cg_set, validation=valid_set, **self.kwargs)
-        for param, b in zip(self.network.params, best):
-            param.set_value(b)
+        self.update_params(self.opt.train(
+            train_set, self.cg_set, validation=valid_set, **self.kwargs))
 
 
 class Cascaded(Trainer):
@@ -209,9 +209,9 @@ class FORCE(Trainer):
     def __init__(self, network, **kwargs):
         W_in, W_pool, W_out = network.weights
 
-        n = W_pool.get_value(shared=True).shape[0]
-        alpha = kwargs.get('learning_rate', 1. / n)
-        P = theano.shared(np.eye(n).astype(FLOAT) * alpha)
+        n = W_pool.get_value(borrow=True).shape[0]
+        self.alpha = kwargs.get('learning_rate', 1. / n)
+        P = theano.shared(np.eye(n).astype(FLOAT) * self.alpha)
 
         k = TT.dot(P, network.state)
         rPr = TT.dot(network.state, k)
@@ -222,7 +222,7 @@ class FORCE(Trainer):
         updates[P] = P - c * TT.outer(k, k)
         updates[W_pool] = W_pool - dw
         updates[W_out] = W_out - dw
-        updates[b_out] = b_out - alpha * TT.grad(J, b_out)
+        #updates[b_out] = b_out - self.alpha * TT.grad(J, b_out)
 
         costs = [J] + network.monitors
         self.f_eval = theano.function(network.inputs, costs)

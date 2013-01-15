@@ -21,7 +21,7 @@
 '''This module contains a number of classes for modeling neural nets in Theano.
 '''
 
-import cPickle
+import pickle
 import gzip
 import logging
 import numpy
@@ -73,6 +73,7 @@ class Network(object):
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
 
+        self.gains = []
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -82,26 +83,31 @@ class Network(object):
         count = 0
         for i, (a, b) in enumerate(zip(layers[:-2], layers[1:-1])):
             count += (1 + a) * b
+
             logging.info('encoding weights for layer %d: %s x %s', i + 1, a, b)
+
             arr = numpy.random.normal(size=(a, b)) / numpy.sqrt(a + b)
             Wi = theano.shared(arr.astype(FLOAT), name='W_%d' % i)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='b_%d' % i)
+            gi = theano.shared(numpy.ones((b, ), FLOAT), name='g_%d' % i)
 
             x = self.x if i == 0 else self.hiddens[-1]
             if input_noise > 0 and i == 0:
                 x += rng.normal(size=x.shape, std=input_noise)
             if input_dropouts > 0 and i == 0:
-                x *= (rng.uniform(low=0, high=1, size=x.shape) > input_dropouts)
+                x *= rng.uniform(low=0, high=1, size=x.shape) > input_dropouts
 
-            z = activation(TT.dot(x, Wi) + bi)
+            z = activation(gi * TT.dot(x, Wi) + bi)
+
             if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)
             if hidden_dropouts > 0:
-                z *= (rng.uniform(low=0, high=1, size=z.shape) > hidden_dropouts)
+                z *= rng.uniform(low=0, high=1, size=z.shape) > hidden_dropouts
 
             self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
+            self.gains.append(gi)
 
         k = layers[-1]
         decoders = []
@@ -110,7 +116,7 @@ class Network(object):
             b = W.get_value(borrow=True).shape[1]
             logging.info('decoding weights from layer %d: %s x %s', i, b, k)
             if tied_weights:
-                decoders.append(W.T)
+                decoders.append(W.T / self.gains[i])
             else:
                 count += b * k
                 arr = numpy.random.normal(size=(b, k)) / numpy.sqrt(b + k)
@@ -135,12 +141,14 @@ class Network(object):
         return self.sparsities
 
     @property
-    def params(self):
-        return self.weights + self.biases
-
-    @property
     def sparsities(self):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
+
+    def params(self, **kwargs):
+        params = self.weights + self.biases
+        if 'learn_gains' in self.kwargs:
+            params.extend(self.gains)
+        return params
 
     def __call__(self, x):
         '''Compute a forward pass of the given inputs, returning the net output.
@@ -151,10 +159,11 @@ class Network(object):
         '''Save the parameters of this network to disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
-        cPickle.dump(
+        pickle.dump(
             dict(weights=[p.get_value().copy() for p in self.weights],
-                 biases=[p.get_value().copy() for p in self.biases]),
-            handle, -1)
+                 biases=[p.get_value().copy() for p in self.biases],
+                 gains=[p.get_value().copy() for p in self.gains],
+                 ), handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
 
@@ -162,10 +171,12 @@ class Network(object):
         '''Load the parameters for this network from disk.'''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
-        params = cPickle.load(handle)
+        params = pickle.load(handle)
         for target, source in zip(self.weights, params['weights']):
             target.set_value(source)
         for target, source in zip(self.biases, params['biases']):
+            target.set_value(source)
+        for target, source in zip(self.biases, params['gains']):
             target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)

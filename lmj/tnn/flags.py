@@ -31,16 +31,14 @@ from . import trainer
 FLAGS = optparse.OptionParser()
 
 g = optparse.OptionGroup(FLAGS, 'Architecture')
-g.add_option('', '--decode', type=int, default=1, metavar='N',
-             help='decode from the final N layers of the net (1)')
 g.add_option('-n', '--layers', metavar='N0,N1,...',
              help='construct a network with layers of size N0, N1, ...')
 g.add_option('-g', '--activation', default='', metavar='[linear|logistic|tanh|relu]',
              help='function for hidden unit activations (logistic)')
 g.add_option('-t', '--tied-weights', action='store_true',
              help='tie decoding weights to encoding weights')
-g.add_option('-z', '--normalize', default='', metavar='[max]',
-             help='normalize hidden unit activations')
+g.add_option('', '--decode', type=int, default=1, metavar='N',
+             help='decode from the final N layers of the net (1)')
 g.add_option('', '--input-noise', type=float, default=0, metavar='S',
              help='add noise to network inputs drawn from N(0, S) (0)')
 g.add_option('', '--hidden-noise', type=float, default=0, metavar='S',

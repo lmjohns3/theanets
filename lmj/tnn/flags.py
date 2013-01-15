@@ -68,6 +68,8 @@ g.add_option('', '--weight-l1', type=float, metavar='K',
              help='regularize network weights with K on the L1 term')
 g.add_option('', '--weight-l2', type=float, metavar='K',
              help='regularize network weights with K on the L2 term')
+g.add_option('', '--nolearn-biases', action='store_true',
+             help='do not update bias parameters during learning')
 g.add_option('', '--learn-gains', action='store_true',
              help='update gain parameters during learning')
 g.add_option('', '--num-updates', type=int, default=128, metavar='N',

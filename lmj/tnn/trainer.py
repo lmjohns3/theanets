@@ -84,6 +84,7 @@ class SGD(Trainer):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1e100)
         self.patience = kwargs.get('patience', 1e100)
+        logging.info('%d parameter updates during training', len(self.params))
 
         decay = kwargs.get('decay', 1.)
         m = kwargs.get('momentum', 0.)
@@ -145,6 +146,7 @@ class HF(Trainer):
         self.f_eval = theano.function(network.inputs, c)
         self.cg_set = kwargs.pop('cg_set')
         self.params = network.params(**kwargs)
+        logging.info('%d parameter updates during training', len(self.params))
         self.opt = hf.hf_optimizer(self.params, network.inputs, network.y, c)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer

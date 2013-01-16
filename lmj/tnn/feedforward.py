@@ -122,7 +122,7 @@ class Network(object):
         terms = []
         if tied_weights:
             # TODO: tied weights only works with one layer. extend to multiple !
-            terms.append(TT.dot(self.hiddens[0], self.weights[0]))
+            terms.append(TT.dot(self.hiddens[0], self.weights[0].T))
         else:
             w = len(self.weights)
             for i in range(w - 1, w - 1 - decode, -1):

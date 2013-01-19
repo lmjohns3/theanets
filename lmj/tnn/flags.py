@@ -20,85 +20,85 @@
 
 '''This file contains command line flags and a main method.'''
 
+import argparse
 import logging
-import optparse
 import sys
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
 from . import trainer
 
-FLAGS = optparse.OptionParser()
+FLAGS = argparse.ArgumentParser(
+    conflict_handler='resolve',
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-g = optparse.OptionGroup(FLAGS, 'Architecture')
-g.add_option('-n', '--layers', metavar='N0,N1,...',
-             help='construct a network with layers of size N0, N1, ...')
-g.add_option('-g', '--activation', default='', metavar='[linear|logistic|tanh|relu]',
-             help='function for hidden unit activations (logistic)')
-g.add_option('-t', '--tied-weights', action='store_true',
-             help='tie decoding weights to encoding weights')
-g.add_option('', '--decode', type=int, default=1, metavar='N',
-             help='decode from the final N layers of the net (1)')
-g.add_option('', '--input-noise', type=float, default=0, metavar='S',
-             help='add noise to network inputs drawn from N(0, S) (0)')
-g.add_option('', '--hidden-noise', type=float, default=0, metavar='S',
-             help='add noise to hidden activations drawn from N(0, S) (0)')
-g.add_option('', '--input-dropouts', type=float, default=0, metavar='R',
-             help='randomly set fraction R of input activations to 0 (0)')
-g.add_option('', '--hidden-dropouts', type=float, default=0, metavar='R',
-             help='randomly set fraction R of hidden activations to 0 (0)')
-FLAGS.add_option_group(g)
+g = FLAGS.add_argument_group('Architecture')
+g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
+               help='construct a network with layers of size N1, N2, ...')
+g.add_argument('-g', '--activation', default='logistic', metavar='[linear|logistic|tanh|relu]',
+               help='function for hidden unit activations')
+g.add_argument('-t', '--tied-weights', action='store_true',
+               help='tie encoding and decoding weights')
+g.add_argument('--decode', type=int, default=1, metavar='N',
+               help='decode from the final N layers of the net')
 
-g = optparse.OptionGroup(FLAGS, 'Training')
-g.add_option('-O', '--optimize', default='sgd', metavar='[data|hf|sgd]',
-             help='train with the given optimization method (sgd)')
-g.add_option('-v', '--validate', type=int, default=3, metavar='N',
-             help='validate the model every N updates (3)')
-g.add_option('-s', '--batch-size', type=int, default=64, metavar='N',
-             help='split all data sets into batches of size N (64)')
-g.add_option('-B', '--train-batches', type=int, metavar='N',
-             help='use at most N batches during gradient computations')
-g.add_option('', '--valid-batches', type=int, metavar='N',
-             help='use at most N batches during validation')
-g.add_option('', '--hidden-l1', type=float, metavar='K',
-             help='regularize hidden activity with K on the L1 term')
-g.add_option('', '--hidden-l2', type=float, metavar='K',
-             help='regularize hidden activity with K on the L2 term')
-g.add_option('', '--weight-l1', type=float, metavar='K',
-             help='regularize network weights with K on the L1 term')
-g.add_option('', '--weight-l2', type=float, metavar='K',
-             help='regularize network weights with K on the L2 term')
-g.add_option('', '--nolearn-biases', action='store_true',
-             help='do not update bias parameters during learning')
-g.add_option('', '--learn-gains', action='store_true',
-             help='update gain parameters during learning')
-g.add_option('', '--num-updates', type=int, default=128, metavar='N',
-             help='perform at most N parameter updates (128)')
-g.add_option('', '--patience', type=int, default=15, metavar='N',
-             help='stop training if no improvement for N updates (15)')
-FLAGS.add_option_group(g)
+g = FLAGS.add_argument_group('Training')
+g.add_argument('-O', '--optimize', default='sgd', metavar='[data|hf|sgd]',
+               help='train with the given optimization method')
+g.add_argument('--no-learn-biases', action='store_false',
+               help='update bias parameters during learning')
+g.add_argument('--learn-gains', action='store_true',
+               help='update gain parameters during learning')
+g.add_argument('-u', '--num-updates', type=int, default=128, metavar='N',
+               help='perform at most N parameter updates')
+g.add_argument('-p', '--patience', type=int, default=15, metavar='N',
+               help='stop training if no improvement for N updates')
+g.add_argument('-v', '--validate', type=int, default=3, metavar='N',
+               help='validate the model every N updates')
+g.add_argument('-b', '--batch-size', type=int, default=64, metavar='N',
+               help='train with mini-batches of size N')
+g.add_argument('-B', '--train-batches', type=int, metavar='N',
+               help='use at most N batches during gradient computations')
+g.add_argument('-V', '--valid-batches', type=int, metavar='N',
+               help='use at most N batches during validation')
 
-g = optparse.OptionGroup(FLAGS, 'SGD Optimization')
-g.add_option('-d', '--decay', type=float, default=0.99, metavar='R',
-             help='decay the learning rate by R each epoch (0.99)')
-g.add_option('-l', '--learning-rate', type=float, default=0.1, metavar='R',
-             help='train the network with a learning rate of R (0.1)')
-g.add_option('', '--min-improvement', type=float, default=0.01, metavar='N',
-             help='train until relative cost decrease is less than N (0.01)')
-g.add_option('-m', '--momentum', type=float, default=0.1, metavar='R',
-             help='train the network with momentum of R (0.1)')
-FLAGS.add_option_group(g)
+g = FLAGS.add_argument_group('Regularization')
+g.add_argument('--input-noise', type=float, default=0, metavar='S',
+               help='add noise to network inputs drawn from N(0, S)')
+g.add_argument('--input-dropouts', type=float, default=0, metavar='R',
+               help='randomly set fraction R of input activations to 0')
+g.add_argument('--hidden-noise', type=float, default=0, metavar='S',
+               help='add noise to hidden activations drawn from N(0, S)')
+g.add_argument('--hidden-dropouts', type=float, default=0, metavar='R',
+               help='randomly set fraction R of hidden activations to 0')
+g.add_argument('--hidden-l1', type=float, default=0, metavar='K',
+               help='regularize hidden activity with K on the L1 term')
+g.add_argument('--hidden-l2', type=float, default=0, metavar='K',
+               help='regularize hidden activity with K on the L2 term')
+g.add_argument('--weight-l1', type=float, default=0, metavar='K',
+               help='regularize network weights with K on the L1 term')
+g.add_argument('--weight-l2', type=float, default=0, metavar='K',
+               help='regularize network weights with K on the L2 term')
 
-g = optparse.OptionGroup(FLAGS, 'HF Optimization')
-g.add_option('', '--cg-batches', type=int, metavar='N',
-             help='use at most N batches for CG computation')
-g.add_option('', '--initial-lambda', type=float, default=1., metavar='K',
-             help='start the HF method with Tikhonov damping of K (1.)')
-g.add_option('', '--preconditioner', action='store_true',
-             help='precondition the system during CG')
-g.add_option('', '--save-progress', metavar='FILE',
-             help='save the model periodically to FILE')
-FLAGS.add_option_group(g)
+g = FLAGS.add_argument_group('SGD Optimization')
+g.add_argument('-l', '--learning-rate', type=float, default=0.1, metavar='V',
+               help='train the network with a learning rate of V')
+g.add_argument('-d', '--decay', type=float, default=0.01, metavar='R',
+               help='decay the learning rate by R each epoch')
+g.add_argument('-m', '--momentum', type=float, default=0.1, metavar='V',
+               help='train the network with momentum of V')
+g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
+               help='train until relative improvement is less than R')
+
+g = FLAGS.add_argument_group('HF Optimization')
+g.add_argument('-C', '--cg-batches', type=int, metavar='N',
+               help='use at most N batches for CG computation')
+g.add_argument('--initial-lambda', type=float, default=1., metavar='K',
+               help='start the HF method with Tikhonov damping of K')
+g.add_argument('--preconditioner', action='store_true',
+               help='precondition the system during CG')
+g.add_argument('--save-progress', metavar='FILE',
+               help='save the model periodically to FILE')
 
 
 class Main(object):
@@ -106,43 +106,48 @@ class Main(object):
 
     Two methods must be implemented by subclasses -- get_network must return the
     Network subclass to instantiate, and get_datasets must return a tuple of
-    training and validation datasets. Subclasses have access to self.opts
-    (command line options) and self.args (command line arguments).
+    training and validation datasets. Subclasses have access to command line
+    arguments through self.args.
     '''
 
-    def __init__(self):
-        self.opts, self.args = FLAGS.parse_args()
+    def __init__(self, args=None):
+        self.args = args or FLAGS.parse_args()
 
-        kwargs = eval(str(self.opts))
+        kwargs = {}
+        kwargs.update(vars(self.args))
         logging.info('command-line options:')
         for k in sorted(kwargs):
             logging.info('--%s = %s', k, kwargs[k])
 
+        activation = self.get_activation()
+        if hasattr(activation, 'lmj_name'):
+            logging.info('activation: %s', activation.lmj_name)
+
         self.net = self.get_network()(
-            layers=eval(self.opts.layers),
-            activation=self.get_activation(),
-            decode=self.opts.decode,
-            tied_weights=self.opts.tied_weights,
-            input_noise=self.opts.input_noise,
-            hidden_noise=self.opts.hidden_noise,
-            input_dropouts=self.opts.input_dropouts,
-            hidden_dropouts=self.opts.hidden_dropouts,
+            layers=self.args.layers,
+            activation=activation,
+            decode=self.args.decode,
+            tied_weights=self.args.tied_weights,
+            input_noise=self.args.input_noise,
+            hidden_noise=self.args.hidden_noise,
+            input_dropouts=self.args.input_dropouts,
+            hidden_dropouts=self.args.hidden_dropouts,
             )
 
-        kw = dict(size=self.opts.batch_size)
+        kw = dict(size=self.args.batch_size)
         train_, valid_ = tuple(self.get_datasets())[:2]
         if not isinstance(train_, (tuple, list)):
             train_ = (train_, )
         if not isinstance(valid_, (tuple, list)):
             valid_ = (valid_, )
 
-        kw['batches'] = self.opts.train_batches
+        kw['batches'] = self.args.train_batches
         self.train_set = Dataset('train', *train_, **kw)
 
-        kw['batches'] = self.opts.valid_batches
+        kw['batches'] = self.args.valid_batches
         self.valid_set = Dataset('valid', *valid_, **kw)
 
-        kw['batches'] = self.opts.cg_batches
+        kw['batches'] = self.args.cg_batches
         kwargs['cg_set'] = Dataset('cg', *train_, **kw)
 
         self.trainer = self.get_trainer()(self.net, **kwargs)
@@ -151,31 +156,36 @@ class Main(object):
         self.trainer.train(self.train_set, self.valid_set)
 
     def get_activation(self, act=None):
-        act = act or self.opts.activation.lower()
+        def compose(a, b):
+            c = lambda z: b(a(z))
+            c.lmj_name = '%s(%s)' % (b.lmj_name, a.lmj_name)
+            return c
+        act = act or self.args.activation.lower()
         if '+' in act:
-            return compose(self.get_activation(a) for a in act.split('+'))
-        return {
+            return reduce(compose, (self.get_activation(a) for a in act.split('+')))
+        options = {
             'tanh': TT.tanh,
             'linear': lambda z: z,
             'logistic': TT.nnet.sigmoid,
-            # TODO: remove these if/when composition works ?
+
+            # shorthands
             'relu': lambda z: TT.maximum(0, z),
-            'trelu': lambda z: TT.maximum(0, TT.minimum(z, 1)),
-            'ttanh': lambda z: TT.maximum(0, TT.tanh(z)),
 
             # modifiers
-            'abs': lambda z: abs(z),
-            'cap': lambda z: TT.minimum(1, z),
-            'rectify': lambda z: TT.maximum(0, z),
+            'mod:cap': lambda z: TT.minimum(1, z),
+            'mod:pos': lambda z: TT.maximum(0, z),
 
             # normalization
             'norm:dc': lambda z: z - z.mean(axis=1)[:, None],
             'norm:max': lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None]),
             'norm:std': lambda z: z / TT.maximum(1e-10, z.std(axis=1)[:, None]),
-            }[act]
+            }
+        for k, v in options.iteritems():
+            v.lmj_name = k
+        return options[act]
 
     def get_trainer(self, opt=None):
-        opt = opt or self.opts.optimize.lower()
+        opt = opt or self.args.optimize.lower()
         if '+' in opt:
             return trainer.Cascaded(self.get_trainer(o) for o in opt.split('+'))
         return {

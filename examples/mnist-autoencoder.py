@@ -31,7 +31,9 @@ class Main(lmj.tnn.Main):
         return [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
 m = Main()
-path = os.path.join(tempfile.gettempdir(), 'mnist-autoencoder-%s.pkl.gz' % m.opts.layers)
+path = os.path.join(
+    tempfile.gettempdir(),
+    'mnist-autoencoder-%s.pkl.gz' % ','.join(str(n) for n in m.args.layers))
 if os.path.exists(path):
     m.net.load(path)
 m.train()

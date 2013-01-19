@@ -244,9 +244,7 @@ class Classifier(Network):
         super(Classifier, self).__init__(*args, **kwargs)
         self.y = self.softmax(self.y)
         # for shape debugging
-        w = self.weights[len(self.biases) - 1]
-        self.k.tag.test_value = numpy.random.randn(
-            DEBUG_BATCH_SIZE, w.get_value(borrow=True).shape[1])
+        self.k.tag.test_value = numpy.random.randn(DEBUG_BATCH_SIZE).astype('int32')
 
     @staticmethod
     def softmax(x):

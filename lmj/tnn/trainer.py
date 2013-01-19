@@ -84,10 +84,10 @@ class SGD(Trainer):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1e100)
         self.patience = kwargs.get('patience', 1e100)
-        logging.info('%d parameter updates during training', len(self.params))
+        logging.info('%d named parameters to learn', len(self.params))
 
-        decay = kwargs.get('decay', 1.)
-        m = kwargs.get('momentum', 0.)
+        decay = kwargs.get('decay', 0.01)
+        m = kwargs.get('momentum', 0.1)
         lr = kwargs.get('learning_rate', 0.1)
 
         J = network.J(**kwargs)
@@ -99,12 +99,12 @@ class SGD(Trainer):
                 np.zeros_like(param.get_value(borrow=True)),
                 name='grad_%s' % param.name)
             updates[param] = param + heading
-            updates[heading] = m * heading - lr * (decay ** t) * grad
+            updates[heading] = m * heading - lr * ((1 - decay) ** t) * grad
 
         costs = [J] + network.monitors
         self.f_eval = theano.function(network.inputs, costs)
         self.f_train = theano.function(network.inputs, costs, updates=updates)
-        self.f_rate = theano.function([], [lr * (decay ** t)])
+        self.f_rate = theano.function([], [lr * ((1 - decay) ** t)])
         self.f_finish = theano.function([], [t], updates={t: t + 1})
         #theano.printing.pydotprint(
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')

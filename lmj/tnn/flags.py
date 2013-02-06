@@ -55,6 +55,8 @@ g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
 g.add_argument('-g', '--activation', default='logistic', metavar='[linear|logistic|tanh|relu]',
                help='function for hidden unit activations')
+g.add_argument('-t', '--tied-weights', action='store_true',
+               help='tie encoding and decoding weights')
 g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
@@ -141,6 +143,7 @@ class Main(object):
             layers=self.args.layers,
             activation=activation,
             decode=self.args.decode,
+            tied_weights=self.args.tied_weights,
             input_noise=self.args.input_noise,
             hidden_noise=self.args.hidden_noise,
             input_dropouts=self.args.input_dropouts,

@@ -44,7 +44,7 @@ class Network(object):
     always include the final k hidden layers in the network.
     '''
 
-    def __init__(self, layers, activation, decode=1, tied_weights=False,
+    def __init__(self, layers, activation, decode=1,
                  rng=None, input_noise=0, hidden_noise=0,
                  input_dropouts=0, hidden_dropouts=0):
         '''Create a new feedforward network of a specific topology.
@@ -59,9 +59,6 @@ class Network(object):
           in the network uses.
         decode: Any of the hidden layers can be tapped at the output. Just
           specify a value greater than 1 to tap the last N hidden layers.
-        tied_weights: Construct decoding weights using the transpose of the
-          encoding weights on corresponding layers. If not true, decoding
-          weights will be constructed using a separate weight matrix.
         rng: Use a specific Theano random number generator. A new one will be
           created if this is None.
         input_noise: Standard deviation of desired noise to inject into input.
@@ -118,27 +115,26 @@ class Network(object):
             self.biases.append(bi)
             self.gains.append(gi)
 
-        k = layers[-1]
+        n = layers[-1]
+        w = len(self.weights)
         terms = []
-        if tied_weights:
-            # TODO: tied weights only works with one layer. extend to multiple !
-            terms.append(TT.dot(self.hiddens[0], self.weights[0].T))
-        else:
-            w = len(self.weights)
-            for i in range(w - 1, w - 1 - decode, -1):
-                W = self.weights[i]
-                b = self.biases[i].get_value(borrow=True).shape[0]
-                logging.info('decoding weights from layer %d: %s x %s', i + 1, b, k)
-                count += b * k
-                arr = numpy.random.normal(size=(b, k)) / numpy.sqrt(b + k)
-                Di = theano.shared(arr.astype(FLOAT), name='decode_%d' % i)
-                Di.tag.test_value = randn(b, k)
-                terms.append(TT.dot(self.hiddens[i], Di))
-                self.weights.append(Di)
+        for i in range(w - 1, w - 1 - decode, -1):
+            W = self.weights[i]
+            b = self.biases[i].get_value(borrow=True).shape[0]
+            logging.info('decoding weights from layer %d: %s x %s', i + 1, b, n)
+            count += b * n
+            arr = numpy.random.normal(size=(b, n)) / numpy.sqrt(b + n)
+            Di = theano.shared(arr.astype(FLOAT), name='decode_%d' % i)
+            Di.tag.test_value = randn(b, n)
+            terms.append(TT.dot(self.hiddens[i], Di))
+            self.weights.append(Di)
+
+        bias = theano.shared(numpy.zeros((n, ), FLOAT), name='bias_out')
+        count += n
 
         logging.info('%d total network parameters', count)
 
-        self.y = sum(terms)
+        self.y = sum(terms) + bias
         self.f = theano.function([self.x], self.hiddens + [self.y])
 
     @property
@@ -222,7 +218,7 @@ class Regressor(Network):
         self.k = TT.matrix('k')
         super(Regressor, self).__init__(*args, **kwargs)
         # for shape debugging
-        w = self.weights[len(self.biases) - 1]
+        w = self.weights[len(self.biases)]
         self.k.tag.test_value = numpy.random.randn(
             DEBUG_BATCH_SIZE, w.get_value(borrow=True).shape[1])
 
@@ -244,7 +240,8 @@ class Classifier(Network):
         super(Classifier, self).__init__(*args, **kwargs)
         self.y = self.softmax(self.y)
         # for shape debugging
-        self.k.tag.test_value = numpy.random.randn(DEBUG_BATCH_SIZE).astype('int32')
+        self.k.tag.test_value = (
+            3 * numpy.random.randn(DEBUG_BATCH_SIZE)).astype('int32')
 
     @staticmethod
     def softmax(x):

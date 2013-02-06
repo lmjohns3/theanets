@@ -74,7 +74,6 @@ class Network(object):
         self.hiddens = []
         self.weights = []
         self.biases = []
-        self.gains = []
 
         rng = rng or RandomStreams()
         randn = numpy.random.randn
@@ -93,8 +92,6 @@ class Network(object):
             Wi.tag.test_value = randn(a, b)
             bi = theano.shared(numpy.zeros((b, ), FLOAT), name='bias_%d' % i)
             bi.tag.test_value = randn(b)
-            gi = theano.shared(numpy.ones((b, ), FLOAT), name='gain_%d' % i)
-            gi.tag.test_value = randn(b)
 
             x = self.x if i == 0 else self.hiddens[-1]
             if input_noise > 0 and i == 0:
@@ -102,7 +99,7 @@ class Network(object):
             if input_dropouts > 0 and i == 0:
                 x *= rng.uniform(low=0, high=1, size=x.shape) > input_dropouts
 
-            z = activation(gi * (TT.dot(x, Wi) + bi))
+            z = activation(TT.dot(x, Wi) + bi)
             z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
 
             if hidden_noise > 0:
@@ -113,7 +110,6 @@ class Network(object):
             self.hiddens.append(z)
             self.weights.append(Wi)
             self.biases.append(bi)
-            self.gains.append(gi)
 
         n = layers[-1]
         w = len(self.weights)
@@ -130,6 +126,7 @@ class Network(object):
             self.weights.append(Di)
 
         bias = theano.shared(numpy.zeros((n, ), FLOAT), name='bias_out')
+        self.biases.append(bias)
         count += n
 
         logging.info('%d total network parameters', count)
@@ -153,8 +150,6 @@ class Network(object):
         params = self.weights
         if not kwargs.get('nolearn_biases'):
             params.extend(self.biases)
-        if kwargs.get('learn_gains'):
-            params.extend(self.gains)
         return params
 
     def __call__(self, x):
@@ -169,7 +164,6 @@ class Network(object):
         pickle.dump(
             dict(weights=[p.get_value().copy() for p in self.weights],
                  biases=[p.get_value().copy() for p in self.biases],
-                 gains=[p.get_value().copy() for p in self.gains],
                  ), handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
@@ -182,8 +176,6 @@ class Network(object):
         for target, source in zip(self.weights, params['weights']):
             target.set_value(source)
         for target, source in zip(self.biases, params['biases']):
-            target.set_value(source)
-        for target, source in zip(self.biases, params['gains']):
             target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)

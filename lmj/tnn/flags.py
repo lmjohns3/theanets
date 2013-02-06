@@ -63,8 +63,6 @@ g.add_argument('-O', '--optimize', default='sgd', metavar='[data|hf|sgd]',
                help='train with the given optimization method')
 g.add_argument('--no-learn-biases', action='store_false',
                help='update bias parameters during learning')
-g.add_argument('--learn-gains', action='store_true',
-               help='update gain parameters during learning')
 g.add_argument('-u', '--num-updates', type=int, default=128, metavar='N',
                help='perform at most N parameter updates')
 g.add_argument('-p', '--patience', type=int, default=15, metavar='N',
@@ -187,8 +185,8 @@ class Main(object):
             'relu': lambda z: TT.maximum(0, z),
 
             # modifiers
-            'mod:cap': lambda z: TT.minimum(1, z),
-            'mod:pos': lambda z: TT.maximum(0, z),
+            'rect:max': lambda z: TT.minimum(1, z),
+            'rect:min': lambda z: TT.maximum(0, z),
 
             # normalization
             'norm:dc': lambda z: z - z.mean(axis=1)[:, None],

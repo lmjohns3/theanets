@@ -62,15 +62,9 @@ class SequenceDataset(object):
         self.minibatches = [
             [d[i:i + n] for d in data] for i in xrange(0, len(data[0]), n)]
 
-        d = self.minibatches
-        shape = []
-        while True:
-            try:
-                shape.append(len(d))
-                d = d[0]
-            except:
-                break
-        logging.info('data %s: %s', label, shape)
+        logging.info('data %s: %d mini-batches of %s', label,
+                     len(self.minibatches),
+                     ', '.join(str(x.shape) for x in self.minibatches[0]))
 
         self.current = 0
         self.limit = kwargs.get('batches') or len(self.minibatches)

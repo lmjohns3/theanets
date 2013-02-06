@@ -109,7 +109,7 @@ class Network(object):
             if input_noise > 0 and i == 0:
                 x += rng.normal(size=x.shape, std=input_noise)
             if input_dropouts > 0 and i == 0:
-                x *= rng.uniform(low=0, high=1, size=x.shape) > input_dropouts
+                x *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
 
             z = activation(TT.dot(x, Wi) + bi)
             z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
@@ -117,7 +117,7 @@ class Network(object):
             if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)
             if hidden_dropouts > 0:
-                z *= rng.uniform(low=0, high=1, size=z.shape) > hidden_dropouts
+                z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
 
             self.hiddens.append(z)
             self.weights.append(Wi)

@@ -154,7 +154,9 @@ class Network(object):
         logging.info('%d total network parameters', parameter_count)
 
         self.y = self.hiddens.pop()
-        self.f = theano.function([self.x], self.hiddens + [self.y])
+
+        # compute a forward pass, returning all layer activations.
+        self.forward = theano.function([self.x], self.hiddens + [self.y])
 
     @property
     def inputs(self):
@@ -169,15 +171,17 @@ class Network(object):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
     def params(self, **kwargs):
-        params = self.weights
-        if not kwargs.get('nolearn_biases'):
+        params = []
+        params.extend(self.weights)
+        if kwargs.get('no_learn_biases'):
+            pass
+        else:
             params.extend(self.biases)
         return params
 
     def __call__(self, x):
-        '''Compute a forward pass of the given inputs, returning the net output.
-        '''
-        return self.f(x)
+        '''Compute a forward pass of the inputs, returning the net output.'''
+        return self.forward(x)[-1]
 
     def save(self, filename):
         '''Save the parameters of this network to disk.'''

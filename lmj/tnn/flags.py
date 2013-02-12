@@ -25,11 +25,10 @@ import sys
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
-from . import trainer
 from . import log
+from . import trainer
 
 logging = log.get_logger(__name__)
-
 
 class ArgParser(argparse.ArgumentParser):
     SANE_DEFAULTS = dict(
@@ -64,10 +63,10 @@ g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
 g = FLAGS.add_argument_group('Training')
-g.add_argument('-O', '--optimize', default='sgd', metavar='[data|hf|sgd]',
+g.add_argument('-O', '--optimize', default='sgd', metavar='[hf|layerwise|sgd|sample]',
                help='train with the given optimization method')
-g.add_argument('--no-learn-biases', action='store_false',
-               help='update bias parameters during learning')
+g.add_argument('--no-learn-biases', action='store_true',
+               help='if set, do not update bias parameters during learning')
 g.add_argument('-u', '--num-updates', type=int, default=128, metavar='N',
                help='perform at most N parameter updates')
 g.add_argument('-p', '--patience', type=int, default=15, metavar='N',
@@ -201,18 +200,26 @@ class Main(object):
             }
         for k, v in options.iteritems():
             v.lmj_name = k
-        return options[act]
+        try:
+            return options[act]
+        except:
+            raise KeyError('unknown --activation %s' % act)
+
 
     def get_trainer(self, opt=None):
         opt = opt or self.args.optimize.lower()
         if '+' in opt:
             return trainer.Cascaded(self.get_trainer(o) for o in opt.split('+'))
-        return {
-            'hf': trainer.HF,
-            'sgd': trainer.SGD,
-            'data': trainer.Data,
-            'force': trainer.FORCE,
-            }[opt]
+        try:
+            return {
+                'hf': trainer.HF,
+                'sgd': trainer.SGD,
+                'sample': trainer.Sample,
+                'layerwise': trainer.Layerwise,
+                'force': trainer.FORCE,
+                }[opt]
+        except:
+            raise KeyError('unknown --optimize %s' % opt)
 
     def get_network(self):
         raise NotImplementedError

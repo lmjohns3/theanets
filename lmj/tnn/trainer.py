@@ -21,6 +21,7 @@
 '''This file contains optimization methods for neural networks.'''
 
 import itertools
+import lmj.tnn
 import numpy as np
 import numpy.random as rng
 import tempfile
@@ -178,20 +179,27 @@ class Cascaded(Trainer):
             trainer.train(train_set, valid_set)
 
 
-def reservoir(xs, n):
-    '''Select a random sample of n items from xs.'''
-    pool = []
-    for i, x in enumerate(xs):
-        if len(pool) < n:
-            pool.append(x / np.linalg.norm(x))
-            continue
-        if n * rng.random() > i:
-            pool[rng.randint(n)] = x / np.linalg.norm(x)
-    return pool
-
-
-class Data(Trainer):
+class Sample(Trainer):
     '''This trainer replaces network weights with samples from the input.'''
+
+    @staticmethod
+    def reservoir(xs, n):
+        '''Select a random sample of n items from xs.'''
+        pool = []
+        for i, x in enumerate(xs):
+            if len(pool) < n:
+                pool.append(x / np.linalg.norm(x))
+                continue
+            j = rng.randint(i + 1)
+            if j < n:
+                pool[j] = x / np.linalg.norm(x)
+        # if the pool still has fewer than n items, pad with distorted random
+        # duplicates from the source data.
+        L = len(pool)
+        while len(pool) < n:
+            x = pool[rng.randint(L)]
+            pool.append(x + x.std() * 0.1 * rng.randn(*x.shape))
+        return pool
 
     def __init__(self, network, **kwargs):
         self.network = network
@@ -204,8 +212,56 @@ class Data(Trainer):
             w = self.network.weights[i]
             m, k = w.get_value(borrow=True).shape
             logging.info('setting weights for layer %d: %d x %d', i + 1, m, k)
-            w.set_value(np.vstack(reservoir(samples, k)).T)
-            samples = ifci(self.network(first(t))[i-1] for t in train_set)
+            w.set_value(np.vstack(Sample.reservoir(samples, k)).T)
+            samples = ifci(self.network.forward(first(t))[i-1] for t in train_set)
+
+
+class Layerwise(Trainer):
+    '''This trainer adapts parameters using greedy layerwise pretraining.'''
+
+    def __init__(self, network, **kwargs):
+        self.network = network
+        self.kwargs = kwargs
+
+    def train(self, train_set, valid_set=None):
+        i = 0
+
+        # construct training and validation datasets for autoencoding
+        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
+        bs = len(first(train_set.minibatches[0]))
+        p = lambda z: np.vstack(first(x) for x in z.minibatches)
+        _train = lmj.tnn.Dataset(
+            'train-0', p(train_set), size=bs, batches=train_set.limit)
+        _valid = None
+        if valid_set is not None:
+            _valid = lmj.tnn.Dataset(
+                'valid-0', p(valid_set), size=bs, batches=valid_set.limit)
+
+        while i < len(self.network.biases) - 1:
+            weights = self.network.weights[i]
+            bias = self.network.biases[i]
+            n = weights.get_value(borrow=True).shape[0]
+            k = bias.get_value(borrow=True).shape[0]
+
+            logging.info('layerwise training: layer %d with %d hidden units', i + 1, k)
+
+            # train a phantom autoencoder object on our dataset
+            ae = lmj.tnn.Autoencoder([n, k, n], TT.nnet.sigmoid)
+            t = SGD(ae, **self.kwargs)
+            t.train(_train, _valid)
+
+            # copy the trained weights
+            weights.set_value(ae.weights[0].get_value())
+            bias.set_value(ae.biases[0].get_value())
+
+            # map data through the network for the next layer
+            i += 1
+            p = lambda z: np.vstack(ae.forward(x[0])[0] for x in z.minibatches)
+            _train = lmj.tnn.Dataset(
+                'train-%d' % i, p(_train), size=bs, batches=_train.limit)
+            if _valid is not None:
+                _valid = lmj.tnn.Dataset(
+                    'valid-%d' % i, p(_valid), size=bs, batches=_valid.limit)
 
 
 class FORCE(Trainer):

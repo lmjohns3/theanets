@@ -23,11 +23,14 @@
 
 import pickle
 import gzip
-import logging
 import numpy as np
 import theano
 import theano.tensor as TT
 from theano.tensor.shared_randomstreams import RandomStreams
+
+from . import log
+
+logging = log.get_logger(__name__)
 
 randn = np.random.randn
 

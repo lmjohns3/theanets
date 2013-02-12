@@ -21,12 +21,15 @@
 '''This file contains command line flags and a main method.'''
 
 import argparse
-import logging
 import sys
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
 from . import trainer
+from . import log
+
+logging = log.get_logger(__name__)
+
 
 class ArgParser(argparse.ArgumentParser):
     SANE_DEFAULTS = dict(

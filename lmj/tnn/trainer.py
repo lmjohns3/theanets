@@ -21,13 +21,16 @@
 '''This file contains optimization methods for neural networks.'''
 
 import itertools
-import logging
 import numpy as np
 import numpy.random as rng
 import tempfile
 import theano
 import theano.tensor as TT
 import sys
+
+from . import log
+
+logging = log.get_logger(__name__)
 
 
 class Trainer(object):

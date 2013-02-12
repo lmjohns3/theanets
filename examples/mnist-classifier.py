@@ -10,10 +10,7 @@ import urllib
 
 import lmj.tnn
 
-logging.basicConfig(
-    stream=sys.stdout,
-    format='%(levelname).1s %(asctime)s %(message)s',
-    level=logging.INFO)
+lmj.tnn.log.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
 DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')

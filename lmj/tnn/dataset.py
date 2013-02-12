@@ -20,8 +20,11 @@
 
 '''This file contains a class for handling batched datasets.'''
 
-import logging
 import numpy.random as rng
+
+from . import log
+
+logging = log.get_logger(__name__)
 
 
 class SequenceDataset(object):

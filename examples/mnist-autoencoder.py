@@ -4,7 +4,6 @@ import cPickle
 import gzip
 import logging
 import os
-import sys
 import tempfile
 import urllib
 

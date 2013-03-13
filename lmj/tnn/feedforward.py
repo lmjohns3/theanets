@@ -170,6 +170,14 @@ class Network(object):
     def sparsities(self):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
+    @property
+    def updates(self):
+        return {}
+
+    @property
+    def structure(self):
+        return None
+
     def params(self, **kwargs):
         params = []
         params.extend(self.weights)
@@ -236,7 +244,7 @@ class Regressor(Network):
         self.k = TT.matrix('k')
         super(Regressor, self).__init__(*args, **kwargs)
         # for shape debugging
-        w = self.weights[len(self.biases)]
+        w = self.weights[len(self.biases) - 1]
         self.k.tag.test_value = randn(DEBUG_BATCH_SIZE, w.get_value(borrow=True).shape[1])
 
     @property

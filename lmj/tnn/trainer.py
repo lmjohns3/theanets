@@ -24,7 +24,6 @@ import itertools
 import lmj.tnn
 import numpy as np
 import numpy.random as rng
-import tempfile
 import theano
 import theano.tensor as TT
 import sys
@@ -96,7 +95,7 @@ class SGD(Trainer):
 
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
-        updates = {}
+        updates = network.updates
         for param in self.params:
             grad = TT.grad(J, param)
             heading = theano.shared(
@@ -121,6 +120,13 @@ class SGD(Trainer):
         self.f_finish()
 
 
+class CG(Trainer):
+    '''Conjugate gradient trainer for neural networks.'''
+
+    def __init__(self, network, **kwargs):
+        raise NotImplementedError
+
+
 class HF(Trainer):
     '''The hessian free trainer shells out to an external implementation.
 
@@ -132,26 +138,27 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
-        sys.path.append(tempfile.gettempdir())
         try:
             import hf
         except:
             # if hf failed to import, try downloading it and saving it locally.
-            import os, urllib
+            import os, tempfile, urllib
+            sys.path.append(tempfile.gettempdir())
             logging.error('hf import failed, attempting to download %s', HF.URL)
             path = os.path.join(tempfile.gettempdir(), 'hf.py')
             urllib.urlretrieve(HF.URL, path)
             logging.error('downloaded hf code to %s', path)
-            del os
-            del urllib
             import hf
 
-        c = [network.J(**kwargs)] + network.monitors
-        self.f_eval = theano.function(network.inputs, c)
         self.cg_set = kwargs.pop('cg_set')
         self.params = network.params(**kwargs)
+        self.opt = hf.hf_optimizer(
+            self.params,
+            network.inputs,
+            network.y,
+            [network.J(**kwargs)] + network.monitors,
+            network.structure)
         logging.info('%d parameter updates during training', len(self.params))
-        self.opt = hf.hf_optimizer(self.params, network.inputs, network.y, c)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
@@ -279,11 +286,12 @@ class FORCE(Trainer):
         c = 1. / (1. + rPr)
         dw = network.error(**kwargs) * c * k
 
-        updates = {}
+        J = network.J(**kwargs)
+        updates = network.updates
         updates[P] = P - c * TT.outer(k, k)
         updates[W_pool] = W_pool - dw
         updates[W_out] = W_out - dw
-        #updates[b_out] = b_out - self.alpha * TT.grad(J, b_out)
+        updates[b_out] = b_out - self.alpha * TT.grad(J, b_out)
 
         costs = [J] + network.monitors
         self.f_eval = theano.function(network.inputs, costs)

@@ -49,9 +49,9 @@ class Network(object):
     always include the final k hidden layers in the network.
     '''
 
-    def __init__(self, layers, activation, decode=1, tied_weights=False,
-                 rng=None, input_noise=0, hidden_noise=0,
-                 input_dropouts=0, hidden_dropouts=0):
+    def __init__(self, layers, activation, rng=None, input_noise=0,
+                 hidden_noise=0, input_dropouts=0, hidden_dropouts=0,
+                 **kwargs):
         '''Create a new feedforward network of a specific topology.
 
         layers: A sequence of integers specifying the number of units at each
@@ -62,11 +62,6 @@ class Network(object):
         activation: A callable that takes one argument (a matrix) and returns
           another matrix. This is the activation function that each hidden unit
           in the network uses.
-        decode: Any of the hidden layers can be tapped at the output. Just
-          specify a value greater than 1 to tap the last N hidden layers.
-        tied_weights: Construct decoding weights using the transpose of the
-          encoding weights on corresponding layers. If not true, decoding
-          weights will be constructed using a separate weight matrix.
         rng: Use a specific Theano random number generator. A new one will be
           created if this is None.
         input_noise: Standard deviation of desired noise to inject into input.
@@ -75,12 +70,22 @@ class Network(object):
         input_dropouts: Proportion of input units to randomly set to 0.
         hidden_dropouts: Proportion of hidden unit activations to randomly set
           to 0.
+
+        Available keyword arguments:
+
+        decode: Any of the hidden layers can be tapped at the output. Just
+          specify a value greater than 1 to tap the last N hidden layers.
+        tied_weights: Construct decoding weights using the transpose of the
+          encoding weights on corresponding layers. If not true, decoding
+          weights will be constructed using a separate weight matrix.
         '''
         self.hiddens = []
         self.weights = []
         self.biases = []
 
         rng = rng or RandomStreams()
+        tied_weights = kwargs.get('tied_weights')
+        decode = kwargs.get('decode', 1)
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
@@ -169,14 +174,6 @@ class Network(object):
     @property
     def sparsities(self):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
-
-    @property
-    def updates(self):
-        return {}
-
-    @property
-    def structure(self):
-        return None
 
     def params(self, **kwargs):
         params = []

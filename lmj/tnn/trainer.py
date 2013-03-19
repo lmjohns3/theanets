@@ -95,7 +95,7 @@ class SGD(Trainer):
 
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
-        updates = network.updates
+        updates = {}
         for param in self.params:
             grad = TT.grad(J, param)
             heading = theano.shared(
@@ -157,7 +157,7 @@ class HF(Trainer):
             network.inputs,
             network.y,
             [network.J(**kwargs)] + network.monitors,
-            network.structure)
+            network.hiddens[0] if isinstance(network, lmj.tnn.recurrent.Network) else None)
         logging.info('%d parameter updates during training', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
@@ -287,7 +287,7 @@ class FORCE(Trainer):
         dw = network.error(**kwargs) * c * k
 
         J = network.J(**kwargs)
-        updates = network.updates
+        updates = {}
         updates[P] = P - c * TT.outer(k, k)
         updates[W_pool] = W_pool - dw
         updates[W_out] = W_out - dw

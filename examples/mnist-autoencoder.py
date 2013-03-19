@@ -26,7 +26,7 @@ class Main(lmj.tnn.Main):
     def get_datasets(self):
         return [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
-m = Main()
+m = Main(layers=(784, 200, 784))
 path = os.path.join(
     tempfile.gettempdir(),
     'mnist-autoencoder-%s.pkl.gz' % ','.join(str(n) for n in m.args.layers))

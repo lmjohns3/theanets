@@ -4,13 +4,12 @@ import cPickle
 import gzip
 import logging
 import os
-import sys
 import tempfile
 import urllib
 
 import lmj.tnn
 
-lmj.tnn.log.enable_default_logging()
+lmj.tnn.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
 DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')
@@ -27,7 +26,7 @@ class Main(lmj.tnn.Main):
     def get_datasets(self):
         return [(x, y.astype('int32')) for x, y in cPickle.load(gzip.open(DATASET))]
 
-m = Main()
+m = Main(layers=(784, 200, 10))
 path = os.path.join(
     tempfile.gettempdir(),
     'mnist-classifier-%s.pkl.gz' % ','.join(str(n) for n in m.args.layers))

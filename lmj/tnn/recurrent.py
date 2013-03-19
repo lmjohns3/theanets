@@ -20,52 +20,105 @@
 
 '''This file contains recurrent network structures.'''
 
-import numpy
+import numpy as np
 import numpy.random as rng
 import theano
 import theano.tensor as TT
+from theano.tensor.shared_randomstreams import RandomStreams
 
 from . import feedforward as ff
+from . import log
+
+logging = log.get_logger(__name__)
 
 
 class Network(ff.Network):
-    '''A fully connected recurrent network with inputs and outputs.'''
+    '''A fully connected recurrent network with one input and one output layer.
+    '''
 
-    def __init__(self, layers, nonlinearity=TT.nnet.sigmoid, gain=1.2, damping=0.01):
+    def __init__(self, layers, activation, rng=None, input_noise=0,
+                 hidden_noise=0, input_dropouts=0, hidden_dropouts=0, **kwargs):
+        '''Initialize the weights and computation graph for a recurrent network.
+
+        layers: A sequence of three integers specifying the number of units in
+          the input, hidden, and output layers, respectively.
+        activation: A callable that takes one argument (a matrix) and returns
+          another matrix. This is the activation function that each hidden unit
+          in the network uses.
+        rng: Use a specific Theano random number generator. A new one will be
+          created if this is None.
+        input_noise: Standard deviation of desired noise to inject into input.
+        hidden_noise: Standard deviation of desired noise to inject into
+          hidden unit activation output.
+        input_dropouts: Proportion of input units to randomly set to 0.
+        hidden_dropouts: Proportion of hidden unit activations to randomly set
+          to 0.
+
+        Recognized keyword arguments:
+
+        damping: This parameter (a float in [0, 1]) governs the proportion of
+          past state information retained by the hidden neurons.
+        bptt: This parameter indicates the number of backprop-through-time steps
+          that will be computed by the network. Essentially this formulation of
+          a recurrent net treats recurrence as a very deep network with "bptt"
+          layers and shared weights all the way down.
+        '''
+        nin, nhid, nout = layers
+
+        # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
-        self.state = theano.shared(
-            numpy.zeros(size, dtype=ff.FLOAT), name='state')
+        self.x.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, nin)
 
-        i, h, o = layers
-        arr = rng.normal(size=(i, h)) / numpy.sqrt(i + h)
+        arr = ff.randn(nin, nhid) / np.sqrt(nin + nhid)
         W_in = theano.shared(arr.astype(ff.FLOAT), name='W_in')
+        logging.info('inputs: %d x %d', nin, nhid)
 
-        arr = gain * rng.normal(size=(h, h)) / numpy.sqrt(h + h)
+        arr = ff.randn(nhid, nhid) / np.sqrt(nhid + nhid)
         W_pool = theano.shared(arr.astype(ff.FLOAT), name='W_pool')
+        b_pool = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='b_out')
+        logging.info('hidden: %d x %d', nhid, nhid)
 
-        arr = rng.normal(size=(h, o)) / numpy.sqrt(h + o)
+        arr = ff.randn(nhid, nout) / np.sqrt(nhid + nout)
         W_out = theano.shared(arr.astype(ff.FLOAT), name='W_out')
-        b_out = theano.shared(numpy.zeros((o, ), ff.FLOAT), name='b_out')
+        b_out = theano.shared(np.zeros((nout, ), ff.FLOAT), name='b_out')
+        logging.info('outputs: %d x %d', nhid, nout)
 
-        self.hiddens = [self.state]
+        logging.info('%d total network parameters',
+                     nhid * (nin + nhid + nout + 1) + nout)
+
+        rng = rng or RandomStreams()
+
+        damping = kwargs.get('damping')
+        if damping is None:
+            damping = 0.01
+
+        #bptt = kwargs['bptt']
+
+        def step(x_t, h_tm1):
+            if input_noise > 0:
+                x_t += rng.normal(size=x_t.shape, std=input_noise)
+            if input_dropouts > 0:
+                x_t *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
+            h_t = activation(TT.dot(x_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
+            h_t.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, nhid)
+            if hidden_noise > 0:
+                h_t += rng.normal(size=h_t.shape, std=hidden_noise)
+            if hidden_dropouts > 0:
+                h_t *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
+            #h_t = (1 - damping) * h_t + damping * h_tm1
+            return [h_t, TT.dot(h_t, W_out) + b_out]
+
+        h_0 = theano.shared(np.zeros((1, nhid), ff.FLOAT), 'h_0')
+        h_init = TT.extra_ops.repeat(h_0, self.x.shape[0], axis=0)
+        (h, self.y), _ = theano.scan(
+            fn=step, sequences=self.x, outputs_info=[h_init, dict()])
+
+        self.hiddens = [h]
         self.weights = [W_in, W_pool, W_out]
-        self.biases = [b_out]
+        self.biases = [b_pool, b_out]
 
-        logging.info('%d total network parameters', h * (i + h + o) + o)
-
-        z = nonlinearity(TT.dot(self.x, W_in) + TT.dot(self.state, W_pool) + b_pool)
-        self.next_state = damping * self.state + (1 - damping) * z
-        self.y = TT.dot(self.next_state, W_out) + b_out
-
-        self.f = theano.function(*self.args, updates={self.state: self.next_state})
-
-    @property
-    def inputs(self):
-        return [self.x]
-
-    @property
-    def args(self):
-        return [self.x], [self.y]
+        # compute a complete pass over a sequence.
+        self.forward = theano.function([self.x], self.hiddens + [self.y])
 
 
 class Autoencoder(Network):
@@ -92,38 +145,3 @@ class Regressor(Network):
     def cost(self):
         err = self.k - self.y
         return TT.mean((err * err).sum(axis=1))
-
-
-class Classifier(Network):
-    '''A classifier attempts to match a 1-hot target output.'''
-
-    def __init__(self, *args, **kwargs):
-        super(Classifier, self).__init__(*args, **kwargs)
-        self.y = self.softmax(self.y)
-        self.k = TT.ivector('k')
-
-    @staticmethod
-    def softmax(x):
-        # TT.nnet.softmax doesn't work with the HF trainer.
-        z = TT.exp(x - x.max(axis=1)[:, None])
-        return z / z.sum(axis=1)[:, None]
-
-    @property
-    def inputs(self):
-        return [self.x, self.k]
-
-    @property
-    def prediction(self):
-        return TT.argmax(self.y, axis=1)
-
-    @property
-    def cost(self):
-        return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
-
-    @property
-    def incorrect(self):
-        return TT.mean(TT.neq(self.prediction, self.k))
-
-    @property
-    def monitors(self):
-        return [self.incorrect] + self.sparsities

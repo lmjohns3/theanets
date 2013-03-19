@@ -61,6 +61,8 @@ g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
 g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
+g.add_argument('--damping', type=float, metavar='R',
+               help='damp recurrent network with R in [0, 1]')
 
 g = FLAGS.add_argument_group('Training')
 g.add_argument('-O', '--optimize', default='sgd', metavar='[hf|layerwise|sgd|sample]',
@@ -128,8 +130,10 @@ class Main(object):
     arguments through self.args.
     '''
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, **kwargs):
         self.args = args or FLAGS.parse_args()
+        for k, v in kwargs.iteritems():
+            setattr(self.args, k, v)
 
         kwargs = {}
         kwargs.update(vars(self.args))
@@ -138,8 +142,8 @@ class Main(object):
             logging.info('--%s = %s', k, kwargs[k])
 
         activation = self.get_activation()
-        if hasattr(activation, 'lmj_name'):
-            logging.info('activation: %s', activation.lmj_name)
+        if hasattr(activation, 'lmj_nn_name'):
+            logging.info('activation: %s', activation.lmj_nn_name)
 
         self.net = self.get_network()(
             layers=self.args.layers,
@@ -150,6 +154,7 @@ class Main(object):
             hidden_noise=self.args.hidden_noise,
             input_dropouts=self.args.input_dropouts,
             hidden_dropouts=self.args.hidden_dropouts,
+            damping=self.args.damping,
             )
 
         kw = dict(size=self.args.batch_size)
@@ -176,7 +181,7 @@ class Main(object):
     def get_activation(self, act=None):
         def compose(a, b):
             c = lambda z: b(a(z))
-            c.lmj_name = '%s(%s)' % (b.lmj_name, a.lmj_name)
+            c.lmj_nn_name = '%s(%s)' % (b.lmj_nn_name, a.lmj_nn_name)
             return c
         act = act or self.args.activation.lower()
         if '+' in act:
@@ -199,7 +204,7 @@ class Main(object):
             'norm:std': lambda z: z / TT.maximum(1e-10, z.std(axis=1)[:, None]),
             }
         for k, v in options.iteritems():
-            v.lmj_name = k
+            v.lmj_nn_name = k
         try:
             return options[act]
         except:

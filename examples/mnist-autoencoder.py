@@ -7,9 +7,9 @@ import os
 import tempfile
 import urllib
 
-import lmj.tnn
+import lmj.nn
 
-lmj.tnn.enable_default_logging()
+lmj.nn.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
 DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')
@@ -19,9 +19,9 @@ if not os.path.isfile(DATASET):
     urllib.urlretrieve(URL, DATASET)
     logging.info('saved mnist digits to %s' % DATASET)
 
-class Main(lmj.tnn.Main):
+class Main(lmj.nn.Main):
     def get_network(self):
-        return lmj.tnn.Autoencoder
+        return lmj.nn.Autoencoder
 
     def get_datasets(self):
         return [x for x, _ in cPickle.load(gzip.open(DATASET))]

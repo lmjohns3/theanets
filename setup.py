@@ -2,8 +2,8 @@ import os
 import setuptools
 
 setuptools.setup(
-    name='lmj.tnn',
-    version='0.3.1',
+    name='lmj.nn',
+    version='0.4.0',
     namespace_packages=['lmj'],
     packages=setuptools.find_packages(),
     author='Leif Johnson',

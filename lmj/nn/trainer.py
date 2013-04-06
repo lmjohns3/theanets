@@ -21,14 +21,16 @@
 '''This file contains optimization methods for neural networks.'''
 
 import itertools
-import lmj.nn
 import numpy as np
 import numpy.random as rng
 import theano
 import theano.tensor as TT
 import sys
 
+from . import dataset
+from . import feedforward
 from . import log
+from . import recurrent
 
 logging = log.get_logger(__name__)
 
@@ -157,7 +159,7 @@ class HF(Trainer):
             network.inputs,
             network.y,
             [network.J(**kwargs)] + network.monitors,
-            network.hiddens[0] if isinstance(network, lmj.nn.recurrent.Network) else None)
+            network.hiddens[0] if isinstance(network, recurrent.Network) else None)
         logging.info('%d parameter updates during training', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
@@ -237,11 +239,11 @@ class Layerwise(Trainer):
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         bs = len(first(train_set.minibatches[0]))
         p = lambda z: np.vstack(first(x) for x in z.minibatches)
-        _train = lmj.nn.Dataset(
+        _train = dataset.SequenceDataset(
             'train-0', p(train_set), size=bs, batches=train_set.limit)
         _valid = None
         if valid_set is not None:
-            _valid = lmj.nn.Dataset(
+            _valid = dataset.SequenceDataset(
                 'valid-0', p(valid_set), size=bs, batches=valid_set.limit)
 
         while i < len(self.network.biases) - 1:
@@ -253,7 +255,7 @@ class Layerwise(Trainer):
             logging.info('layerwise training: layer %d with %d hidden units', i + 1, k)
 
             # train a phantom autoencoder object on our dataset
-            ae = lmj.nn.Autoencoder([n, k, n], TT.nnet.sigmoid)
+            ae = feedforward.Autoencoder([n, k, n], TT.nnet.sigmoid)
             t = SGD(ae, **self.kwargs)
             t.train(_train, _valid)
 
@@ -264,10 +266,10 @@ class Layerwise(Trainer):
             # map data through the network for the next layer
             i += 1
             p = lambda z: np.vstack(ae.forward(x[0])[0] for x in z.minibatches)
-            _train = lmj.nn.Dataset(
+            _train = dataset.SequenceDataset(
                 'train-%d' % i, p(_train), size=bs, batches=_train.limit)
             if _valid is not None:
-                _valid = lmj.nn.Dataset(
+                _valid = dataset.SequenceDataset(
                     'valid-%d' % i, p(_valid), size=bs, batches=_valid.limit)
 
 

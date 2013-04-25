@@ -103,6 +103,7 @@ class SGD(Trainer):
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
         updates = {}
+        updates.update(network.updates)
         for param in self.params:
             grad = TT.grad(J, param)
             heading = theano.shared(

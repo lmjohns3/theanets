@@ -58,10 +58,6 @@ class Network(ff.Network):
 
         damping: This parameter (a float in [0, 1]) governs the proportion of
           past state information retained by the hidden neurons.
-        bptt: This parameter indicates the number of backprop-through-time steps
-          that will be computed by the network. Essentially this formulation of
-          a recurrent net treats recurrence as a very deep network with "bptt"
-          layers and shared weights all the way down.
         '''
         nin, nhid, nout = layers
 
@@ -73,9 +69,9 @@ class Network(ff.Network):
         W_in = theano.shared(arr.astype(ff.FLOAT), name='W_in')
         logging.info('inputs: %d x %d', nin, nhid)
 
-        arr = ff.randn(nhid, nhid) / np.sqrt(nhid + nhid)
+        arr = ff.randn(nhid, nhid) / np.sqrt(nhid + nhid) / 10.
         W_pool = theano.shared(arr.astype(ff.FLOAT), name='W_pool')
-        b_pool = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='b_out')
+        b_pool = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='b_pool')
         logging.info('hidden: %d x %d', nhid, nhid)
 
         arr = ff.randn(nhid, nout) / np.sqrt(nhid + nout)
@@ -92,8 +88,6 @@ class Network(ff.Network):
         if damping is None:
             damping = 0.01
 
-        #bptt = kwargs['bptt']
-
         def step(x_t, h_tm1):
             if input_noise > 0:
                 x_t += rng.normal(size=x_t.shape, std=input_noise)
@@ -105,20 +99,20 @@ class Network(ff.Network):
                 h_t += rng.normal(size=h_t.shape, std=hidden_noise)
             if hidden_dropouts > 0:
                 h_t *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
-            #h_t = (1 - damping) * h_t + damping * h_tm1
+            h_t = (1 - damping) * h_t + damping * h_tm1
             return [h_t, TT.dot(h_t, W_out) + b_out]
 
-        h_0 = theano.shared(np.zeros((1, nhid), ff.FLOAT), 'h_0')
-        h_init = TT.extra_ops.repeat(h_0, self.x.shape[0], axis=0)
-        (h, self.y), _ = theano.scan(
-            fn=step, sequences=self.x, outputs_info=[h_init, dict()])
+        h_0 = theano.shared(np.zeros((nhid, ), ff.FLOAT), 'h_0')
+        (h, self.y), self.updates = theano.scan(
+            fn=step, sequences=self.x, outputs_info=[h_0, {}])
 
         self.hiddens = [h]
         self.weights = [W_in, W_pool, W_out]
         self.biases = [b_pool, b_out]
 
-        # compute a complete pass over a sequence.
-        self.forward = theano.function([self.x], self.hiddens + [self.y])
+        # compute a complete pass over an input sequence.
+        self.forward = theano.function(
+            [self.x], self.hiddens + [self.y], updates=self.updates)
 
 
 class Autoencoder(Network):

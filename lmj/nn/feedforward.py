@@ -160,6 +160,8 @@ class Network(object):
 
         self.y = self.hiddens.pop()
 
+        self.updates = {}
+
         # compute a forward pass, returning all layer activations.
         self.forward = theano.function([self.x], self.hiddens + [self.y])
 

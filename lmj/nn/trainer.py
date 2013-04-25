@@ -62,6 +62,8 @@ class Trainer(object):
                         best_iter = i
                         best_params = [p.get_value().copy() for p in self.params]
                         fmt += ' *'
+                    else:
+                        self.validation_stagnant()
                 self.finish_iteration()
             except KeyboardInterrupt:
                 logging.info('interrupted !')
@@ -74,6 +76,9 @@ class Trainer(object):
             param.set_value(target)
 
     def finish_iteration(self):
+        pass
+
+    def validation_stagnant(self):
         pass
 
     def evaluate(self, test_set):
@@ -118,7 +123,7 @@ class SGD(Trainer):
     def learning_rate(self):
         return self.f_rate()[0]
 
-    def finish_iteration(self):
+    def validation_stagnant(self):
         self.f_finish()
 
 

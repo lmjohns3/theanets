@@ -21,38 +21,16 @@
 '''This file contains command line flags and a main method.'''
 
 import argparse
+import lmj.cli
 import sys
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
-from . import log
 from . import trainer
 
-logging = log.get_logger(__name__)
+logging = lmj.cli.get_logger(__name__)
 
-class ArgParser(argparse.ArgumentParser):
-    SANE_DEFAULTS = dict(
-        fromfile_prefix_chars='@',
-        conflict_handler='resolve',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    def __init__(self, *args, **kwargs):
-        kwargs.update(ArgParser.SANE_DEFAULTS)
-        super(ArgParser, self).__init__(*args, **kwargs)
-
-    def convert_arg_line_to_args(self, line):
-        '''Remove # comments and blank lines from arg files.'''
-        line = line.split('#')[0].strip()
-        if line:
-            if line[0] == '-' and ' ' in line:
-                for p in line.split():
-                    yield p
-            else:
-                yield line
-
-FLAGS = ArgParser()
-
-g = FLAGS.add_argument_group('Architecture')
+g = lmj.cli.add_arg_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
 g.add_argument('-g', '--activation', default='logistic', metavar='[linear|logistic|tanh|relu]',
@@ -64,7 +42,7 @@ g.add_argument('--decode', type=int, default=1, metavar='N',
 g.add_argument('--damping', type=float, metavar='R',
                help='damp recurrent network with R in [0, 1]')
 
-g = FLAGS.add_argument_group('Training')
+g = lmj.cli.add_arg_group('Training')
 g.add_argument('-O', '--optimize', default='sgd', metavar='[hf|layerwise|sgd|sample]',
                help='train with the given optimization method')
 g.add_argument('--no-learn-biases', action='store_true',
@@ -82,7 +60,7 @@ g.add_argument('-B', '--train-batches', type=int, metavar='N',
 g.add_argument('-V', '--valid-batches', type=int, metavar='N',
                help='use at most N batches during validation')
 
-g = FLAGS.add_argument_group('Regularization')
+g = lmj.cli.add_arg_group('Regularization')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
                help='add noise to network inputs drawn from N(0, S)')
 g.add_argument('--input-dropouts', type=float, default=0, metavar='R',
@@ -100,7 +78,7 @@ g.add_argument('--weight-l1', type=float, default=0, metavar='K',
 g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
-g = FLAGS.add_argument_group('SGD Optimization')
+g = lmj.cli.add_arg_group('SGD Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=0.1, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-d', '--decay', type=float, default=0.01, metavar='R',
@@ -110,7 +88,7 @@ g.add_argument('-m', '--momentum', type=float, default=0.1, metavar='V',
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
 
-g = FLAGS.add_argument_group('HF Optimization')
+g = lmj.cli.add_arg_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',
                help='use at most N batches for CG computation')
 g.add_argument('--initial-lambda', type=float, default=1., metavar='K',
@@ -131,7 +109,7 @@ class Main(object):
     '''
 
     def __init__(self, args=None, **kwargs):
-        self.args = args or FLAGS.parse_args()
+        self.args = args or lmj.cli.get_args().parse_args()
         for k, v in kwargs.iteritems():
             setattr(self.args, k, v)
 

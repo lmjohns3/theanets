@@ -22,7 +22,6 @@
 
 from .dataset import SequenceDataset as Dataset
 from .feedforward import Network, Autoencoder, Regressor, Classifier
-from .flags import FLAGS, Main
-from .log import enable_default_logging
+from .flags import Main
 from . import recurrent
 from . import trainer

@@ -21,6 +21,7 @@
 '''This module contains a number of classes for modeling neural nets in Theano.
 '''
 
+import lmj.cli
 import pickle
 import gzip
 import numpy as np
@@ -28,9 +29,7 @@ import theano
 import theano.tensor as TT
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from . import log
-
-logging = log.get_logger(__name__)
+logging = lmj.cli.get_logger(__name__)
 
 randn = np.random.randn
 

@@ -20,6 +20,7 @@
 
 '''This file contains recurrent network structures.'''
 
+import lmj.cli
 import numpy as np
 import numpy.random as rng
 import theano
@@ -27,9 +28,8 @@ import theano.tensor as TT
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from . import feedforward as ff
-from . import log
 
-logging = log.get_logger(__name__)
+logging = lmj.cli.get_logger(__name__)
 
 
 class Network(ff.Network):

@@ -3,13 +3,13 @@
 import cPickle
 import gzip
 import logging
+import lmj.cli
+import lmj.nn
 import os
 import tempfile
 import urllib
 
-import lmj.nn
-
-lmj.nn.enable_default_logging()
+lmj.cli.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
 DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')

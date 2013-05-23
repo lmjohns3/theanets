@@ -16,7 +16,7 @@ setuptools.setup(
               'neural-network '
               'theano '
               'machine-learning'),
-    install_requires=['theano'],
+    install_requires=['theano', 'lmj.cli'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

@@ -2,10 +2,10 @@
 
 import logging
 import numpy as np
-
+import lmj.cli
 import lmj.nn
 
-lmj.nn.enable_default_logging()
+lmj.cli.enable_default_logging()
 
 class Main(lmj.nn.Main):
     def get_network(self):

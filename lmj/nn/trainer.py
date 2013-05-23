@@ -21,6 +21,7 @@
 '''This file contains optimization methods for neural networks.'''
 
 import itertools
+import lmj.cli
 import numpy as np
 import numpy.random as rng
 import theano
@@ -29,10 +30,9 @@ import sys
 
 from . import dataset
 from . import feedforward
-from . import log
 from . import recurrent
 
-logging = log.get_logger(__name__)
+logging = lmj.cli.get_logger(__name__)
 
 
 class Trainer(object):

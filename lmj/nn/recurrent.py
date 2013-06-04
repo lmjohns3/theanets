@@ -102,7 +102,7 @@ class Network(ff.Network):
             h_t = (1 - damping) * h_t + damping * h_tm1
             return [h_t, TT.dot(h_t, W_out) + b_out]
 
-        h_0 = theano.shared(np.zeros((nhid, ), ff.FLOAT), 'h_0')
+        h_0 = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='h_0')
         (h, self.y), self.updates = theano.scan(
             fn=step, sequences=self.x, outputs_info=[h_0, {}])
 

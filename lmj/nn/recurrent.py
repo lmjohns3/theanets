@@ -59,28 +59,43 @@ class Network(ff.Network):
         damping: This parameter (a float in [0, 1]) governs the proportion of
           past state information retained by the hidden neurons.
         '''
-        nin, nhid, nout = layers
+        layers = list(layers)
+        num_out = layers.pop()
+        num_pool = layers.pop()
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
-        self.x.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, nin)
+        self.x.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, layers[0])
 
-        arr = ff.randn(nin, nhid) / np.sqrt(nin + nhid)
-        W_in = theano.shared(arr.astype(ff.FLOAT), name='W_in')
-        logging.info('inputs: %d x %d', nin, nhid)
+        parameter_count = 0
 
-        arr = ff.randn(nhid, nhid) / np.sqrt(nhid + nhid) / 10.
-        W_pool = theano.shared(arr.astype(ff.FLOAT), name='W_pool')
-        b_pool = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='b_pool')
-        logging.info('hidden: %d x %d', nhid, nhid)
+        W_in = []
+        b_in = []
+        for i, (a, b) in enumerate(zip(layers, layers[1:] + [num_pool])):
+            arr = ff.randn(a, b) / np.sqrt(a + b)
+            W_in.append(theano.shared(arr.astype(ff.FLOAT), name='weights_%d' % i))
+            b_in.append(theano.shared(np.zeros((b, ), ff.FLOAT), name='bias_%d' % i))
+            logging.info('encoding weights for layer %d: %d x %d', i + 1, a, b)
+            parameter_count += (1 + a) * b
 
-        arr = ff.randn(nhid, nout) / np.sqrt(nhid + nout)
-        W_out = theano.shared(arr.astype(ff.FLOAT), name='W_out')
-        b_out = theano.shared(np.zeros((nout, ), ff.FLOAT), name='b_out')
-        logging.info('outputs: %d x %d', nhid, nout)
+        # discard bias for last input layer (we create it explicitly below, as
+        # the bias for the recurrent pool)
+        b_in.pop()
+        parameter_count -= num_pool
 
-        logging.info('%d total network parameters',
-                     nhid * (nin + nhid + nout + 1) + nout)
+        arr = ff.randn(num_pool, num_pool) / np.sqrt(num_pool + num_pool) / 10.
+        W_pool = theano.shared(arr.astype(ff.FLOAT), name='weights_pool')
+        b_pool = theano.shared(np.zeros((num_pool, ), ff.FLOAT), name='bias_pool')
+        logging.info('recurrent weights: %d x %d', num_pool, num_pool)
+        parameter_count += (1 + num_pool) * num_pool
+
+        arr = ff.randn(num_pool, num_out) / np.sqrt(num_pool + num_out)
+        W_out = theano.shared(arr.astype(ff.FLOAT), name='weights_out')
+        b_out = theano.shared(np.zeros((num_out, ), ff.FLOAT), name='bias_out')
+        logging.info('output weights: %d x %d', num_pool, num_out)
+        parameter_count += (1 + num_pool) * num_out
+
+        logging.info('%d total network parameters', parameter_count)
 
         rng = rng or RandomStreams()
 
@@ -89,26 +104,28 @@ class Network(ff.Network):
             damping = 0.01
 
         def step(x_t, h_tm1):
-            if input_noise > 0:
-                x_t += rng.normal(size=x_t.shape, std=input_noise)
-            if input_dropouts > 0:
-                x_t *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
-            h_t = activation(TT.dot(x_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
-            h_t.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, nhid)
-            if hidden_noise > 0:
-                h_t += rng.normal(size=h_t.shape, std=hidden_noise)
-            if hidden_dropouts > 0:
-                h_t *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
+            z = x_t
+            for i, (W, b) in enumerate(zip(W_in, b_in)):
+                if input_noise > 0 and i == 0:
+                    z += rng.normal(size=z.shape, std=input_noise)
+                if input_dropouts > 0 and i == 0:
+                    z *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
+                z = activation(TT.dot(z, W) + b)
+                if hidden_noise > 0 and i > 0:
+                    z += rng.normal(size=z.shape, std=hidden_noise)
+                if hidden_dropouts > 0 and i > 0:
+                    z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
+            h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
             h_t = (1 - damping) * h_t + damping * h_tm1
             return [h_t, TT.dot(h_t, W_out) + b_out]
 
-        h_0 = theano.shared(np.zeros((nhid, ), ff.FLOAT), name='h_0')
+        h_0 = theano.shared(np.zeros(num_pool).astype(ff.FLOAT), name='h_0')
         (h, self.y), self.updates = theano.scan(
             fn=step, sequences=self.x, outputs_info=[h_0, {}])
 
         self.hiddens = [h]
-        self.weights = [W_in, W_pool, W_out]
-        self.biases = [b_pool, b_out]
+        self.weights = W_in + [W_pool, W_out]
+        self.biases = b_in + [b_pool, b_out]
 
         # compute a complete pass over an input sequence.
         self.forward = theano.function(

@@ -63,6 +63,9 @@ class SequenceDataset(object):
         n = kwargs.get('size', kwargs.get('batch_size', 10))
         self.minibatches = [
             [d[i:i + n] for d in data] for i in xrange(0, len(data[0]), n)]
+        if n == 1:
+            self.minibatches = [
+                [d[i] for d in data] for i in xrange(len(data[0]))]
 
         logging.info('data %s: %d mini-batches of %s', label,
                      len(self.minibatches),

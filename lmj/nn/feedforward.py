@@ -121,9 +121,9 @@ class Network(object):
             z = activation(TT.dot(x, Wi) + bi)
             z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
 
-            if hidden_noise > 0 and i > 0:
+            if hidden_noise > 0:
                 z += rng.normal(size=z.shape, std=hidden_noise)
-            if hidden_dropouts > 0 and i > 0:
+            if hidden_dropouts > 0:
                 z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
 
             self.hiddens.append(z)

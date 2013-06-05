@@ -23,5 +23,6 @@
 from .dataset import SequenceDataset as Dataset
 from .feedforward import Network, Autoencoder, Regressor, Classifier
 from .main import Main
+from . import flags
 from . import recurrent
 from . import trainer

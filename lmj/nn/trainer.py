@@ -146,12 +146,13 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
+        import os, tempfile, urllib
+        sys.path.append(tempfile.gettempdir())
+
         try:
             import hf
         except:
             # if hf failed to import, try downloading it and saving it locally.
-            import os, tempfile, urllib
-            sys.path.append(tempfile.gettempdir())
             logging.error('hf import failed, attempting to download %s', HF.URL)
             path = os.path.join(tempfile.gettempdir(), 'hf.py')
             urllib.urlretrieve(HF.URL, path)

@@ -20,6 +20,7 @@
 
 '''This file contains an object encapsulating a main process.'''
 
+import lmj.cli
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
@@ -71,14 +72,14 @@ class Main(object):
         if not isinstance(valid_, (tuple, list)):
             valid_ = (valid_, )
 
-        kw['batches'] = self.args.train_batches
-        self.train_set = Dataset('train', *train_, **kw)
+        kw.update(dict(batches=self.args.train_batches, label='train'))
+        self.train_set = Dataset(*train_, **kw)
 
-        kw['batches'] = self.args.valid_batches
-        self.valid_set = Dataset('valid', *valid_, **kw)
+        kw.update(dict(batches=self.args.valid_batches, label='valid'))
+        self.valid_set = Dataset(*valid_, **kw)
 
-        kw['batches'] = self.args.cg_batches
-        kwargs['cg_set'] = Dataset('cg', *train_, **kw)
+        kw.update(dict(batches=self.args.cg_batches, label='cg'))
+        kwargs['cg_set'] = Dataset(*train_, **kw)
 
         self.trainer = self.get_trainer()(self.net, **kwargs)
 
@@ -116,7 +117,6 @@ class Main(object):
             return options[act]
         except:
             raise KeyError('unknown --activation %s' % act)
-
 
     def get_trainer(self, opt=None):
         opt = opt or self.args.optimize.lower()

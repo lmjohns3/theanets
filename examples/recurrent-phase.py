@@ -2,6 +2,7 @@
 
 import logging
 import numpy as np
+import numpy.random as rng
 import lmj.cli
 import lmj.nn
 
@@ -21,11 +22,11 @@ class Main(lmj.nn.Main):
         return lmj.nn.recurrent.Autoencoder
 
     def get_datasets(self):
-        train = np.array([sines(i) for i in range(64, 256)])
-        dev = np.array([sines(i) for i in range(64)])
-        return train, dev
+        k = int(0.3 * T)
+        return (lambda _: [sines(rng.randint(k, T))],
+                lambda _: [sines(rng.randint(0, k))])
 
-m = Main(layers=(1, 10, 1), batch_size=1, num_updates=10, learning_rate=0.01)
+m = Main(layers=(1, 10, 1), num_updates=10, train_batches=64)
 m.train()
 
 source = sines(13)

@@ -33,13 +33,8 @@ class SequenceDataset(object):
     constructor has slightly different semantics.
     '''
 
-    def __init__(self, label, *data, **kwargs):
+    def __init__(self, *data, **kwargs):
         '''Create a minibatch dataset from a number of different data arrays.
-
-        Arguments:
-
-        label: A string that is used to describe this dataset. Usually something
-          like 'test' or 'train'.
 
         Positional arguments:
 
@@ -51,50 +46,75 @@ class SequenceDataset(object):
         should be the same as the order of inputs in the network. All arguments
         are expected to have the same number of elements along the first axis.
 
+        Alternatively, if there is only one positional arg, and it is callable,
+        then that callable will be invoked repeatedly at training and test time.
+        Each invocation of the callable should return a tuple containing one
+        minibatch of data. The callable will be passed one argument---the size
+        of the minibatch to generate.
+
         Keyword arguments:
 
         size or batch_size: The size of the mini-batches to create from the
-          data matrices. Defaults to 10.
+          data sequences. Defaults to 32.
         batches: The number of batches to yield for each call to iterate().
           Defaults to the length of the data divided by batch_size.
+        label: A string that is used to describe this dataset. Usually something
+          like 'test' or 'train'.
         '''
-        self.label = label
+        self.label = kwargs.get('label', 'dataset')
+        self.batch_size = kwargs.get('size', kwargs.get('batch_size', 32))
+        self.number_batches = kwargs.get('batches')
+        self.batch = 0
 
-        n = kwargs.get('size', kwargs.get('batch_size', 10))
-        self.minibatches = [
-            [d[i:i + n] for d in data] for i in xrange(0, len(data[0]), n)]
-        if n == 1:
-            self.minibatches = [
-                [d[i] for d in data] for i in xrange(len(data[0]))]
+        batch = None
+        cardinality = None
+        self.callable = None
+        self.batches = None
+        if len(data) == 1 and callable(data[0]):
+            self.callable = data[0]
+            cardinality = '->'
+            batch = self.callable(self.batch_size)
+            if not self.number_batches:
+                self.number_batches = self.batch_size
+        else:
+            self.batches = [
+                [d[i:i + self.batch_size] for d in data]
+                for i in xrange(0, len(data[0]), self.batch_size)]
+            self.shuffle()
+            cardinality = len(self.batches)
+            batch = self.batches[0]
+            if not self.number_batches:
+                self.number_batches = cardinality
 
-        logging.info('data %s: %d mini-batches of %s', label,
-                     len(self.minibatches),
-                     ', '.join(str(x.shape) for x in self.minibatches[0]))
-
-        self.current = 0
-        self.limit = kwargs.get('batches') or len(self.minibatches)
-        self.shuffle()
+        logging.info('data %s: %s mini-batches of %s',
+            self.label, cardinality, ', '.join(str(x.shape) for x in batch))
 
     def __iter__(self):
         return self.iterate(True)
 
-    @property
-    def number_batches(self):
-        return self.limit
-
     def shuffle(self):
-        rng.shuffle(self.minibatches)
+        rng.shuffle(self.batches)
 
     def iterate(self, update=True):
-        k = len(self.minibatches)
-        for b in xrange(self.limit):
-            yield self.minibatches[(self.current + b) % k]
+        if self.callable:
+            return self._iter_callable()
+        return self._iter_batches(update)
+
+    def _iter_batches(self, update=True):
+        k = len(self.batches)
+        for b in xrange(self.number_batches):
+            yield self.batches[(self.batch + b) % k]
         if update:
             self.update()
 
+    def _iter_callable(self):
+        for b in xrange(self.number_batches):
+            yield self.callable(self.batch_size)
+
     def update(self):
-        if self.current + self.limit >= len(self.minibatches):
+        if self.callable:
+            return
+        self.batch += self.number_batches
+        if self.batch >= len(self.batches):
             self.shuffle()
-            self.current = 0
-        else:
-            self.current += self.limit
+            self.batch = 0

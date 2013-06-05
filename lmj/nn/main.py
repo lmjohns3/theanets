@@ -179,9 +179,10 @@ class Experiment(object):
             kwargs['batches'] = b
         if 'size' not in kwargs:
             kwargs['size'] = self.args.batch_size
+        kwargs['label'] = label
         if not isinstance(dataset, (tuple, list)):
             dataset = (dataset, )
-        self.datasets[label] = Dataset(*dataset, **kw)
+        self.datasets[label] = Dataset(*dataset, **kwargs)
 
     def run(self, train=None, valid=None):
         '''Run this experiment by training (and validating) a network.
@@ -202,8 +203,8 @@ class Experiment(object):
                 self.add_dataset('cg', train)
         if valid is not None and 'valid' not in self.datasets:
             self.add_dataset('valid', valid)
-        self.trainer.train(self.datasets['train'],
-                           valid=self.datasets['valid'],
+        self.trainer.train(train_set=self.datasets['train'],
+                           valid_set=self.datasets['valid'],
                            cg_set=self.datasets['cg'])
 
     def save(self, path):

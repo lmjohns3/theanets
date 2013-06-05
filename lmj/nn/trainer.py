@@ -20,6 +20,7 @@
 
 '''This file contains optimization methods for neural networks.'''
 
+import collections
 import itertools
 import lmj.cli
 import numpy as np
@@ -102,7 +103,7 @@ class SGD(Trainer):
 
         J = network.J(**kwargs)
         t = theano.shared(np.cast['float32'](0), name='t')
-        updates = {}
+        updates = collections.OrderedDict()
         updates.update(network.updates)
         for param in self.params:
             grad = TT.grad(J, param)

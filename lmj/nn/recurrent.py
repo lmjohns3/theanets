@@ -105,15 +105,15 @@ class Network(ff.Network):
 
         def step(x_t, h_tm1):
             z = x_t
+            if input_noise > 0:
+                z += rng.normal(size=z.shape, std=input_noise)
+            if input_dropouts > 0:
+                z *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
             for i, (W, b) in enumerate(zip(W_in, b_in)):
-                if input_noise > 0 and i == 0:
-                    z += rng.normal(size=z.shape, std=input_noise)
-                if input_dropouts > 0 and i == 0:
-                    z *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
                 z = activation(TT.dot(z, W) + b)
-                if hidden_noise > 0 and i > 0:
+                if hidden_noise > 0:
                     z += rng.normal(size=z.shape, std=hidden_noise)
-                if hidden_dropouts > 0 and i > 0:
+                if hidden_dropouts > 0:
                     z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
             h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
             h_t = (1 - damping) * h_t + damping * h_tm1

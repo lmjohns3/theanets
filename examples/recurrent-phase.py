@@ -10,27 +10,22 @@ from matplotlib import pyplot as plt
 
 lmj.cli.enable_default_logging()
 
+e = lmj.nn.Experiment(
+    lmj.nn.recurrent.Autoencoder,
+    layers=(1, 10, 1), num_updates=10, train_batches=64)
+
 T = 256
+K = int(0.5 * T)
 S = np.linspace(0, 4 * np.pi, T)
 
 def sines(i=0):
     return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1))
 
-
-class Main(lmj.nn.Main):
-    def get_network(self):
-        return lmj.nn.recurrent.Autoencoder
-
-    def get_datasets(self):
-        k = int(0.3 * T)
-        return (lambda _: [sines(rng.randint(k, T))],
-                lambda _: [sines(rng.randint(0, k))])
-
-m = Main(layers=(1, 10, 1), num_updates=10, train_batches=64)
-m.train()
+e.train(lambda _: [sines(rng.randint(K, T))],
+        lambda _: [sines(rng.randint(0, K))])
 
 source = sines(13)
-match = m.net(source)
+match = e.network(source)
 
 # plot the input, output, and error of the network.
 

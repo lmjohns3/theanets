@@ -19,18 +19,15 @@ if not os.path.isfile(DATASET):
     urllib.urlretrieve(URL, DATASET)
     logging.info('saved mnist digits to %s' % DATASET)
 
-class Main(lmj.nn.Main):
-    def get_network(self):
-        return lmj.nn.Autoencoder
+train, valid, _ = [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
-    def get_datasets(self):
-        return [x for x, _ in cPickle.load(gzip.open(DATASET))]
+e = lmj.nn.Experiment(lmj.nn.Autoencoder, layers=(784, 200, 784))
 
-m = Main(layers=(784, 200, 784))
 path = os.path.join(
     tempfile.gettempdir(),
     'mnist-autoencoder-%s.pkl.gz' % ','.join(str(n) for n in m.args.layers))
+
 if os.path.exists(path):
-    m.net.load(path)
-m.train()
-m.net.save(path)
+    e.load(path)
+e.train(train, valid)
+e.save(path)

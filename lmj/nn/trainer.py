@@ -39,7 +39,7 @@ logging = lmj.cli.get_logger(__name__)
 class Trainer(object):
     '''This is a base class for all trainers.'''
 
-    def train(self, train_set, valid_set=None):
+    def train(self, train_set, valid_set=None, **kwargs):
         '''By default, we train in iterations and evaluate periodically.'''
         best_cost = 1e100
         best_iter = 0
@@ -49,7 +49,7 @@ class Trainer(object):
                 logging.error('patience elapsed, bailing out')
                 break
             try:
-                fmt = 'epoch %i[%.2g]: train %s'
+                fmt = 'epoch %i[%.1e]: train %s'
                 args = (i + 1,
                         self.learning_rate,
                         np.mean([self.f_train(*x) for x in train_set], axis=0),
@@ -160,7 +160,6 @@ class HF(Trainer):
             logging.error('downloaded hf code to %s', path)
             import hf
 
-        self.cg_set = kwargs.pop('cg_set')
         self.params = network.params(**kwargs)
         self.opt = hf.hf_optimizer(
             self.params,
@@ -176,9 +175,9 @@ class HF(Trainer):
             kwargs.pop(k)
         self.kwargs = kwargs
 
-    def train(self, train_set, valid_set=None):
+    def train(self, train_set, valid_set=None, **kwargs):
         self.update_params(self.opt.train(
-            train_set, self.cg_set, validation=valid_set, **self.kwargs))
+            train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
 
 
 class Cascaded(Trainer):
@@ -191,9 +190,9 @@ class Cascaded(Trainer):
         self.trainers = (t(network, **kwargs) for t in self.trainers)
         return self
 
-    def train(self, train_set, valid_set=None):
+    def train(self, train_set, valid_set=None, **kwargs):
         for trainer in self.trainers:
-            trainer.train(train_set, valid_set)
+            trainer.train(train_set, valid_set=valid_set, **kwargs)
 
 
 class Sample(Trainer):
@@ -221,7 +220,7 @@ class Sample(Trainer):
     def __init__(self, network, **kwargs):
         self.network = network
 
-    def train(self, train_set, valid_set=None):
+    def train(self, train_set, valid_set=None, **kwargs):
         ifci = itertools.chain.from_iterable
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         samples = ifci(first(t) for t in train_set)
@@ -240,7 +239,7 @@ class Layerwise(Trainer):
         self.network = network
         self.kwargs = kwargs
 
-    def train(self, train_set, valid_set=None):
+    def train(self, train_set, valid_set=None, **kwargs):
         i = 0
 
         # construct training and validation datasets for autoencoding

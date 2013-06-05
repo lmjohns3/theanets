@@ -22,7 +22,7 @@
 
 from .dataset import SequenceDataset as Dataset
 from .feedforward import Network, Autoencoder, Regressor, Classifier
-from .main import Main
+from .main import Experiment
 from . import flags
 from . import recurrent
 from . import trainer

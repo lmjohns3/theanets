@@ -19,18 +19,16 @@ if not os.path.isfile(DATASET):
     urllib.urlretrieve(URL, DATASET)
     logging.info('saved mnist digits to %s' % DATASET)
 
-class Main(lmj.nn.Main):
-    def get_network(self):
-        return lmj.nn.Classifier
+train, valid, _ = [
+    (x, y.astype('int32')) for x, y in cPickle.load(gzip.open(DATASET))]
 
-    def get_datasets(self):
-        return [(x, y.astype('int32')) for x, y in cPickle.load(gzip.open(DATASET))]
+e = lmj.nn.Experiment(lmj.nn.Classifier, layers=(784, 200, 10))
 
-m = Main(layers=(784, 200, 10))
 path = os.path.join(
     tempfile.gettempdir(),
-    'mnist-classifier-%s.pkl.gz' % ','.join(str(n) for n in m.args.layers))
+    'mnist-classifier-%s.pkl.gz' % ','.join(str(n) for n in e.args.layers))
+
 if os.path.exists(path):
-    m.net.load(path)
-m.train()
-m.net.save(path)
+    e.load(path)
+e.run(train, valid)
+e.save(path)

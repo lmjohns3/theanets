@@ -86,13 +86,15 @@ class Network(ff.Network):
         arr = ff.randn(num_pool, num_pool) / np.sqrt(num_pool + num_pool) / 10.
         W_pool = theano.shared(arr.astype(ff.FLOAT), name='weights_pool')
         b_pool = theano.shared(np.zeros((num_pool, ), ff.FLOAT), name='bias_pool')
-        logging.info('recurrent weights: %d x %d', num_pool, num_pool)
+        logging.info('recurrent weights at layer %d: %d x %d',
+                     len(W_in), num_pool, num_pool)
         parameter_count += (1 + num_pool) * num_pool
 
         arr = ff.randn(num_pool, num_out) / np.sqrt(num_pool + num_out)
         W_out = theano.shared(arr.astype(ff.FLOAT), name='weights_out')
         b_out = theano.shared(np.zeros((num_out, ), ff.FLOAT), name='bias_out')
-        logging.info('output weights: %d x %d', num_pool, num_out)
+        logging.info('output weights at layer %d: %d x %d',
+                     len(W_in) + 1, num_pool, num_out)
         parameter_count += (1 + num_pool) * num_out
 
         logging.info('%d total network parameters', parameter_count)

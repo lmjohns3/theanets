@@ -65,7 +65,6 @@ class Network(ff.Network):
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
-        self.x.tag.test_value = ff.randn(ff.DEBUG_BATCH_SIZE, layers[0])
 
         parameter_count = 0
 
@@ -119,19 +118,28 @@ class Network(ff.Network):
                     z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
             h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
             h_t = (1 - damping) * h_t + damping * h_tm1
+            if hidden_noise > 0:
+                h_t += rng.normal(size=h_t.shape, std=hidden_noise)
+            if hidden_dropouts > 0:
+                h_t *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
             return [h_t, TT.dot(h_t, W_out) + b_out]
 
-        h_0 = theano.shared(np.zeros(num_pool).astype(ff.FLOAT), name='h_0')
-        (h, self.y), self.updates = theano.scan(
-            fn=step, sequences=self.x, outputs_info=[h_0, {}])
+        h_0 = TT.zeros((num_pool, ), dtype=ff.FLOAT)
+        (self.hiddens, self.y), self.updates = theano.scan(
+            fn=step, sequences=self.x, outputs_info=[h_0, None])
 
-        self.hiddens = [h]
         self.weights = W_in + [W_pool, W_out]
         self.biases = b_in + [b_pool, b_out]
 
         # compute a complete pass over an input sequence.
         self.forward = theano.function(
-            [self.x], self.hiddens + [self.y], updates=self.updates)
+            [self.x], [self.hiddens, self.y], updates=self.updates)
+
+    @property
+    def sparsities(self):
+        # here we just return the sparsity at the first and last time steps.
+        means = TT.eq(self.hiddens, 0).mean(axis=1)
+        return [means[0], means[1], means[-2], means[-1]]
 
 
 class Autoencoder(Network):
@@ -140,7 +148,7 @@ class Autoencoder(Network):
     @property
     def cost(self):
         err = self.y - self.x
-        return TT.mean((err * err).sum(axis=1))
+        return TT.sum(err * err)
 
 
 class Regressor(Network):
@@ -156,5 +164,5 @@ class Regressor(Network):
 
     @property
     def cost(self):
-        err = self.k - self.y
-        return TT.mean((err * err).sum(axis=1))
+        err = self.y - self.k
+        return TT.sum(err * err)

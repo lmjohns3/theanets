@@ -138,8 +138,23 @@ class Network(ff.Network):
     @property
     def sparsities(self):
         # here we just return the sparsity at the first and last time steps.
+        # seems reasonable to expect that a recurrent net would be expected to
+        # have at least 2 time steps, right ?
         means = TT.eq(self.hiddens, 0).mean(axis=1)
         return [means[0], means[1], means[-2], means[-1]]
+
+    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
+        '''Return a cost function for this network.'''
+        cost = self.cost
+        if weight_l1 > 0:
+            cost += weight_l1 * sum(abs(w).sum() for w in self.weights)
+        if weight_l2 > 0:
+            cost += weight_l2 * sum((w * w).sum() for w in self.weights)
+        if hidden_l1 > 0:
+            cost += hidden_l1 * abs(self.hiddens).mean(axis=0).sum()
+        if hidden_l2 > 0:
+            cost += hidden_l2 * (self.hiddens * self.hiddens).mean(axis=0).sum()
+        return cost
 
 
 class Autoencoder(Network):

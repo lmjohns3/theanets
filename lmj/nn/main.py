@@ -73,28 +73,18 @@ class Experiment(object):
         that have no global defaults, e.g., network architecture.)
         '''
         self.args, kwargs = parse_args(**overrides)
-        self.network = self._build_network(network_class)
-        self.datasets = {}
+        self.network = self._build_network(network_class, **kwargs)
         self.trainer = self._build_trainer(**kwargs)
+        self.datasets = {}
 
-    def _build_network(self, network_class):
+    def _build_network(self, network_class, **kwargs):
         '''Build a Network class instance to compute input transformations.
         '''
         activation = self._build_activation()
         if hasattr(activation, 'lmj_nn_name'):
             logging.info('activation: %s', activation.lmj_nn_name)
-
-        return network_class(
-            layers=self.args.layers,
-            activation=activation,
-            decode=self.args.decode,
-            tied_weights=self.args.tied_weights,
-            input_noise=self.args.input_noise,
-            hidden_noise=self.args.hidden_noise,
-            input_dropouts=self.args.input_dropouts,
-            hidden_dropouts=self.args.hidden_dropouts,
-            damping=self.args.damping,
-            )
+        del kwargs['activation']
+        return network_class(activation=activation, **kwargs)
 
     def _build_activation(self, act=None):
         '''Given an activation description, return a callable that implements it.

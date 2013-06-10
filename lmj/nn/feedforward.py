@@ -82,7 +82,7 @@ class Network(object):
         self.weights = []
         self.biases = []
 
-        rng = rng or RandomStreams()
+        self.rng = rng or RandomStreams()
         tied_weights = kwargs.get('tied_weights')
         decode = kwargs.get('decode', 1)
 
@@ -102,29 +102,16 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
+        z = self.x
+        self._noise_and_dropout(z, input_noise, input_dropouts)
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            logging.info('encoding weights for layer %d: %s x %s', i + 1, a, b)
-            parameter_count += (1 + a) * b
+            Wi, bi, params = self._weights_and_bias(a, b, i)
+            parameter_count += params
 
-            arr = randn(a, b) / np.sqrt(a + b)
-            Wi = theano.shared(arr.astype(FLOAT), name='weights_%d' % i)
-            Wi.tag.test_value = randn(a, b)
-            bi = theano.shared(np.zeros((b, ), FLOAT), name='bias_%d' % i)
-            bi.tag.test_value = randn(b)
-
-            x = self.x if i == 0 else self.hiddens[-1]
-            if input_noise > 0 and i == 0:
-                x += rng.normal(size=x.shape, std=input_noise)
-            if input_dropouts > 0 and i == 0:
-                x *= rng.uniform(size=x.shape, low=0, high=1) > input_dropouts
-
-            z = activation(TT.dot(x, Wi) + bi)
+            z = activation(TT.dot(z, Wi) + bi)
             z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
 
-            if hidden_noise > 0:
-                z += rng.normal(size=z.shape, std=hidden_noise)
-            if hidden_dropouts > 0:
-                z *= rng.uniform(size=z.shape, low=0, high=1) > hidden_dropouts
+            self._noise_and_dropout(z, hidden_noise, hidden_dropouts)
 
             self.hiddens.append(z)
             self.weights.append(Wi)
@@ -135,18 +122,15 @@ class Network(object):
             for i in range(w - 1, -1, -1):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape
-                logging.info('tied decoding from layer %d: %s x %s', i + 1, b, a)
+                logging.info('tied weights from layer %d: %s x %s', i, b, a)
                 self.hiddens.append(TT.dot(h - TT.neq(h, 0) * self.biases[i], self.weights[i].T))
         else:
             n = layers[-1]
             decoders = []
             for i in range(w - 1, w - 1 - decode, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
-                logging.info('decoding from layer %d: %s x %s', i + 1, b, n)
-                parameter_count += b * n
-                arr = randn(b, n) / np.sqrt(b + n)
-                Di = theano.shared(arr.astype(FLOAT), name='decode_%d' % i)
-                Di.tag.test_value = randn(b, n)
+                Di, _, params = self._weights_and_bias(b, n, 'out_%d' % i)
+                parameter_count += params - n
                 decoders.append(TT.dot(self.hiddens[i], Di))
                 self.weights.append(Di)
             parameter_count += n
@@ -175,6 +159,29 @@ class Network(object):
     @property
     def sparsities(self):
         return [TT.eq(h, 0).mean() for h in self.hiddens]
+
+    @staticmethod
+    def _weights_and_bias(a, b, suffix):
+        '''Helper method for creating a layer of weights and bias values.'''
+        arr = randn(a, b) / np.sqrt(a + b)
+        weight = theano.shared(arr.astype(FLOAT), name='W_%s' % suffix)
+        weight.tag.test_value = randn(a, b)
+        bias = theano.shared(np.zeros((b, ), FLOAT), name='b_%s' % suffix)
+        bias.tag.test_value = randn(b)
+        logging.info('weights for layer %s: %s x %s', suffix, a, b)
+        return weight, bias, (a + 1) * b
+
+    def _noise_and_dropout(self, x, sigma, rho):
+        '''Add noise and dropouts to elements of x as needed.
+
+        x: input array, updated in-place as needed
+        sigma: standard deviation of noise to add to x
+        rho: fraction of elements of x to set randomly to 0.
+        '''
+        if sigma > 0:
+            x += self.rng.normal(size=x.shape, std=sigma)
+        if rho > 0:
+            x *= self.rng.uniform(size=x.shape, low=0, high=1) > rho
 
     def params(self, **kwargs):
         params = []

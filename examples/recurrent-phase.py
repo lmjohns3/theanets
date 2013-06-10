@@ -12,7 +12,7 @@ lmj.cli.enable_default_logging()
 
 e = lmj.nn.Experiment(
     lmj.nn.recurrent.Autoencoder,
-    layers=(1, 10, 1), num_updates=10, train_batches=64)
+    layers=(1, 10, 1), num_updates=20, train_batches=64)
 
 T = 256
 K = int(0.5 * T)
@@ -21,8 +21,8 @@ S = np.linspace(0, 4 * np.pi, T)
 def sines(i=0):
     return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1))
 
-e.train(lambda _: [sines(rng.randint(K, T))],
-        lambda _: [sines(rng.randint(0, K))])
+e.run(lambda _: [sines(rng.randint(K, T))],
+      lambda _: [sines(rng.randint(0, K))])
 
 source = sines(13)
 match = e.network(source)

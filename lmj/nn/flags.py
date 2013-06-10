@@ -96,3 +96,5 @@ g.add_argument('--pool-noise', type=float, default=0, metavar='S',
                help='add noise to recurrent units drawn from N(0, S)')
 g.add_argument('--pool-dropouts', type=float, default=0, metavar='R',
                help='randomly set fraction R of recurrent units to 0')
+g.add_argument('--pool-error-start', type=int, default=3, metavar='T',
+               help='compute network error starting at time T')

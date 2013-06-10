@@ -62,11 +62,13 @@ class Network(ff.Network):
           variance.
         pool_dropouts: Randomly set the state of this fraction (a float in
           [0, 1]) of recurrent pool neurons to zero.
+        pool_error_start: Compute error metrics starting at this time step.
         '''
         self.rng = rng or RandomStreams()
         pool_noise = kwargs.get('pool_noise', 0.)
         pool_dropouts = kwargs.get('pool_dropouts', 0.)
         pool_damping = kwargs.get('pool_damping', 0.)
+        self.error_start = kwargs.get('pool_error_start', 3)
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
@@ -147,7 +149,7 @@ class Autoencoder(Network):
     @property
     def cost(self):
         err = self.y - self.x
-        return TT.mean((err * err).sum(axis=1)[2:])
+        return TT.mean((err * err).sum(axis=1)[self.error_start:])
 
 
 class Regressor(Network):
@@ -164,4 +166,4 @@ class Regressor(Network):
     @property
     def cost(self):
         err = self.y - self.k
-        return TT.mean((err * err).sum(axis=1)[2:])
+        return TT.mean((err * err).sum(axis=1)[self.error_start:])

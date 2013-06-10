@@ -90,9 +90,9 @@ g.add_argument('--save-progress', metavar='FILE',
                help='save the model periodically to FILE')
 
 g = lmj.cli.add_arg_group('Recurrent Nets')
-g.add_argument('--pool-damping', type=float, metavar='R',
+g.add_argument('--pool-damping', type=float, default=0, metavar='R',
                help='damp recurrent network with R in [0, 1]')
-g.add_argument('--pool-noise', type=float, metavar='S',
+g.add_argument('--pool-noise', type=float, default=0, metavar='S',
                help='add noise to recurrent units drawn from N(0, S)')
-g.add_argument('--pool-dropouts', type=float, metavar='R',
+g.add_argument('--pool-dropouts', type=float, default=0, metavar='R',
                help='randomly set fraction R of recurrent units to 0')

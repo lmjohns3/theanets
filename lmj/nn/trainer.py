@@ -97,7 +97,7 @@ class SGD(Trainer):
         self.patience = kwargs.get('patience', 1e100)
         logging.info('%d named parameters to learn', len(self.params))
 
-        decay = kwargs.get('decay', 0.01)
+        decay = kwargs.get('learning_rate_decay', 0.01)
         m = kwargs.get('momentum', 0.1)
         lr = kwargs.get('learning_rate', 0.1)
 

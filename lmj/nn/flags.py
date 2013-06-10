@@ -32,8 +32,6 @@ g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
 g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
-g.add_argument('--damping', type=float, metavar='R',
-               help='damp recurrent network with R in [0, 1]')
 
 g = lmj.cli.add_arg_group('Training')
 g.add_argument('-O', '--optimize', default='sgd', metavar='[hf|layerwise|sgd|sample]',
@@ -72,11 +70,11 @@ g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
 g = lmj.cli.add_arg_group('SGD Optimization')
-g.add_argument('-l', '--learning-rate', type=float, default=0.1, metavar='V',
+g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
-g.add_argument('-d', '--decay', type=float, default=0.01, metavar='R',
-               help='decay the learning rate by R each epoch')
-g.add_argument('-m', '--momentum', type=float, default=0.1, metavar='V',
+g.add_argument('-d', '--learning-rate-decay', type=float, default=0.25, metavar='R',
+               help='decay the learning rate by R after stagnant validations')
+g.add_argument('-m', '--momentum', type=float, default=0., metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
@@ -90,3 +88,11 @@ g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 g.add_argument('--save-progress', metavar='FILE',
                help='save the model periodically to FILE')
+
+g = lmj.cli.add_arg_group('Recurrent Nets')
+g.add_argument('--pool-damping', type=float, metavar='R',
+               help='damp recurrent network with R in [0, 1]')
+g.add_argument('--pool-noise', type=float, metavar='S',
+               help='add noise to recurrent units drawn from N(0, S)')
+g.add_argument('--pool-dropouts', type=float, metavar='R',
+               help='randomly set fraction R of recurrent units to 0')

@@ -80,7 +80,6 @@ class Network(ff.Network):
         b_in = []
         for i, (a, b) in enumerate(zip(layers, layers[1:] + [num_pool])):
             W, b, params = self._weights_and_bias(a, b, i)
-            logging.info('encoding weights for layer %d: %d x %d', i + 1, a, b)
             parameter_count += params
             W_in.append(W)
             b_in.append(b)
@@ -91,13 +90,9 @@ class Network(ff.Network):
         parameter_count -= num_pool
 
         W_pool, b_pool, params = self._weights_and_bias(num_pool, num_pool, 'pool')
-        logging.info('recurrent weights at layer %d: %d x %d',
-                     len(W_in), num_pool, num_pool)
         parameter_count += params
 
         W_out, b_out, params = self._weights_and_bias(num_pool, num_out, 'out')
-        logging.info('output weights at layer %d: %d x %d',
-                     len(W_in) + 1, num_pool, num_out)
         parameter_count += params
 
         logging.info('%d total network parameters', parameter_count)

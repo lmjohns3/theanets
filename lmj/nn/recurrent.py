@@ -56,72 +56,61 @@ class Network(ff.Network):
 
         Recognized keyword arguments:
 
-        damping: This parameter (a float in [0, 1]) governs the proportion of
-          past state information retained by the hidden neurons.
+        pool_damping: This parameter (a float in [0, 1]) governs the proportion
+          of past state information retained by the recurrent pool neurons.
+        pool_noise: Add gaussian noise to recurrent pool neurons with this
+          variance.
+        pool_dropouts: Randomly set the state of this fraction (a float in
+          [0, 1]) of recurrent pool neurons to zero.
         '''
-        layers = list(layers)
-        num_out = layers.pop()
-        num_pool = layers.pop()
+        self.rng = rng or RandomStreams()
+        pool_noise = kwargs.get('pool_noise', 0.)
+        pool_dropouts = kwargs.get('pool_dropouts', 0.)
+        pool_damping = kwargs.get('pool_damping', 0.)
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
 
         parameter_count = 0
+        layers = list(layers)
+        num_out = layers.pop()
+        num_pool = layers.pop()
 
         W_in = []
         b_in = []
         for i, (a, b) in enumerate(zip(layers, layers[1:] + [num_pool])):
-            arr = ff.randn(a, b) / np.sqrt(a + b)
-            W_in.append(theano.shared(arr.astype(ff.FLOAT), name='weights_%d' % i))
-            b_in.append(theano.shared(np.zeros((b, ), ff.FLOAT), name='bias_%d' % i))
+            W, b, params = self._weights_and_bias(a, b, i)
             logging.info('encoding weights for layer %d: %d x %d', i + 1, a, b)
-            parameter_count += (1 + a) * b
+            parameter_count += params
+            W_in.append(W)
+            b_in.append(b)
 
         # discard bias for last input layer (we create it explicitly below, as
-        # the bias for the recurrent pool)
+        # it overlaps with the bias for the recurrent pool)
         b_in.pop()
         parameter_count -= num_pool
 
-        arr = ff.randn(num_pool, num_pool) / np.sqrt(num_pool + num_pool) / 10.
-        W_pool = theano.shared(arr.astype(ff.FLOAT), name='weights_pool')
-        b_pool = theano.shared(np.zeros((num_pool, ), ff.FLOAT), name='bias_pool')
+        W_pool, b_pool, params = self._weights_and_bias(num_pool, num_pool, 'pool')
         logging.info('recurrent weights at layer %d: %d x %d',
                      len(W_in), num_pool, num_pool)
-        parameter_count += (1 + num_pool) * num_pool
+        parameter_count += params
 
-        arr = ff.randn(num_pool, num_out) / np.sqrt(num_pool + num_out)
-        W_out = theano.shared(arr.astype(ff.FLOAT), name='weights_out')
-        b_out = theano.shared(np.zeros((num_out, ), ff.FLOAT), name='bias_out')
+        W_out, b_out, params = self._weights_and_bias(num_pool, num_out, 'out')
         logging.info('output weights at layer %d: %d x %d',
                      len(W_in) + 1, num_pool, num_out)
-        parameter_count += (1 + num_pool) * num_out
+        parameter_count += params
 
         logging.info('%d total network parameters', parameter_count)
 
-        rng = rng or RandomStreams()
-
-        damping = kwargs.get('damping')
-        if damping is None:
-            damping = 0.01
-
         def step(x_t, h_tm1):
+            self._noise_and_dropout(x_t, input_noise, input_dropouts)
             z = x_t
-            if input_noise > 0:
-                z += rng.normal(size=z.shape, std=input_noise)
-            if input_dropouts > 0:
-                z *= rng.uniform(low=0, high=1, ndim=2) > input_dropouts
-            for i, (W, b) in enumerate(zip(W_in, b_in)):
+            for W, b in zip(W_in, b_in):
                 z = activation(TT.dot(z, W) + b)
-                if hidden_noise > 0:
-                    z += rng.normal(size=z.shape, std=hidden_noise)
-                if hidden_dropouts > 0:
-                    z *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
+                self._noise_and_dropout(z, hidden_noise, hidden_dropouts)
             h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
-            h_t = (1 - damping) * h_t + damping * h_tm1
-            if hidden_noise > 0:
-                h_t += rng.normal(size=h_t.shape, std=hidden_noise)
-            if hidden_dropouts > 0:
-                h_t *= rng.uniform(low=0, high=1, ndim=2) > hidden_dropouts
+            h_t = (1 - pool_damping) * h_t + pool_damping * h_tm1
+            self._noise_and_dropout(h_t, pool_noise, pool_dropouts)
             return [h_t, TT.dot(h_t, W_out) + b_out]
 
         h_0 = TT.zeros((num_pool, ), dtype=ff.FLOAT)
@@ -163,7 +152,7 @@ class Autoencoder(Network):
     @property
     def cost(self):
         err = self.y - self.x
-        return TT.sum(err * err)
+        return TT.mean((err * err).sum(axis=1)[2:])
 
 
 class Regressor(Network):
@@ -180,4 +169,4 @@ class Regressor(Network):
     @property
     def cost(self):
         err = self.y - self.k
-        return TT.sum(err * err)
+        return TT.mean((err * err).sum(axis=1)[2:])

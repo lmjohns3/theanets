@@ -102,45 +102,29 @@ class Network(ff.Network):
         def step(x_t, h_tm1):
             self._noise_and_dropout(x_t, input_noise, input_dropouts)
             z = x_t
+            encs = []
             for W, b in zip(W_in, b_in):
                 z = activation(TT.dot(z, W) + b)
                 self._noise_and_dropout(z, hidden_noise, hidden_dropouts)
+                encs.append(z)
             h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
             h_t = (1 - pool_damping) * h_t + pool_damping * h_tm1
             self._noise_and_dropout(h_t, pool_noise, pool_dropouts)
-            return [h_t, TT.dot(h_t, W_out) + b_out]
+            return encs + [h_t, TT.dot(h_t, W_out) + b_out]
 
         h_0 = TT.zeros((num_pool, ), dtype=ff.FLOAT)
-        (self.hiddens, self.y), self.updates = theano.scan(
-            fn=step, sequences=self.x, outputs_info=[h_0, None])
+        outputs, self.updates = theano.scan(
+            fn=step, sequences=self.x,
+            outputs_info=[None for _ in b_in] + [h_0, None])
 
+        self.y = outputs.pop()
+        self.hiddens = outputs
         self.weights = W_in + [W_pool, W_out]
         self.biases = b_in + [b_pool, b_out]
 
         # compute a complete pass over an input sequence.
         self.forward = theano.function(
-            [self.x], [self.hiddens, self.y], updates=self.updates)
-
-    @property
-    def sparsities(self):
-        # here we just return the sparsity at the first and last time steps.
-        # seems reasonable to expect that a recurrent net would be expected to
-        # have at least 2 time steps, right ?
-        means = TT.eq(self.hiddens, 0).mean(axis=1)
-        return [means[0], means[1], means[-2], means[-1]]
-
-    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
-        '''Return a cost function for this network.'''
-        cost = self.cost
-        if weight_l1 > 0:
-            cost += weight_l1 * sum(abs(w).sum() for w in self.weights)
-        if weight_l2 > 0:
-            cost += weight_l2 * sum((w * w).sum() for w in self.weights)
-        if hidden_l1 > 0:
-            cost += hidden_l1 * abs(self.hiddens).mean(axis=0).sum()
-        if hidden_l2 > 0:
-            cost += hidden_l2 * (self.hiddens * self.hiddens).mean(axis=0).sum()
-        return cost
+            [self.x], self.hiddens + [self.y], updates=self.updates)
 
 
 class Autoencoder(Network):

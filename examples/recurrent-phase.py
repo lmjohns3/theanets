@@ -19,7 +19,7 @@ K = int(0.5 * T)
 S = np.linspace(0, 4 * np.pi, T)
 
 def sines(i=0):
-    return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1))
+    return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1)).astype('f')
 
 e.run(lambda _: [sines(rng.randint(K, T))],
       lambda _: [sines(rng.randint(0, K))])

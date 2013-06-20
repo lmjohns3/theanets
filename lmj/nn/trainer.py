@@ -166,7 +166,7 @@ class HF(Trainer):
             network.inputs,
             network.y,
             [network.J(**kwargs)] + network.monitors,
-            network.hiddens[0] if isinstance(network, recurrent.Network) else None)
+            network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
         logging.info('%d parameter updates during training', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer

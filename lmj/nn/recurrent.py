@@ -100,16 +100,16 @@ class Network(ff.Network):
         logging.info('%d total network parameters', parameter_count)
 
         def step(x_t, h_tm1):
-            self._noise_and_dropout(x_t, input_noise, input_dropouts)
-            z = x_t
+            z = self._noise_and_dropout(x_t, input_noise, input_dropouts)
             encs = []
             for W, b in zip(W_in, b_in):
-                z = activation(TT.dot(z, W) + b)
-                self._noise_and_dropout(z, hidden_noise, hidden_dropouts)
-                encs.append(z)
-            h_t = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
-            h_t = (1 - pool_damping) * h_t + pool_damping * h_tm1
-            self._noise_and_dropout(h_t, pool_noise, pool_dropouts)
+                encs.append(self._noise_and_dropout(
+                    activation(TT.dot(z, W) + b), hidden_noise, hidden_dropouts))
+                z = encs[-1]
+            h = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
+            h_t = self._noise_and_dropout(
+                (1 - pool_damping) * h + pool_damping * h_tm1,
+                pool_noise, pool_dropouts)
             return encs + [h_t, TT.dot(h_t, W_out) + b_out]
 
         h_0 = TT.zeros((num_pool, ), dtype=ff.FLOAT)

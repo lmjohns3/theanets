@@ -102,20 +102,16 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        z = self.x
-        self._noise_and_dropout(z, input_noise, input_dropouts)
+        z = self._noise_and_dropout(self.x, input_noise, input_dropouts)
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
             Wi, bi, params = self._weights_and_bias(a, b, i)
             parameter_count += params
-
-            z = activation(TT.dot(z, Wi) + bi)
-            z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
-
-            self._noise_and_dropout(z, hidden_noise, hidden_dropouts)
-
-            self.hiddens.append(z)
+            self.hiddens.append(self._noise_and_dropout(
+                activation(TT.dot(z, Wi) + bi), hidden_noise, hidden_dropouts))
             self.weights.append(Wi)
             self.biases.append(bi)
+            z = self.hiddens[-1]
+            z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
 
         w = len(self.weights)
         if tied_weights:
@@ -178,10 +174,15 @@ class Network(object):
         sigma: standard deviation of noise to add to x
         rho: fraction of elements of x to set randomly to 0.
         '''
+        noise = self.rng.normal(size=x.shape, std=sigma)
+        mask = self.rng.uniform(size=x.shape, low=0, high=1) > rho
+        if sigma > 0 and rho > 0:
+            return (x + noise) * mask
         if sigma > 0:
-            x += self.rng.normal(size=x.shape, std=sigma)
+            return x + noise
         if rho > 0:
-            x *= self.rng.uniform(size=x.shape, low=0, high=1) > rho
+            return x * mask
+        return x
 
     def params(self, **kwargs):
         params = []

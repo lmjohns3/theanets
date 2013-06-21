@@ -84,6 +84,8 @@ g.add_argument('-C', '--cg-batches', type=int, metavar='N',
                help='use at most N batches for CG computation')
 g.add_argument('--initial-lambda', type=float, default=1., metavar='K',
                help='start the HF method with Tikhonov damping of K')
+g.add_argument('--global-backtracking', action='store_true',
+               help='backtrack to lowest cost parameters during CG')
 g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 g.add_argument('--save-progress', metavar='FILE',

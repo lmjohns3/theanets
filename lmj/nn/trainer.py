@@ -35,6 +35,9 @@ from . import recurrent
 
 logging = lmj.cli.get_logger(__name__)
 
+def mean_map(f, xs):
+    return np.mean([f(*x) for x in xs], axis=0)
+
 
 class Trainer(object):
     '''This is a base class for all trainers.'''
@@ -52,10 +55,10 @@ class Trainer(object):
                 fmt = 'epoch %i[%.1e]: train %s'
                 args = (i + 1,
                         self.learning_rate,
-                        np.mean([self.f_train(*x) for x in train_set], axis=0),
+                        mean_map(self.f_train, train_set),
                         )
                 if (i + 1) % self.validation_frequency == 0:
-                    metrics = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+                    metrics = mean_map(self.f_eval, valid_set)
                     fmt += ' valid %s'
                     args += (metrics, )
                     if (best_cost - metrics[0]) / best_cost > self.min_improvement:
@@ -83,7 +86,7 @@ class Trainer(object):
         pass
 
     def evaluate(self, test_set):
-        return np.mean([self.f_eval(*i) for i in test_set], axis=0)
+        return mean_map(self.f_eval, test_set)
 
 
 class SGD(Trainer):
@@ -118,8 +121,13 @@ class SGD(Trainer):
         self.f_train = theano.function(network.inputs, costs, updates=updates)
         self.f_rate = theano.function([], [lr * ((1 - decay) ** t)])
         self.f_finish = theano.function([], [t], updates={t: t + 1})
+
         #theano.printing.pydotprint(
         #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
+
+        #g = self.f_train.maker.fgraph.toposort()
+        #for x in g:
+        #    print x
 
     @property
     def learning_rate(self):
@@ -227,7 +235,7 @@ class Sample(Trainer):
         for i, h in enumerate(self.network.hiddens):
             w = self.network.weights[i]
             m, k = w.get_value(borrow=True).shape
-            logging.info('setting weights for layer %d: %d x %d', i + 1, m, k)
+            logging.info('setting weights for %s: %d x %d', w.name, m, k)
             w.set_value(np.vstack(Sample.reservoir(samples, k)).T)
             samples = ifci(self.network.forward(first(t))[i-1] for t in train_set)
 

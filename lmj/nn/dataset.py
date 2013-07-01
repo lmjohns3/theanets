@@ -49,8 +49,7 @@ class SequenceDataset(object):
         Alternatively, if there is only one positional arg, and it is callable,
         then that callable will be invoked repeatedly at training and test time.
         Each invocation of the callable should return a tuple containing one
-        minibatch of data. The callable will be passed one argument---the size
-        of the minibatch to generate.
+        minibatch of data. The callable will not be passed any arguments.
 
         Keyword arguments:
 
@@ -62,10 +61,10 @@ class SequenceDataset(object):
           like 'test' or 'train'.
         '''
         self.label = kwargs.get('label', 'dataset')
-        self.batch_size = kwargs.get('size', kwargs.get('batch_size', 32))
         self.number_batches = kwargs.get('batches')
         self.batch = 0
 
+        size = kwargs.get('size', kwargs.get('batch_size', 32))
         batch = None
         cardinality = None
         self.callable = None
@@ -73,13 +72,13 @@ class SequenceDataset(object):
         if len(data) == 1 and callable(data[0]):
             self.callable = data[0]
             cardinality = '->'
-            batch = self.callable(self.batch_size)
+            batch = self.callable()
             if not self.number_batches:
-                self.number_batches = self.batch_size
+                self.number_batches = size
         else:
             self.batches = [
-                [d[i:i + self.batch_size] for d in data]
-                for i in xrange(0, len(data[0]), self.batch_size)]
+                [d[i:i + size] for d in data]
+                for i in xrange(0, len(data[0]), size)]
             self.shuffle()
             cardinality = len(self.batches)
             batch = self.batches[0]
@@ -109,7 +108,7 @@ class SequenceDataset(object):
 
     def _iter_callable(self):
         for b in xrange(self.number_batches):
-            yield self.callable(self.batch_size)
+            yield self.callable()
 
     def update(self):
         if self.callable:

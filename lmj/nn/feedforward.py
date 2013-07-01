@@ -27,7 +27,8 @@ import gzip
 import numpy as np
 import theano
 import theano.tensor as TT
-from theano.tensor.shared_randomstreams import RandomStreams
+
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 logging = lmj.cli.get_logger(__name__)
 
@@ -174,14 +175,15 @@ class Network(object):
         sigma: standard deviation of noise to add to x
         rho: fraction of elements of x to set randomly to 0.
         '''
-        noise = self.rng.normal(size=x.shape, std=sigma)
-        mask = self.rng.uniform(size=x.shape, low=0, high=1) > rho
         if sigma > 0 and rho > 0:
-            return (x + noise) * mask
+            noise = self.rng.normal(size=x.shape, std=sigma)
+            mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
+            return mask * (x + noise)
         if sigma > 0:
-            return x + noise
+            return x + self.rng.normal(size=x.shape, std=sigma)
         if rho > 0:
-            return x * mask
+            mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
+            return mask * x
         return x
 
     def params(self, **kwargs):

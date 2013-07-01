@@ -25,7 +25,8 @@ import numpy as np
 import numpy.random as rng
 import theano
 import theano.tensor as TT
-from theano.tensor.shared_randomstreams import RandomStreams
+
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import feedforward as ff
 

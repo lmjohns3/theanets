@@ -52,8 +52,9 @@ class Trainer(object):
                 logging.error('patience elapsed, bailing out')
                 break
             try:
-                fmt = 'epoch %i[%.1e]: train %s'
+                fmt = 'SGD update %i/%i @%.2e train %s'
                 args = (i + 1,
+                        self.iterations,
                         self.learning_rate,
                         mean_map(self.f_train, train_set),
                         )
@@ -98,7 +99,7 @@ class SGD(Trainer):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1e100)
         self.patience = kwargs.get('patience', 1e100)
-        logging.info('%d named parameters to learn', len(self.params))
+        logging.info('SGD: %d named parameters to learn', len(self.params))
 
         decay = kwargs.get('learning_rate_decay', 0.01)
         m = kwargs.get('momentum', 0.1)
@@ -175,7 +176,7 @@ class HF(Trainer):
             network.y,
             [network.J(**kwargs)] + network.monitors,
             network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
-        logging.info('%d parameter updates during training', len(self.params))
+        logging.info('HF: %d named parameters to learn', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)

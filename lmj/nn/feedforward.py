@@ -151,7 +151,7 @@ class Network(object):
 
     @property
     def monitors(self):
-        return self.sparsities
+        return [self.cost] + self.sparsities
 
     @property
     def sparsities(self):

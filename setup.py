@@ -2,9 +2,8 @@ import os
 import setuptools
 
 setuptools.setup(
-    name='lmj.nn',
-    version='0.4.0',
-    namespace_packages=['lmj'],
+    name='theanets',
+    version='0.1.0',
     packages=setuptools.find_packages(),
     author='Leif Johnson',
     author_email='leif@leifjohnson.net',

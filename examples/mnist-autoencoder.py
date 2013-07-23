@@ -4,11 +4,11 @@ import cPickle
 import gzip
 import logging
 import lmj.cli
-import lmj.nn
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tempfile
+import theanets
 import urllib
 
 lmj.cli.enable_default_logging()
@@ -24,7 +24,7 @@ if not os.path.isfile(DATASET):
 train, valid, _ = [x for x, _ in cPickle.load(gzip.open(DATASET))]
 
 N = 16
-e = lmj.nn.Experiment(lmj.nn.Autoencoder, layers=(784, N * N, 784))
+e = theanets.Experiment(theanets.Autoencoder, layers=(784, N * N, 784))
 e.run(train, valid)
 
 # make a plot showing the learned basis functions as a grid of 28x28 images,

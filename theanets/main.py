@@ -81,8 +81,8 @@ class Experiment(object):
         '''Build a Network class instance to compute input transformations.
         '''
         activation = self._build_activation()
-        if hasattr(activation, 'lmj_nn_name'):
-            logging.info('activation: %s', activation.lmj_nn_name)
+        if hasattr(activation, '__theanets_name__'):
+            logging.info('activation: %s', activation.__theanets_name__)
         del kwargs['activation']
         return network_class(activation=activation, **kwargs)
 
@@ -91,7 +91,7 @@ class Experiment(object):
         '''
         def compose(a, b):
             c = lambda z: b(a(z))
-            c.lmj_nn_name = '%s(%s)' % (b.lmj_nn_name, a.lmj_nn_name)
+            c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
             return c
         act = act or self.args.activation.lower()
         if '+' in act:
@@ -114,7 +114,7 @@ class Experiment(object):
             'norm:std': lambda z: z / TT.maximum(1e-10, z.std(axis=1)[:, None]),
             }
         for k, v in options.iteritems():
-            v.lmj_nn_name = k
+            v.__theanets_name__ = k
         try:
             return options[act]
         except:

@@ -9,7 +9,7 @@ structures, using the amazing [Theano][] package for optimization.
 
 Install the latest published code using pip:
 
-    pip install lmj.nn
+    pip install theanets
 
 Or download the current source and run it from there:
 
@@ -46,7 +46,7 @@ their names with `+`.
 
 Probably the easiest way to start with the library is to copy one of the
 examples and modify it to perform your tasks. The usual workflow involves
-instantiating `lmj.nn.Experiment` with a subclass of `lmj.nn.Network`, then
+instantiating `theanets.Experiment` with a subclass of `theanets.Network`, then
 adding some data by calling `add_dataset(...)`, and finally calling `train()` to
 learn a good set of parameters for your data. You can then `save()` the trained
 model to a pickle, or call the trained `network` directly with new data to

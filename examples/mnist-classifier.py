@@ -10,7 +10,7 @@ import os
 import tempfile
 import theanets
 import urllib
-
+from plot_utils import plot_classifier_experiment
 lmj.cli.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
@@ -26,15 +26,4 @@ train, valid, _ = [
 
 e = theanets.Experiment(theanets.Classifier, layers=(784, 200, 10))
 e.run(train, valid)
-
-# make a plot showing the learned basis functions as 28x28 images.
-img = np.zeros((231, 231), float)
-for i, d in enumerate(e.network.weights[0].get_value().T):
-    if i == 64:
-        break
-    a, b = divmod(i, 8)
-    img[a * 29:a * 29 + 28, b * 29:b * 29 + 28] = d.reshape((28, 28))
-ax = plt.subplot(111)
-ax.set_frame_on(False)
-ax.imshow(img, cmap='gray')
-plt.show()
+plot_classifier_experiment(e, valid)

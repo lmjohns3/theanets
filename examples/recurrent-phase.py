@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
+import lmj.cli
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rng
-import lmj.cli
-import lmj.nn
-
-from matplotlib import pyplot as plt
+import theanets
 
 lmj.cli.enable_default_logging()
 
-e = lmj.nn.Experiment(
-    lmj.nn.recurrent.Autoencoder,
+e = theanets.Experiment(
+    theanets.recurrent.Autoencoder,
     layers=(1, 10, 1), num_updates=20, train_batches=64)
 
 T = 256
@@ -21,8 +20,8 @@ S = np.linspace(0, 4 * np.pi, T)
 def sines(i=0):
     return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1)).astype('f')
 
-e.run(lambda _: [sines(rng.randint(K, T))],
-      lambda _: [sines(rng.randint(0, K))])
+e.run(lambda: [sines(rng.randint(K, T))],
+      lambda: [sines(rng.randint(0, K))])
 
 source = sines(13)
 match = e.network(source)

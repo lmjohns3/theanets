@@ -32,8 +32,6 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 logging = lmj.cli.get_logger(__name__)
 
-randn = np.random.randn
-
 FLOAT = theano.config.floatX
 DEBUG_BATCH_SIZE = 11
 
@@ -89,7 +87,7 @@ class Network(object):
 
         # in this module, x refers to a network's input, and y to its output.
         self.x = TT.matrix('x')
-        self.x.tag.test_value = randn(DEBUG_BATCH_SIZE, layers[0])
+        self.x.tag.test_value = np.random.randn(DEBUG_BATCH_SIZE, layers[0])
 
         parameter_count = 0
         sizes = layers[:-1]
@@ -112,7 +110,7 @@ class Network(object):
             self.weights.append(Wi)
             self.biases.append(bi)
             z = self.hiddens[-1]
-            z.tag.test_value = randn(DEBUG_BATCH_SIZE, b)
+            z.tag.test_value = np.random.randn(DEBUG_BATCH_SIZE, b)
 
         w = len(self.weights)
         if tied_weights:
@@ -132,7 +130,7 @@ class Network(object):
                 self.weights.append(Di)
             parameter_count += n
             bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
-            bias.tag.test_value = randn(n)
+            bias.tag.test_value = np.random.randn(n)
             self.biases.append(bias)
             self.hiddens.append(sum(decoders) + bias)
 
@@ -142,7 +140,7 @@ class Network(object):
 
         self.updates = {}
 
-        # compute a forward pass, returning all layer activations.
+        # calling this computes a forward pass, returning all layer activations.
         self.forward = theano.function([self.x], self.hiddens + [self.y])
 
     @property
@@ -160,11 +158,11 @@ class Network(object):
     @staticmethod
     def _weights_and_bias(a, b, suffix):
         '''Helper method for creating a layer of weights and bias values.'''
-        arr = randn(a, b) / np.sqrt(a + b)
+        arr = np.random.randn(a, b) / np.sqrt(a + b)
         weight = theano.shared(arr.astype(FLOAT), name='W_%s' % suffix)
-        weight.tag.test_value = randn(a, b)
+        weight.tag.test_value = np.random.randn(a, b)
         bias = theano.shared(np.zeros((b, ), FLOAT), name='b_%s' % suffix)
-        bias.tag.test_value = randn(b)
+        bias.tag.test_value = np.random.randn(b)
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 
@@ -253,7 +251,8 @@ class Regressor(Network):
         super(Regressor, self).__init__(*args, **kwargs)
         # for shape debugging
         w = self.weights[len(self.biases) - 1]
-        self.k.tag.test_value = randn(DEBUG_BATCH_SIZE, w.get_value(borrow=True).shape[1])
+        self.k.tag.test_value = np.random.randn(
+            DEBUG_BATCH_SIZE, w.get_value(borrow=True).shape[1])
 
     @property
     def inputs(self):
@@ -273,7 +272,7 @@ class Classifier(Network):
         super(Classifier, self).__init__(*args, **kwargs)
         self.y = self.softmax(self.y)
         # for shape debugging
-        self.k.tag.test_value = (3 * randn(DEBUG_BATCH_SIZE)).astype('int32')
+        self.k.tag.test_value = (3 * np.random.randn(DEBUG_BATCH_SIZE)).astype('int32')
 
     @staticmethod
     def softmax(x):

@@ -100,6 +100,7 @@ class Experiment(object):
             'tanh': TT.tanh,
             'linear': lambda z: z,
             'logistic': TT.nnet.sigmoid,
+            'softplus': TT.nnet.softplus,
 
             # shorthands
             'relu': lambda z: TT.maximum(0, z),

@@ -3,11 +3,11 @@ import cPickle
 import gzip
 import logging
 import lmj.cli
+import theanets
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tempfile
-import theanets
 import urllib
 from plot_utils import plot_autoencoder_experiment
 
@@ -22,7 +22,12 @@ if not os.path.isfile(DATASET):
     logging.info('saved mnist digits to %s' % DATASET)
 
 train, valid, _ = [x for x, _ in cPickle.load(gzip.open(DATASET))]
-N = 16
-e = theanets.Experiment(theanets.Autoencoder, layers=(784, N * N, 784))
+e = theanets.Experiment(theanets.Autoencoder,
+                        layers=(784, 250, 150, 30, 150, 250, 784), learning_rate=.005, learning_rate_decay=.1, patience=20, optimize="sgd",
+                        num_updates=256,
+                        tied_weights=True,
+                        batch_size=32,
+                        )
 e.run(train, valid)
+
 plot_autoencoder_experiment(e, valid)

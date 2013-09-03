@@ -141,7 +141,7 @@ class Network(object):
         self.updates = {}
 
         # calling this computes a forward pass, returning all layer activations.
-        self.forward = theano.function([self.x], self.hiddens + [self.y])
+        self.feed_forward = theano.function([self.x], self.hiddens + [self.y])
 
     @property
     def inputs(self):
@@ -193,9 +193,11 @@ class Network(object):
             params.extend(self.biases)
         return params
 
-    def __call__(self, x):
+    def predict(self, x):
         '''Compute a forward pass of the inputs, returning the net output.'''
-        return self.forward(x)[-1]
+        return self.feed_forward(x)[-1]
+
+    __call__ = predict
 
     def save(self, filename):
         '''Save the parameters of this network to disk.'''
@@ -269,16 +271,18 @@ class Classifier(Network):
 
     def __init__(self, *args, **kwargs):
         self.k = TT.ivector('k')
-        super(Classifier, self).__init__(*args, **kwargs)
-        self.y = self.softmax(self.y)
-        # for shape debugging
         self.k.tag.test_value = (3 * np.random.randn(DEBUG_BATCH_SIZE)).astype('int32')
+
+        super(Classifier, self).__init__(*args, **kwargs)
+
+        self.y = self.softmax(self.y)
+        self.feed_forward = theano.function([self.x], self.hiddens + [self.y])
 
     @staticmethod
     def softmax(x):
         # TT.nnet.softmax doesn't work with the HF trainer.
-        z = TT.exp(x - x.max(axis=1)[:, None])
-        return z / z.sum(axis=1)[:, None]
+        z = TT.exp(x.T - x.T.max(axis=0))
+        return (z / z.sum(axis=0)).T
 
     @property
     def inputs(self):

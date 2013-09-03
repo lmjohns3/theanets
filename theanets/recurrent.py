@@ -124,7 +124,7 @@ class Network(ff.Network):
         self.biases = b_in + [b_pool, b_out]
 
         # compute a complete pass over an input sequence.
-        self.forward = theano.function(
+        self.feed_forward = theano.function(
             [self.x], self.hiddens + [self.y], updates=self.updates)
 
 

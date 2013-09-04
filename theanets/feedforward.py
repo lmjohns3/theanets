@@ -303,3 +303,6 @@ class Classifier(Network):
     @property
     def monitors(self):
         return [self.incorrect] + self.sparsities
+
+    def classify(self, x):
+        return self.predict(x).argmax(axis=1)

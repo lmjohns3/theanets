@@ -140,6 +140,8 @@ class Experiment(object):
     def _build_trainers(self, **kwargs):
         '''Build trainers from command-line arguments.
         '''
+        if not isinstance(self.args.optimize, (tuple, list)):
+            self.args.optimize = [self.args.optimize]
         for factory in self.args.optimize:
             self.add_trainer(factory, **kwargs)
 

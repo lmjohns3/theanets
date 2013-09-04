@@ -27,7 +27,7 @@ Y = np.array([0, 1, 1, 0, ])
 train = [X,  Y.astype('int32')]
 
 e = theanets.Experiment(theanets.Classifier,
-                        layers=(2, 3, 2),
+                        layers=(2, 5, 2),
                         activation = 'tanh',
                         learning_rate=.05,
                         learning_rate_decay=.1,

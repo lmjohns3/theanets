@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import cPickle
 import lmj.cli
-import matplotlib.pyplot as plt
 import numpy as np
-import theano
 import theanets
 
 

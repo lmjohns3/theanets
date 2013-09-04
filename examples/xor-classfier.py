@@ -27,18 +27,26 @@ Y = np.array([0, 1, 1, 0, ])
 train = [X,  Y.astype('int32')]
 
 e = theanets.Experiment(theanets.Classifier,
-                        layers=(2, 5, 2),
+                        layers=(2, 3, 2),
                         activation = 'tanh',
-#                        learning_rate=.005,
-#                        learning_rate_decay=.1,
-#                        patience=20,
+                        learning_rate=.05,
+                        learning_rate_decay=.1,
+                        patience=200,
                         optimize="sgd",
-                        num_updates=10,
+                        num_updates=100,
 #                        tied_weights=True,
-#                        batch_size=32,
+                        batch_size=32,
                         )
 e.run(train, train)
 
+
+print "Input:"
+print X
+
+print "XOR output"
+print Y
+
+print "NN XOR predictions"
 print e.network.predict(X)
 
 

@@ -50,6 +50,14 @@ class Experiment(object):
     '''This class encapsulates tasks for training and evaluating a network.
     '''
 
+    TRAINERS = {
+        'hf': trainer.HF,
+        'sgd': trainer.SGD,
+        'sample': trainer.Sample,
+        'layerwise': trainer.Layerwise,
+        'force': trainer.FORCE,
+        }
+
     def __init__(self, network_class, **overrides):
         '''Set up an experiment -- build a network and a trainer.
 
@@ -72,10 +80,18 @@ class Experiment(object):
         provide experiment-specific default values for command line arguments
         that have no global defaults, e.g., network architecture.)
         '''
-        self.args, kwargs = parse_args(**overrides)
-        self.network = self._build_network(network_class, **kwargs)
-        self.trainer = self._build_trainer(**kwargs)
+        self.trainers = []
         self.datasets = {}
+
+        self.args, self.kwargs = parse_args(**overrides)
+
+        kw = {}
+        kw.update(self.kwargs)
+        self.network = self._build_network(network_class, **kw)
+
+        kw = {}
+        kw.update(self.kwargs)
+        self._build_trainers(**kw)
 
     def _build_network(self, network_class, **kwargs):
         '''Build a Network class instance to compute input transformations.
@@ -121,30 +137,26 @@ class Experiment(object):
         except:
             raise KeyError('unknown --activation %s' % act)
 
-    def _build_trainer(self, **kwargs):
-        '''Build a Trainer class instance for adjusting network parameters.
-
-        Keyword arguments are passed as-is to the underlying Trainer instance.
+    def _build_trainers(self, **kwargs):
+        '''Build trainers from command-line arguments.
         '''
-        trainer_class = self._build_trainer_class()
-        return trainer_class(self.network, **kwargs)
+        for factory in self.args.optimize:
+            self.add_trainer(factory, **kwargs)
 
-    def _build_trainer_class(self, opt=None):
-        '''Given a trainer description, build a trainer class that implements it.
+    def add_trainer(self, factory, **kwargs):
+        '''Add a new trainer to this experiment.
+
+        Arguments:
+          factory: The name or Python class of a Trainer.
+
+        Keyword arguments are passed to the trainer factory.
         '''
-        opt = opt or self.args.optimize.lower()
-        if '+' in opt:
-            return trainer.Cascaded(self._build_trainer_class(o) for o in opt.split('+'))
-        try:
-            return {
-                'hf': trainer.HF,
-                'sgd': trainer.SGD,
-                'sample': trainer.Sample,
-                'layerwise': trainer.Layerwise,
-                'force': trainer.FORCE,
-                }[opt]
-        except:
-            raise KeyError('unknown --optimize %s' % opt)
+        if not callable(factory):
+            factory = self.TRAINERS[factory]
+        kw = {}
+        kw.update(self.kwargs)
+        kw.update(kwargs)
+        self.trainers.append(factory(self.network, **kw))
 
     def add_dataset(self, label, dataset, **kwargs):
         '''Add a dataset to this experiment.
@@ -194,9 +206,10 @@ class Experiment(object):
                 self.add_dataset('cg', train)
         if valid is not None and 'valid' not in self.datasets:
             self.add_dataset('valid', valid)
-        self.trainer.train(train_set=self.datasets['train'],
-                           valid_set=self.datasets['valid'],
-                           cg_set=self.datasets['cg'])
+        for trainer in self.trainers:
+            trainer.train(train_set=self.datasets['train'],
+                          valid_set=self.datasets['valid'],
+                          cg_set=self.datasets['cg'])
 
     def save(self, path):
         '''Save the parameters in the network to a pickle file on disk.

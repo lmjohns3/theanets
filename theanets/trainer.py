@@ -189,21 +189,6 @@ class HF(Trainer):
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
 
 
-class Cascaded(Trainer):
-    '''This trainer allows running multiple trainers sequentially.'''
-
-    def __init__(self, trainers):
-        self.trainers = trainers
-
-    def __call__(self, network, **kwargs):
-        self.trainers = (t(network, **kwargs) for t in self.trainers)
-        return self
-
-    def train(self, train_set, valid_set=None, **kwargs):
-        for trainer in self.trainers:
-            trainer.train(train_set, valid_set=valid_set, **kwargs)
-
-
 class Sample(Trainer):
     '''This trainer replaces network weights with samples from the input.'''
 

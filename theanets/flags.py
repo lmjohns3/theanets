@@ -34,8 +34,8 @@ g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
 g = lmj.cli.add_arg_group('Training')
-g.add_argument('-O', '--optimize', default='sgd', metavar='[hf|layerwise|sgd|sample]',
-               help='train with the given optimization method')
+g.add_argument('-O', '--optimize', default=['sgd'], nargs='+', metavar='[hf|layerwise|sgd|sample]',
+               help='train with the given optimization method(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
 g.add_argument('-u', '--num-updates', type=int, default=128, metavar='N',
@@ -50,6 +50,8 @@ g.add_argument('-B', '--train-batches', type=int, metavar='N',
                help='use at most N batches during gradient computations')
 g.add_argument('-V', '--valid-batches', type=int, metavar='N',
                help='use at most N batches during validation')
+g.add_argument('--save-progress', metavar='FILE',
+               help='save the model periodically to FILE')
 
 g = lmj.cli.add_arg_group('Regularization')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
@@ -90,8 +92,6 @@ g.add_argument('--global-backtracking', action='store_true',
                help='backtrack to lowest cost parameters during CG')
 g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
-g.add_argument('--save-progress', metavar='FILE',
-               help='save the model periodically to FILE')
 
 g = lmj.cli.add_arg_group('Recurrent Nets')
 g.add_argument('--pool-damping', type=float, default=0, metavar='R',

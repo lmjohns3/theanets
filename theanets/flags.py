@@ -76,7 +76,7 @@ g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-d', '--learning-rate-decay', type=float, default=0.25, metavar='R',
                help='decay the learning rate by R after stagnant validations')
-g.add_argument('-m', '--momentum', type=float, default=0.1, metavar='V',
+g.add_argument('-m', '--momentum', type=float, default=0, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')

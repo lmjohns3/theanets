@@ -35,59 +35,13 @@ from . import recurrent
 
 logging = lmj.cli.get_logger(__name__)
 
-def mean_map(f, xs):
-    return np.mean([f(*x) for x in xs], axis=0)
-
 
 class Trainer(object):
     '''This is a base class for all trainers.'''
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        '''By default, we train in iterations and evaluate periodically.'''
-        best_cost = 1e100
-        best_iter = 0
-        best_params = [p.get_value().copy() for p in self.params]
-        for i in xrange(self.iterations):
-            if i - best_iter > self.patience:
-                logging.error('patience elapsed, bailing out')
-                break
-            try:
-                fmt = 'SGD update %i/%i @%.2e train %s'
-                args = (i + 1,
-                        self.iterations,
-                        self.learning_rate,
-                        mean_map(self.f_train, train_set),
-                        )
-                if (i + 1) % self.validation_frequency == 0:
-                    metrics = mean_map(self.f_eval, valid_set)
-                    fmt += ' valid %s'
-                    args += (metrics, )
-                    if (best_cost - metrics[0]) / best_cost > self.min_improvement:
-                        best_cost = metrics[0]
-                        best_iter = i
-                        best_params = [p.get_value().copy() for p in self.params]
-                        fmt += ' *'
-                    else:
-                        self.validation_stagnant()
-                self.finish_iteration()
-            except KeyboardInterrupt:
-                logging.info('interrupted !')
-                break
-            logging.info(fmt, *args)
-        self.update_params(best_params)
-
     def update_params(self, targets):
         for param, target in zip(self.params, targets):
             param.set_value(target)
-
-    def finish_iteration(self):
-        pass
-
-    def validation_stagnant(self):
-        pass
-
-    def evaluate(self, test_set):
-        return mean_map(self.f_eval, test_set)
 
 
 class SGD(Trainer):
@@ -97,45 +51,124 @@ class SGD(Trainer):
         self.params = network.params(**kwargs)
         self.validation_frequency = kwargs.get('validate', 3)
         self.min_improvement = kwargs.get('min_improvement', 0.)
-        self.iterations = kwargs.get('num_updates', 1e100)
-        self.patience = kwargs.get('patience', 1e100)
-        logging.info('SGD: %d named parameters to learn', len(self.params))
-
-        decay = kwargs.get('learning_rate_decay', 0.01)
-        m = kwargs.get('momentum', 0.1)
-        lr = kwargs.get('learning_rate', 0.1)
+        self.iterations = kwargs.get('num_updates', 1000)
+        self.patience = kwargs.get('patience', 100)
+        self.momentum = kwargs.get('momentum', 0.)
+        self.grad_clip = kwargs.get('gradient_clip', 1e5)
+        self.learning_rate = kwargs.get('learning_rate', 0.1)
+        self.learning_rate_decay = kwargs.get('learning_rate_decay', 0.1)
 
         J = network.J(**kwargs)
-        t = theano.shared(np.cast['float32'](0), name='t')
-        updates = collections.OrderedDict()
-        updates.update(network.updates)
-        for param in self.params:
-            grad = TT.grad(J, param)
-            heading = theano.shared(
-                np.zeros_like(param.get_value(borrow=True)),
-                name='grad_%s' % param.name)
-            updates[param] = param + heading
-            updates[heading] = m * heading - lr * ((1 - decay) ** t) * grad
-
-        costs = [J] + network.monitors
+        costs = [J]
+        self.cost_names = ['J']
+        for name, monitor in network.monitors:
+            self.cost_names.append(name)
+            costs.append(monitor)
+        self.f_train = theano.function(network.inputs, costs, updates=network.updates)
+        self.f_grad = theano.function(network.inputs, [TT.grad(J, p) for p in self.params])
         self.f_eval = theano.function(network.inputs, costs)
-        self.f_train = theano.function(network.inputs, costs, updates=updates)
-        self.f_rate = theano.function([], [lr * ((1 - decay) ** t)])
-        self.f_finish = theano.function([], [t], updates={t: t + 1})
 
-        #theano.printing.pydotprint(
-        #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
+    def train(self, train_set, valid_set=None, **kwargs):
+        '''We train over mini-batches and evaluate periodically.'''
+        best_cost = 1e100
+        best_iter = 0
+        best_params = []
+        velocities = []
+        P = len(self.params)
+        for p in self.params:
+            v = p.get_value()
+            best_params.append(v.copy())
+            velocities.append(np.zeros_like(v))
 
-        #g = self.f_train.maker.fgraph.toposort()
-        #for x in g:
-        #    print x
+        learn = self._nag if self.momentum > 0 else self._sgd
 
-    @property
-    def learning_rate(self):
-        return self.f_rate()[0]
+        for i in xrange(self.iterations):
+            # if it's time, evaluate the model on the validation dataset.
+            if not i % self.validation_frequency:
+                try:
+                    costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+                except KeyboardInterrupt:
+                    logging.info('interrupted !')
+                    break
+                marker = ''
+                if (best_cost - costs[0]) / best_cost > self.min_improvement:
+                    best_cost = costs[0]
+                    best_iter = i
+                    best_params = [p.get_value().copy() for p in self.params]
+                    marker = ' *'
+                else:
+                    self.learning_rate *= 1 - self.learning_rate_decay
 
-    def validation_stagnant(self):
-        self.f_finish()
+                cost_desc = ' '.join(
+                    '%s=%.4f' % i for i in zip(self.cost_names, costs))
+                logging.info('SGD %i -- valid %s%s', i + 1, cost_desc, marker)
+
+                if i - best_iter > self.patience:
+                    logging.error('patience elapsed, bailing out')
+                    break
+
+            costs = []
+            grads = []
+            try:
+                for costs_, grads_ in learn(train_set, velocities):
+                    costs.append(costs_)
+                    grads.append(grads_)
+            except KeyboardInterrupt:
+                logging.info('interrupted !')
+                break
+
+            cost_desc = ' '.join(
+                '%s=%.4f' % i for i in
+                zip(self.cost_names, np.mean(costs, axis=0)))
+            grad_desc = ' '.join(
+                '%s=%.4f' % (p.name, x) for p, x in
+                zip(self.params, np.mean(grads, axis=0)))
+            logging.info('SGD %i/%i @%.2e -- train %s -- grad %s',
+                         i + 1, self.iterations, self.learning_rate,
+                         cost_desc, grad_desc)
+
+        self.update_params(best_params)
+
+    def _nag(self, train_set, velocities):
+        '''Make one run through the training set.
+
+        We update parameters after each minibatch according to nesterov's
+        accelerated gradient.
+        '''
+        gc = self.grad_clip
+        # TODO: run this loop in parallel !
+        for x in train_set:
+            for param, vel in zip(self.params, velocities):
+                v = param.get_value(borrow=True)
+                v += self.momentum * vel
+                param.set_value(v, borrow=True)
+            grads = []
+            for param, vel, grad in zip(self.params, velocities, self.f_grad(*x)):
+                g = np.asarray(grad)
+                grads.append(np.linalg.norm(g))
+                v = param.get_value(borrow=True)
+                u = self.momentum * vel
+                v -= u
+                v += np.clip(u - self.learning_rate * g, -gc, gc, out=vel)
+                param.set_value(v, borrow=True)
+            yield self.f_train(*x), grads
+
+    def _sgd(self, train_set, velocities):
+        '''Make one run through the training set.
+
+        We update parameters after each minibatch according to standard
+        stochastic gradient descent.
+        '''
+        # TODO: run this loop in parallel !
+        for x in train_set:
+            grads = []
+            for param, grad in zip(self.params, self.f_grad(*x)):
+                g = np.asarray(grad)
+                grads.append(np.linalg.norm(g))
+                v = param.get_value(borrow=True)
+                v -= self.learning_rate * g
+                param.set_value(v, borrow=True)
+            yield self.f_train(*x), grads
 
 
 class CG(Trainer):
@@ -174,9 +207,8 @@ class HF(Trainer):
             self.params,
             network.inputs,
             network.y,
-            [network.J(**kwargs)] + network.monitors,
+            [network.J(**kwargs)] + [mon for _, mon in network.monitors],
             network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
-        logging.info('HF: %d named parameters to learn', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
@@ -208,7 +240,7 @@ class Sample(Trainer):
         L = len(pool)
         while len(pool) < n:
             x = pool[rng.randint(L)]
-            pool.append(x + x.std() * 0.1 * rng.randn(*x.shape))
+            pool.append(x + np.std(pool, axis=0) * rng.randn(*x.shape))
         return pool
 
     def __init__(self, network, **kwargs):
@@ -216,66 +248,84 @@ class Sample(Trainer):
 
     def train(self, train_set, valid_set=None, **kwargs):
         ifci = itertools.chain.from_iterable
+
+        # set output (decoding) weights on the network.
+        last = lambda x: x[-1] if isinstance(x, (tuple, list)) else x
+        samples = ifci(last(t) for t in train_set)
+        for w in self.network.weights:
+            k, n = w.get_value(borrow=True).shape
+            if w.name.startswith('W_out_'):
+                arr = np.vstack(Sample.reservoir(samples, k))
+                logging.info('setting weights for %s: %d x %d <- %s', w.name, k, n, arr.shape)
+                w.set_value(arr)
+
+        # set input (encoding) weights on the network.
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         samples = ifci(first(t) for t in train_set)
         for i, h in enumerate(self.network.hiddens):
             w = self.network.weights[i]
             m, k = w.get_value(borrow=True).shape
-            logging.info('setting weights for %s: %d x %d', w.name, m, k)
-            w.set_value(np.vstack(Sample.reservoir(samples, k)).T)
-            samples = ifci(self.network.forward(first(t))[i-1] for t in train_set)
+            arr = np.vstack(Sample.reservoir(samples, k)).T
+            logging.info('setting weights for %s: %d x %d <- %s', w.name, m, k, arr.shape)
+            w.set_value(arr)
+            samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
 
 class Layerwise(Trainer):
-    '''This trainer adapts parameters using greedy layerwise pretraining.'''
+    '''This trainer adapts parameters using a variant of layerwise pretraining.
+
+    In this variant, we create "taps" at increasing depths into the original
+    network weights, training only those weights that are below the tap. So, for
+    a hypothetical binary classifier network with layers [3, 4, 5, 6, 2], we
+    would first insert a tap after the first hidden layer (effectively a binary
+    classifier in a [3, 4, 2] configuration) and train just that network. Then
+    we insert a tap at the next layer (effectively training a [3, 4, 5, 2]
+    classifier), and so forth.
+
+    By inserting taps into the original network, we preserve all of the relevant
+    settings of noise, dropouts, loss function and the like, in addition to
+    obviating the need for copying trained weights around between different
+    Network instances.
+    '''
 
     def __init__(self, network, **kwargs):
         self.network = network
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
-        i = 0
+        y = self.network.y
+        hiddens = list(self.network.hiddens)
+        weights = list(self.network.weights)
+        biases = list(self.network.biases)
 
-        # construct training and validation datasets for autoencoding
-        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
-        bs = len(first(train_set.minibatches[0]))
-        p = lambda z: np.vstack(first(x) for x in z.minibatches)
-        _train = dataset.SequenceDataset(
-            'train-0', p(train_set), size=bs, batches=train_set.limit)
-        _valid = None
-        if valid_set is not None:
-            _valid = dataset.SequenceDataset(
-                'valid-0', p(valid_set), size=bs, batches=valid_set.limit)
+        nout = len(biases[-1].get_value(borrow=True))
+        nhids = [len(b.get_value(borrow=True)) for b in biases]
+        for i in range(1, len(nhids)):
+            W, b, _ = self.network._weights_and_bias(nhids[i-1], nout, 'lwout-%d' % i)
+            self.network.y = TT.dot(hiddens[i-1], W) + b
+            self.network.hiddens = hiddens[:i]
+            self.network.weights = weights[:i] + [W]
+            self.network.biases = biases[:i] + [b]
+            SGD(self.network, **self.kwargs).train(train_set, valid_set)
+            self.network.save('/tmp/layerwise-%s-h%f-n%f-d%f-w%f-%d.pkl.gz' % (
+                    ','.join(map(str, self.kwargs['layers'])),
+                    self.kwargs['hidden_l1'],
+                    self.kwargs['input_noise'],
+                    self.kwargs['hidden_dropouts'],
+                    self.kwargs['weight_l1'],
+                    i))
 
-        while i < len(self.network.biases) - 1:
-            weights = self.network.weights[i]
-            bias = self.network.biases[i]
-            n = weights.get_value(borrow=True).shape[0]
-            k = bias.get_value(borrow=True).shape[0]
-
-            logging.info('layerwise training: layer %d with %d hidden units', i + 1, k)
-
-            # train a phantom autoencoder object on our dataset
-            ae = feedforward.Autoencoder([n, k, n], TT.nnet.sigmoid)
-            t = SGD(ae, **self.kwargs)
-            t.train(_train, _valid)
-
-            # copy the trained weights
-            weights.set_value(ae.weights[0].get_value())
-            bias.set_value(ae.biases[0].get_value())
-
-            # map data through the network for the next layer
-            i += 1
-            p = lambda z: np.vstack(ae.forward(x[0])[0] for x in z.minibatches)
-            _train = dataset.SequenceDataset(
-                'train-%d' % i, p(_train), size=bs, batches=_train.limit)
-            if _valid is not None:
-                _valid = dataset.SequenceDataset(
-                    'valid-%d' % i, p(_valid), size=bs, batches=_valid.limit)
+        self.network.y = y
+        self.network.hiddens = hiddens
+        self.network.weights = weights
+        self.network.biases = biases
 
 
 class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.'''
+    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
+
+    This implementation needs some more love before it will work.
+    '''
 
     def __init__(self, network, **kwargs):
         W_in, W_pool, W_out = network.weights

@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+'''Example using the theanets package for learning the XOR relation.'''
+
 import lmj.cli
 import numpy as np
 import theanets
-
-
-"""
-This is an example of using the theanets package for learning an XOR classifier.
-"""
 
 lmj.cli.enable_default_logging()
 
@@ -21,19 +18,18 @@ X = np.array([
 
 Y = np.array([0, 1, 1, 0, ])
 
-train = [X,  Y.astype('int32')]
+Xi = np.random.randint(0, 2, size=(256, 2))
+train = [
+    Xi + 0.1 * np.random.randn(*Xi.shape).astype('f'),
+    (Xi[:, 0] ^ Xi[:, 1])[:, None]]
 
-e = theanets.Experiment(theanets.Classifier,
-                        layers=(2, 5, 2),
-                        activation = 'tanh',
-                        learning_rate=.05,
-                        learning_rate_decay=.1,
-                        patience=200,
-                        optimize="sgd",
-                        num_updates=100,
-#                        tied_weights=True,
-                        batch_size=32,
-                        )
+e = theanets.Experiment(theanets.Regressor,
+                        layers=(2, 2, 1),
+                        learning_rate=0.1,
+                        learning_rate_decay=0,
+                        momentum=0.9,
+                        patience=300,
+                        num_updates=1000)
 e.run(train, train)
 
 

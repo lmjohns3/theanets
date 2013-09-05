@@ -212,7 +212,7 @@ class Sample(Trainer):
         L = len(pool)
         while len(pool) < n:
             x = pool[rng.randint(L)]
-            pool.append(x + x.std() * 0.1 * rng.randn(*x.shape))
+            pool.append(x + np.std(pool, axis=0) * rng.randn(*x.shape))
         return pool
 
     def __init__(self, network, **kwargs):

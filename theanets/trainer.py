@@ -220,14 +220,27 @@ class Sample(Trainer):
 
     def train(self, train_set, valid_set=None, **kwargs):
         ifci = itertools.chain.from_iterable
+
+        # set output (decoding) weights on the network.
+        last = lambda x: x[-1] if isinstance(x, (tuple, list)) else x
+        samples = ifci(last(t) for t in train_set)
+        for w in self.network.weights:
+            k, n = w.get_value(borrow=True).shape
+            if w.name.startswith('W_out_'):
+                arr = np.vstack(Sample.reservoir(samples, k))
+                logging.info('setting weights for %s: %d x %d <- %s', w.name, k, n, arr.shape)
+                w.set_value(arr)
+
+        # set input (encoding) weights on the network.
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         samples = ifci(first(t) for t in train_set)
         for i, h in enumerate(self.network.hiddens):
             w = self.network.weights[i]
             m, k = w.get_value(borrow=True).shape
-            logging.info('setting weights for %s: %d x %d', w.name, m, k)
-            w.set_value(np.vstack(Sample.reservoir(samples, k)).T)
-            samples = ifci(self.network.forward(first(t))[i-1] for t in train_set)
+            arr = np.vstack(Sample.reservoir(samples, k)).T
+            logging.info('setting weights for %s: %d x %d <- %s', w.name, m, k, arr.shape)
+            w.set_value(arr)
+            samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
 
 class Layerwise(Trainer):

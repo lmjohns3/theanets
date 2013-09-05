@@ -244,51 +244,53 @@ class Sample(Trainer):
 
 
 class Layerwise(Trainer):
-    '''This trainer adapts parameters using greedy layerwise pretraining.'''
+    '''This trainer adapts parameters using a variant of layerwise pretraining.
+
+    In this variant, we create "taps" at increasing depths into the original
+    network weights, training only those weights that are below the tap. So, for
+    a hypothetical binary classifier network with layers [3, 4, 5, 6, 2], we
+    would first insert a tap after the first hidden layer (effectively a binary
+    classifier in a [3, 4, 2] configuration) and train just that network. Then
+    we insert a tap at the next layer (effectively training a [3, 4, 5, 2]
+    classifier), and so forth.
+
+    By inserting taps into the original network, we preserve all of the relevant
+    settings of noise, dropouts, loss function and the like, in addition to
+    obviating the need for copying trained weights around between different
+    Network instances.
+    '''
 
     def __init__(self, network, **kwargs):
         self.network = network
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
-        i = 0
+        y = self.network.y
+        hiddens = list(self.network.hiddens)
+        weights = list(self.network.weights)
+        biases = list(self.network.biases)
 
-        # construct training and validation datasets for autoencoding
-        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
-        bs = len(first(train_set.minibatches[0]))
-        p = lambda z: np.vstack(first(x) for x in z.minibatches)
-        _train = dataset.SequenceDataset(
-            'train-0', p(train_set), size=bs, batches=train_set.limit)
-        _valid = None
-        if valid_set is not None:
-            _valid = dataset.SequenceDataset(
-                'valid-0', p(valid_set), size=bs, batches=valid_set.limit)
+        nout = len(biases[-1].get_value(borrow=True))
+        nhids = [len(b.get_value(borrow=True)) for b in biases]
+        for i in range(1, len(nhids)):
+            W, b, _ = self.network._weights_and_bias(nhids[i-1], nout, 'lwout-%d' % i)
+            self.network.y = TT.dot(hiddens[i-1], W) + b
+            self.network.hiddens = hiddens[:i]
+            self.network.weights = weights[:i] + [W]
+            self.network.biases = biases[:i] + [b]
+            SGD(self.network, **self.kwargs).train(train_set, valid_set)
+            self.network.save('/tmp/layerwise-%s-h%f-n%f-d%f-w%f-%d.pkl.gz' % (
+                    ','.join(map(str, self.kwargs['layers'])),
+                    self.kwargs['hidden_l1'],
+                    self.kwargs['input_noise'],
+                    self.kwargs['hidden_dropouts'],
+                    self.kwargs['weight_l1'],
+                    i))
 
-        while i < len(self.network.biases) - 1:
-            weights = self.network.weights[i]
-            bias = self.network.biases[i]
-            n = weights.get_value(borrow=True).shape[0]
-            k = bias.get_value(borrow=True).shape[0]
-
-            logging.info('layerwise training: layer %d with %d hidden units', i + 1, k)
-
-            # train a phantom autoencoder object on our dataset
-            ae = feedforward.Autoencoder([n, k, n], TT.nnet.sigmoid)
-            t = SGD(ae, **self.kwargs)
-            t.train(_train, _valid)
-
-            # copy the trained weights
-            weights.set_value(ae.weights[0].get_value())
-            bias.set_value(ae.biases[0].get_value())
-
-            # map data through the network for the next layer
-            i += 1
-            p = lambda z: np.vstack(ae.forward(x[0])[0] for x in z.minibatches)
-            _train = dataset.SequenceDataset(
-                'train-%d' % i, p(_train), size=bs, batches=_train.limit)
-            if _valid is not None:
-                _valid = dataset.SequenceDataset(
-                    'valid-%d' % i, p(_valid), size=bs, batches=_valid.limit)
+        self.network.y = y
+        self.network.hiddens = hiddens
+        self.network.weights = weights
+        self.network.biases = biases
 
 
 class FORCE(Trainer):

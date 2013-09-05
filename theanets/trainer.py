@@ -117,7 +117,11 @@ class SGD(Trainer):
             updates[param] = param + heading
             updates[heading] = m * heading - lr * ((1 - decay) ** t) * grad
 
-        costs = [J] + network.monitors
+        costs = [J]
+        self.cost_names = ['J']
+        for name, monitor in network.monitors:
+            self.cost_names.append(name)
+            costs.append(monitor)
         self.f_eval = theano.function(network.inputs, costs)
         self.f_train = theano.function(network.inputs, costs, updates=updates)
         self.f_rate = theano.function([], [lr * ((1 - decay) ** t)])
@@ -174,7 +178,7 @@ class HF(Trainer):
             self.params,
             network.inputs,
             network.y,
-            [network.J(**kwargs)] + network.monitors,
+            [network.J(**kwargs)] + [mon for _, mon in network.monitors],
             network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
         logging.info('HF: %d named parameters to learn', len(self.params))
 
@@ -275,7 +279,10 @@ class Layerwise(Trainer):
 
 
 class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.'''
+    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
+
+    This implementation needs some more love before it will work.
+    '''
 
     def __init__(self, network, **kwargs):
         W_in, W_pool, W_out = network.weights

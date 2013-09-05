@@ -149,7 +149,9 @@ class Network(object):
 
     @property
     def monitors(self):
-        return [self.cost] + self.sparsities
+        yield 'error', self.cost
+        for i, s in enumerate(self.sparsities):
+            yield 'sparse_{}'.format(i+1), s
 
     @property
     def sparsities(self):
@@ -276,6 +278,8 @@ class Classifier(Network):
         super(Classifier, self).__init__(*args, **kwargs)
 
         self.y = self.softmax(self.y)
+
+        # recompile feed_forward method to return proper y value.
         self.feed_forward = theano.function([self.x], self.hiddens + [self.y])
 
     @staticmethod
@@ -289,17 +293,18 @@ class Classifier(Network):
         return [self.x, self.k]
 
     @property
-    def prediction(self):
-        return TT.argmax(self.y, axis=1)
-
-    @property
     def cost(self):
         return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
 
     @property
     def incorrect(self):
-        return TT.mean(TT.neq(self.prediction, self.k))
+        return TT.mean(TT.neq(TT.argmax(self.y, axis=1), self.k))
 
     @property
     def monitors(self):
-        return [self.incorrect] + self.sparsities
+        yield 'incorrect', self.incorrect
+        for i, s in enumerate(self.sparsities):
+            yield 'sparse_{}'.format(i+1), s
+
+    def classify(self, x):
+        return self.predict(x).argmax(axis=1)

@@ -126,9 +126,9 @@ class Experiment(object):
             'rect:min': lambda z: TT.maximum(0, z),
 
             # normalization
-            'norm:dc': lambda z: z - z.mean(axis=1)[:, None],
-            'norm:max': lambda z: z / TT.maximum(1e-10, abs(z).max(axis=1)[:, None]),
-            'norm:std': lambda z: z / TT.maximum(1e-10, z.std(axis=1)[:, None]),
+            'norm:dc': lambda z: (z.T - z.mean(axis=1)).T,
+            'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
+            'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
             }
         for k, v in options.iteritems():
             v.__theanets_name__ = k

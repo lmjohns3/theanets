@@ -35,59 +35,13 @@ from . import recurrent
 
 logging = lmj.cli.get_logger(__name__)
 
-def mean_map(f, xs):
-    return np.mean([f(*x) for x in xs], axis=0)
-
 
 class Trainer(object):
     '''This is a base class for all trainers.'''
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        '''By default, we train in iterations and evaluate periodically.'''
-        best_cost = 1e100
-        best_iter = 0
-        best_params = [p.get_value().copy() for p in self.params]
-        for i in xrange(self.iterations):
-            if i - best_iter > self.patience:
-                logging.error('patience elapsed, bailing out')
-                break
-            try:
-                fmt = 'SGD update %i/%i @%.2e train %s'
-                args = (i + 1,
-                        self.iterations,
-                        self.learning_rate,
-                        mean_map(self.f_train, train_set),
-                        )
-                if (i + 1) % self.validation_frequency == 0:
-                    metrics = mean_map(self.f_eval, valid_set)
-                    fmt += ' valid %s'
-                    args += (metrics, )
-                    if (best_cost - metrics[0]) / best_cost > self.min_improvement:
-                        best_cost = metrics[0]
-                        best_iter = i
-                        best_params = [p.get_value().copy() for p in self.params]
-                        fmt += ' *'
-                    else:
-                        self.validation_stagnant()
-                self.finish_iteration()
-            except KeyboardInterrupt:
-                logging.info('interrupted !')
-                break
-            logging.info(fmt, *args)
-        self.update_params(best_params)
-
     def update_params(self, targets):
         for param, target in zip(self.params, targets):
             param.set_value(target)
-
-    def finish_iteration(self):
-        pass
-
-    def validation_stagnant(self):
-        pass
-
-    def evaluate(self, test_set):
-        return mean_map(self.f_eval, test_set)
 
 
 class SGD(Trainer):
@@ -97,49 +51,124 @@ class SGD(Trainer):
         self.params = network.params(**kwargs)
         self.validation_frequency = kwargs.get('validate', 3)
         self.min_improvement = kwargs.get('min_improvement', 0.)
-        self.iterations = kwargs.get('num_updates', 1e100)
-        self.patience = kwargs.get('patience', 1e100)
-        logging.info('SGD: %d named parameters to learn', len(self.params))
-
-        decay = kwargs.get('learning_rate_decay', 0.01)
-        m = kwargs.get('momentum', 0.1)
-        lr = kwargs.get('learning_rate', 0.1)
+        self.iterations = kwargs.get('num_updates', 1000)
+        self.patience = kwargs.get('patience', 100)
+        self.momentum = kwargs.get('momentum', 0.)
+        self.grad_clip = kwargs.get('gradient_clip', 1e5)
+        self.learning_rate = kwargs.get('learning_rate', 0.1)
+        self.learning_rate_decay = kwargs.get('learning_rate_decay', 0.1)
 
         J = network.J(**kwargs)
-        t = theano.shared(np.cast['float32'](0), name='t')
-        updates = collections.OrderedDict()
-        updates.update(network.updates)
-        for param in self.params:
-            grad = TT.grad(J, param)
-            heading = theano.shared(
-                np.zeros_like(param.get_value(borrow=True)),
-                name='grad_%s' % param.name)
-            updates[param] = param + heading
-            updates[heading] = m * heading - lr * ((1 - decay) ** t) * grad
-
         costs = [J]
         self.cost_names = ['J']
         for name, monitor in network.monitors:
             self.cost_names.append(name)
             costs.append(monitor)
+        self.f_train = theano.function(network.inputs, costs, updates=network.updates)
+        self.f_grad = theano.function(network.inputs, [TT.grad(J, p) for p in self.params])
         self.f_eval = theano.function(network.inputs, costs)
-        self.f_train = theano.function(network.inputs, costs, updates=updates)
-        self.f_rate = theano.function([], [lr * ((1 - decay) ** t)])
-        self.f_finish = theano.function([], [t], updates={t: t + 1})
 
-        #theano.printing.pydotprint(
-        #    theano.function(network.inputs, [J]), '/tmp/theano-network.png')
+    def train(self, train_set, valid_set=None, **kwargs):
+        '''We train over mini-batches and evaluate periodically.'''
+        best_cost = 1e100
+        best_iter = 0
+        best_params = []
+        velocities = []
+        P = len(self.params)
+        for p in self.params:
+            v = p.get_value()
+            best_params.append(v.copy())
+            velocities.append(np.zeros_like(v))
 
-        #g = self.f_train.maker.fgraph.toposort()
-        #for x in g:
-        #    print x
+        learn = self._nag if self.momentum > 0 else self._sgd
 
-    @property
-    def learning_rate(self):
-        return self.f_rate()[0]
+        for i in xrange(self.iterations):
+            # if it's time, evaluate the model on the validation dataset.
+            if not i % self.validation_frequency:
+                try:
+                    costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+                except KeyboardInterrupt:
+                    logging.info('interrupted !')
+                    break
+                marker = ''
+                if (best_cost - costs[0]) / best_cost > self.min_improvement:
+                    best_cost = costs[0]
+                    best_iter = i
+                    best_params = [p.get_value().copy() for p in self.params]
+                    marker = ' *'
+                else:
+                    self.learning_rate *= 1 - self.learning_rate_decay
 
-    def validation_stagnant(self):
-        self.f_finish()
+                cost_desc = ' '.join(
+                    '%s=%.4f' % i for i in zip(self.cost_names, costs))
+                logging.info('SGD %i -- valid %s%s', i + 1, cost_desc, marker)
+
+                if i - best_iter > self.patience:
+                    logging.error('patience elapsed, bailing out')
+                    break
+
+            costs = []
+            grads = []
+            try:
+                for costs_, grads_ in learn(train_set, velocities):
+                    costs.append(costs_)
+                    grads.append(grads_)
+            except KeyboardInterrupt:
+                logging.info('interrupted !')
+                break
+
+            cost_desc = ' '.join(
+                '%s=%.4f' % i for i in
+                zip(self.cost_names, np.mean(costs, axis=0)))
+            grad_desc = ' '.join(
+                '%s=%.4f' % (p.name, x) for p, x in
+                zip(self.params, np.mean(grads, axis=0)))
+            logging.info('SGD %i/%i @%.2e -- train %s -- grad %s',
+                         i + 1, self.iterations, self.learning_rate,
+                         cost_desc, grad_desc)
+
+        self.update_params(best_params)
+
+    def _nag(self, train_set, velocities):
+        '''Make one run through the training set.
+
+        We update parameters after each minibatch according to nesterov's
+        accelerated gradient.
+        '''
+        gc = self.grad_clip
+        # TODO: run this loop in parallel !
+        for x in train_set:
+            for param, vel in zip(self.params, velocities):
+                v = param.get_value(borrow=True)
+                v += self.momentum * vel
+                param.set_value(v, borrow=True)
+            grads = []
+            for param, vel, grad in zip(self.params, velocities, self.f_grad(*x)):
+                g = np.asarray(grad)
+                grads.append(np.linalg.norm(g))
+                v = param.get_value(borrow=True)
+                u = self.momentum * vel
+                v -= u
+                v += np.clip(u - self.learning_rate * g, -gc, gc, out=vel)
+                param.set_value(v, borrow=True)
+            yield self.f_train(*x), grads
+
+    def _sgd(self, train_set, velocities):
+        '''Make one run through the training set.
+
+        We update parameters after each minibatch according to standard
+        stochastic gradient descent.
+        '''
+        # TODO: run this loop in parallel !
+        for x in train_set:
+            grads = []
+            for param, grad in zip(self.params, self.f_grad(*x)):
+                g = np.asarray(grad)
+                grads.append(np.linalg.norm(g))
+                v = param.get_value(borrow=True)
+                v -= self.learning_rate * g
+                param.set_value(v, borrow=True)
+            yield self.f_train(*x), grads
 
 
 class CG(Trainer):
@@ -180,7 +209,6 @@ class HF(Trainer):
             network.y,
             [network.J(**kwargs)] + [mon for _, mon in network.monitors],
             network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
-        logging.info('HF: %d named parameters to learn', len(self.params))
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)

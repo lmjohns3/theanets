@@ -132,24 +132,39 @@ class SGD(Trainer):
     def _nag(self, train_set, velocities):
         '''Make one run through the training set.
 
-        We update parameters after each minibatch according to nesterov's
-        accelerated gradient.
+        We update parameters after each minibatch according to Nesterovs
+        Accelerated Gradient. The basic difference between NAG and "classical"
+        momentum is that NAG computes the gradients at the position in parameter
+        space where "classical" momentum would put us at the next step.
+
+        In theory, this helps correct for oversteps during learning. If momentum
+        would lead us to overshoot, then the gradient at that place will point
+        backwards, toward where we came from.
         '''
         gc = self.grad_clip
         # TODO: run this loop in parallel !
         for x in train_set:
-            for param, vel in zip(self.params, velocities):
-                v = param.get_value(borrow=True)
-                v += self.momentum * vel
-                param.set_value(v, borrow=True)
             grads = []
-            for param, vel, grad in zip(self.params, velocities, self.f_grad(*x)):
+            moves = []
+            # first, move to the position in parameter space that we would get
+            # to using classical momentum-based sgd.
+            for param, vel in zip(self.params, velocities):
+                u = self.momentum * vel
+                v = param.get_value(borrow=True)
+                v += u
+                param.set_value(v, borrow=True)
+                moves.append(u)
+            for param, vel, grad, u in zip(self.params, velocities, self.f_grad(*x), moves):
+                # measure the gradient at this new position.
                 g = np.asarray(grad)
                 grads.append(np.linalg.norm(g))
+                # update the velocity using the new gradient. remember that
+                # u = self.momentum * vel.
+                np.clip(u - self.learning_rate * g, -gc, gc, out=vel)
+                # subtract out the movement from momentum that we added in
+                # above, and add the updated velocity.
                 v = param.get_value(borrow=True)
-                u = self.momentum * vel
-                v -= u
-                v += np.clip(u - self.learning_rate * g, -gc, gc, out=vel)
+                v += vel - u
                 param.set_value(v, borrow=True)
             yield self.f_train(*x), grads
 

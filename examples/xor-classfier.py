@@ -27,9 +27,9 @@ e = theanets.Experiment(theanets.Regressor,
                         layers=(2, 2, 1),
                         learning_rate=0.1,
                         learning_rate_decay=0,
-                        momentum=0.9,
+                        momentum=0.5,
                         patience=300,
-                        num_updates=1000)
+                        num_updates=5000)
 e.run(train, train)
 
 
@@ -40,6 +40,6 @@ print "XOR output"
 print Y
 
 print "NN XOR predictions"
-print e.network.predict(X)
+print e.network(X)
 
 

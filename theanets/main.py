@@ -20,13 +20,13 @@
 
 '''This file contains an object encapsulating a main process.'''
 
-import lmj.cli
+import climate
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
 from . import trainer
 
-logging = lmj.cli.get_logger(__name__)
+logging = climate.get_logger(__name__)
 
 
 def parse_args(**overrides):
@@ -35,7 +35,7 @@ def parse_args(**overrides):
     Returns an ordered pair of the command-line argument structure, as well as a
     dictionary version of these arguments.
     '''
-    args = lmj.cli.get_args().parse_args()
+    args = climate.get_args().parse_args()
     for k, v in overrides.iteritems():
         setattr(args, k, v)
     kwargs = {}

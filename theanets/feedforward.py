@@ -21,7 +21,7 @@
 '''This module contains a number of classes for modeling neural nets in Theano.
 '''
 
-import lmj.cli
+import climate
 import pickle
 import gzip
 import numpy as np
@@ -30,7 +30,7 @@ import theano.tensor as TT
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-logging = lmj.cli.get_logger(__name__)
+logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 DEBUG_BATCH_SIZE = 11
@@ -45,6 +45,12 @@ class Network(object):
     This class also permits "decoding" (computing final network output) from
     more than just the final hidden layer of units ; however, decoding must
     always include the final k hidden layers in the network.
+
+    Attributes
+    ----------
+    hiddens : list of floats
+    weights : list of Theano variables
+    biases : list of Theano variables
     '''
 
     def __init__(self, layers, activation, rng=None, input_noise=0,
@@ -52,30 +58,41 @@ class Network(object):
                  **kwargs):
         '''Create a new feedforward network of a specific topology.
 
-        layers: A sequence of integers specifying the number of units at each
-          layer. As an example, layers=(10, 20, 3) has one "input" layer with 10
-          units, one "hidden" layer with 20 units, and one "output" layer with 3
-          units. That is, inputs should be of length 10, and outputs will be of
-          length 3.
-        activation: A callable that takes one argument (a matrix) and returns
-          another matrix. This is the activation function that each hidden unit
-          in the network uses.
-        rng: Use a specific Theano random number generator. A new one will be
+        Arguments
+        ---------
+        layers : sequence of int
+          A sequence of integers specifying the number of units at each layer.
+          As an example, layers=(10, 20, 3) has one "input" layer with 10 units,
+          one "hidden" layer with 20 units, and one "output" layer with 3 units.
+          That is, inputs should be of length 10, and outputs will be of length
+          3.
+        activation : callable(numeric) -> numeric
+          A callable that takes an array of values (specifically, an array of
+          "raw unit inputs") and returns another array of values of the same
+          dimension (specifically, an array of "unit activations"). This is the
+          activation function that each hidden unit in the network uses.
+        rng : theano RandomStreams object, optional
+          Use a specific Theano random number generator. A new one will be
           created if this is None.
-        input_noise: Standard deviation of desired noise to inject into input.
-        hidden_noise: Standard deviation of desired noise to inject into
-          hidden unit activation output.
-        input_dropouts: Proportion of input units to randomly set to 0.
-        hidden_dropouts: Proportion of hidden unit activations to randomly set
-          to 0.
+        input_noise : float
+          Standard deviation of desired noise to inject into input.
+        hidden_noise : float
+          Standard deviation of desired noise to inject into hidden unit
+          activation output.
+        input_dropouts : float in [0, 1]
+          Proportion of input units to randomly set to 0.
+        hidden_dropouts : float in [0, 1]
+          Proportion of hidden unit activations to randomly set to 0.
 
-        Available keyword arguments:
-
-        decode: Any of the hidden layers can be tapped at the output. Just
-          specify a value greater than 1 to tap the last N hidden layers.
-        tied_weights: Construct decoding weights using the transpose of the
-          encoding weights on corresponding layers. If not true, decoding
-          weights will be constructed using a separate weight matrix.
+        Keyword arguments
+        -----------------
+        decode : positive int
+          Any of the hidden layers can be tapped at the output. Just specify a
+          value greater than 1 to tap the last N hidden layers.
+        tied_weights : bool
+          Construct decoding weights using the transpose of the encoding weights
+          on corresponding layers. If not True, decoding weights will be
+          constructed using a separate weight matrix.
         '''
         self.hiddens = []
         self.weights = []
@@ -145,21 +162,50 @@ class Network(object):
 
     @property
     def inputs(self):
+        '''Return a list of Theano input variables for this network.'''
         return [self.x]
 
     @property
     def monitors(self):
+        '''Generate a sequence of name-value pairs for monitoring the network.
+        '''
         yield 'error', self.cost
         for i, s in enumerate(self.sparsities):
             yield 'sparse_{}'.format(i+1), s
 
     @property
     def sparsities(self):
+        '''Return the sparsity (% of 0-activations) in each hidden layer.'''
         return [TT.eq(h, 0).mean() for h in self.hiddens]
 
     @staticmethod
     def _weights_and_bias(a, b, suffix):
-        '''Helper method for creating a layer of weights and bias values.'''
+        '''Create a layer of weights and bias values.
+
+        Arguments
+        ---------
+        a : int
+          Number of rows of the weight matrix -- also, the number of "input"
+          units that the weight matrix connects.
+        b : int
+          Number of columns of the weight matrix -- also, the number of "output"
+          units that the weight matrix connects.
+        suffix : str
+          A string suffix to use in the Theano name for the created variables.
+          This string will be appended to "W_" (for the weights) and "b_" (for
+          the biases) parameters that are created and returned.
+
+        Returns
+        -------
+        weight : Theano shared array
+          A shared array containing Theano values representing the weights
+          connecting each "input" unit to each "output" unit.
+        bias : Theano shared array
+          A shared array containing Theano values representing the bias values
+          on each of the "output" units.
+        count : int
+          The number of parameters that are included in the returned variables.
+        '''
         arr = np.random.randn(a, b) / np.sqrt(a + b)
         weight = theano.shared(arr.astype(FLOAT), name='W_%s' % suffix)
         weight.tag.test_value = np.random.randn(a, b)
@@ -171,9 +217,20 @@ class Network(object):
     def _noise_and_dropout(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.
 
-        x: input array, updated in-place as needed
-        sigma: standard deviation of noise to add to x
-        rho: fraction of elements of x to set randomly to 0.
+        Arguments
+        ---------
+        x : Theano array
+          Input array to add noise and dropouts to.
+        sigma : float
+          Standard deviation of noise to add to x. If this is 0, then no noise
+          is added to the values of x.
+        rho : float, in [0, 1]
+          Fraction of elements of x to set randomly to 0. If this is 0, then no
+          elements of x are set randomly to 0.
+
+        Returns
+        -------
+        The parameter x, plus additional noise as specified.
         '''
         if sigma > 0 and rho > 0:
             noise = self.rng.normal(size=x.shape, std=sigma)
@@ -187,6 +244,7 @@ class Network(object):
         return x
 
     def params(self, **kwargs):
+        '''Return a list of the Theano parameters for this network.'''
         params = []
         params.extend(self.weights)
         if kwargs.get('no_learn_biases'):
@@ -196,13 +254,30 @@ class Network(object):
         return params
 
     def predict(self, x):
-        '''Compute a forward pass of the inputs, returning the net output.'''
+        '''Compute a forward pass of the inputs, returning the net output.
+
+        Returns
+        -------
+        Mathematically, a neural network is a specific parametrization of a
+        generic function approximator. The network ultimately attempts to
+        compute some function value g at the given input x: g(x). Due to noise
+        in the training process, however, the value computed by the network
+        could differ from the "true" value of g(x).
+        '''
         return self.feed_forward(x)[-1]
 
     __call__ = predict
 
     def save(self, filename):
-        '''Save the parameters of this network to disk.'''
+        '''Save the parameters of this network to disk.
+
+        Arguments
+        ---------
+        filename : str
+          Save the parameters of this network to a pickle file at the named
+          path. If this name ends in ".gz" then the output will automatically be
+          gzipped; otherwise the output will be a "raw" pickle.
+        '''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
         pickle.dump(
@@ -213,7 +288,15 @@ class Network(object):
         logging.info('%s: saved model parameters', filename)
 
     def load(self, filename):
-        '''Load the parameters for this network from disk.'''
+        '''Load the parameters for this network from disk.
+
+        Arguments
+        ---------
+        filename : str
+          Load the parameters of this network from a pickle file at the named
+          path. If this name ends in ".gz" then the input will automatically be
+          gunzipped; otherwise the input will be treated as a "raw" pickle.
+        '''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
         params = pickle.load(handle)
@@ -225,7 +308,23 @@ class Network(object):
         logging.info('%s: loaded model parameters', filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
-        '''Return a cost function for this network.'''
+        '''Return a cost function for this network.
+
+        Arguments
+        ---------
+        weight_l1 : float
+          Regularize the L1 norm of unit connection weights by this constant.
+        weight_l2 : float
+          Regularize the L2 norm of unit connection weights by this constant.
+        hidden_l1 : float
+          Regularize the L1 norm of hidden unit activations by this constant.
+        hidden_l2 : float
+          Regularize the L2 norm of hidden unit activations by this constant.
+
+        Returns
+        -------
+        A Theano symbol that can be incorporated into a Theano function.
+        '''
         cost = self.cost
         if weight_l1 > 0:
             cost += weight_l1 * sum(abs(w).sum() for w in self.weights)

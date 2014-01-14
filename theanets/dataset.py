@@ -20,10 +20,10 @@
 
 '''This file contains a class for handling batched datasets.'''
 
-import lmj.cli
+import climate
 import numpy.random as rng
 
-logging = lmj.cli.get_logger(__name__)
+logging = climate.get_logger(__name__)
 
 
 class SequenceDataset(object):

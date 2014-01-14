@@ -21,9 +21,9 @@
 '''This file contains command line flags.'''
 
 import argparse
-import lmj.cli
+import climate
 
-g = lmj.cli.add_arg_group('Architecture')
+g = climate.add_arg_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
 g.add_argument('-g', '--activation', default='logistic', metavar='[linear|logistic|tanh|relu]',
@@ -33,7 +33,7 @@ g.add_argument('-t', '--tied-weights', action='store_true',
 g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
-g = lmj.cli.add_arg_group('Training')
+g = climate.add_arg_group('Training')
 g.add_argument('-O', '--optimize', default=['sgd'], nargs='+', metavar='[hf|layerwise|sgd|sample]',
                help='train with the given optimization method(s)')
 g.add_argument('--no-learn-biases', action='store_true',
@@ -53,7 +53,7 @@ g.add_argument('-V', '--valid-batches', type=int, metavar='N',
 g.add_argument('--save-progress', metavar='FILE',
                help='save the model periodically to FILE')
 
-g = lmj.cli.add_arg_group('Regularization')
+g = climate.add_arg_group('Regularization')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
                help='add noise to network inputs drawn from N(0, S)')
 g.add_argument('--input-dropouts', type=float, default=0, metavar='R',
@@ -71,7 +71,7 @@ g.add_argument('--weight-l1', type=float, default=0, metavar='K',
 g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
-g = lmj.cli.add_arg_group('SGD Optimization')
+g = climate.add_arg_group('SGD Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-d', '--learning-rate-decay', type=float, default=0.25, metavar='R',
@@ -83,7 +83,7 @@ g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
 g.add_argument('--gradient-clip', type=float, default=1e5, metavar='R',
                help='clip elementwise gradients to [-R, R]')
 
-g = lmj.cli.add_arg_group('HF Optimization')
+g = climate.add_arg_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',
                help='use at most N batches for CG computation')
 g.add_argument('--initial-lambda', type=float, default=1., metavar='K',
@@ -93,7 +93,7 @@ g.add_argument('--global-backtracking', action='store_true',
 g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 
-g = lmj.cli.add_arg_group('Recurrent Nets')
+g = climate.add_arg_group('Recurrent Nets')
 g.add_argument('--pool-damping', type=float, default=0, metavar='R',
                help='damp recurrent network with R in [0, 1]')
 g.add_argument('--pool-noise', type=float, default=0, metavar='S',

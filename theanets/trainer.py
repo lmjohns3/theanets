@@ -20,9 +20,9 @@
 
 '''This file contains optimization methods for neural networks.'''
 
+import climate
 import collections
 import itertools
-import lmj.cli
 import numpy as np
 import numpy.random as rng
 import theano
@@ -33,7 +33,7 @@ from . import dataset
 from . import feedforward
 from . import recurrent
 
-logging = lmj.cli.get_logger(__name__)
+logging = climate.get_logger(__name__)
 
 
 class Trainer(object):
@@ -132,14 +132,14 @@ class SGD(Trainer):
     def _nag(self, train_set, velocities):
         '''Make one run through the training set.
 
-        We update parameters after each minibatch according to Nesterovs
+        We update parameters after each minibatch according to Nesterov's
         Accelerated Gradient. The basic difference between NAG and "classical"
         momentum is that NAG computes the gradients at the position in parameter
         space where "classical" momentum would put us at the next step.
 
         In theory, this helps correct for oversteps during learning. If momentum
-        would lead us to overshoot, then the gradient at that place will point
-        backwards, toward where we came from.
+        would lead us to overshoot, then the gradient at that overshot place
+        will point backwards, toward where we came from.
         '''
         gc = self.grad_clip
         # TODO: run this loop in parallel !
@@ -188,6 +188,17 @@ class SGD(Trainer):
 
 class CG(Trainer):
     '''Conjugate gradient trainer for neural networks.'''
+
+    def __init__(self, network, **kwargs):
+        raise NotImplementedError
+
+
+class LM(Trainer):
+    '''Levenberg-Marquardt trainer for neural networks.
+
+    Based on the description of the algorithm in "Levenberg-Marquardt
+    Optimization" by Sam Roweis.
+    '''
 
     def __init__(self, network, **kwargs):
         raise NotImplementedError

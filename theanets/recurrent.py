@@ -20,7 +20,7 @@
 
 '''This file contains recurrent network structures.'''
 
-import lmj.cli
+import climate
 import numpy as np
 import numpy.random as rng
 import theano
@@ -30,7 +30,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import feedforward as ff
 
-logging = lmj.cli.get_logger(__name__)
+logging = climate.get_logger(__name__)
 
 
 class Network(ff.Network):

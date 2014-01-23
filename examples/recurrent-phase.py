@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import lmj.cli
+import climate
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rng
 import theanets
 
-lmj.cli.enable_default_logging()
+climate.enable_default_logging()
 
 e = theanets.Experiment(
     theanets.recurrent.Autoencoder,

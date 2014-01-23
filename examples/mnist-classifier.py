@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
+import climate
 import cPickle
 import gzip
 import logging
-import lmj.cli
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tempfile
 import theanets
 import urllib
+
 from plot_utils import plot_classifier_experiment
-lmj.cli.enable_default_logging()
+
+climate.enable_default_logging()
 
 URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
 DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')

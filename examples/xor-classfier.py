@@ -3,19 +3,13 @@
 
 '''Example using the theanets package for learning the XOR relation.'''
 
-import lmj.cli
+import climate
 import numpy as np
 import theanets
 
-lmj.cli.enable_default_logging()
+climate.enable_default_logging()
 
-X = np.array([
-               [0.0, 0.0],
-               [0.0, 1.0],
-               [1.0, 0.0],
-               [1.0, 1.0],
-             ])
-
+X = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]])
 Y = np.array([0, 1, 1, 0, ])
 
 Xi = np.random.randint(0, 2, size=(256, 2))
@@ -32,7 +26,6 @@ e = theanets.Experiment(theanets.Regressor,
                         num_updates=5000)
 e.run(train, train)
 
-
 print "Input:"
 print X
 
@@ -41,5 +34,3 @@ print Y
 
 print "NN XOR predictions"
 print e.network(X)
-
-

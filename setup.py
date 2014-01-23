@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name='theanets',
-    version='0.1.1',
+    version='0.1.2',
     packages=setuptools.find_packages(),
     author='Leif Johnson',
     author_email='leif@leifjohnson.net',

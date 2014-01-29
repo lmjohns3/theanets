@@ -70,42 +70,22 @@ class SGD(Trainer):
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
-        best_cost = 1e100
-        best_iter = 0
-        best_params = []
+        self.best_cost = 1e100
+        self.best_iter = 0
+        self.best_params = []
         velocities = []
         P = len(self.params)
         for p in self.params:
             v = p.get_value()
-            best_params.append(v.copy())
+            self.best_params.append(v.copy())
             velocities.append(np.zeros_like(v))
 
         learn = self._nag if self.momentum > 0 else self._sgd
 
         for i in xrange(self.iterations):
             # if it's time, evaluate the model on the validation dataset.
-            if not i % self.validation_frequency:
-                try:
-                    costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
-                except KeyboardInterrupt:
-                    logging.info('interrupted !')
-                    break
-                marker = ''
-                if (best_cost - costs[0]) / best_cost > self.min_improvement:
-                    best_cost = costs[0]
-                    best_iter = i
-                    best_params = [p.get_value().copy() for p in self.params]
-                    marker = ' *'
-                else:
-                    self.learning_rate *= 1 - self.learning_rate_decay
-
-                cost_desc = ' '.join(
-                    '%s=%.4f' % i for i in zip(self.cost_names, costs))
-                logging.info('SGD %i -- valid %s%s', i + 1, cost_desc, marker)
-
-                if i - best_iter > self.patience:
-                    logging.error('patience elapsed, bailing out')
-                    break
+            if not i % self.validation_frequency and self.evaluate(i, valid_set):
+                break
 
             costs = []
             grads = []
@@ -118,7 +98,7 @@ class SGD(Trainer):
                 break
 
             cost_desc = ' '.join(
-                '%s=%.4f' % i for i in
+                '%s=%.4f' % el for el in
                 zip(self.cost_names, np.mean(costs, axis=0)))
             grad_desc = ' '.join(
                 '%s=%.4f' % (p.name, x) for p, x in
@@ -127,7 +107,33 @@ class SGD(Trainer):
                          i + 1, self.iterations, self.learning_rate,
                          cost_desc, grad_desc)
 
-        self.update_params(best_params)
+        self.update_params(self.best_params)
+
+    def evaluate(self, iteration, valid_set):
+        try:
+            costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+        except KeyboardInterrupt:
+            logging.info('interrupted !')
+            return True
+
+        marker = ''
+        if (self.best_cost - costs[0]) / self.best_cost > self.min_improvement:
+            self.best_cost = costs[0]
+            self.best_iter = iteration
+            self.best_params = [p.get_value().copy() for p in self.params]
+            marker = ' *'
+        else:
+            self.learning_rate *= 1 - self.learning_rate_decay
+
+        cost_desc = ' '.join(
+            '%s=%.4f' % el for el in zip(self.cost_names, costs))
+        logging.info('SGD %i -- valid %s%s', iteration + 1, cost_desc, marker)
+
+        if iteration - self.best_iter > self.patience:
+            logging.error('patience elapsed, bailing out')
+            return True
+
+        return False
 
     def _nag(self, train_set, velocities):
         '''Make one run through the training set.

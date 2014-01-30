@@ -57,6 +57,7 @@ class SGD(Trainer):
         self.max_gradient_norm = kwargs.get('max_gradient_norm', 1e5)
         self.learning_rate = kwargs.get('learning_rate', 0.1)
         self.learning_rate_decay = kwargs.get('learning_rate_decay', 0.1)
+        self.clip_params_at_zero = kwargs.get('clip_params_at_zero', False)
 
         J = network.J(**kwargs)
         costs = [J]
@@ -227,7 +228,11 @@ class SGD(Trainer):
 
     def _apply_delta(self, param, delta):
         v = param.get_value(borrow=True)
+        pos0, neg0 = v > 0, v < 0
         v += delta
+        pos1, neg1 = v > 0, v < 0
+        if self.clip_params_at_zero:
+            v[(pos0 & neg1) | (neg0 & pos1)] = 0
         param.set_value(v, borrow=True)
 
 

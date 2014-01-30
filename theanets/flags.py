@@ -82,6 +82,8 @@ g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
 g.add_argument('--max-gradient-norm', type=float, default=1e5, metavar='R',
                help='limit gradients to norms less than R')
+g.add_argument('--clip-params-at-zero', action='store_true',
+               help='if a param crosses 0 during an update, set it to 0')
 
 g = climate.add_arg_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',

@@ -54,7 +54,7 @@ class SGD(Trainer):
         self.iterations = kwargs.get('num_updates', 1000)
         self.patience = kwargs.get('patience', 100)
         self.momentum = kwargs.get('momentum', 0.)
-        self.grad_clip = kwargs.get('gradient_clip', 1e5)
+        self.max_gradient_norm = kwargs.get('max_gradient_norm', 1e5)
         self.learning_rate = kwargs.get('learning_rate', 0.1)
         self.learning_rate_decay = kwargs.get('learning_rate_decay', 0.1)
 
@@ -139,39 +139,66 @@ class SGD(Trainer):
         '''Make one run through the training set.
 
         We update parameters after each minibatch according to Nesterov's
-        Accelerated Gradient. The basic difference between NAG and "classical"
-        momentum is that NAG computes the gradients at the position in parameter
-        space where "classical" momentum would put us at the next step.
+        Accelerated Gradient (NAG). The basic difference between NAG and
+        "classical" momentum is that NAG computes the gradients at the position
+        in parameter space where "classical" momentum would put us at the next
+        step. In symbols, the classical method with momentum m and learning rate
+        a updates parameter p like this:
 
-        In theory, this helps correct for oversteps during learning. If momentum
+            v_t+1 = m * v_t - a * grad(p_t)
+            p_t+1 = p_t + v_t+1
+
+        while NAG adjusts the update like so:
+
+            v_t+1 = m * v_t - a * grad(p_t + m * v_t)
+            p_t+1 = p_t + v_t+1
+
+        The difference here is that the gradient is computed at the place in
+        parameter space where we would have stepped using the classical
+        technique, in the absence of a new gradient.
+
+        In theory, this helps correct for oversteps during learning: If momentum
         would lead us to overshoot, then the gradient at that overshot place
-        will point backwards, toward where we came from.
+        will point backwards, toward where we came from. (For details see
+        Sutskever, Martens, Dahl, and Hinton, ICML 2013, "On the importance of
+        initialization and momentum in deep learning.")
         '''
-        gc = self.grad_clip
         # TODO: run this loop in parallel !
         for x in train_set:
             grads = []
             moves = []
             # first, move to the position in parameter space that we would get
-            # to using classical momentum-based sgd.
+            # to using classical momentum-based sgd: p_t' = p_t + u. we also
+            # save the update u = m * v_t for each parameter.
             for param, vel in zip(self.params, velocities):
                 u = self.momentum * vel
                 v = param.get_value(borrow=True)
                 v += u
                 param.set_value(v, borrow=True)
                 moves.append(u)
-            for param, vel, grad, u in zip(self.params, velocities, self.f_grad(*x), moves):
-                # measure the gradient at this new position.
-                g = np.asarray(grad)
-                grads.append(np.linalg.norm(g))
-                # update the velocity using the new gradient. remember that
-                # u = self.momentum * vel.
-                np.clip(u - self.learning_rate * g, -gc, gc, out=vel)
-                # subtract out the movement from momentum that we added in
-                # above, and add the updated velocity.
-                v = param.get_value(borrow=True)
-                v += vel - u
-                param.set_value(v, borrow=True)
+            # then update the parameter using the gradient information from the
+            # new parameter position. define:
+            #
+            #   u = m * v_t
+            #   d = -a * grad(p_t + u)
+            #
+            # and from above,
+            #
+            #   v_t+1 = m * v_t - a * grad(p_t + u)
+            #   v_t+1 = u + d
+            #
+            # now, we want to compute p_t+1 from p_t' = p_t + u and v_t+1. again
+            # starting from above,
+            #
+            #   p_t+1 = p_t + v_t+1
+            #   p_t+1 = (p_t' - u) + (u + d)
+            #   p_t+1 = p_t' + d
+            for p, v, g, u in zip(self.params, velocities, self.f_grad(*x), moves):
+                grad, length = self._maybe_rescale_gradient(g)
+                grads.append(length)
+                d = -self.learning_rate * grad
+                self._apply_delta(p, d)
+                v[:] = u + d
             yield self.f_train(*x), grads
 
     def _sgd(self, train_set, velocities):
@@ -183,13 +210,25 @@ class SGD(Trainer):
         # TODO: run this loop in parallel !
         for x in train_set:
             grads = []
-            for param, grad in zip(self.params, self.f_grad(*x)):
-                g = np.asarray(grad)
-                grads.append(np.linalg.norm(g))
-                v = param.get_value(borrow=True)
-                v -= self.learning_rate * g
-                param.set_value(v, borrow=True)
+            for p, g in zip(self.params, self.f_grad(*x)):
+                grad, length = self._maybe_rescale_gradient(g)
+                grads.append(length)
+                self._apply_delta(p, -self.learning_rate * grad)
             yield self.f_train(*x), grads
+
+    def _maybe_rescale_gradient(self, grad):
+        '''Rescale a gradient if its length exceeds our limit.'''
+        g = np.asarray(grad)
+        l = np.linalg.norm(g)
+        if l > self.max_gradient_norm:
+            g /= l
+            g *= self.max_gradient_norm
+        return g, l
+
+    def _apply_delta(self, param, delta):
+        v = param.get_value(borrow=True)
+        v += delta
+        param.set_value(v, borrow=True)
 
 
 class CG(Trainer):

@@ -47,16 +47,7 @@ def parse_args(**overrides):
 
 
 class Experiment(object):
-    '''This class encapsulates tasks for training and evaluating a network.
-    '''
-
-    TRAINERS = {
-        'hf': trainer.HF,
-        'sgd': trainer.SGD,
-        'sample': trainer.Sample,
-        'layerwise': trainer.Layerwise,
-        'force': trainer.FORCE,
-        }
+    '''This class encapsulates tasks for training and evaluating a network.'''
 
     def __init__(self, network_class, **overrides):
         '''Set up an experiment -- build a network and a trainer.
@@ -134,31 +125,45 @@ class Experiment(object):
             v.__theanets_name__ = k
         try:
             return options[act]
-        except:
+        except KeyError:
             raise KeyError('unknown --activation %s' % act)
 
     def _build_trainers(self, **kwargs):
         '''Build trainers from command-line arguments.
         '''
-        if not isinstance(self.args.optimize, (tuple, list)):
-            self.args.optimize = [self.args.optimize]
+        if isinstance(self.args.optimize, str):
+            self.args.optimize = self.args.optimize.strip().split()
         for factory in self.args.optimize:
             self.add_trainer(factory, **kwargs)
 
     def add_trainer(self, factory, **kwargs):
         '''Add a new trainer to this experiment.
 
-        Arguments:
-          factory: The name or Python class of a Trainer.
+        Arguments
+        ---------
+        factory : str or callable
+            A callable that creates a Trainer instance, or a string that maps to
+            a Trainer constructor.
 
-        Keyword arguments are passed to the trainer factory.
+        Keyword arguments are passed directly to the trainer factory.
         '''
-        if not callable(factory):
-            factory = self.TRAINERS[factory]
+        args = (self.network, )
+        if isinstance(factory, str):
+            if factory.lower() in ('cg', 'bfgs', 'newton-cg'):
+                args = (self.network, factory)
+                factory = trainer.Scipy
+            else:
+                factory = {
+                    'hf': trainer.HF,
+                    'layer': trainer.Layerwise,
+                    'layerwise': trainer.Layerwise,
+                    'sample': trainer.Sample,
+                    'sgd': trainer.SGD,
+                }[factory.lower()]
         kw = {}
         kw.update(self.kwargs)
         kw.update(kwargs)
-        self.trainers.append(factory(self.network, **kw))
+        self.trainers.append(factory(*args, **kw))
 
     def add_dataset(self, label, dataset, **kwargs):
         '''Add a dataset to this experiment.

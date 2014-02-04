@@ -289,7 +289,7 @@ class Scipy(Trainer):
         for x in train_set:
             for i, g in enumerate(self.f_grad(*x)):
                 grads[i].append(np.asarray(g))
-        return self.arrays_to_flat(np.mean(grads, axis=1))
+        return self.arrays_to_flat([np.mean(g, axis=0) for g in grads])
 
     def train(self, train_set, valid_set=None, **kwargs):
         for i in xrange(self.iterations):

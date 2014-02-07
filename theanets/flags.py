@@ -38,9 +38,9 @@ g.add_argument('-O', '--optimize', default=['sgd'], nargs='+', metavar='[hf|laye
                help='train with the given optimization method(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
-g.add_argument('-u', '--num-updates', type=int, default=128, metavar='N',
+g.add_argument('-u', '--num-updates', type=int, default=1024, metavar='N',
                help='perform at most N parameter updates')
-g.add_argument('-p', '--patience', type=int, default=15, metavar='N',
+g.add_argument('-p', '--patience', type=int, default=30, metavar='N',
                help='stop training if no improvement for N updates')
 g.add_argument('-v', '--validate', type=int, default=3, metavar='N',
                help='validate the model every N updates')
@@ -74,13 +74,13 @@ g.add_argument('--weight-l2', type=float, default=0, metavar='K',
 g = climate.add_arg_group('SGD Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
-g.add_argument('-d', '--learning-rate-decay', type=float, default=0.25, metavar='R',
+g.add_argument('-d', '--learning-rate-decay', type=float, default=0.1, metavar='R',
                help='decay the learning rate by R after stagnant validations')
 g.add_argument('-m', '--momentum', type=float, default=0, metavar='V',
                help='train the network with momentum of V')
-g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
+g.add_argument('--min-improvement', type=float, default=0.001, metavar='R',
                help='train until relative improvement is less than R')
-g.add_argument('--max-gradient-norm', type=float, default=1e5, metavar='R',
+g.add_argument('--max-gradient-norm', type=float, default=1000, metavar='R',
                help='limit gradients to norms less than R')
 g.add_argument('--clip-params-at-zero', action='store_true',
                help='if a param crosses 0 during an update, set it to 0')

@@ -136,7 +136,7 @@ class Experiment(object):
         for factory in self.args.optimize:
             self.add_trainer(factory, **kwargs)
 
-    def add_trainer(self, factory, **kwargs):
+    def add_trainer(self, factory, *args, **kwargs):
         '''Add a new trainer to this experiment.
 
         Arguments
@@ -145,21 +145,25 @@ class Experiment(object):
             A callable that creates a Trainer instance, or a string that maps to
             a Trainer constructor.
 
-        Keyword arguments are passed directly to the trainer factory.
+        Remaining positional and keyword arguments are passed directly to the
+        trainer factory.
         '''
-        args = (self.network, )
+        args = (self.network, ) + args
         if isinstance(factory, str):
-            if factory.lower() in ('cg', 'bfgs', 'newton-cg'):
+            if factory.lower() in trainer.Scipy.METHODS:
                 args = (self.network, factory)
                 factory = trainer.Scipy
+            elif factory.lower().startswith('l'):
+                if len(args) == 1:
+                    # use SGD trainer by default for individual layers
+                    args += (trainer.SGD, )
+                factory = trainer.Layerwise
             else:
-                factory = {
-                    'hf': trainer.HF,
-                    'layer': trainer.Layerwise,
-                    'layerwise': trainer.Layerwise,
-                    'sample': trainer.Sample,
-                    'sgd': trainer.SGD,
-                }[factory.lower()]
+                factory = dict(
+                    hf=trainer.HF,
+                    sample=trainer.Sample,
+                    sgd=trainer.SGD
+                )[factory.lower()]
         kw = {}
         kw.update(self.kwargs)
         kw.update(kwargs)
@@ -195,7 +199,13 @@ class Experiment(object):
         self.datasets[label] = Dataset(*dataset, **kwargs)
 
     def run(self, train=None, valid=None):
-        '''Run this experiment by training (and validating) a network.
+        '''Run this experiment by training and validating our network.
+        '''
+        for _ in self.train(train=train, valid=valid):
+            pass
+
+    def train(self, train=None, valid=None):
+        '''Train (and validate) our network.
 
         Before calling this method, datasets will typically need to have been
         added to the experiment by calling add_dataset(...). However, as a
@@ -214,9 +224,10 @@ class Experiment(object):
         if valid is not None and 'valid' not in self.datasets:
             self.add_dataset('valid', valid)
         for trainer in self.trainers:
-            trainer.train(train_set=self.datasets['train'],
-                          valid_set=self.datasets['valid'],
-                          cg_set=self.datasets['cg'])
+            for _ in trainer.train(train_set=self.datasets['train'],
+                                   valid_set=self.datasets['valid'],
+                                   cg_set=self.datasets['cg']):
+                yield
 
     def save(self, path):
         '''Save the parameters in the network to a pickle file on disk.

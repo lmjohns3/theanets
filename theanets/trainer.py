@@ -74,6 +74,7 @@ class Trainer(object):
         self.best_params = [p.get_value().copy() for p in self.params]
 
     def flat_to_arrays(self, x):
+        x = x.astype(self.dtype)
         start = 0
         arrays = []
         for shape, count in zip(self.shapes, self.counts):
@@ -94,9 +95,6 @@ class Trainer(object):
         for param, target in zip(self.params, targets):
             param.set_value(target)
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        raise NotImplementedError
-
     def evaluate(self, iteration, valid_set):
         costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
         improvement = self.best_cost - costs[0] > self.best_cost * self.min_improvement
@@ -108,11 +106,14 @@ class Trainer(object):
             marker = ' *'
         cost_desc = ' '.join(
             '%s=%.4f' % el for el in zip(self.cost_names, costs))
-        logging.info('SGD %i -- valid %s%s', iteration + 1, cost_desc, marker)
+        logging.info('validation %i %s%s', iteration + 1, cost_desc, marker)
         if iteration - self.best_iter > self.patience:
             raise PatienceElapsedError
         if not improvement:
             raise NoImprovementError
+
+    def train(self, train_set, valid_set=None, **kwargs):
+        raise NotImplementedError
 
 
 class SGD(Trainer):
@@ -149,9 +150,9 @@ class SGD(Trainer):
             costs = []
             grads = []
             try:
-                for costs_, grads_ in learn(train_set, velocities):
-                    costs.append(costs_)
-                    grads.append(grads_)
+                for c, g in learn(train_set, velocities):
+                    costs.append(c)
+                    grads.append(g)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -160,11 +161,13 @@ class SGD(Trainer):
                 '%s=%.4f' % el for el in
                 zip(self.cost_names, np.mean(costs, axis=0)))
             grad_desc = ' '.join(
-                '%s=%.4f' % (p.name, x) for p, x in
+                '%s=%.2f' % (p.name, x) for p, x in
                 zip(self.params, np.mean(grads, axis=0)))
-            logging.info('SGD %i/%i @%.2e -- train %s -- grad %s',
+            logging.info('SGD %i/%i @%.2e %s (grad %s)',
                          i + 1, self.iterations, self.learning_rate,
                          cost_desc, grad_desc)
+
+            yield
 
         self.update_params(self.best_params)
 
@@ -271,6 +274,8 @@ class SGD(Trainer):
 class Scipy(Trainer):
     '''General trainer for neural nets using `scipy.optimize.minimize`.'''
 
+    METHODS = ('bfgs', 'cg', 'dogleg', 'newton-cg', 'trust-ncg')
+
     def __init__(self, network, method, **kwargs):
         super(Scipy, self).__init__(network, **kwargs)
 
@@ -303,6 +308,7 @@ class Scipy(Trainer):
                 break
             except NoImprovementError:
                 pass
+
             try:
                 res = scipy.optimize.minimize(
                     fun=self.function_at,
@@ -310,14 +316,18 @@ class Scipy(Trainer):
                     x0=self.arrays_to_flat(self.best_params),
                     args=(train_set, ),
                     method=self.method,
-                    options=dict(maxiter=self.validation_frequency),
+                    options=dict(maxiter=self.validation_frequency, disp=1),
                 )
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
+
             logging.info('scipy %s %i/%i J=%.4f', self.method, i + 1, self.iterations, res.fun)
             for p, a in zip(self.params, self.flat_to_arrays(res.x)):
                 p.set_value(a)
+
+            yield
+
         self.update_params(self.best_params)
 
 
@@ -373,6 +383,7 @@ class HF(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         self.update_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
+        yield
 
 
 class Sample(Trainer):
@@ -424,6 +435,8 @@ class Sample(Trainer):
             w.set_value(arr)
             samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
+        yield
+
 
 class Layerwise(Trainer):
     '''This trainer adapts parameters using a variant of layerwise pretraining.
@@ -442,8 +455,10 @@ class Layerwise(Trainer):
     Network instances.
     '''
 
-    def __init__(self, network, **kwargs):
+    def __init__(self, network, factory, *args, **kwargs):
         self.network = network
+        self.factory = factory
+        self.args = args
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
@@ -460,14 +475,9 @@ class Layerwise(Trainer):
             self.network.hiddens = hiddens[:i]
             self.network.weights = weights[:i] + [W]
             self.network.biases = biases[:i] + [b]
-            SGD(self.network, **self.kwargs).train(train_set, valid_set)
-            self.network.save('/tmp/layerwise-%s-h%f-n%f-d%f-w%f-%d.pkl.gz' % (
-                    ','.join(map(str, self.kwargs['layers'])),
-                    self.kwargs['hidden_l1'],
-                    self.kwargs['input_noise'],
-                    self.kwargs['hidden_dropouts'],
-                    self.kwargs['weight_l1'],
-                    i))
+            trainer = self.factory(self.network, *self.args, **self.kwargs)
+            for _ in trainer.train(train_set, valid_set):
+                yield
 
         self.network.y = y
         self.network.hiddens = hiddens

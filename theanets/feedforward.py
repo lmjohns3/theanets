@@ -44,7 +44,6 @@ class Network(object):
 
     Parameters
     ----------
-
     layers : sequence of int
         A sequence of integers specifying the number of units at each layer. As
         an example, layers=(10, 20, 3) has one "input" layer with 10 units, one
@@ -86,27 +85,14 @@ class Network(object):
 
     Attributes
     ----------
-
-    hiddens : list
-        This list provides access to the state of the hidden units in the
-        network. Because these are Theano variables, they do not have a value
-        that can be accessed directly; instead, one would typically use these
-        variables to build a Theano function, for example to compute the
-        sparsity of the hidden unit activations. To access the states of the
-        hidden units for a given input, see the
-        :method:`theanets.Network.feed_foward` callable.
-
     weights : list
-        This list provides access to the Theano shared variables containing
-        the weights in the network. This list is one longer than the list of
-        hidden units, unless ``tied_weights`` was used to construct the
-        network.
+        Theano shared variables containing network connection weights.
 
     biases : list
-        This list provides access to the Theano shared variables containing
-        the bias values for each unit in the network. This list is one longer
-        than the list of hidden units, since the output weights also have bias
-        values.
+        Theano shared variables containing biases for hidden and output units.
+
+    hiddens : list
+        Computed Theano variables for the state of hidden units in the network.
 
     Notes
     -----
@@ -253,7 +239,7 @@ class Network(object):
 
         Returns
         -------
-        Theano array
+        x : Theano array
             The parameter x, plus additional noise as specified.
         '''
         if sigma > 0 and rho > 0:
@@ -287,7 +273,7 @@ class Network(object):
 
         Returns
         -------
-        ndarray
+        y : ndarray
             Returns the values of the network output units for input `x`.
         '''
         return self.feed_forward(x)[-1]
@@ -349,7 +335,7 @@ class Network(object):
 
         Returns
         -------
-        Theano variable
+        J : Theano variable
             A variable representing the overall cost value of this network.
         '''
         cost = self.cost

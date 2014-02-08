@@ -35,36 +35,53 @@ logging = climate.get_logger(__name__)
 
 class Network(ff.Network):
     '''A fully connected recurrent network with one input and one output layer.
+
+    Parameters
+    ----------
+    layers : (int, int, int)
+        A sequence of three integers specifying the number of units in the
+        input, hidden, and output layers, respectively.
+
+    activation : callable(numeric) -> numeric
+        A callable that takes one argument (a matrix) and returns another
+        matrix. This is the activation function that each hidden unit in the
+        network uses.
+
+    rng : theano.RandomStreams, optional
+        Use a specific Theano random number generator. A new one will be created
+        if this is None.
+
+    input_noise : float, optional
+        Standard deviation of desired noise to inject into input.
+
+    hidden_noise : float, optional
+        Standard deviation of desired noise to inject into hidden unit
+        activation output.
+
+    input_dropouts : float, optional
+        Proportion of input units to randomly set to 0.
+
+    hidden_dropouts : float, optional
+        Proportion of hidden unit activations to randomly set to 0.
+
+    pool_damping : float in [0, 1], optional
+        This parameter governs the proportion of past state information retained
+        by the recurrent pool neurons. A value of 0 causes the network to retain
+        zero past state, while a value of 1 accumulates all past state.
+
+    pool_noise : float, optional
+        Add gaussian noise to recurrent pool neurons with this variance.
+
+    pool_dropouts : float in [0, 1], optional
+        Randomly set the state of this fraction of recurrent pool neurons to
+        zero.
+
+    pool_error_start : int, optional
+        Compute error metrics starting at this time step. (Defaults to 3.)
     '''
 
     def __init__(self, layers, activation, rng=None, input_noise=0,
                  hidden_noise=0, input_dropouts=0, hidden_dropouts=0, **kwargs):
-        '''Initialize the weights and computation graph for a recurrent network.
-
-        layers: A sequence of three integers specifying the number of units in
-          the input, hidden, and output layers, respectively.
-        activation: A callable that takes one argument (a matrix) and returns
-          another matrix. This is the activation function that each hidden unit
-          in the network uses.
-        rng: Use a specific Theano random number generator. A new one will be
-          created if this is None.
-        input_noise: Standard deviation of desired noise to inject into input.
-        hidden_noise: Standard deviation of desired noise to inject into
-          hidden unit activation output.
-        input_dropouts: Proportion of input units to randomly set to 0.
-        hidden_dropouts: Proportion of hidden unit activations to randomly set
-          to 0.
-
-        Recognized keyword arguments:
-
-        pool_damping: This parameter (a float in [0, 1]) governs the proportion
-          of past state information retained by the recurrent pool neurons.
-        pool_noise: Add gaussian noise to recurrent pool neurons with this
-          variance.
-        pool_dropouts: Randomly set the state of this fraction (a float in
-          [0, 1]) of recurrent pool neurons to zero.
-        pool_error_start: Compute error metrics starting at this time step.
-        '''
         self.rng = rng or RandomStreams()
         pool_noise = kwargs.get('pool_noise', 0.)
         pool_dropouts = kwargs.get('pool_dropouts', 0.)
@@ -100,7 +117,7 @@ class Network(ff.Network):
 
         logging.info('%d total network parameters', parameter_count)
 
-        def step(x_t, h_tm1):
+        def recurrence(x_t, h_tm1):
             z = self._noise_and_dropout(x_t, input_noise, input_dropouts)
             encs = []
             for W, b in zip(W_in, b_in):
@@ -115,7 +132,7 @@ class Network(ff.Network):
 
         h_0 = TT.zeros((num_pool, ), dtype=ff.FLOAT)
         outputs, self.updates = theano.scan(
-            fn=step, sequences=self.x,
+            fn=recurrence, sequences=self.x,
             outputs_info=[None for _ in b_in] + [h_0, None])
 
         self.y = outputs.pop()

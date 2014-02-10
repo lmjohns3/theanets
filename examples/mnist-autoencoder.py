@@ -1,30 +1,28 @@
 #!/usr/bin/env python
 
-import climate
-import cPickle
-import gzip
-import logging
 import matplotlib.pyplot as plt
-import numpy as np
-import os
-import tempfile
 import theanets
-import urllib
 
-from plot_utils import plot_autoencoder_experiment
+from utils import load_mnist, plot_layers, plot_images
 
-climate.enable_default_logging()
 
-URL = 'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
-DATASET = os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')
+train, valid = load_mnist()
 
-if not os.path.isfile(DATASET):
-    logging.info('downloading mnist digit dataset from %s' % URL)
-    urllib.urlretrieve(URL, DATASET)
-    logging.info('saved mnist digits to %s' % DATASET)
+N = 8
 
-train, valid, _ = [x for x, _ in cPickle.load(gzip.open(DATASET))]
-N = 16
-e = theanets.Experiment(theanets.Autoencoder, layers=(784, N * N, 784))
+e = theanets.Experiment(
+    theanets.Autoencoder,
+    layers=(784, N * N, 784),
+    train_batches=100,
+)
 e.run(train, valid)
-plot_autoencoder_experiment(e, valid)
+
+plot_layers(e.network.weights)
+plt.tight_layout()
+plt.show()
+
+valid = valid[:N*N]
+plot_images(valid, 121, 'Sample data')
+plot_images(e.network.predict(valid), 122, 'Reconstructed data')
+plt.tight_layout()
+plt.show()

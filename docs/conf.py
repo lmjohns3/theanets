@@ -1,17 +1,24 @@
-import sys, os
-#sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+import sphinx_rtd_theme
 
 #needs_sphinx = '1.0'
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
+    'sphinx.ext.autosummary',
+    #'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
+    #'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
+    'numpydoc',
     ]
+autosummary_generate = True
+autodoc_default_flags = ['members', 'inherited-members']
 templates_path = ['_templates']
 source_suffix = '.rst'
-#source_encoding = 'utf-8-sig'
+source_encoding = 'utf-8-sig'
 master_doc = 'index'
 project = u'theanets'
 copyright = u'2013, Leif Johnson'
@@ -28,14 +35,13 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 #modindex_common_prefix = []
 
-html_theme = 'nature'
-#html_theme_options = {}
-#html_theme_path = []
+html_theme = 'sphinx_rtd_theme'
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_static_path = ['_static']
 #html_title = None
 #html_short_title = None
 #html_logo = None
 #html_favicon = None
-html_static_path = ['_static']
 #html_last_updated_fmt = '%b %d, %Y'
 #html_use_smartypants = True
 #html_sidebars = {}

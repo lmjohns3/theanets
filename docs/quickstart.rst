@@ -10,17 +10,6 @@ This page provides a quick overview of the package that should get you up and
 running with a few simple examples. Once you understand the basic workflow, you
 should be able to extend the examples to your own datasets!
 
-Installation
-------------
-
-Typically the easiest way to install the package is to use ``pip``::
-
-    pip install theanets
-
-If you want to install the latest source, you can find it at
-https://github.com/lmjohns3/theano-nets. The source code also includes complete
-code for the examples described here.
-
 Basic overview
 --------------
 

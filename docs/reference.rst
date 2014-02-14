@@ -74,3 +74,17 @@ Drivers
    :toctree: generated/
 
    theanets.main.Experiment
+
+Datasets
+--------
+
+:mod:`theanets.dataset`
+
+.. automodule:: theanets.dataset
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   theanets.dataset.SequenceDataset

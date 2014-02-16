@@ -94,16 +94,11 @@ class Network(object):
     hiddens : list
         Computed Theano variables for the state of hidden units in the network.
 
-    Notes
-    -----
-
-    A feedforward neural network computes a function :math:`f_\\theta:
-    \\mathcal{S} \\to \\mathcal{T}` between a source space :math:`\\mathcal{S}`
-    and a target space :math:`\\mathcal{T}` using parameters :math:`\\theta`. To
-    compute :math:`f`, a network defines a graph of computation units called
-    "artificial neurons" because they behave, at a very high level, a bit like
-    biological neurons in animals.
-
+    Methods
+    -------
+    feed_forward : lambda *ndarray: [ndarray]
+        Feed the given input(s) forward through the network, returning a list \
+        containing the activations of all layers.
     '''
 
     def __init__(self, layers, activation, rng=None, input_noise=0,

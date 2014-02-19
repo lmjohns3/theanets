@@ -118,14 +118,14 @@ class Network(ff.Network):
         logging.info('%d total network parameters', parameter_count)
 
         def recurrence(x_t, h_tm1):
-            z = self._noise_and_dropout(x_t, input_noise, input_dropouts)
+            z = self._add_noise(x_t, input_noise, input_dropouts)
             encs = []
             for W, b in zip(W_in, b_in):
-                encs.append(self._noise_and_dropout(
+                encs.append(self._add_noise(
                     activation(TT.dot(z, W) + b), hidden_noise, hidden_dropouts))
                 z = encs[-1]
             h = activation(TT.dot(z, W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool)
-            h_t = self._noise_and_dropout(
+            h_t = self._add_noise(
                 (1 - pool_damping) * h + pool_damping * h_tm1,
                 pool_noise, pool_dropouts)
             return encs + [h_t, TT.dot(h_t, W_out) + b_out]

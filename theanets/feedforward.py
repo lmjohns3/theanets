@@ -126,11 +126,11 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        z = self._noise_and_dropout(self.x, input_noise, input_dropouts)
+        z = self._add_noise(self.x, input_noise, input_dropouts)
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
             Wi, bi, params = self._weights_and_bias(a, b, i)
             parameter_count += params
-            self.hiddens.append(self._noise_and_dropout(
+            self.hiddens.append(self._add_noise(
                 activation(TT.dot(z, Wi) + bi), hidden_noise, hidden_dropouts))
             self.weights.append(Wi)
             self.biases.append(bi)
@@ -218,7 +218,7 @@ class Network(object):
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 
-    def _noise_and_dropout(self, x, sigma, rho):
+    def _add_noise(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.
 
         Parameters

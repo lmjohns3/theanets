@@ -6,7 +6,7 @@ import theanets
 from utils import load_mnist, plot_layers, plot_images
 
 
-train, valid = load_mnist()
+train, valid, _ = load_mnist()
 
 e = theanets.Experiment(
     theanets.Autoencoder,

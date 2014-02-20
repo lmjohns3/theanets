@@ -57,8 +57,9 @@ class Trainer(object):
             costs.append(monitor)
 
         self.f_train = theano.function(network.inputs, costs, updates=network.updates)
-        self.f_grad = theano.function(network.inputs, [TT.grad(J, p) for p in self.params])
-        self.f_eval = theano.function(network.inputs, costs)
+        self.f_eval = theano.function(network.inputs, costs, updates=network.updates)
+        self.f_grad = theano.function(
+            network.inputs, TT.grad(J, self.params), updates=network.updates)
 
         self.validation_frequency = kwargs.get('validate', 3)
         self.min_improvement = kwargs.get('min_improvement', 0.)

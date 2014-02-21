@@ -128,8 +128,8 @@ class Network(object):
 
         z = self._add_noise(self.x, input_noise, input_dropouts)
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            Wi, bi, params = self._weights_and_bias(a, b, i)
-            parameter_count += params
+            Wi, bi, count = self._create_layer(a, b, i)
+            parameter_count += count
             self.hiddens.append(self._add_noise(
                 activation(TT.dot(z, Wi) + bi), hidden_noise, hidden_dropouts))
             self.weights.append(Wi)
@@ -148,8 +148,8 @@ class Network(object):
             decoders = []
             for i in range(w - 1, w - 1 - decode, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
-                Di, _, params = self._weights_and_bias(b, n, 'out_%d' % i)
-                parameter_count += params - n
+                Di, _, count = self._create_layer(b, n, 'out_%d' % i)
+                parameter_count += count - n
                 decoders.append(TT.dot(self.hiddens[i], Di))
                 self.weights.append(Di)
             parameter_count += n
@@ -185,36 +185,37 @@ class Network(object):
         return [(abs(h) < 1e-4).mean() for h in self.hiddens]
 
     @staticmethod
-    def _weights_and_bias(a, b, suffix):
+    def _create_layer(a, b, suffix):
         '''Create a layer of weights and bias values.
 
         Parameters
         ----------
         a : int
-          Number of rows of the weight matrix -- also, the number of "input"
-          units that the weight matrix connects.
+            Number of rows of the weight matrix -- equivalently, the number of
+            "input" units that the weight matrix connects.
         b : int
-          Number of columns of the weight matrix -- also, the number of "output"
-          units that the weight matrix connects.
+            Number of columns of the weight matrix -- equivalently, the number
+            of "output" units that the weight matrix connects.
         suffix : str
-          A string suffix to use in the Theano name for the created variables.
-          This string will be appended to "W_" (for the weights) and "b_" (for
-          the biases) parameters that are created and returned.
+            A string suffix to use in the Theano name for the created variables.
+            This string will be appended to "W_" (for the weights) and "b_" (for
+            the biases) parameters that are created and returned.
 
         Returns
         -------
         weight : Theano shared array
-          A shared array containing Theano values representing the weights
-          connecting each "input" unit to each "output" unit.
+            A shared array containing Theano values representing the weights
+            connecting each "input" unit to each "output" unit.
         bias : Theano shared array
-          A shared array containing Theano values representing the bias values
-          on each of the "output" units.
+            A shared array containing Theano values representing the bias
+            values on each of the "output" units.
         count : int
-          The number of parameters that are included in the returned variables.
+            The number of parameters that are included in the returned
+            variables.
         '''
         arr = np.random.randn(a, b) / np.sqrt(a + b)
-        weight = theano.shared(arr.astype(FLOAT), name='W_%s' % suffix)
-        bias = theano.shared(np.zeros((b, ), FLOAT), name='b_%s' % suffix)
+        weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
+        bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 
@@ -224,13 +225,14 @@ class Network(object):
         Parameters
         ----------
         x : Theano array
-          Input array to add noise and dropouts to.
+            Input array to add noise and dropouts to.
         sigma : float
-          Standard deviation of noise to add to x. If this is 0, then no noise
-          is added to the values of x.
+            Standard deviation of gaussian noise to add to x. If this is 0, then
+            no gaussian noise is added to the values of x.
         rho : float, in [0, 1]
-          Fraction of elements of x to set randomly to 0. If this is 0, then no
-          elements of x are set randomly to 0.
+            Fraction of elements of x to set randomly to 0. If this is 0, then
+            no elements of x are set randomly to 0. (This is also called
+            "salt-and-pepper noise" or "dropouts" in the research community.)
 
         Returns
         -------

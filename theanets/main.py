@@ -112,6 +112,8 @@ class Experiment(object):
 
             # shorthands
             'relu': lambda z: TT.maximum(0, z),
+            'trec': lambda z: z * (z > 1),
+            'tlin': lambda z: z * (abs(z) > 1),
 
             # modifiers
             'rect:max': lambda z: TT.minimum(1, z),

@@ -85,40 +85,33 @@ class Network(object):
 
     Attributes
     ----------
-    weights : list
+    weights : list of Theano shared variables
         Theano shared variables containing network connection weights.
 
-    biases : list
+    biases : list of Theano shared variables
         Theano shared variables containing biases for hidden and output units.
 
-    hiddens : list
+    hiddens : list of Theano variables
         Computed Theano variables for the state of hidden units in the network.
-
-    Methods
-    -------
-    feed_forward : lambda *ndarray: [ndarray]
-        Feed the given input(s) forward through the network, returning a list \
-        containing the activations of all layers.
     '''
 
-    def __init__(self, layers, activation, rng=None, input_noise=0,
-                 hidden_noise=0, input_dropouts=0, hidden_dropouts=0, **kwargs):
+    def __init__(self, layers, activation, **kwargs):
         self.hiddens = []
         self.weights = []
         self.biases = []
 
-        self.rng = rng or RandomStreams()
-        tied_weights = kwargs.get('tied_weights')
-        decode = kwargs.get('decode', 1)
+        self.rng = kwargs.get('rng') or RandomStreams()
+        self.tied_weights = bool(kwargs.get('tied_weights'))
 
-        # in this module, x refers to a network's input, and y to its output.
+        # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
 
         parameter_count = 0
         sizes = layers[:-1]
 
-        if tied_weights:
-            error = 'with --tied-weights, --layers must be a palindrome of length 2k+1'
+        # ensure that --layers is compatible with --tied-weights.
+        if self.tied_weights:
+            error = 'with --tied-weights, --layers must be an odd-length palindrome'
             assert len(layers) % 2 == 1, error
             k = len(layers) // 2
             encode = np.asarray(layers[:k])
@@ -126,27 +119,35 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        z = self._add_noise(self.x, input_noise, input_dropouts)
+        # set up a computation graph to map the input to layer activations.
+        z = self._add_noise(
+            self.x,
+            kwargs.get('input_noise', 0.),
+            kwargs.get('input_dropouts', 0.))
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
             Wi, bi, count = self._create_layer(a, b, i)
             parameter_count += count
             self.hiddens.append(self._add_noise(
-                activation(TT.dot(z, Wi) + bi), hidden_noise, hidden_dropouts))
+                activation(TT.dot(z, Wi) + bi),
+                kwargs.get('hidden_noise', 0.),
+                kwargs.get('hidden_dropouts', 0.)))
             self.weights.append(Wi)
             self.biases.append(bi)
             z = self.hiddens[-1]
 
+        # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
-        if tied_weights:
+        if self.tied_weights:
             for i in range(w - 1, -1, -1):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
-                self.hiddens.append(TT.dot(h - TT.neq(h, 0) * self.biases[i], self.weights[i].T))
+                # --tied-weights implies --no-learn-biases (biases are zero).
+                self.hiddens.append(TT.dot(h, self.weights[i].T))
         else:
             n = layers[-1]
             decoders = []
-            for i in range(w - 1, w - 1 - decode, -1):
+            for i in range(w - 1, w - 1 - kwargs.get('decode', 1), -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
                 Di, _, count = self._create_layer(b, n, 'out_%d' % i)
                 parameter_count += count - n
@@ -163,8 +164,8 @@ class Network(object):
 
         self.updates = {}
 
-        # calling this computes a forward pass, returning all layer activations.
-        self.feed_forward = theano.function([self.x], self.hiddens + [self.y])
+        # we compile our Theano function lazily -- see Network._compile
+        self._compute = None
 
     @property
     def inputs(self):
@@ -236,7 +237,7 @@ class Network(object):
 
         Returns
         -------
-        x : Theano array
+        Theano array
             The parameter x, plus additional noise as specified.
         '''
         if sigma > 0 and rho > 0:
@@ -250,15 +251,38 @@ class Network(object):
             return mask * x
         return x
 
+    def _compile(self):
+        '''If needed, compile the Theano function for this network.'''
+        if self._compute is None:
+            self._compute = theano.function([self.x], self.hiddens + [self.y])
+
     def params(self, **kwargs):
         '''Return a list of the Theano parameters for this network.'''
         params = []
         params.extend(self.weights)
-        if kwargs.get('no_learn_biases'):
+        if self.tied_weights or kwargs.get('no_learn_biases'):
+            # --tied-weights implies --no-learn-biases.
             pass
         else:
             params.extend(self.biases)
         return params
+
+    def feed_forward(self, x):
+        '''Compute a forward pass of all activations from the given input.
+
+        Parameters
+        ----------
+        x : ndarray
+            An array containing data to be fed into the network.
+
+        Returns
+        -------
+        list of ndarray
+            Returns the activation values of each layer in the the network when
+            given input `x`.
+        '''
+        self._compile()
+        return self._compute(x)
 
     def predict(self, x):
         '''Compute a forward pass of the inputs, returning the net output.
@@ -270,8 +294,8 @@ class Network(object):
 
         Returns
         -------
-        y : ndarray
-            Returns the values of the network output units for input `x`.
+        ndarray
+            Returns the values of the network output units when given input `x`.
         '''
         return self.feed_forward(x)[-1]
 
@@ -317,7 +341,7 @@ class Network(object):
         logging.info('%s: loaded model parameters', filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
-        '''Return a cost function for this network.
+        '''Return a variable representing the cost or loss for this network.
 
         Parameters
         ----------
@@ -332,7 +356,7 @@ class Network(object):
 
         Returns
         -------
-        J : Theano variable
+        Theano variable
             A variable representing the overall cost value of this network.
         '''
         cost = self.cost
@@ -362,8 +386,6 @@ class Regressor(Network):
     def __init__(self, *args, **kwargs):
         self.k = TT.matrix('k')
         super(Regressor, self).__init__(*args, **kwargs)
-        # for shape debugging
-        w = self.weights[len(self.biases) - 1]
 
     @property
     def inputs(self):
@@ -380,13 +402,8 @@ class Classifier(Network):
 
     def __init__(self, *args, **kwargs):
         self.k = TT.ivector('k')
-
         super(Classifier, self).__init__(*args, **kwargs)
-
         self.y = self.softmax(self.y)
-
-        # recompile feed_forward method to return proper y value.
-        self.feed_forward = theano.function([self.x], self.hiddens + [self.y])
 
     @staticmethod
     def softmax(x):

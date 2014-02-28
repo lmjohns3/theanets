@@ -298,6 +298,16 @@ class Scipy(Trainer):
         return self.arrays_to_flat([np.mean(g, axis=0) for g in grads])
 
     def train(self, train_set, valid_set=None, **kwargs):
+        def display(x):
+            for p, a in zip(self.params, self.flat_to_arrays(x)):
+                p.set_value(a)
+            costs = [self.f_eval(*x) for x in train_set]
+            cost_desc = ' '.join(
+                '%s=%.4f' % el for el in
+                zip(self.cost_names, np.mean(costs, axis=0)))
+            logging.info('scipy %s %i/%i %s',
+                         self.method, i + 1, self.iterations, cost_desc)
+
         for i in xrange(self.iterations):
             try:
                 self.evaluate(i, valid_set)
@@ -317,13 +327,13 @@ class Scipy(Trainer):
                     x0=self.arrays_to_flat(self.best_params),
                     args=(train_set, ),
                     method=self.method,
-                    options=dict(maxiter=self.validation_frequency, disp=1),
+                    callback=display,
+                    options=dict(maxiter=self.validation_frequency),
                 )
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            logging.info('scipy %s %i/%i J=%.4f', self.method, i + 1, self.iterations, res.fun)
             for p, a in zip(self.params, self.flat_to_arrays(res.x)):
                 p.set_value(a)
 

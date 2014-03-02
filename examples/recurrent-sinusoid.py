@@ -8,25 +8,40 @@ import theanets
 
 climate.enable_default_logging()
 
-T = 256
-K = int(0.5 * T)
-S = np.linspace(0, 4 * np.pi, T)
+S = np.linspace(0, 4 * np.pi, 256)
 
-def sines(i=0):
-    return (0.7 * np.sin(S) + 0.3 * np.sin(i * S / 2)).reshape((T, 1)).astype('f')
+def wave(i=0):
+    return (0.4 * np.sin(S) + 0.3 * np.sin(i * S / 2))[:, None, None]
+
+def waves(n=64):
+    return np.concatenate([wave(rng.randint(15, 30)) for _ in range(n)], axis=1).astype('f')
 
 # set up a network and train it using some sinusoidal data.
 
 e = theanets.Experiment(
-    theanets.recurrent.Autoencoder,
-    layers=(1, 10, 1),
-    num_updates=20,
-    train_batches=64)
+    theanets.recurrent.Regressor,
+    layers=(2, 10, 1),
+    train_batches=16)
 
-e.run(lambda: [sines(rng.randint(K, T))],
-      lambda: [sines(rng.randint(0, K))])
+def sum_waves():
+    x = waves()
+    y = waves()
+    return [np.concatenate([x, y], axis=2), x + y]
+
+e.run(sum_waves, sum_waves)
+
+# use the network to predict a novel output.
+
+batch = np.zeros((len(S), e.args.batch_size, 2)).astype('f')
+batch[:, :1, 0:1] = wave(13).astype('f')
+batch[:, :1, 1:2] = wave(14).astype('f')
+
+predict = e.network.predict(batch)[:, 0, :]
 
 # plot the input, output, and error of the network.
+
+def plot(x, label):
+    ax.plot(x.flatten(), '.-', label=label)
 
 ax = plt.subplot(111)
 ax.xaxis.tick_bottom()
@@ -37,13 +52,12 @@ for loc, spine in ax.spines.iteritems():
     elif loc in 'right top':
         spine.set_color('none')
 
-source = sines(13)
-match = e.network.predict(source)
-ax.plot(source, '.-', c='#111111', label='Target')
-ax.plot(match, '.-', c='#1f77b4', label='Output')
-ax.plot(abs(source - match), '.-', c='#d62728', label='Error')
+plot(batch[:, 0, 0], 'Source1')
+plot(batch[:, 0, 1], 'Source2')
+plot(batch[:, 0, 0] + batch[:, 0, 1], 'Target')
+plot(predict, 'Prediction')
 
-ax.set_xlim(0, T)
+ax.set_xlim(0, len(S))
 ax.set_xlabel('Time')
 ax.set_ylabel('Amplitude')
 

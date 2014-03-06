@@ -146,7 +146,7 @@ class Autoencoder(Network):
     @property
     def cost(self):
         err = self.y - self.x
-        return TT.mean((err * err).sum(axis=1)[self.error_start:])
+        return TT.mean((err * err).sum(axis=2)[self.error_start:])
 
 
 class Predictor(Autoencoder):
@@ -155,7 +155,7 @@ class Predictor(Autoencoder):
     @property
     def cost(self):
         err = self.x[1:] - self.y[:-1]
-        return TT.mean((err * err).sum(axis=1)[self.error_start:])
+        return TT.mean((err * err).sum(axis=2)[self.error_start:])
 
 
 class Regressor(Network):
@@ -172,4 +172,4 @@ class Regressor(Network):
     @property
     def cost(self):
         err = self.y - self.k
-        return TT.mean((err * err).sum(axis=1)[self.error_start:])
+        return TT.mean((err * err).sum(axis=2)[self.error_start:])

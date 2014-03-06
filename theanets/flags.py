@@ -96,8 +96,6 @@ g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 
 g = climate.add_arg_group('Recurrent Nets')
-g.add_argument('--pool-damping', type=float, default=0, metavar='R',
-               help='damp recurrent network with R in [0, 1]')
 g.add_argument('--pool-noise', type=float, default=0, metavar='S',
                help='add noise to recurrent units drawn from N(0, S)')
 g.add_argument('--pool-dropouts', type=float, default=0, metavar='R',

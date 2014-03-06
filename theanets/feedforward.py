@@ -186,7 +186,7 @@ class Network(object):
         return [(abs(h) < 1e-4).mean() for h in self.hiddens]
 
     @staticmethod
-    def _create_layer(a, b, suffix):
+    def _create_layer(a, b, suffix, sparse=None):
         '''Create a layer of weights and bias values.
 
         Parameters
@@ -201,6 +201,9 @@ class Network(object):
             A string suffix to use in the Theano name for the created variables.
             This string will be appended to "W_" (for the weights) and "b_" (for
             the biases) parameters that are created and returned.
+        sparse : float in (0, 1)
+            If given, ensure that the weight matrix for the layer has only this
+            proportion of nonzero entries.
 
         Returns
         -------
@@ -215,6 +218,8 @@ class Network(object):
             variables.
         '''
         arr = np.random.randn(a, b) / np.sqrt(a + b)
+        if sparse is not None:
+            arr *= np.random.binomial(n=1, p=sparse, size=(a, b))
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
         bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)

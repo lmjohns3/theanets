@@ -55,7 +55,6 @@ class Trainer(object):
         for name, monitor in network.monitors:
             self.cost_names.append(name)
             costs.append(monitor)
-
         self.f_train = theano.function(network.inputs, costs, updates=network.updates)
         self.f_eval = theano.function(network.inputs, costs, updates=network.updates)
         self.f_grad = theano.function(
@@ -68,6 +67,7 @@ class Trainer(object):
 
         self.shapes = [p.get_value(borrow=True).shape for p in self.params]
         self.counts = [np.prod(s) for s in self.shapes]
+        self.starts = np.cumsum([0] + self.counts)[:-1]
         self.dtype = self.params[0].get_value().dtype
 
         self.best_cost = 1e100
@@ -76,20 +76,13 @@ class Trainer(object):
 
     def flat_to_arrays(self, x):
         x = x.astype(self.dtype)
-        start = 0
-        arrays = []
-        for shape, count in zip(self.shapes, self.counts):
-            arrays.append(x[start:start+count].reshape(shape))
-            start += count
-        assert start == len(x)
-        return arrays
+        return [x[o:o+n].reshape(s) for s, o, n in
+                zip(self.shapes, self.starts, self.counts)]
 
     def arrays_to_flat(self, arrays):
         x = np.zeros((sum(self.counts), ), self.dtype)
-        start = 0
-        for array, count in zip(arrays, self.counts):
-            x[start:start+count] = array.flatten()
-            start += count
+        for arr, o, n in zip(arrays, self.starts, self.counts):
+            x[o:o+n] = arr.flatten()
         return x
 
     def update_params(self, targets):

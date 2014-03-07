@@ -170,6 +170,9 @@ class Experiment(object):
         kw = {}
         kw.update(self.kwargs)
         kw.update(kwargs)
+        logging.info('adding trainer %s', factory)
+        for k in sorted(kwargs):
+            logging.info('--%s = %s', k, kw[k])
         self.trainers.append(factory(*args, **kw))
 
     def add_dataset(self, label, dataset, **kwargs):
@@ -219,6 +222,9 @@ class Experiment(object):
         during training. After training completes, the network attribute of this
         class will contain the trained network parameters.
         '''
+        if not self.trainers:
+            # train using sgd if no other trainer has been added.
+            self.add_trainer('sgd')
         if train is not None:
             if 'train' not in self.datasets:
                 self.add_dataset('train', train)

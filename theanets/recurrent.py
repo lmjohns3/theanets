@@ -135,10 +135,6 @@ class Network(ff.Network):
         self.weights = W_in + [W_pool, W_out]
         self.biases = b_in + [b_pool, b_out]
 
-        # compute a complete pass over an input sequence.
-        self.feed_forward = theano.function(
-            [self.x], self.hiddens + [self.y], updates=self.updates)
-
 
 class Autoencoder(Network):
     '''An autoencoder attempts to reproduce its input.'''

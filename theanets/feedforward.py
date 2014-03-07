@@ -161,11 +161,7 @@ class Network(object):
         logging.info('%d total network parameters', parameter_count)
 
         self.y = self.hiddens.pop()
-
         self.updates = {}
-
-        # we compile our Theano function lazily -- see Network._compile
-        self._compute = None
 
     @property
     def inputs(self):
@@ -258,8 +254,9 @@ class Network(object):
 
     def _compile(self):
         '''If needed, compile the Theano function for this network.'''
-        if self._compute is None:
-            self._compute = theano.function([self.x], self.hiddens + [self.y])
+        if getattr(self, '_compute', None) is None:
+            self._compute = theano.function(
+                [self.x], self.hiddens + [self.y], updates=self.updates)
 
     def params(self, **kwargs):
         '''Return a list of the Theano parameters for this network.'''

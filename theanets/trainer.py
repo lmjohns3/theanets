@@ -99,7 +99,7 @@ class Trainer(object):
             self.best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
         cost_desc = ' '.join(
-            '%s=%.4f' % el for el in zip(self.cost_names, costs))
+            '%s=%.2f' % el for el in zip(self.cost_names, costs))
         logging.info('validation %i %s%s', iteration + 1, cost_desc, marker)
         if iteration - self.best_iter > self.patience:
             raise PatienceElapsedError
@@ -152,7 +152,7 @@ class SGD(Trainer):
                 break
 
             cost_desc = ' '.join(
-                '%s=%.4f' % el for el in
+                '%s=%.2f' % el for el in
                 zip(self.cost_names, np.mean(costs, axis=0)))
             grad_desc = ' '.join(
                 '%s=%.2f' % (p.name, x) for p, x in
@@ -296,7 +296,7 @@ class Scipy(Trainer):
                 p.set_value(a)
             costs = [self.f_eval(*x) for x in train_set]
             cost_desc = ' '.join(
-                '%s=%.4f' % el for el in
+                '%s=%.2f' % el for el in
                 zip(self.cost_names, np.mean(costs, axis=0)))
             logging.info('scipy %s %i/%i %s',
                          self.method, i + 1, self.iterations, cost_desc)

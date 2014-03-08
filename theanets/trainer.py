@@ -451,12 +451,15 @@ class Layerwise(Trainer):
     would first insert a tap after the first hidden layer (effectively a binary
     classifier in a [3, 4, 2] configuration) and train just that network. Then
     we insert a tap at the next layer (effectively training a [3, 4, 5, 2]
-    classifier), and so forth.
+    classifier, re-using the trained weights for the 3x4 layer), and so forth.
 
     By inserting taps into the original network, we preserve all of the relevant
     settings of noise, dropouts, loss function and the like, in addition to
     obviating the need for copying trained weights around between different
     Network instances.
+
+    I believe this variant of layerwise training was first described by Bengio,
+    but I haven't located the citation yet.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):
@@ -472,7 +475,7 @@ class Layerwise(Trainer):
         biases = list(self.network.biases)
 
         nout = len(biases[-1].get_value(borrow=True))
-        nhids = [len(b.get_value(borrow=True)) for b in biases]
+        nhids = [len(b.get_value(borrow=True)) for b in biases[:-1]]
         for i in range(1, len(nhids)):
             W, b, _ = self.network._create_layer(nhids[i-1], nout, 'lwout-%d' % i)
             self.network.y = TT.dot(hiddens[i-1], W) + b
@@ -483,10 +486,15 @@ class Layerwise(Trainer):
             for _ in trainer.train(train_set, valid_set):
                 yield
 
+        # restore the original network configuration and make a final pass to
+        # train the last layer.
         self.network.y = y
         self.network.hiddens = hiddens
         self.network.weights = weights
         self.network.biases = biases
+        trainer = self.factory(self.network, *self.args, **self.kwargs)
+        for _ in trainer.train(train_set, valid_set):
+            yield
 
 
 class FORCE(Trainer):

@@ -74,10 +74,12 @@ g.add_argument('--weight-l2', type=float, default=0, metavar='K',
 g = climate.add_arg_group('SGD Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
-g.add_argument('-d', '--learning-rate-decay', type=float, default=0.1, metavar='R',
+g.add_argument('-L', '--learning-rate-decay', type=float, default=0, metavar='R',
                help='decay the learning rate by R after stagnant validations')
-g.add_argument('-m', '--momentum', type=float, default=0, metavar='V',
+g.add_argument('-m', '--momentum', type=float, default=0.5, metavar='V',
                help='train the network with momentum of V')
+g.add_argument('-M', '--momentum-decay', type=float, default=0, metavar='R',
+               help='decay momentum toward 1 by R after each training update')
 g.add_argument('--min-improvement', type=float, default=0.001, metavar='R',
                help='train until relative improvement is less than R')
 g.add_argument('--max-gradient-norm', type=float, default=1000, metavar='R',

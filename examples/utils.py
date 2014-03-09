@@ -7,6 +7,8 @@ import os
 import tempfile
 import urllib
 
+logging = climate.get_logger(__name__)
+
 climate.enable_default_logging()
 
 
@@ -16,7 +18,7 @@ def load_mnist(
         local=os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')):
     '''Load the MNIST digits dataset.'''
     if not os.path.isfile(local):
-        logging.info('downloading mnist digit dataset from %s' % URL)
+        logging.info('downloading mnist digit dataset from %s' % url)
         urllib.urlretrieve(url, local)
         logging.info('saved mnist digits to %s' % local)
     dig = [(x, y.astype('int32')) for x, y in cPickle.load(gzip.open(local))]

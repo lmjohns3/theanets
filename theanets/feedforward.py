@@ -101,16 +101,16 @@ class Network(object):
         self.biases = []
 
         self.rng = kwargs.get('rng') or RandomStreams()
-        self.tied_weights = bool(kwargs.get('tied_weights'))
 
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
 
+        tied_weights = bool(kwargs.get('tied_weights'))
         parameter_count = 0
         sizes = layers[:-1]
 
         # ensure that --layers is compatible with --tied-weights.
-        if self.tied_weights:
+        if tied_weights:
             error = 'with --tied-weights, --layers must be an odd-length palindrome'
             assert len(layers) % 2 == 1, error
             k = len(layers) // 2
@@ -137,7 +137,7 @@ class Network(object):
 
         # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
-        if self.tied_weights:
+        if tied_weights:
             for i in range(w - 1, -1, -1):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape

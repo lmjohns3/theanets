@@ -21,10 +21,9 @@ train = [
 e = theanets.Experiment(theanets.Regressor,
                         layers=(2, 2, 1),
                         learning_rate=0.1,
-                        learning_rate_decay=0,
                         momentum=0.5,
                         patience=300,
-                        num_updates=5000)
+                        num_updates=500)
 e.run(train, train)
 
 print "Input:"

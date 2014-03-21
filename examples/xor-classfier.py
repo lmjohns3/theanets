@@ -14,8 +14,9 @@ Y = np.array([0, 1, 1, 0, ])
 
 Xi = np.random.randint(0, 2, size=(256, 2))
 train = [
-    Xi + 0.1 * np.random.randn(*Xi.shape).astype('f'),
-    (Xi[:, 0] ^ Xi[:, 1])[:, None]]
+    (Xi + 0.1 * np.random.randn(*Xi.shape)).astype('f'),
+    (Xi[:, 0] ^ Xi[:, 1]).astype('f')[:, None],
+]
 
 e = theanets.Experiment(theanets.Regressor,
                         layers=(2, 2, 1),
@@ -33,4 +34,4 @@ print "XOR output"
 print Y
 
 print "NN XOR predictions"
-print e.network(X)
+print e.network(X.astype('f'))

@@ -116,12 +116,12 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
-        self.momentum = kwargs.get('momentum', 1.)
-        self.momentum_decay = kwargs.get('momentum_decay', 1.)
+        self.momentum = kwargs.get('momentum', 0.5)
+        self.momentum_decay = kwargs.get('momentum_decay', 0)
         self.learning_rate = kwargs.get('learning_rate', 0.01)
-        self.learning_rate_decay = kwargs.get('learning_rate_decay', 1.)
+        self.learning_rate_decay = kwargs.get('learning_rate_decay', 0)
         self.clip_params_at_zero = kwargs.get('clip_params_at_zero', False)
-        self.max_gradient_norm = kwargs.get('max_gradient_norm', 1e5)
+        self.max_gradient_norm = kwargs.get('max_gradient_norm', 1e4)
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''

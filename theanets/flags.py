@@ -54,6 +54,8 @@ g.add_argument('--save-progress', metavar='FILE',
                help='save the model periodically to FILE')
 
 g = climate.add_arg_group('Regularization')
+g.add_argument('--contractive-l2', type=float, default=0, metavar='S',
+               help='penalize the Frobenius norm of the hidden Jacobian')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
                help='add noise to network inputs drawn from N(0, S)')
 g.add_argument('--input-dropouts', type=float, default=0, metavar='R',
@@ -82,7 +84,7 @@ g.add_argument('-M', '--momentum-decay', type=float, default=0, metavar='R',
                help='decay momentum toward 1 by R after each training update')
 g.add_argument('--min-improvement', type=float, default=0.001, metavar='R',
                help='train until relative improvement is less than R')
-g.add_argument('--max-gradient-norm', type=float, default=1000, metavar='R',
+g.add_argument('--max-gradient-norm', type=float, default=10000, metavar='R',
                help='limit gradients to norms less than R')
 g.add_argument('--clip-params-at-zero', action='store_true',
                help='if a param crosses 0 during an update, set it to 0')

@@ -342,7 +342,7 @@ class Network(object):
         handle.close()
         logging.info('%s: loaded model parameters', filename)
 
-    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, **unused):
+    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
         '''Return a variable representing the cost or loss for this network.
 
         Parameters
@@ -355,6 +355,8 @@ class Network(object):
             Regularize the L1 norm of hidden unit activations by this constant.
         hidden_l2 : float, optional
             Regularize the L2 norm of hidden unit activations by this constant.
+        contractive_l2 : float, optional
+            Regularize model using the Frobenius norm of the hidden Jacobian.
 
         Returns
         -------
@@ -370,6 +372,9 @@ class Network(object):
             cost += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in self.hiddens)
         if hidden_l2 > 0:
             cost += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in self.hiddens)
+        if contractive_l2 > 0:
+            cost += contractive_l2 * sum(
+                TT.sqr(TT.grad(h, self.x)).sum() for h in self.hiddens)
         return cost
 
 

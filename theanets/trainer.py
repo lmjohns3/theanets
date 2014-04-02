@@ -137,7 +137,7 @@ class SGD(Trainer):
                     logging.info('interrupted!')
                     break
                 except PatienceElapsedError:
-                    logging.error('patience elapsed, bailing out')
+                    logging.info('patience elapsed, bailing out')
                     break
                 except NoImprovementError:
                     self.learning_rate *= 1 - self.learning_rate_decay
@@ -311,7 +311,7 @@ class Scipy(Trainer):
                 logging.info('interrupted!')
                 break
             except PatienceElapsedError:
-                logging.error('patience elapsed, bailing out')
+                logging.info('patience elapsed, bailing out')
                 break
             except NoImprovementError:
                 pass
@@ -370,7 +370,7 @@ class HF(Trainer):
             logging.error('hf import failed, attempting to download %s', HF.URL)
             path = os.path.join(tempfile.gettempdir(), 'hf.py')
             urllib.urlretrieve(HF.URL, path)
-            logging.error('downloaded hf code to %s', path)
+            logging.info('downloaded hf code to %s', path)
             import hf
 
         self.params = network.params(**kwargs)

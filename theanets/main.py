@@ -24,6 +24,7 @@ import climate
 import theano.tensor as TT
 
 from .dataset import SequenceDataset as Dataset
+from . import feedforward
 from . import trainer
 
 logging = climate.get_logger(__name__)
@@ -87,6 +88,9 @@ class Experiment(object):
     def _build_network(self, network_class, **kwargs):
         '''Build a Network class instance to compute input transformations.
         '''
+        assert network_class is not feedforward.Network, \
+            'use a concrete theanets.Network subclass ' \
+            'like theanets.{Autoencoder,Regressor,...}'
         activation = self._build_activation()
         if hasattr(activation, '__theanets_name__'):
             logging.info('activation: %s', activation.__theanets_name__)

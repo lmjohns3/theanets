@@ -252,18 +252,19 @@ class SGD(Trainer):
     def _maybe_rescale_gradient(self, grad):
         '''Rescale a gradient if its length exceeds our limit.'''
         g = np.asarray(grad)
+        e = abs(g).mean()
         l = np.linalg.norm(g)
         if l > self.max_gradient_norm:
             g /= l
             g *= self.max_gradient_norm
-        return g, l
+        return g, e
 
     def _apply_delta(self, param, delta):
         v = param.get_value(borrow=True)
         pos0, neg0 = v > 0, v < 0
         v += delta
-        pos1, neg1 = v > 0, v < 0
         if self.clip_params_at_zero:
+            pos1, neg1 = v > 0, v < 0
             v[(pos0 & neg1) | (neg0 & pos1)] = 0
         param.set_value(v, borrow=True)
 

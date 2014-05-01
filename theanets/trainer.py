@@ -143,11 +143,9 @@ class SGD(Trainer):
                     self.learning_rate *= 1 - self.learning_rate_decay
 
             costs = []
-            grads = []
             try:
-                for c, g in learn(train_set, velocities):
+                for c in learn(train_set, velocities):
                     costs.append(c)
-                    grads.append(g)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -155,13 +153,9 @@ class SGD(Trainer):
             cost_desc = ' '.join(
                 '%s=%.2f' % el for el in
                 zip(self.cost_names, np.mean(costs, axis=0)))
-            grad_desc = ' '.join(
-                '%s=%.2f' % (p.name, x) for p, x in
-                zip(self.params, np.mean(grads, axis=0)))
-            logging.info('SGD %i/%i @%.2e,%.3f %s (grad %s)',
+            logging.info('SGD %i/%i @%.2e,%.3f %s',
                          i + 1, self.iterations,
-                         self.learning_rate, self.momentum,
-                         cost_desc, grad_desc)
+                         self.learning_rate, self.momentum, cost_desc)
 
             yield
 
@@ -197,7 +191,6 @@ class SGD(Trainer):
         '''
         # TODO: run this loop in parallel !
         for x in train_set:
-            grads = []
             moves = []
             # first, move to the position in parameter space that we would get
             # to using classical momentum-based sgd: p_t' = p_t + u. we also
@@ -227,12 +220,10 @@ class SGD(Trainer):
             #   p_t+1 = (p_t' - u) + (u + d)
             #   p_t+1 = p_t' + d
             for p, v, g, u in zip(self.params, velocities, self.f_grad(*x), moves):
-                grad, length = self._maybe_rescale_gradient(g)
-                grads.append(length)
-                d = -self.learning_rate * grad
+                d = -self.learning_rate * self._rescale_gradient(g)
                 self._apply_delta(p, d)
                 v[:] = u + d
-            yield self.f_train(*x), grads
+            yield self.f_train(*x)
 
     def _sgd(self, train_set, velocities):
         '''Make one run through the training set.
@@ -242,22 +233,18 @@ class SGD(Trainer):
         '''
         # TODO: run this loop in parallel !
         for x in train_set:
-            grads = []
             for p, g in zip(self.params, self.f_grad(*x)):
-                grad, length = self._maybe_rescale_gradient(g)
-                grads.append(length)
-                self._apply_delta(p, -self.learning_rate * grad)
-            yield self.f_train(*x), grads
+                self._apply_delta(
+                    p, -self.learning_rate * self._rescale_gradient(g))
+            yield self.f_train(*x)
 
-    def _maybe_rescale_gradient(self, grad):
+    def _rescale_gradient(self, grad):
         '''Rescale a gradient if its length exceeds our limit.'''
         g = np.asarray(grad)
-        e = abs(g).mean()
         l = np.linalg.norm(g)
         if l > self.max_gradient_norm:
-            g /= l
-            g *= self.max_gradient_norm
-        return g, e
+            g *= self.max_gradient_norm / l
+        return g
 
     def _apply_delta(self, param, delta):
         v = param.get_value(borrow=True)

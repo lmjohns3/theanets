@@ -26,6 +26,7 @@ import numpy.random as rng
 import theano
 import theano.tensor as TT
 
+#from theano.tensor.shared_randomstreams import RandomStreams
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import feedforward as ff
@@ -76,64 +77,46 @@ class Network(ff.Network):
     '''
 
     def __init__(self, layers, activation, rng=None, **kwargs):
-        self.rng = rng or RandomStreams()
+        self.hiddens = []
+        self.weights = []
+        self.biases = []
+
+        self.rng = kwargs.get('rng') or RandomStreams()
         self.error_start = kwargs.get('pool_error_start', 3)
 
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
-        parameter_count = 0
-        layers = list(layers)
-        num_out = layers.pop()
-        num_pool = layers.pop()
+        sizes = list(layers)
+        num_out = sizes.pop()
+        num_pool = sizes.pop()
 
-        W_in = []
-        b_in = []
-        for i, (a, b) in enumerate(zip(layers, layers[1:] + [num_pool])):
-            W, b, count = self._create_layer(a, b, i)
-            parameter_count += count
-            W_in.append(W)
-            b_in.append(b)
+        z, paramter_count = self._create_forward_map(sizes, activation, **kwargs)
 
-        # we give a special name to the bias for the recurrent pool units.
-        b_pool = b_in.pop()
-
-        W_pool, _, count = self._create_layer(num_pool, num_pool, 'pool')
+        # set up a recurrent computation graph to pass hidden states in time.
+        W_in, _, count = self._create_layer(sizes[-1], num_pool, 'in')
         parameter_count += count - num_pool
-
+        W_pool, b_pool, count = self._create_layer(num_pool, num_pool, 'pool')
+        parameter_count += count
         W_out, b_out, count = self._create_layer(num_pool, num_out, 'out')
         parameter_count += count
-
         logging.info('%d total network parameters', parameter_count)
 
-        def recurrence(x_t, h_tm1):
-            z = [self._add_noise(x_t,
-                                 kwargs.get('input_noise', 0.),
-                                 kwargs.get('input_dropouts', 0.))]
-            for W, b in zip(W_in, b_in):
-                z.append(self._add_noise(
-                    activation(TT.dot(z[-1], W) + b),
-                    kwargs.get('hidden_noise', 0.),
-                    kwargs.get('hidden_dropouts', 0.)))
-            z.append(self._add_noise(activation(
-                TT.dot(z[-1], W_in[-1]) + TT.dot(h_tm1, W_pool) + b_pool),
-                kwargs.get('pool_noise', 0.),
-                kwargs.get('pool_dropouts', 0.)))
-            z.append(TT.dot(z[-1], W_out) + b_out)
-            return z[1:]
+        def recurrence(z_t, h_tm1):
+            return activation(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
 
         batch_size = kwargs.get('batch_size', 64)
         h_0 = TT.zeros((batch_size, num_pool), dtype=ff.FLOAT)
-        outputs, self.updates = theano.scan(
-            fn=recurrence,
-            sequences=self.x,
-            outputs_info=[None for _ in b_in] + [h_0, None])
+        h, self.updates = theano.scan(
+            fn=recurrence, sequences=z, outputs_info=[h_0])
 
-        self.y = outputs.pop()
-        self.hiddens = outputs
-        self.weights = W_in + [W_pool, W_out]
-        self.biases = b_in + [b_pool, b_out]
+        # map hidden states to outputs using a linear transform.
+        self.y = TT.dot(h, W_out) + b_out
+
+        self.hiddens.append(h)
+        self.weights.extend([W_in, W_pool, W_out])
+        self.biases.extend([b_pool, b_out])
 
 
 class Autoencoder(Network):
@@ -151,7 +134,8 @@ class Predictor(Autoencoder):
     @property
     def cost(self):
         # we want the network to predict the next time step. y is the
-        # prediction, so we want y[0] to match x[1], y[1] to match x[2], at so forth.
+        # prediction, so we want y[0] to match x[1], y[1] to match x[2], and so
+        # forth.
         err = self.x[1:] - self.y[:-1]
         return TT.mean((err * err).sum(axis=2)[self.error_start:])
 

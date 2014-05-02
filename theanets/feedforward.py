@@ -106,10 +106,8 @@ class Network(object):
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
 
-        parameter_count = 0
-        sizes = layers[:-1]
-
         # ensure that --layers is compatible with --tied-weights.
+        sizes = layers[:-1]
         if self.tied_weights:
             error = 'with --tied-weights, --layers must be an odd-length palindrome'
             assert len(layers) % 2 == 1, error
@@ -119,21 +117,7 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        # set up a computation graph to map the input to layer activations.
-        z = self._add_noise(
-            self.x,
-            kwargs.get('input_noise', 0.),
-            kwargs.get('input_dropouts', 0.))
-        for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            Wi, bi, count = self._create_layer(a, b, i)
-            parameter_count += count
-            self.hiddens.append(self._add_noise(
-                activation(TT.dot(z, Wi) + bi),
-                kwargs.get('hidden_noise', 0.),
-                kwargs.get('hidden_dropouts', 0.)))
-            self.weights.append(Wi)
-            self.biases.append(bi)
-            z = self.hiddens[-1]
+        _, parameter_count = self._create_forward_map(sizes, activation, **kwargs)
 
         # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
@@ -220,6 +204,40 @@ class Network(object):
         bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
+
+    def _create_forward_map(self, sizes, activation, **kwargs):
+        '''Set up a computation graph to map the input to layer activations.
+
+        Parameters
+        ----------
+        sizes : list of int
+            A list of the number of nodes in each feedforward hidden layer.
+        activation : callable
+            The activation function to use on each feedforward hidden layer.
+
+        Returns
+        -------
+        z : Theano variable
+            A Theano variable representing the output of the forward map.
+        parameter_count : int
+            The number of parameters created in the forward map.
+        '''
+        parameter_count = 0
+        z = self._add_noise(
+            self.x,
+            kwargs.get('input_noise', 0.),
+            kwargs.get('input_dropouts', 0.))
+        for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
+            Wi, bi, count = self._create_layer(a, b, i)
+            parameter_count += count
+            self.hiddens.append(self._add_noise(
+                activation(TT.dot(z, Wi) + bi),
+                kwargs.get('hidden_noise', 0.),
+                kwargs.get('hidden_dropouts', 0.)))
+            self.weights.append(Wi)
+            self.biases.append(bi)
+            z = self.hiddens[-1]
+        return parameter_count
 
     def _add_noise(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.

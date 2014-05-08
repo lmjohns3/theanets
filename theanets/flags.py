@@ -42,7 +42,7 @@ g.add_argument('-u', '--num-updates', type=int, default=1024, metavar='N',
                help='perform at most N parameter updates')
 g.add_argument('-p', '--patience', type=int, default=30, metavar='N',
                help='stop training if no improvement for N updates')
-g.add_argument('-v', '--validate', type=int, default=3, metavar='N',
+g.add_argument('-v', '--validate', type=int, default=10, metavar='N',
                help='validate the model every N updates')
 g.add_argument('-b', '--batch-size', type=int, default=64, metavar='N',
                help='train with mini-batches of size N')
@@ -100,9 +100,5 @@ g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 
 g = climate.add_arg_group('Recurrent Nets')
-g.add_argument('--pool-noise', type=float, default=0, metavar='S',
-               help='add noise to recurrent units drawn from N(0, S)')
-g.add_argument('--pool-dropouts', type=float, default=0, metavar='R',
-               help='randomly set fraction R of recurrent units to 0')
 g.add_argument('--pool-error-start', type=int, default=3, metavar='T',
                help='compute network error starting at time T')

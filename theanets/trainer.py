@@ -60,7 +60,7 @@ class Trainer(object):
         self.f_grad = theano.function(
             network.inputs, TT.grad(J, self.params), updates=network.updates)
 
-        self.validation_frequency = kwargs.get('validate', 3)
+        self.validation_frequency = kwargs.get('validate', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1000)
         self.patience = kwargs.get('patience', 100)

@@ -157,13 +157,10 @@ class Network(object):
         '''Generate a sequence of name-value pairs for monitoring the network.
         '''
         yield 'error', self.cost
-        for i, s in enumerate(self.sparsities):
-            yield 'sparse_{}'.format(i+1), s
-
-    @property
-    def sparsities(self):
-        '''Return the fraction of near-0 activations in each hidden layer.'''
-        return [(abs(h) < 1e-4).mean() for h in self.hiddens]
+        for i, h in enumerate(self.hiddens):
+            yield 'h{}<0.1'.format(i+1), (h < 0.1).mean()
+            yield 'h{}<0.5'.format(i+1), (h < 0.5).mean()
+            yield 'h{}<0.9'.format(i+1), (h < 0.9).mean()
 
     @staticmethod
     def _create_layer(a, b, suffix, sparse=None):
@@ -450,9 +447,13 @@ class Classifier(Network):
 
     @property
     def monitors(self):
+        '''Generate a sequence of name-value pairs for monitoring the network.
+        '''
         yield 'incorrect', self.incorrect
-        for i, s in enumerate(self.sparsities):
-            yield 'sparse_{}'.format(i+1), s
+        for i, h in enumerate(self.hiddens):
+            yield 'h{}<0.1'.format(i+1), (h < 0.1).mean()
+            yield 'h{}<0.5'.format(i+1), (h < 0.5).mean()
+            yield 'h{}<0.9'.format(i+1), (h < 0.9).mean()
 
     def classify(self, x):
         return self.predict(x).argmax(axis=1)

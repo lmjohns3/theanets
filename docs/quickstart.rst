@@ -8,59 +8,83 @@ workflow, you will be able to extend the examples to your own datasets and
 modeling problems!
 
 Along the way, there are links to the reference documentation and to the `User's
-Guide`_, which expands on the ideas here to hopefully make them more accessible.
-
-.. User's Guide: http://theanets.readthedocs.org/en/latest/guide.html
+Guide <http://theanets.readthedocs.org/en/latest/guide.html>`_, which expands on
+the ideas here to hopefully make them more accessible.
 
 If you find an error in these documents, or just want to clarify something,
 please file an issue or send a pull request to
 https://github.com/lmjohns3/theano-nets and we'll work on fixing it up!
 
-:mod:`theanets`
+Getting started
+===============
+
+You'll probably want first of all to download and install ``theanets``. You can
+do this any number of ways, but probably the easiest is to use ``pip``::
+
+    pip install theanets
 
 MNIST digits
-============
+------------
 
-These examples will use the `MNIST digits dataset`_. If you want to follow
-along, you can download a Python pickle of the dataset from:
+.. image:: http://www.heikohoffmann.de/htmlthesis/img679.gif
 
-http://deeplearning.net/data/mnist/mnist.pkl.gz
+The examples on this page will use the `MNIST digits dataset
+<http://yann.lecun.com/exdb/mnist/>`_. If you want to follow along, you can
+download a ready-to-go Python pickle of the dataset from
+http://deeplearning.net/data/mnist/mnist.pkl.gz.
 
-.. MNIST digits dataset: http://yann.lecun.com/exdb/mnist/
+Creating a model
+================
 
-Creating models
----------------
+The workflow in ``theanets`` involves two basic steps:
 
-Generally, it's easiest to use `theanets` to create an :class:`Experiment`, and
-then use the :class:`Experiment` to define and train a model.
+#. First, you need to create or define the structure of the model that you'll
+   use for your task. For instance, if you're trying to classify MNIST digits,
+   then you'll want something that takes in pixels and outputs digit classes. If
+   you're trying to model the digit images without labels, you might want to use
+   some sort of autoencoder.
+#. Second, you will probably need to train your model so that the parameters in
+   the model perform well with respect to some benchmark. For classification,
+   you might want to adjust your model parameters to minimize the negative
+   log-likelihood of the correct image class, and for autoencoders you might
+   want to minimize the reconstruction error.
+
+The ``theanets`` package provides a helper class, :class:`theanets.Experiment`,
+that is designed to perform both of these tasks with relatively low effort on
+your part. We'll look at these steps below.
 
 Classifier
-==========
+----------
 
-To classify a dataset like the MNIST digits, you can use the :class:`Classifier`
-feedforward network. These networks map a layer of continuous-valued inputs
-through a series of hidden layers and finally to a softmax output layer.
+To classify a dataset like the MNIST digits, you can use the
+:class:`theanets.Classifier` feedforward network. These networks map a layer of
+continuous-valued inputs through a series of hidden layers and finally to a
+softmax output layer.
 
-The MNIST digits each contain 784 values (28 pixels by 28 pixels = 784
-variables), and each digit falls into one of 10 classes. These values determine
-the number of input and output units in our network. The hidden structure---the
-number and size of layers between the input and output---can be determined by
-other constraints of the problem.
+The MNIST digits each contain 784 values (28 times 28 pixels = 784 variables),
+and each digit falls into one of 10 classes. These values determine the number
+of input and output units in our network. The hidden structure---the number and
+size of layers between the input and output---can be determined by other
+constraints of the problem.
 
-To create an appropriate classification network with just one hidden layer, use
-the ``layers`` keyword argument when setting your experiment::
+To create an appropriate classification network, use the ``layers`` keyword
+argument when setting your experiment::
 
     experiment = theanets.Experiment(
         theanets.Classifier,
         layers=(784, 100, 10),
     )
 
-Command-line arguments
-~~~~~~~~~~~~~~~~~~~~~~
+In this example, the network will have one hidden layer containing 100 neurons.
+You can give your network three hidden layers by using something like
+``layers=(784, 500, 200, 100, 10)``.
 
-Alternatively, if you work in a command-line environment, you can leave the
-``layers`` unspecified when constructing your experiment, and instead the value
-of the ``--layers`` command-line flag will be used::
+Command-line arguments
+^^^^^^^^^^^^^^^^^^^^^^
+
+If you work in a command-line environment, you can leave the ``layers``
+unspecified when constructing your experiment, and instead the value of the
+``--layers`` command-line flag will be used::
 
     experiment = theanets.Experiment(theanets.Classifier)
 
@@ -81,8 +105,8 @@ Autoencoder
 -----------
 
 An autoencoder is a machine learning model that attempts to reproduce its input
-as its output. You can create such a model by using the :class:`Autoencoder`
-class::
+as its output. You can create such a model by using the
+:class:`theanets.Autoencoder` class::
 
     experiment = theanets.Experiment(
         theanets.Autoencoder,
@@ -96,10 +120,11 @@ attempt to reproduce its input.
 Regressor
 ---------
 
-The third major class of model in `theanets` is the :class:`Regressor` class.
-This type of model is like the :class:`Classifier`, but instead of attempting to
-produce a one-of-k output using the softmax, a :class:`Regressor` attempts to
-output some continuous-valued target vector for each input.
+The third major class of model in ``theanets`` is the
+:class:`theanets.Regressor`. This type of model is like the
+:class:`theanets.Classifier`, but instead of attempting to produce a one-of-k
+output using the softmax, a :class:`theanets.Regressor` attempts to output some
+continuous-valued target vector for each input.
 
 This type of model isn't usually useful for the MNIST digits dataset, so we
 won't talk about it further here. Keep in mind that it exists, however, for
@@ -108,9 +133,9 @@ those moments when you need a powerful nonlinear regression model.
 Custom models
 -------------
 
-It's also pretty simple to create custom models using `theanets`, but the quick
-start is not where to learn about it. Please see more information in the `User's
-Guide`_.
+It's also pretty simple to create custom models using ``theanets``. Please see
+more information in the `User's Guide
+<http://theanets.readthedocs.org/en/latest/guide.html>`_.
 
 Training models
 ===============
@@ -121,12 +146,12 @@ an MNIST digit! To improve the performance of a model, you'll need to **train**
 it by adjusting the model parameters so that the error of the model output
 decreases.
 
-The :class:`Experiment` class handles the general case of training with fairly
-little work. Most of the effort required here is in processing your dataset so
-that you can use it to train a network.
+The :class:`theanets.Experiment` class handles the general case of training with
+fairly little work. Most of the effort required here is in processing your
+dataset so that you can use it to train a network.
 
 More information
 ================
 
 This concludes the quick start guide! Please read more information about
-`theanets` in the `User's Guide`_.
+``theanets`` in the `User's Guide <http://theanets.readthedocs.org/en/latest/guide.html>`_.

@@ -117,7 +117,7 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        parameter_count = self._create_forward_map(sizes, activation, **kwargs)
+        _, parameter_count = self._create_forward_map(sizes, activation, **kwargs)
 
         # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
@@ -234,7 +234,7 @@ class Network(object):
             self.weights.append(Wi)
             self.biases.append(bi)
             z = self.hiddens[-1]
-        return parameter_count
+        return z, parameter_count
 
     def _add_noise(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.

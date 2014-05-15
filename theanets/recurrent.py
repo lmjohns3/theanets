@@ -92,7 +92,7 @@ class Network(ff.Network):
         num_out = sizes.pop()
         num_pool = sizes.pop()
 
-        z, paramter_count = self._create_forward_map(sizes, activation, **kwargs)
+        z, parameter_count = self._create_forward_map(sizes, activation, **kwargs)
 
         # set up a recurrent computation graph to pass hidden states in time.
         W_in, _, count = self._create_layer(sizes[-1], num_pool, 'in')

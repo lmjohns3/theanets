@@ -401,7 +401,7 @@ class Network(object):
             cost += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in self.hiddens)
         if contractive_l2 > 0:
             cost += contractive_l2 * sum(
-                TT.sqr(TT.grad(h, self.x)).sum() for h in self.hiddens)
+                TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in self.hiddens)
         return cost
 
 

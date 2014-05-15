@@ -209,13 +209,25 @@ class Network(object):
         ----------
         sizes : list of int
             A list of the number of nodes in each feedforward hidden layer.
+
         activation : callable
             The activation function to use on each feedforward hidden layer.
 
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
+
         Returns
         -------
-        z : Theano variable
-            A Theano variable representing the output of the forward map.
         parameter_count : int
             The number of parameters created in the forward map.
         '''

@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Leif Johnson <leif@leifjohnson.net>
+# Copyright (c) 2012-2014 Leif Johnson <leif@leifjohnson.net>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -158,9 +158,8 @@ class Network(object):
         '''
         yield 'error', self.cost
         for i, h in enumerate(self.hiddens):
-            yield 'h{}<0.1'.format(i+1), (h < 0.1).mean()
-            yield 'h{}<0.5'.format(i+1), (h < 0.5).mean()
-            yield 'h{}<0.9'.format(i+1), (h < 0.9).mean()
+            yield 'h{}<0.1'.format(i+1), (abs(h) < 0.1).mean()
+            yield 'h{}<0.9'.format(i+1), (abs(h) < 0.9).mean()
 
     @staticmethod
     def _create_layer(a, b, suffix, sparse=None):
@@ -459,13 +458,10 @@ class Classifier(Network):
 
     @property
     def monitors(self):
-        '''Generate a sequence of name-value pairs for monitoring the network.
-        '''
         yield 'incorrect', self.incorrect
         for i, h in enumerate(self.hiddens):
-            yield 'h{}<0.1'.format(i+1), (h < 0.1).mean()
-            yield 'h{}<0.5'.format(i+1), (h < 0.5).mean()
-            yield 'h{}<0.9'.format(i+1), (h < 0.9).mean()
+            yield 'h{}<0.1'.format(i+1), (abs(h) < 0.1).mean()
+            yield 'h{}<0.9'.format(i+1), (abs(h) < 0.9).mean()
 
     def classify(self, x):
         return self.predict(x).argmax(axis=1)

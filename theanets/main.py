@@ -91,49 +91,7 @@ class Experiment(object):
         assert network_class is not feedforward.Network, \
             'use a concrete theanets.Network subclass ' \
             'like theanets.{Autoencoder,Regressor,...}'
-        activation = self._build_activation()
-        if hasattr(activation, '__theanets_name__'):
-            logging.info('activation: %s', activation.__theanets_name__)
-        del kwargs['activation']
-        return network_class(activation=activation, **kwargs)
-
-    def _build_activation(self, act=None):
-        '''Given an activation description, return a callable that implements it.
-        '''
-        def compose(a, b):
-            c = lambda z: b(a(z))
-            c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
-            return c
-        act = act or self.args.activation.lower()
-        if '+' in act:
-            return reduce(compose, (self._build_activation(a) for a in act.split('+')))
-        options = {
-            'tanh': TT.tanh,
-            'linear': lambda z: z,
-            'logistic': TT.nnet.sigmoid,
-            'sigmoid': TT.nnet.sigmoid,
-            'softplus': TT.nnet.softplus,
-
-            # shorthands
-            'relu': lambda z: TT.maximum(0, z),
-            'trec': lambda z: z * (z > 1),
-            'tlin': lambda z: z * (abs(z) > 1),
-
-            # modifiers
-            'rect:max': lambda z: TT.minimum(1, z),
-            'rect:min': lambda z: TT.maximum(0, z),
-
-            # normalization
-            'norm:dc': lambda z: (z.T - z.mean(axis=1)).T,
-            'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
-            'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
-            }
-        for k, v in options.iteritems():
-            v.__theanets_name__ = k
-        try:
-            return options[act]
-        except KeyError:
-            raise KeyError('unknown --activation %s' % act)
+        return network_class(**kwargs)
 
     def _build_trainers(self, **kwargs):
         '''Build trainers from command-line arguments.

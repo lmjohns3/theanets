@@ -50,11 +50,8 @@ class Network(object):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
-    activation : callable(numeric) -> numeric
-        A callable that takes an array of values (specifically, an array of "raw
-        unit inputs") and returns another array of values of the same dimension
-        (specifically, an array of "unit activations"). This is the activation
-        function that each hidden unit in the network uses.
+    activation : string
+        The name of an activation function to use on hidden network units.
 
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
@@ -96,6 +93,8 @@ class Network(object):
     '''
 
     def __init__(self, layers, activation, **kwargs):
+        self.layers = tuple(layers)
+        self.activation = activation
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -105,6 +104,10 @@ class Network(object):
 
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
+
+        activation = self._build_activation(activation)
+        if hasattr(activation, '__theanets_name__'):
+            logging.info('hidden activation: %s', activation.__theanets_name__)
 
         # ensure that --layers is compatible with --tied-weights.
         sizes = layers[:-1]
@@ -283,6 +286,53 @@ class Network(object):
         if getattr(self, '_compute', None) is None:
             self._compute = theano.function(
                 [self.x], self.hiddens + [self.y], updates=self.updates)
+
+    def _build_activation(self, act=None):
+        '''Given an activation description, return a callable that implements it.
+
+        Parameters
+        ----------
+        activation : string
+            A string description of an activation function to use.
+
+        Returns
+        -------
+        callable(float) -> float :
+            A callable activation function.
+        '''
+        def compose(a, b):
+            c = lambda z: b(a(z))
+            c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
+            return c
+        if '+' in act:
+            return reduce(compose, (self._build_activation(a) for a in act.split('+')))
+        options = {
+            'tanh': TT.tanh,
+            'linear': lambda z: z,
+            'logistic': TT.nnet.sigmoid,
+            'sigmoid': TT.nnet.sigmoid,
+            'softplus': TT.nnet.softplus,
+
+            # shorthands
+            'relu': lambda z: TT.maximum(0, z),
+            'trec': lambda z: z * (z > 1),
+            'tlin': lambda z: z * (abs(z) > 1),
+
+            # modifiers
+            'rect:max': lambda z: TT.minimum(1, z),
+            'rect:min': lambda z: TT.maximum(0, z),
+
+            # normalization
+            'norm:dc': lambda z: (z.T - z.mean(axis=1)).T,
+            'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
+            'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
+            }
+        for k, v in options.iteritems():
+            v.__theanets_name__ = k
+        try:
+            return options[act]
+        except KeyError:
+            raise KeyError('unknown activation %r' % act)
 
     def params(self, **kwargs):
         '''Return a list of the Theano parameters for this network.'''

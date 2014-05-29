@@ -256,6 +256,26 @@ class SGD(Trainer):
         param.set_value(v, borrow=True)
 
 
+class RPROP(SGD):
+    '''Trainer for neural nets using resilient backpropagation (RPROP).
+
+    The RPROP method uses the same general strategy as SGD, except that only the
+    signs of the partial derivatives are taken into account. That is, the step
+    size for each parameter is the same regardless of the magnitude of the
+    gradient for that parameter.
+
+    The implementation here limits the step size to magnitude 1. (TODO:
+    implement variant of RPROP with eta+ and eta- step size adjustments.)
+    '''
+
+    def _rescale_gradient(self, grad):
+        '''Set entries in the gradient to +/-1.'''
+        g = np.asarray(grad)
+        g[g < 0] = -1
+        g[g > 0] = 1
+        return g
+
+
 class Scipy(Trainer):
     '''General trainer for neural nets using `scipy.optimize.minimize`.'''
 

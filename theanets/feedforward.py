@@ -23,6 +23,7 @@
 
 import climate
 import pickle
+import functools
 import gzip
 import numpy as np
 import theano
@@ -305,7 +306,8 @@ class Network(object):
             c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
             return c
         if '+' in act:
-            return reduce(compose, (self._build_activation(a) for a in act.split('+')))
+            return functools.reduce(
+                compose, (self._build_activation(a) for a in act.split('+')))
         options = {
             'tanh': TT.tanh,
             'linear': lambda z: z,
@@ -327,7 +329,7 @@ class Network(object):
             'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
             'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
             }
-        for k, v in options.iteritems():
+        for k, v in options.items():
             v.__theanets_name__ = k
         try:
             return options[act]

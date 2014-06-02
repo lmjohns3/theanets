@@ -21,6 +21,7 @@
 '''This file contains a class for handling batched datasets.'''
 
 import climate
+import collections
 import numpy.random as rng
 
 logging = climate.get_logger(__name__)
@@ -69,7 +70,7 @@ class SequenceDataset(object):
         cardinality = None
         self.callable = None
         self.batches = None
-        if len(data) == 1 and callable(data[0]):
+        if len(data) == 1 and isinstance(data[0], collections.Callable):
             self.callable = data[0]
             cardinality = '->'
             batch = self.callable()
@@ -78,7 +79,7 @@ class SequenceDataset(object):
         else:
             self.batches = [
                 [d[i:i + size] for d in data]
-                for i in xrange(0, len(data[0]), size)]
+                for i in range(0, len(data[0]), size)]
             self.shuffle()
             cardinality = len(self.batches)
             batch = self.batches[0]
@@ -101,13 +102,13 @@ class SequenceDataset(object):
 
     def _iter_batches(self, update=True):
         k = len(self.batches)
-        for b in xrange(self.number_batches):
+        for b in range(self.number_batches):
             yield self.batches[(self.batch + b) % k]
         if update:
             self.update()
 
     def _iter_callable(self):
-        for b in xrange(self.number_batches):
+        for b in range(self.number_batches):
             yield self.callable()
 
     def update(self):

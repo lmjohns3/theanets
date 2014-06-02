@@ -4,6 +4,7 @@
 '''Example using the theanets package for learning the XOR relation.'''
 
 import climate
+import logging
 import numpy as np
 import theanets
 
@@ -26,11 +27,6 @@ e = theanets.Experiment(theanets.Regressor,
                         num_updates=500)
 e.run(train, train)
 
-print "Input:"
-print X
-
-print "XOR output"
-print Y
-
-print "NN XOR predictions"
-print e.network(X.astype('f'))
+logging.info("Input:\n%s", X)
+logging.info("XOR output:\n%s", Y)
+logging.info("NN XOR predictions:\n%s", e.network(X.astype('f')))

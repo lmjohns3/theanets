@@ -37,7 +37,7 @@ def parse_args(**overrides):
     dictionary version of these arguments.
     '''
     args = climate.get_args().parse_args()
-    for k, v in overrides.iteritems():
+    for k, v in overrides.items():
         setattr(args, k, v)
     kwargs = {}
     kwargs.update(vars(args))

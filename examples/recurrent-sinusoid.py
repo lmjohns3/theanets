@@ -46,7 +46,7 @@ def plot(x, label):
 ax = plt.subplot(111)
 ax.xaxis.tick_bottom()
 ax.yaxis.tick_left()
-for loc, spine in ax.spines.iteritems():
+for loc, spine in ax.spines.items():
     if loc in 'left bottom':
         spine.set_position(('outward', 6))
     elif loc in 'right top':

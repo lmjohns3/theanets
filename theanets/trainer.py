@@ -129,7 +129,7 @@ class SGD(Trainer):
 
         learn = self._nag if self.momentum > 0 else self._sgd
 
-        for i in xrange(self.iterations):
+        for i in range(self.iterations):
             if not i % self.validation_frequency:
                 try:
                     self.evaluate(i, valid_set)
@@ -312,7 +312,7 @@ class Scipy(Trainer):
             logging.info('scipy %s %i/%i %s',
                          self.method, i + 1, self.iterations, cost_desc)
 
-        for i in xrange(self.iterations):
+        for i in range(self.iterations):
             try:
                 self.evaluate(i, valid_set)
             except KeyboardInterrupt:
@@ -368,7 +368,11 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
-        import os, tempfile, urllib
+        import os, tempfile
+        try:
+            import urllib.request
+        except: # Python 2.x
+            import urllib
         sys.path.append(tempfile.gettempdir())
 
         try:
@@ -377,7 +381,10 @@ class HF(Trainer):
             # if hf failed to import, try downloading it and saving it locally.
             logging.error('hf import failed, attempting to download %s', HF.URL)
             path = os.path.join(tempfile.gettempdir(), 'hf.py')
-            urllib.urlretrieve(HF.URL, path)
+            try:
+                urllib.request.urlretrieve(HF.URL, path)
+            except: # Python 2.x
+                urllib.urlretrieve(HF.URL, path)
             logging.info('downloaded hf code to %s', path)
             import hf
 
@@ -390,8 +397,12 @@ class HF(Trainer):
             network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
-        kwargs['validation_frequency'] = kwargs.pop('validate', sys.maxint)
-        for k in set(kwargs) - set(self.opt.train.im_func.func_code.co_varnames[1:]):
+        kwargs['validation_frequency'] = kwargs.pop('validate', 1 << 60)
+        try:
+            func = self.opt.train.__func__.__code__
+        except: # Python 2.x
+            func = self.opt.train.im_func.func_code
+        for k in set(kwargs) - set(func.co_varnames[1:]):
             kwargs.pop(k)
         self.kwargs = kwargs
 
@@ -418,9 +429,10 @@ class Sample(Trainer):
         # if the pool still has fewer than n items, pad with distorted random
         # duplicates from the source data.
         L = len(pool)
+        S = np.std(pool, axis=0)
         while len(pool) < n:
             x = pool[rng.randint(L)]
-            pool.append(x + np.std(pool, axis=0) * rng.randn(*x.shape))
+            pool.append(x + S * rng.randn(*x.shape))
         return pool
 
     def __init__(self, network, **kwargs):

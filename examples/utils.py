@@ -1,11 +1,17 @@
 import climate
-import cPickle
+import pickle
 import gzip
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tempfile
-import urllib
+
+KW = {}
+try:
+    import urllib.request
+    KW['encoding'] = 'latin1'
+except: # Python 2.x
+    import urllib
 
 logging = climate.get_logger(__name__)
 
@@ -19,9 +25,12 @@ def load_mnist(
     '''Load the MNIST digits dataset.'''
     if not os.path.isfile(local):
         logging.info('downloading mnist digit dataset from %s' % url)
-        urllib.urlretrieve(url, local)
+        try:
+            urllib.request.urlretrieve(url, local)
+        except: # Python 2.x
+            urllib.urlretrieve(url, local)
         logging.info('saved mnist digits to %s' % local)
-    dig = [(x, y.astype('int32')) for x, y in cPickle.load(gzip.open(local))]
+    dig = [(x, y.astype('int32')) for x, y in pickle.load(gzip.open(local), **KW)]
     if not labels:
         dig = [x[0] for x in dig]
     return dig

@@ -77,6 +77,8 @@ class Network(ff.Network):
     '''
 
     def __init__(self, layers, activation, rng=None, **kwargs):
+        self.layers = tuple(layers)
+        self.activation = activation
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -87,6 +89,10 @@ class Network(ff.Network):
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
+
+        activation = self._build_activation(activation)
+        if hasattr(activation, '__theanets_name__'):
+            logging.info('hidden activation: %s', activation.__theanets_name__)
 
         sizes = list(layers)
         num_out = sizes.pop()

@@ -464,6 +464,60 @@ class Autoencoder(Network):
         err = self.y - self.x
         return TT.mean((err * err).sum(axis=1))
 
+    def encode(self, x, layer=None, sample=False):
+        '''Encode a dataset using the hidden layer activations of our network.
+
+        Parameters
+        ----------
+        x : ndarray
+            A dataset to encode. Rows of this dataset capture individual data
+            points, while columns represent the variables in each data point.
+
+        layer : int, optional
+            The index of the hidden layer activation to use. By default, we use
+            the "middle" hidden layer---for example, for a 4,2,4 or 4,3,2,3,4
+            autoencoder, we use the "2" layer (index 1 or 2, respectively).
+
+        sample : bool, optional
+            If True, then draw a sample using the hidden activations as
+            independent Bernoulli probabilities for the encoded data. This
+            assumes the hidden layer has a logistic sigmoid activation function.
+
+        Returns
+        -------
+        ndarray :
+            The given dataset, encoded by the appropriate hidden layer
+            activation.
+        '''
+        enc = self.feed_forward(x)[(layer or len(self.layers) // 2) - 1]
+        if sample:
+            return np.random.binomial(n=1, p=enc).astype(np.uint8)
+        return enc
+
+    def decode(self, z, layer=None):
+        '''Decode an encoded dataset by computing the output layer activation.
+
+        Parameters
+        ----------
+        z : ndarray
+            A matrix containing encoded data from this autoencoder.
+
+        layer : int, optional
+            The index of the hidden layer that was used to encode `z`.
+
+        Returns
+        -------
+        ndarray :
+            The decoded dataset.
+        '''
+        if not hasattr(self, '_decoders'):
+            self._decoders = {}
+        layer = layer or len(self.layers) // 2
+        if layer not in self._decoders:
+            self._decoders[layer] = theano.function(
+                [self.hiddens[layer - 1]], [self.y], updates=self.updates)
+        return self._decoders[layer](z)[0]
+
 
 class Regressor(Network):
     '''A regressor attempts to produce a target output.'''

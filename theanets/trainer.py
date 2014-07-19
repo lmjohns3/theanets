@@ -41,6 +41,21 @@ class PatienceElapsedError(Error): pass
 class NoImprovementError(Error): pass
 
 
+def default_mapper(f, dataset, *args, **kwargs):
+    '''Apply a function to each element of a dataset.'''
+    return [f(x, *args, **kwargs) for x in dataset]
+
+
+def ipcluster_mapper(client):
+    '''Get a mapper from an IPython.parallel cluster client.'''
+    view = client.load_balanced_view()
+    def mapper(f, dataset, *args, **kwargs):
+        def ff(x):
+            return f(x, *args, **kwargs)
+        return view.map(ff, dataset).get()
+    return mapper
+
+
 class Trainer(object):
     '''This is a base class for all trainers.'''
 
@@ -55,7 +70,8 @@ class Trainer(object):
         for name, monitor in network.monitors:
             self.cost_names.append(name)
             costs.append(monitor)
-        self.f_train = theano.function(network.inputs, costs, updates=network.updates)
+
+        logging.info('compiling theano training functions')
         self.f_eval = theano.function(network.inputs, costs, updates=network.updates)
         self.f_grad = theano.function(
             network.inputs, TT.grad(J, self.params), updates=network.updates)
@@ -64,6 +80,7 @@ class Trainer(object):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1000)
         self.patience = kwargs.get('patience', 100)
+        self.mapper = kwargs.get('mapper', default_mapper)
 
         self.shapes = [p.get_value(borrow=True).shape for p in self.params]
         self.counts = [np.prod(s) for s in self.shapes]
@@ -82,7 +99,7 @@ class Trainer(object):
     def arrays_to_flat(self, arrays):
         x = np.zeros((sum(self.counts), ), self.dtype)
         for arr, o, n in zip(arrays, self.starts, self.counts):
-            x[o:o+n] = arr.flatten()
+            x[o:o+n] = arr.ravel()
         return x
 
     def update_params(self, targets):
@@ -90,7 +107,8 @@ class Trainer(object):
             param.set_value(target)
 
     def evaluate(self, iteration, valid_set):
-        costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
+        def ff(x): return self.f_eval(*x)
+        costs = np.mean(self.mapper(ff, valid_set), axis=0)
         improvement = self.best_cost - costs[0] > self.best_cost * self.min_improvement
         marker = ''
         if improvement:
@@ -126,8 +144,7 @@ class SGD(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
         velocities = [np.zeros_like(p.get_value()) for p in self.params]
-
-        learn = self._nag if self.momentum > 0 else self._sgd
+        step = self._nag_step if self.momentum > 0 else self._sgd_step
 
         for i in range(self.iterations):
             if not i % self.validation_frequency:
@@ -142,39 +159,63 @@ class SGD(Trainer):
                 except NoImprovementError:
                     self.learning_rate *= 1 - self.learning_rate_decay
 
-            costs = []
+            self.momentum = 1 - (1 - self.momentum_decay) * (1 - self.momentum)
+
             try:
-                for c in learn(train_set, velocities):
-                    costs.append(c)
+                # compute gradients.
+                grads = self.mapper(step, train_set, velocities, self.momentum)
+                grads = np.mean(grads, axis=0)
+
+                for param, grad, velocity in zip(self.params, grads, velocities):
+                    delta = self.learning_rate * self._rescale_gradient(grad)
+
+                    # update parameter velocity for momentum-based methods.
+                    if self.momentum > 0:
+                        velocity *= self.momentum
+                        velocity += delta
+                        delta = velocity
+
+                    # apply gradient to model parameters.
+                    v = param.get_value(borrow=True)
+                    pos0, neg0 = v > 0, v < 0
+                    v -= delta
+                    if self.clip_params_at_zero:
+                        pos1, neg1 = v > 0, v < 0
+                        v[(pos0 & neg1) | (neg0 & pos1)] = 0
+                    param.set_value(v, borrow=True)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            cost_desc = ' '.join(
-                '%s=%.2f' % el for el in
-                zip(self.cost_names, np.mean(costs, axis=0)))
-            logging.info('SGD %i/%i @%.2e,%.3f %s',
-                         i + 1, self.iterations,
-                         self.learning_rate, self.momentum, cost_desc)
+            # compute costs over training set. this is perhaps a bit expensive,
+            # since we've already gone and computed gradients over the entire
+            # training set ... but having the cost info is quite useful.
+            def ff(x): return self.f_eval(*x)
+            costs = np.mean(self.mapper(ff, train_set), axis=0)
+            costs = list(zip(self.cost_names, costs))
+            logging.info('SGD %i/%i @%.2e,%.3f %s', i + 1, self.iterations,
+                         self.learning_rate, self.momentum,
+                         ' '.join('%s=%.2f' % el for el in costs))
 
             yield
 
         self.update_params(self.best_params)
 
-    def _nag(self, train_set, velocities):
-        '''Make one run through the training set.
+    def _nag_step(self, x, velocities, momentum):
+        '''Take one step of Nesterov's Accelerated Gradient (NAG).
 
-        We update parameters after each minibatch according to Nesterov's
-        Accelerated Gradient (NAG). The basic difference between NAG and
-        "classical" momentum is that NAG computes the gradients at the position
-        in parameter space where "classical" momentum would put us at the next
-        step. In symbols, the classical method with momentum m and learning rate
-        a updates parameter p like this:
+        The basic difference between NAG and "classical" momentum is that NAG
+        computes the gradients at the position in parameter space where
+        "classical" momentum would put us at the *next* step. In symbols, the
+        classical method with momentum m and learning rate a updates parameter p
+        by blending the current "velocity" with the current gradient:
 
             v_t+1 = m * v_t - a * grad(p_t)
             p_t+1 = p_t + v_t+1
 
-        while NAG adjusts the update like so:
+        while NAG adjusts the update by blending the current "velocity" with the
+        next-step gradient (i.e., the gradient at the point where the velocity
+        would have taken us):
 
             v_t+1 = m * v_t - a * grad(p_t + m * v_t)
             p_t+1 = p_t + v_t+1
@@ -189,54 +230,28 @@ class SGD(Trainer):
         Sutskever, Martens, Dahl, and Hinton, ICML 2013, "On the importance of
         initialization and momentum in deep learning.")
         '''
-        # TODO: run this loop in parallel !
-        for x in train_set:
-            moves = []
-            # first, move to the position in parameter space that we would get
-            # to using classical momentum-based sgd: p_t' = p_t + u. we also
-            # save the update u = m * v_t for each parameter.
-            for param, vel in zip(self.params, velocities):
-                u = self.momentum * vel
-                v = param.get_value(borrow=True)
-                v += u
-                param.set_value(v, borrow=True)
-                moves.append(u)
-            self.momentum = 1 - (1 - self.momentum_decay) * (1 - self.momentum)
-            # then update the parameter using the gradient information from the
-            # new parameter position. define:
-            #
-            #   u = m * v_t
-            #   d = -a * grad(p_t + u)
-            #
-            # and from above,
-            #
-            #   v_t+1 = m * v_t - a * grad(p_t + u)
-            #   v_t+1 = u + d
-            #
-            # now, we want to compute p_t+1 from p_t' = p_t + u and v_t+1. again
-            # starting from above,
-            #
-            #   p_t+1 = p_t + v_t+1
-            #   p_t+1 = (p_t' - u) + (u + d)
-            #   p_t+1 = p_t' + d
-            for p, v, g, u in zip(self.params, velocities, self.f_grad(*x), moves):
-                d = -self.learning_rate * self._rescale_gradient(g)
-                self._apply_delta(p, d)
-                v[:] = u + d
-            yield self.f_train(*x)
+        # first, move to the positions in parameter space where we want to
+        # compute our gradient. record steps taken to undo them afterwards.
+        steps = []
+        for param, velocity in zip(self.params, velocities):
+            step = momentum * velocity
+            v = param.get_value(borrow=True)
+            v += step
+            param.set_value(v, borrow=True)
+            steps.append(step)
+        # now compute gradients, and undo steps.
+        grads = []
+        for param, grad, step in zip(self.params, self.f_grad(*x), steps):
+            grads.append(np.asarray(grad))
+            v = param.get_value(borrow=True)
+            v -= step
+            param.set_value(v, borrow=True)
+        return grads
 
-    def _sgd(self, train_set, velocities):
-        '''Make one run through the training set.
-
-        We update parameters after each minibatch according to standard
-        stochastic gradient descent.
+    def _sgd_step(self, x, *args, **kwargs):
+        '''Compute gradients for one step of stochastic gradient descent.
         '''
-        # TODO: run this loop in parallel !
-        for x in train_set:
-            for p, g in zip(self.params, self.f_grad(*x)):
-                self._apply_delta(
-                    p, -self.learning_rate * self._rescale_gradient(g))
-            yield self.f_train(*x)
+        return [np.asarray(g) for g in self.f_grad(*x)]
 
     def _rescale_gradient(self, grad):
         '''Rescale a gradient if its length exceeds our limit.'''
@@ -245,15 +260,6 @@ class SGD(Trainer):
         if l > self.max_gradient_norm:
             g *= self.max_gradient_norm / l
         return g
-
-    def _apply_delta(self, param, delta):
-        v = param.get_value(borrow=True)
-        pos0, neg0 = v > 0, v < 0
-        v += delta
-        if self.clip_params_at_zero:
-            pos1, neg1 = v > 0, v < 0
-            v[(pos0 & neg1) | (neg0 & pos1)] = 0
-        param.set_value(v, borrow=True)
 
 
 class RPROP(SGD):

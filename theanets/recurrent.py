@@ -139,9 +139,9 @@ class Predictor(Autoencoder):
 
     @property
     def cost(self):
-        # we want the network to predict the next time step. y is the
-        # prediction, so we want y[0] to match x[1], y[1] to match x[2], and so
-        # forth.
+        # we want the network to predict the next time step. y is the prediction
+        # (output of the network), so we want y[0] to match x[1], y[1] to match
+        # x[2], and so forth.
         err = self.x[1:] - self.y[:-1]
         return TT.mean((err * err).sum(axis=2)[self.error_start:])
 

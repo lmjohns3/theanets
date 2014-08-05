@@ -61,17 +61,16 @@ class Trainer(object):
 
         self.params = network.params(**kwargs)
 
-        J = network.J(**kwargs)
-        costs = [J]
+        self.J = network.J(**kwargs)
+        self.cost_exprs = [self.J]
         self.cost_names = ['J']
         for name, monitor in network.monitors:
             self.cost_names.append(name)
-            costs.append(monitor)
+            self.cost_exprs.append(monitor)
 
-        logging.info('compiling theano training functions')
-        self.f_eval = theano.function(network.inputs, costs, updates=network.updates)
-        self.f_grad = theano.function(
-            network.inputs, TT.grad(J, self.params), updates=network.updates)
+        logging.info('compiling evaluation function')
+        self.f_eval = theano.function(
+            network.inputs, self.cost_exprs, updates=network.updates)
 
         self.validation_frequency = kwargs.get('validate', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
@@ -132,11 +131,25 @@ class SGD(Trainer):
         self.momentum = kwargs.get('momentum', 0.5)
         self.learning_rate = kwargs.get('learning_rate', 0.01)
 
+        logging.info('compiling %s learning function', self.__class__.__name__)
+        self.f_learn = theano.function(
+            network.inputs,
+            self.cost_exprs,
+            updates=list(network.updates) + list(self.learning_updates()))
+
+    def learning_updates(self):
+        for param in self.params:
+            delta = self.learning_rate * TT.grad(self.J, param)
+            if self.momentum > 0:
+                velocity = theano.shared(
+                    np.zeros_like(param.get_value()), name=param.name + '_vel')
+                yield velocity, self.momentum * velocity - delta
+                yield param, param + velocity
+            else:
+                yield param, param - delta
+
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
-        velocities = [np.zeros_like(p.get_value()) for p in self.params]
-        step = self._nag_step if self.momentum > 0 else self._sgd_step
-
         for i in range(self.iterations):
             if not i % self.validation_frequency:
                 try:
@@ -151,90 +164,75 @@ class SGD(Trainer):
                     pass
 
             try:
-                # compute gradients.
-                grads = [step(*x, velocities=velocities, momentum=momentum) for x in train_set]
-                grads = np.mean(grads, axis=0)
-
-                for param, grad, velocity in zip(self.params, grads, velocities):
-                    # update parameter velocity.
-                    velocity *= self.momentum
-                    velocity -= self.learning_rate * self._rescale_gradient(grad)
-
-                    # apply gradient to model parameters.
-                    v = param.get_value(borrow=True)
-                    v += velocity
-                    param.set_value(v, borrow=True)
+                costs = np.mean([self.f_learn(*x) for x in train_set], axis=0)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            # compute costs over training set. this is perhaps a bit expensive,
-            # since we've already gone and computed gradients over the entire
-            # training set ... but having the cost info is quite useful.
-            costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
-            costs = list(zip(self.cost_names, costs))
-            logging.info('SGD %i/%i @%.2e,%.3f %s', i + 1, self.iterations,
-                         self.learning_rate, self.momentum,
-                         ' '.join('%s=%.2f' % el for el in costs))
+            label = self.__class__.__name__.upper()
+            info = ' '.join('%s=%.2f' % el for el in zip(self.cost_names, costs))
+            logging.info('%s %i/%i %s', label, i + 1, self.iterations, info)
 
             yield
 
         self.set_params(self.best_params)
 
-    def _nag_step(self, x, velocities, momentum):
-        '''Take one step of Nesterov's Accelerated Gradient (NAG).
 
-        The basic difference between NAG and "classical" momentum is that NAG
-        computes the gradients at the position in parameter space where
-        "classical" momentum would put us at the *next* step. In symbols, the
-        classical method with momentum m and learning rate a updates parameter p
-        by blending the current "velocity" with the current gradient:
+class NAG(SGD):
+    '''Optimize using Nesterov's Accelerated Gradient (NAG).
 
-            v_t+1 = m * v_t - a * grad(p_t)
-            p_t+1 = p_t + v_t+1
+    The basic difference between NAG and "classical" momentum in SGD
+    optimization approaches is that NAG computes the gradients at the position
+    in parameter space where "classical" momentum would put us at the *next*
+    step. In symbols, the classical method with momentum m and learning rate a
+    updates parameter p by blending the current "velocity" with the current
+    gradient:
 
-        while NAG adjusts the update by blending the current "velocity" with the
-        next-step gradient (i.e., the gradient at the point where the velocity
-        would have taken us):
+        v_t+1 = m * v_t - a * grad(p_t)
+        p_t+1 = p_t + v_t+1
 
-            v_t+1 = m * v_t - a * grad(p_t + m * v_t)
-            p_t+1 = p_t + v_t+1
+    while NAG adjusts the update by blending the current "velocity" with the
+    next-step gradient (i.e., the gradient at the point where the velocity
+    would have taken us):
 
-        The difference here is that the gradient is computed at the place in
-        parameter space where we would have stepped using the classical
-        technique, in the absence of a new gradient.
+        v_t+1 = m * v_t - a * grad(p_t + m * v_t)
+        p_t+1 = p_t + v_t+1
 
-        In theory, this helps correct for oversteps during learning: If momentum
-        would lead us to overshoot, then the gradient at that overshot place
-        will point backwards, toward where we came from. (For details see
-        Sutskever, Martens, Dahl, and Hinton, ICML 2013, "On the importance of
-        initialization and momentum in deep learning.")
-        '''
-        # first, move to the positions in parameter space where we want to
-        # compute our gradient. record steps taken to undo them afterwards.
+    The difference here is that the gradient is computed at the place in
+    parameter space where we would have stepped using the classical
+    technique, in the absence of a new gradient.
+
+    In theory, this helps correct for oversteps during learning: If momentum
+    would lead us to overshoot, then the gradient at that overshot place
+    will point backwards, toward where we came from. (For details see
+    Sutskever, Martens, Dahl, and Hinton, ICML 2013, "On the importance of
+    initialization and momentum in deep learning.")
+    '''
+
+    def learning_updates(self):
+        # set up space for temporary variables used during learning.
         steps = []
-        for param, velocity in zip(self.params, velocities):
-            step = momentum * velocity
-            v = param.get_value(borrow=True)
-            v += step
-            param.set_value(v, borrow=True)
-            steps.append(step)
-        # now compute gradients, and undo steps.
-        grads = []
-        for param, grad, step in zip(self.params, self.f_grad(*x), steps):
-            grads.append(np.asarray(grad))
-            v = param.get_value(borrow=True)
-            v -= step
-            param.set_value(v, borrow=True)
-        return grads
+        velocities = []
+        for param in self.params:
+            v = param.get_value()
+            n = param.name
+            steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
+            velocities.append(theano.shared(np.zeros_like(v), name=n + '_vel'))
 
-    def _sgd_step(self, x, *args, **kwargs):
-        '''Compute gradients for one step of stochastic gradient descent.
-        '''
-        return [np.asarray(g) for g in self.f_grad(*x)]
+        # move to the position in parameter space where we want to compute our
+        # gradient.
+        for param, step, velocity in zip(self.params, steps, velocities):
+            yield step, self.momentum * velocity
+            yield param, param + step
 
-    def _rescale_gradient(self, grad):
-        return grad
+        # then, record the gradient here.
+        for param, step, velocity in zip(self.params, steps, velocities):
+            yield velocity, step - self.learning_rate * TT.grad(self.J, param)
+
+        # finally, update the parameter, removing the step that we took to
+        # compute the gradient.
+        for param, step, velocity in zip(self.params, steps, velocities):
+            yield param, param + velocity - step
 
 
 class RPROP(SGD):
@@ -249,12 +247,17 @@ class RPROP(SGD):
     implement variant of RPROP with eta+ and eta- step size adjustments.)
     '''
 
-    def _rescale_gradient(self, grad):
-        '''Set entries in the gradient to +/-1.'''
-        g = np.asarray(grad)
-        g[g < 0] = -1
-        g[g > 0] = 1
-        return g
+    def learning_updates(self):
+        for param in self.params:
+            grad = TT.grad(self.J, param)
+            delta = self.learning_rate * ((grad >= 0) - (grad < 0))
+            if self.momentum > 0:
+                velocity = theano.shared(
+                    np.zeros_like(param.get_value()), name=param.name + '_vel')
+                yield velocity, self.momentum * velocity - delta
+                yield param, param + velocity
+            else:
+                yield param, param - delta
 
 
 class Scipy(Trainer):
@@ -266,6 +269,9 @@ class Scipy(Trainer):
         super(Scipy, self).__init__(network, **kwargs)
 
         self.method = method
+
+        logging.info('compiling gradient function')
+        self.f_grad = theano.function(network.inputs, TT.grad(self.J, self.params))
 
     def function_at(self, x, train_set):
         self.set_params(self.flat_to_arrays(x))
@@ -283,10 +289,9 @@ class Scipy(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         def display(x):
             self.set_params(self.flat_to_arrays(x))
-            costs = [self.f_eval(*x) for x in train_set]
+            costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             cost_desc = ' '.join(
-                '%s=%.2f' % el for el in
-                zip(self.cost_names, np.mean(costs, axis=0)))
+                '%s=%.2f' % el for el in zip(self.cost_names, costs))
             logging.info('scipy %s %i/%i %s',
                          self.method, i + 1, self.iterations, cost_desc)
 

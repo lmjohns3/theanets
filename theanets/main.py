@@ -120,15 +120,16 @@ class Experiment(object):
                 factory = trainer.Scipy
             elif factory.lower().startswith('l'):
                 if len(args) == 1:
-                    # use SGD trainer by default for individual layers
-                    args += (trainer.SGD, )
+                    # use NAG trainer by default for individual layers
+                    args += (trainer.NAG, )
                 factory = trainer.Layerwise
             else:
                 factory = dict(
                     hf=trainer.HF,
-                    sample=trainer.Sample,
+                    nag=trainer.NAG,
                     rprop=trainer.RPROP,
-                    sgd=trainer.SGD
+                    sample=trainer.Sample,
+                    sgd=trainer.SGD,
                 )[factory.lower()]
         kw = {}
         kw.update(self.kwargs)
@@ -186,8 +187,8 @@ class Experiment(object):
         class will contain the trained network parameters.
         '''
         if not self.trainers:
-            # train using sgd if no other trainer has been added.
-            self.add_trainer('sgd')
+            # train using NAG if no other trainer has been added.
+            self.add_trainer('nag')
         if train is not None:
             if 'train' not in self.datasets:
                 self.add_dataset('train', train)

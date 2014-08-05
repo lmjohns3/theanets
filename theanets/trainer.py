@@ -135,11 +135,7 @@ class SGD(Trainer):
         super(SGD, self).__init__(network, **kwargs)
 
         self.momentum = kwargs.get('momentum', 0.5)
-        self.momentum_decay = kwargs.get('momentum_decay', 0)
         self.learning_rate = kwargs.get('learning_rate', 0.01)
-        self.learning_rate_decay = kwargs.get('learning_rate_decay', 0)
-        self.clip_params_at_zero = kwargs.get('clip_params_at_zero', False)
-        self.max_gradient_norm = kwargs.get('max_gradient_norm', 1e4)
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
@@ -157,9 +153,7 @@ class SGD(Trainer):
                     logging.info('patience elapsed, bailing out')
                     break
                 except NoImprovementError:
-                    self.learning_rate *= 1 - self.learning_rate_decay
-
-            self.momentum = 1 - (1 - self.momentum_decay) * (1 - self.momentum)
+                    pass
 
             try:
                 # compute gradients.
@@ -167,21 +161,13 @@ class SGD(Trainer):
                 grads = np.mean(grads, axis=0)
 
                 for param, grad, velocity in zip(self.params, grads, velocities):
-                    delta = self.learning_rate * self._rescale_gradient(grad)
-
-                    # update parameter velocity for momentum-based methods.
-                    if self.momentum > 0:
-                        velocity *= self.momentum
-                        velocity += delta
-                        delta = velocity
+                    # update parameter velocity.
+                    velocity *= self.momentum
+                    velocity -= self.learning_rate * self._rescale_gradient(grad)
 
                     # apply gradient to model parameters.
                     v = param.get_value(borrow=True)
-                    pos0, neg0 = v > 0, v < 0
-                    v -= delta
-                    if self.clip_params_at_zero:
-                        pos1, neg1 = v > 0, v < 0
-                        v[(pos0 & neg1) | (neg0 & pos1)] = 0
+                    v += velocity
                     param.set_value(v, borrow=True)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
@@ -254,12 +240,7 @@ class SGD(Trainer):
         return [np.asarray(g) for g in self.f_grad(*x)]
 
     def _rescale_gradient(self, grad):
-        '''Rescale a gradient if its length exceeds our limit.'''
-        g = np.asarray(grad)
-        l = np.linalg.norm(g)
-        if l > self.max_gradient_norm:
-            g *= self.max_gradient_norm / l
-        return g
+        return grad
 
 
 class RPROP(SGD):

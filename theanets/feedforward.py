@@ -160,10 +160,10 @@ class Network(object):
     def monitors(self):
         '''Generate a sequence of name-value pairs for monitoring the network.
         '''
-        yield 'error', self.cost
+        yield 'err', self.cost
         for i, h in enumerate(self.hiddens):
-            yield 'h{}<0.1'.format(i+1), (abs(h) < 0.1).mean()
-            yield 'h{}<0.9'.format(i+1), (abs(h) < 0.9).mean()
+            yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
+            yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
 
     @staticmethod
     def _create_layer(a, b, suffix, sparse=None):
@@ -567,8 +567,8 @@ class Classifier(Network):
     def monitors(self):
         yield 'acc', self.accuracy
         for i, h in enumerate(self.hiddens):
-            yield 'h{}<0.1'.format(i+1), (abs(h) < 0.1).mean()
-            yield 'h{}<0.9'.format(i+1), (abs(h) < 0.9).mean()
+            yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
+            yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
 
     def classify(self, x):
         return self.predict(x).argmax(axis=1)

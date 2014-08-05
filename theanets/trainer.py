@@ -21,7 +21,6 @@
 '''This file contains optimization methods for neural networks.'''
 
 import climate
-import collections
 import itertools
 import numpy as np
 import numpy.random as rng
@@ -30,8 +29,6 @@ import theano
 import theano.tensor as TT
 import sys
 
-from . import dataset
-from . import feedforward
 from . import recurrent
 
 logging = climate.get_logger(__name__)
@@ -80,7 +77,6 @@ class Trainer(object):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.iterations = kwargs.get('num_updates', 1000)
         self.patience = kwargs.get('patience', 100)
-        self.mapper = kwargs.get('mapper', default_mapper)
 
         self.shapes = [p.get_value(borrow=True).shape for p in self.params]
         self.counts = [np.prod(s) for s in self.shapes]
@@ -107,8 +103,7 @@ class Trainer(object):
             param.set_value(target)
 
     def evaluate(self, iteration, valid_set):
-        def ff(x): return self.f_eval(*x)
-        costs = np.mean(self.mapper(ff, valid_set), axis=0)
+        costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
         improvement = self.best_cost - costs[0] > self.best_cost * self.min_improvement
         marker = ''
         if improvement:
@@ -157,7 +152,7 @@ class SGD(Trainer):
 
             try:
                 # compute gradients.
-                grads = self.mapper(step, train_set, velocities, self.momentum)
+                grads = [step(*x, velocities=velocities, momentum=momentum) for x in train_set]
                 grads = np.mean(grads, axis=0)
 
                 for param, grad, velocity in zip(self.params, grads, velocities):
@@ -176,8 +171,7 @@ class SGD(Trainer):
             # compute costs over training set. this is perhaps a bit expensive,
             # since we've already gone and computed gradients over the entire
             # training set ... but having the cost info is quite useful.
-            def ff(x): return self.f_eval(*x)
-            costs = np.mean(self.mapper(ff, train_set), axis=0)
+            costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             costs = list(zip(self.cost_names, costs))
             logging.info('SGD %i/%i @%.2e,%.3f %s', i + 1, self.iterations,
                          self.learning_rate, self.momentum,

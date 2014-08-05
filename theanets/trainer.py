@@ -164,7 +164,7 @@ class SGD(Trainer):
                     pass
 
             try:
-                costs = np.mean([self.f_learn(*x) for x in train_set], axis=0)
+                costs = np.mean([self.train_minibatch(*x) for x in train_set], axis=0)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -176,6 +176,9 @@ class SGD(Trainer):
             yield
 
         self.set_params(self.best_params)
+
+    def train_minibatch(self, *x):
+        return self.f_learn(*x)
 
 
 class NAG(SGD):
@@ -209,30 +212,50 @@ class NAG(SGD):
     initialization and momentum in deep learning.")
     '''
 
-    def learning_updates(self):
+    def __init__(self, network, **kwargs):
+        # due to the way that theano handles updates, we cannot update a
+        # parameter twice during the same function call. so, instead of handling
+        # everything in the updates for self.f_learn(...), we split the
+        # parameter updates into two function calls. the first "prepares" the
+        # parameters for the gradient computation by moving the entire model one
+        # step according to the current velocity. then the second computes the
+        # gradient at that new model position and performs the usual velocity
+        # and parameter updates.
+
         # set up space for temporary variables used during learning.
-        steps = []
-        velocities = []
+        self._steps = []
+        self._velocities = []
         for param in self.params:
             v = param.get_value()
             n = param.name
-            steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
-            velocities.append(theano.shared(np.zeros_like(v), name=n + '_vel'))
+            self._steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
+            self._velocities.append(theano.shared(np.zeros_like(v), name=n + '_vel'))
 
-        # move to the position in parameter space where we want to compute our
-        # gradient.
-        for param, step, velocity in zip(self.params, steps, velocities):
-            yield step, self.momentum * velocity
-            yield param, param + step
+        # step 1. move to the position in parameter space where we want to
+        # compute our gradient.
+        prepare = []
+        for param, step, velocity in zip(self.params, self._steps, self._velocities):
+            prepare.append((step, self.momentum * velocity))
+            prepare.append((param, param + step))
 
-        # then, record the gradient here.
-        for param, step, velocity in zip(self.params, steps, velocities):
+        logging.info('compiling NAG adjustment function')
+        self.f_prepare = theano.function([], [], updates=prepare)
+
+        super(NAG, self).__init__(network, **kwargs)
+
+    def learning_updates(self):
+        # step 2. record the gradient here.
+        for param, step, velocity in zip(self.params, self._steps, self._velocities):
             yield velocity, step - self.learning_rate * TT.grad(self.J, param)
 
-        # finally, update the parameter, removing the step that we took to
-        # compute the gradient.
-        for param, step, velocity in zip(self.params, steps, velocities):
+        # step 3. update each of the parameters, removing the step that we took
+        # to compute the gradient.
+        for param, step, velocity in zip(self.params, self._steps, self._velocities):
             yield param, param + velocity - step
+
+    def train_minibatch(self, *x):
+        self.f_prepare()
+        return self.f_learn(*x)
 
 
 class RPROP(SGD):

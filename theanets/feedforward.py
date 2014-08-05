@@ -559,12 +559,13 @@ class Classifier(Network):
         return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
 
     @property
-    def incorrect(self):
-        return TT.mean(TT.neq(TT.argmax(self.y, axis=1), self.k))
+    def accuracy(self):
+        '''Compute the percent correct classifications.'''
+        return 100 * TT.mean(TT.eq(TT.argmax(self.y, axis=1), self.k))
 
     @property
     def monitors(self):
-        yield 'incorrect', self.incorrect
+        yield 'acc', self.accuracy
         for i, h in enumerate(self.hiddens):
             yield 'h{}<0.1'.format(i+1), (abs(h) < 0.1).mean()
             yield 'h{}<0.9'.format(i+1), (abs(h) < 0.9).mean()

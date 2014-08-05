@@ -222,6 +222,8 @@ class NAG(SGD):
         # gradient at that new model position and performs the usual velocity
         # and parameter updates.
 
+        self.params = network.params(**kwargs)
+
         # set up space for temporary variables used during learning.
         self._steps = []
         self._velocities = []

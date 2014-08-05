@@ -223,6 +223,7 @@ class NAG(SGD):
         # and parameter updates.
 
         self.params = network.params(**kwargs)
+        self.momentum = kwargs.get('momentum', 0.5)
 
         # set up space for temporary variables used during learning.
         self._steps = []

@@ -102,7 +102,7 @@ class Trainer(object):
             x[o:o+n] = arr.ravel()
         return x
 
-    def update_params(self, targets):
+    def set_params(self, targets):
         for param, target in zip(self.params, targets):
             param.set_value(target)
 
@@ -199,7 +199,7 @@ class SGD(Trainer):
 
             yield
 
-        self.update_params(self.best_params)
+        self.set_params(self.best_params)
 
     def _nag_step(self, x, velocities, momentum):
         '''Take one step of Nesterov's Accelerated Gradient (NAG).
@@ -293,14 +293,12 @@ class Scipy(Trainer):
         self.method = method
 
     def function_at(self, x, train_set):
-        for p, a in zip(self.params, self.flat_to_arrays(x)):
-            p.set_value(a)
+        self.set_params(self.flat_to_arrays(x))
         costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
         return costs[0]
 
     def gradient_at(self, x, train_set):
-        for p, a in zip(self.params, self.flat_to_arrays(x)):
-            p.set_value(a)
+        self.set_params(self.flat_to_arrays(x))
         grads = [[] for _ in range(len(self.params))]
         for x in train_set:
             for i, g in enumerate(self.f_grad(*x)):
@@ -309,8 +307,7 @@ class Scipy(Trainer):
 
     def train(self, train_set, valid_set=None, **kwargs):
         def display(x):
-            for p, a in zip(self.params, self.flat_to_arrays(x)):
-                p.set_value(a)
+            self.set_params(self.flat_to_arrays(x))
             costs = [self.f_eval(*x) for x in train_set]
             cost_desc = ' '.join(
                 '%s=%.2f' % el for el in
@@ -344,12 +341,11 @@ class Scipy(Trainer):
                 logging.info('interrupted!')
                 break
 
-            for p, a in zip(self.params, self.flat_to_arrays(res.x)):
-                p.set_value(a)
+            self.set_params(self.flat_to_arrays(res.x))
 
             yield
 
-        self.update_params(self.best_params)
+        self.set_params(self.best_params)
 
 
 class LM(Trainer):
@@ -413,7 +409,7 @@ class HF(Trainer):
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
-        self.update_params(self.opt.train(
+        self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
         yield
 

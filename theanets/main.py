@@ -197,10 +197,10 @@ class Experiment(object):
         if valid is not None and 'valid' not in self.datasets:
             self.add_dataset('valid', valid)
         for trainer in self.trainers:
-            for _ in trainer.train(train_set=self.datasets['train'],
-                                   valid_set=self.datasets['valid'],
-                                   cg_set=self.datasets['cg']):
-                yield
+            for costs in trainer.train(train_set=self.datasets['train'],
+                                       valid_set=self.datasets['valid'],
+                                       cg_set=self.datasets['cg']):
+                yield costs
 
     def save(self, path):
         '''Save the parameters in the network to a pickle file on disk.

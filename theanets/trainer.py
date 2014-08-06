@@ -102,17 +102,18 @@ class Trainer(object):
             param.set_value(target)
 
     def evaluate(self, iteration, valid_set):
-        costs = np.mean([self.f_eval(*x) for x in valid_set], axis=0)
-        improvement = self.best_cost - costs[0] > self.best_cost * self.min_improvement
+        costs = dict(zip(
+            self.cost_names,
+            np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
-        if improvement:
-            self.best_cost = costs[0]
+        # this is the same as: (J_i - J_f) / J_i > min improvement
+        if self.best_cost - costs['J'] > self.best_cost * self.min_improvement:
+            self.best_cost = costs['J']
             self.best_iter = iteration
             self.best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
-        cost_desc = ' '.join(
-            '%s=%.2f' % el for el in zip(self.cost_names, costs))
-        logging.info('validation %i %s%s', iteration + 1, cost_desc, marker)
+        info = ' '.join('%s=%.2f' % el for el in costs.items())
+        logging.info('validation %i %s%s', iteration + 1, info, marker)
         if iteration - self.best_iter > self.patience:
             raise PatienceElapsedError
         if not improvement:
@@ -164,16 +165,17 @@ class SGD(Trainer):
                     pass
 
             try:
-                costs = np.mean([self.train_minibatch(*x) for x in train_set], axis=0)
+                costs = dict(zip(
+                    self.cost_names,
+                    np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            label = self.__class__.__name__.upper()
-            info = ' '.join('%s=%.2f' % el for el in zip(self.cost_names, costs))
-            logging.info('%s %i/%i %s', label, i + 1, self.iterations, info)
+            info = ' '.join('%s=%.2f' % el for el in costs.items())
+            logging.info('%s %i %s', self.__class__.__name__, i + 1, info)
 
-            yield
+            yield costs
 
         self.set_params(self.best_params)
 
@@ -301,8 +303,7 @@ class Scipy(Trainer):
 
     def function_at(self, x, train_set):
         self.set_params(self.flat_to_arrays(x))
-        costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
-        return costs[0]
+        return np.mean([self.f_eval(*x)[0] for x in train_set])
 
     def gradient_at(self, x, train_set):
         self.set_params(self.flat_to_arrays(x))
@@ -349,7 +350,7 @@ class Scipy(Trainer):
 
             self.set_params(self.flat_to_arrays(res.x))
 
-            yield
+            yield {'J': res.fun}
 
         self.set_params(self.best_params)
 
@@ -417,7 +418,7 @@ class HF(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
-        yield
+        yield {'J': -1}
 
 
 class Sample(Trainer):
@@ -470,7 +471,7 @@ class Sample(Trainer):
             w.set_value(arr)
             samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
-        yield
+        yield {'J': -1}
 
 
 class Layerwise(Trainer):
@@ -514,8 +515,8 @@ class Layerwise(Trainer):
             self.network.weights = weights[:i] + [W]
             self.network.biases = biases[:i] + [b]
             trainer = self.factory(self.network, *self.args, **self.kwargs)
-            for _ in trainer.train(train_set, valid_set):
-                yield
+            for costs in trainer.train(train_set, valid_set):
+                yield costs
 
         # restore the original network configuration and make a final pass to
         # train the last layer.
@@ -524,8 +525,8 @@ class Layerwise(Trainer):
         self.network.weights = weights
         self.network.biases = biases
         trainer = self.factory(self.network, *self.args, **self.kwargs)
-        for _ in trainer.train(train_set, valid_set):
-            yield
+        for costs in trainer.train(train_set, valid_set):
+            yield costs
 
 
 class FORCE(Trainer):

@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 
+import climate
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
 
 from utils import load_mnist, plot_layers, plot_images
+
+logging = climate.get_logger('mnist-rica')
+
+climate.enable_default_logging()
 
 
 class RICA(theanets.Autoencoder):
@@ -22,6 +27,7 @@ train, valid, _ = load_mnist()
 train -= 0.5
 valid -= 0.5
 
+logging.info('computing whitening transform')
 vals, vecs = np.linalg.eigh(np.dot(train.T, train) / len(train))
 vals = vals[::-1]
 vecs = vecs[:, ::-1]

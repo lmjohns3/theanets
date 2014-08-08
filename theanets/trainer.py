@@ -489,6 +489,11 @@ class Layerwise(Trainer):
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
+        if self.network.tied_weights:
+            for costs in self.train_tied(train_set, valid_set=valid_set, **kwargs):
+                yield costs
+            return
+
         y = self.network.y
         hiddens = list(self.network.hiddens)
         weights = list(self.network.weights)
@@ -515,6 +520,27 @@ class Layerwise(Trainer):
         trainer = self.factory(self.network, *self.args, **self.kwargs)
         for costs in trainer.train(train_set, valid_set):
             yield costs
+
+    def train_tied(self, train_set, valid_set=None, **kwargs):
+        net = self.network
+
+        y = net.y
+        hiddens = list(net.hiddens)
+        weights = list(net.weights)
+
+        for i in range(1, len(weights) + 1):
+            net.weights = [weights[i-1]]
+            net.hiddens = hiddens[:i]
+            for j in range(i - 1, -1, -1):
+                net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
+            net.y = net.hiddens.pop()
+            trainer = self.factory(net, *self.args, **self.kwargs)
+            for costs in trainer.train(train_set, valid_set):
+                yield costs
+
+        net.y = y
+        net.hiddens = hiddens
+        net.weights = weights
 
 
 class FORCE(Trainer):

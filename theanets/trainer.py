@@ -101,17 +101,17 @@ class Trainer(object):
             param.set_value(target)
 
     def evaluate(self, iteration, valid_set):
-        costs = dict(zip(
+        costs = list(zip(
             self.cost_names,
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
         # this is the same as: (J_i - J_f) / J_i > min improvement
-        if self.best_cost - costs['J'] > self.best_cost * self.min_improvement:
-            self.best_cost = costs['J']
+        if self.best_cost - costs[0] > self.best_cost * self.min_improvement:
+            self.best_cost = costs[0]
             self.best_iter = iteration
             self.best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
-        info = ' '.join('%s=%.2f' % el for el in costs.items())
+        info = ' '.join('%s=%.2f' % el for el in costs)
         logging.info('validation %i %s%s', iteration + 1, info, marker)
         if iteration - self.best_iter > self.patience:
             raise PatienceElapsedError
@@ -157,17 +157,17 @@ class SGD(Trainer):
                     break
 
             try:
-                costs = dict(zip(
+                costs = list(zip(
                     self.cost_names,
                     np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            info = ' '.join('%s=%.2f' % el for el in costs.items())
+            info = ' '.join('%s=%.2f' % el for el in costs)
             logging.info('%s %i %s', self.__class__.__name__, i + 1, info)
 
-            yield costs
+            yield dict(costs)
 
         self.set_params(self.best_params)
 

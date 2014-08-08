@@ -141,13 +141,10 @@ class SGD(Trainer):
     def learning_updates(self):
         for param in self.params:
             delta = self.learning_rate * TT.grad(self.J, param)
-            if self.momentum > 0:
-                velocity = theano.shared(
-                    np.zeros_like(param.get_value()), name=param.name + '_vel')
-                yield velocity, self.momentum * velocity - delta
-                yield param, param + velocity
-            else:
-                yield param, param - delta
+            velocity = theano.shared(
+                np.zeros_like(param.get_value()), name=param.name + '_vel')
+            yield velocity, self.momentum * velocity - delta
+            yield param, param + velocity
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
@@ -279,13 +276,10 @@ class RPROP(SGD):
         for param in self.params:
             grad = TT.grad(self.J, param)
             delta = self.learning_rate * ((grad >= 0) - (grad < 0))
-            if self.momentum > 0:
-                velocity = theano.shared(
-                    np.zeros_like(param.get_value()), name=param.name + '_vel')
-                yield velocity, self.momentum * velocity - delta
-                yield param, param + velocity
-            else:
-                yield param, param - delta
+            velocity = theano.shared(
+                np.zeros_like(param.get_value()), name=param.name + '_vel')
+            yield velocity, self.momentum * velocity - delta
+            yield param, param + velocity
 
 
 class Scipy(Trainer):

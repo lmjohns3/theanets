@@ -35,7 +35,6 @@ logging = climate.get_logger(__name__)
 
 class Error(Exception): pass  # base class for exceptions in this module.
 class PatienceElapsedError(Error): pass
-class NoImprovementError(Error): pass
 
 
 def default_mapper(f, dataset, *args, **kwargs):
@@ -116,8 +115,6 @@ class Trainer(object):
         logging.info('validation %i %s%s', iteration + 1, info, marker)
         if iteration - self.best_iter > self.patience:
             raise PatienceElapsedError
-        if not improvement:
-            raise NoImprovementError
 
     def train(self, train_set, valid_set=None, **kwargs):
         raise NotImplementedError
@@ -158,8 +155,6 @@ class SGD(Trainer):
                 except PatienceElapsedError:
                     logging.info('patience elapsed, bailing out')
                     break
-                except NoImprovementError:
-                    pass
 
             try:
                 costs = dict(zip(
@@ -325,8 +320,6 @@ class Scipy(Trainer):
             except PatienceElapsedError:
                 logging.info('patience elapsed, bailing out')
                 break
-            except NoImprovementError:
-                pass
 
             try:
                 res = scipy.optimize.minimize(

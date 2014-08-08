@@ -106,8 +106,9 @@ class Trainer(object):
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
         # this is the same as: (J_i - J_f) / J_i > min improvement
-        if self.best_cost - costs[0] > self.best_cost * self.min_improvement:
-            self.best_cost = costs[0]
+        _, J = costs[0]
+        if self.best_cost - J > self.best_cost * self.min_improvement:
+            self.best_cost = J
             self.best_iter = iteration
             self.best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'

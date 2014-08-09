@@ -33,9 +33,6 @@ from . import recurrent
 
 logging = climate.get_logger(__name__)
 
-class Error(Exception): pass  # base class for exceptions in this module.
-class PatienceElapsedError(Error): pass
-
 
 def default_mapper(f, dataset, *args, **kwargs):
     '''Apply a function to each element of a dataset.'''
@@ -101,6 +98,19 @@ class Trainer(object):
             param.set_value(target)
 
     def evaluate(self, iteration, valid_set):
+        '''Evaluate the current model using a validation set.
+
+        Parameters
+        ----------
+        valid_set : theanets.Dataset
+            A set of data to use for evaluating the model. Typically this is
+            distinct from the training (and testing) data.
+
+        Returns
+        -------
+        True iff there was sufficient improvement compared with the last call to
+        evaluate.
+        '''
         costs = list(zip(
             self.cost_names,
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
@@ -114,8 +124,7 @@ class Trainer(object):
             marker = ' *'
         info = ' '.join('%s=%.2f' % el for el in costs)
         logging.info('validation %i %s%s', iteration + 1, info, marker)
-        if iteration - self.best_iter > self.patience:
-            raise PatienceElapsedError
+        return iteration - self.best_iter < self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):
         raise NotImplementedError
@@ -149,12 +158,11 @@ class SGD(Trainer):
         for i in range(self.iterations):
             if not i % self.validation_frequency:
                 try:
-                    self.evaluate(i, valid_set)
+                    if not self.evaluate(i, valid_set):
+                        logging.info('patience elapsed, bailing out')
+                        break
                 except KeyboardInterrupt:
                     logging.info('interrupted!')
-                    break
-                except PatienceElapsedError:
-                    logging.info('patience elapsed, bailing out')
                     break
 
             try:
@@ -314,12 +322,11 @@ class Scipy(Trainer):
 
         for i in range(self.iterations):
             try:
-                self.evaluate(i, valid_set)
+                if not self.evaluate(i, valid_set):
+                    logging.info('patience elapsed, bailing out')
+                    break
             except KeyboardInterrupt:
                 logging.info('interrupted!')
-                break
-            except PatienceElapsedError:
-                logging.info('patience elapsed, bailing out')
                 break
 
             try:

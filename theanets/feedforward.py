@@ -28,12 +28,44 @@ import gzip
 import numpy as np
 import theano
 import theano.tensor as TT
+import warnings
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
+
+def load(klass, filename, **kwargs):
+    '''Load an entire network from a pickle file on disk.
+
+    Parameters
+    ----------
+    klass : callable
+        The constructor for a Network subclass (e.g., Autoencoder, Regressor,
+        etc.). This constructor will be invoked using topology information
+        loaded from the given pickle file. The newly created network will then
+        load parameters (weights and biases) from the pickle file.
+
+    filename : str
+        Load the topology and parameters of a network from a pickle file at the
+        named path. If this name ends in ".gz" then the input will automatically
+        be gunzipped; otherwise the input will be treated as a "raw" pickle.
+
+    Returns
+    -------
+    Network :
+        A newly-constructed network, with topology and parameters loaded from
+        the given pickle file.
+    '''
+    opener = gzip.open if filename.lower().endswith('.gz') else open
+    handle = opener(filename, 'rb')
+    params = pickle.load(handle)
+    kwargs['tied_weights'] = params['tied_weights']
+    kwargs['decode'] = params['decode_from']
+    net = klass(params['layers'], params['activation'], **kwargs)
+    net.load_params(filename)
+    return net
 
 
 class Network(object):
@@ -91,17 +123,37 @@ class Network(object):
 
     hiddens : list of Theano variables
         Computed Theano variables for the state of hidden units in the network.
+
+    layers : tuple of int
+        A list of the numbers of units in each of the layers of the network. The
+        zero element of this tuple is the size of the input, the final element
+        is the size of the output, and the intervening numbers are the sizes of
+        the hidden layers.
+
+    activation : str
+        A string describing the hidden unit activation function.
+
+    tied_weights : bool
+        True iff this is an autoencoder model with tied decoding weights.
+
+    decode_from : int
+        An integer describing the number of hidden layers from which to "decode"
+        the value of the output layer. By default this is 1, which corresponds
+        to a traditional feedforward neural network, in which the "topmost"
+        hidden layer is the only layer that feeds into the output.
     '''
 
     def __init__(self, layers, activation, **kwargs):
         self.layers = tuple(layers)
         self.activation = activation
+        self.tied_weights = bool(kwargs.get('tied_weights'))
+        self.decode_from = int(kwargs.get('decode', 1))
+
         self.hiddens = []
         self.weights = []
         self.biases = []
 
         self.rng = kwargs.get('rng') or RandomStreams()
-        self.tied_weights = bool(kwargs.get('tied_weights'))
 
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
@@ -135,7 +187,7 @@ class Network(object):
         else:
             n = layers[-1]
             decoders = []
-            for i in range(w - 1, w - 1 - kwargs.get('decode', 1), -1):
+            for i in range(w - 1, w - 1 - self.decode_from, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
                 Di, _, count = self._create_layer(b, n, 'out_%d' % i)
                 parameter_count += count - n
@@ -382,7 +434,7 @@ class Network(object):
     __call__ = predict
 
     def save(self, filename):
-        '''Save the parameters of this network to disk.
+        '''Save the state of this network to a pickle file on disk.
 
         Parameters
         ----------
@@ -393,14 +445,18 @@ class Network(object):
         '''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
-        pickle.dump(
-            dict(weights=[p.get_value().copy() for p in self.weights],
-                 biases=[p.get_value().copy() for p in self.biases],
-                 ), handle, -1)
+        pickle.dump(dict(
+            weights=[p.get_value().copy() for p in self.weights],
+            biases=[p.get_value().copy() for p in self.biases],
+            layers=self.layers,
+            activation=self.activation,
+            tied_weights=self.tied_weights,
+            decode_from=self.decode_from,
+        ), handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
 
-    def load(self, filename):
+    def load_params(self, filename):
         '''Load the parameters for this network from disk.
 
         Parameters
@@ -413,12 +469,21 @@ class Network(object):
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
         params = pickle.load(handle)
+        assert self.layers == params['layers']
+        assert self.tied_weights == params['tied_weights']
+        assert self.decode_from = params['decode_from']
         for target, source in zip(self.weights, params['weights']):
             target.set_value(source)
         for target, source in zip(self.biases, params['biases']):
             target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)
+
+    def load(self, filename):
+        warnings.warn(
+            'please use Network.load_params instead of Network.load',
+            DeprecationWarning)
+        return self.load_params(filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
         '''Return a variable representing the cost or loss for this network.

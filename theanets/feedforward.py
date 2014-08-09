@@ -471,7 +471,7 @@ class Network(object):
         params = pickle.load(handle)
         assert self.layers == params['layers']
         assert self.tied_weights == params['tied_weights']
-        assert self.decode_from = params['decode_from']
+        assert self.decode_from == params['decode_from']
         for target, source in zip(self.weights, params['weights']):
             target.set_value(source)
         for target, source in zip(self.biases, params['biases']):

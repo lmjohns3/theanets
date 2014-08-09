@@ -45,11 +45,13 @@ class TestClassifier(MNIST):
 
     def test_classify_onelayer(self):
         net = self._build(13)
-        net.classify(self.images)
+        z = net.classify(self.images)
+        assert z.shape == (self.NUM_DIGITS, )
 
     def test_classify_twolayer(self):
         net = self._build(13, 14)
-        net.classify(self.images)
+        z = net.classify(self.images)
+        assert z.shape == (self.NUM_DIGITS, )
 
 
 class TestAutoencoder(MNIST):

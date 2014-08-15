@@ -316,7 +316,7 @@ class Network(object):
         rho : float, in [0, 1]
             Fraction of elements of x to set randomly to 0. If this is 0, then
             no elements of x are set randomly to 0. (This is also called
-            "salt-and-pepper noise" or "dropouts" in the research community.)
+            "masking noise" (for inputs) or "dropouts" (for hidden units).)
 
         Returns
         -------

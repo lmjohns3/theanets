@@ -70,7 +70,6 @@ class Trainer(object):
 
         self.validation_frequency = kwargs.get('validate', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
-        self.iterations = kwargs.get('num_updates', 1000)
         self.patience = kwargs.get('patience', 100)
 
         self.shapes = [p.get_value(borrow=True).shape for p in self.params]
@@ -155,10 +154,11 @@ class SGD(Trainer):
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
-        for i in range(self.iterations):
-            if not i % self.validation_frequency:
+        iteration = 0
+        while True:
+            if not iteration % self.validation_frequency:
                 try:
-                    if not self.evaluate(i, valid_set):
+                    if not self.evaluate(iteration, valid_set):
                         logging.info('patience elapsed, bailing out')
                         break
                 except KeyboardInterrupt:
@@ -174,7 +174,8 @@ class SGD(Trainer):
                 break
 
             info = ' '.join('%s=%.2f' % el for el in costs)
-            logging.info('%s %i %s', self.__class__.__name__, i + 1, info)
+            logging.info('%s %i %s', self.__class__.__name__, iteration + 1, info)
+            iteration += 1
 
             yield dict(costs)
 

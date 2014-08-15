@@ -76,7 +76,7 @@ g.add_argument('-l', '--learning-rate', type=float, default=0.01, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-m', '--momentum', type=float, default=0.5, metavar='V',
                help='train the network with momentum of V')
-g.add_argument('--min-improvement', type=float, default=0.001, metavar='R',
+g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
 
 g = climate.add_arg_group('HF Optimization')

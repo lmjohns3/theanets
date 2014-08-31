@@ -34,7 +34,7 @@ g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
 g = climate.add_arg_group('Training')
-g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='[hf|cg|sgd|sample|...]',
+g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='[sgd|nag|rprop|hf|cg|sample|...]',
                help='train with the given optimization method(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
@@ -78,6 +78,18 @@ g.add_argument('-m', '--momentum', type=float, default=0.5, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
+
+g = climate.add_arg_group('Rprop Optimization')
+g.add_argument('--rprop-increase', type=float, default=1.2, metavar='R',
+               help='increase parameter steps at rate R')
+g.add_argument('--rprop-decrease', type=float, default=0.5, metavar='R',
+               help='decrease parameter steps at rate R')
+g.add_argument('--rprop-min-step', type=float, default=0., metavar='V',
+               help='cap parameter steps to V at the smallest')
+g.add_argument('--rprop-max-step', type=float, default=100., metavar='V',
+               help='cap parameter steps to V at the largest')
+g.add_argument('--rprop-initial-step', type=float, default=0.001, metavar='V',
+               help='set initial parameter steps to V')
 
 g = climate.add_arg_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',

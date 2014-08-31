@@ -265,26 +265,73 @@ class NAG(SGD):
         return self.f_learn(*x)
 
 
-class RPROP(SGD):
-    '''Trainer for neural nets using resilient backpropagation (RPROP).
+class Rprop(SGD):
+    '''Trainer for neural nets using resilient backpropagation.
 
-    The RPROP method uses the same general strategy as SGD, except that only the
-    signs of the partial derivatives are taken into account. That is, the step
-    size for each parameter is the same regardless of the magnitude of the
-    gradient for that parameter.
+    The Rprop method uses the same general strategy as SGD (both methods are
+    make small parameter adjustments using local derivative information). The
+    difference is that in Rprop, only the signs of the partial derivatives are
+    taken into account when making parameter updates. That is, the step size for
+    each parameter is independent of the magnitude of the gradient for that
+    parameter.
 
-    The implementation here limits the step size to magnitude 1. (TODO:
-    implement variant of RPROP with eta+ and eta- step size adjustments.)
+    More accurately, Rprop maintains a separate learning rate for every
+    parameter in the model, and adjusts this learning rate based on the
+    consistency of the sign of the gradient of J with respect to that parameter
+    over time. Whenever two consecutive gradients for a parameter have the same
+    sign, the learning rate for that parameter increases, and whenever the signs
+    disagree, the learning rate decreases. This has a similar effect to
+    momentum-based SGD methods but effectively maintains parameter-specific
+    momentum values.
+
+    The implementation here actually uses the "iRprop-" variant or Rprop
+    described Algorithm 4 of in Igel and Huesken (2000), "Improving the Rprop
+    Learning Algorithm." This variant resets the running gradient estimates to
+    zero in cases where the previous and current gradients have switched signs.
     '''
 
-    def learning_updates(self):
+    def __init__(self, network, **kwargs):
+        # due to the way that theano handles updates, we cannot update a
+        # parameter twice during the same function call. so, instead of handling
+        # everything in the updates for self.f_learn(...), we split the
+        # parameter updates into two function calls. the first "prepares" the
+        # parameters for the gradient computation by moving the entire model one
+        # step according to the current velocity. then the second computes the
+        # gradient at that new model position and performs the usual velocity
+        # and parameter updates.
+
+        self.params = network.params(**kwargs)
+
+        self.step_increase = kwargs.get('rprop_increase', 1.2)
+        self.step_decrease = kwargs.get('rprop_decrease', 0.5)
+
+        self.min_step = kwargs.get('rprop_min_step', 0.)
+        self.max_step = kwargs.get('rprop_max_step', 100.)
+        step = kwargs.get('rprop_initial_step', 0.001)
+
+        # set up space for temporary variables used during learning.
+        self.grads = []
+        self.steps = []
         for param in self.params:
+            v = param.get_value()
+            n = param.name
+            self.grads.append(theano.shared(np.zeros_like(v) + step, name=n + '_grad'))
+            self.steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
+
+        super(Rprop, self).__init__(network, **kwargs)
+
+    def learning_updates(self):
+        for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
             grad = TT.grad(self.J, param)
-            delta = self.learning_rate * ((grad >= 0) - (grad < 0))
-            velocity = theano.shared(
-                np.zeros_like(param.get_value()), name=param.name + '_vel')
-            yield velocity, self.momentum * velocity - delta
-            yield param, param + velocity
+            same = grad * grad_tm1 > 0
+            zero = grad * grad_tm1 == 0
+            diff = grad * grad_tm1 < 0
+            growth = same * self.step_increase + zero * 1 + diff * self.step_decrease
+            step = TT.minimum(self.max_step, TT.maximum(self.min_step, step_tm1 * growth))
+            grad = grad - diff * grad
+            yield param, param - TT.sgn(grad) * step
+            yield grad_tm1, grad
+            yield step_tm1, step
 
 
 class Scipy(Trainer):

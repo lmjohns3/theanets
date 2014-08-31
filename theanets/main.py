@@ -127,7 +127,7 @@ class Experiment(object):
                 factory = dict(
                     hf=trainer.HF,
                     nag=trainer.NAG,
-                    rprop=trainer.RPROP,
+                    rprop=trainer.Rprop,
                     sample=trainer.Sample,
                     sgd=trainer.SGD,
                 )[factory.lower()]

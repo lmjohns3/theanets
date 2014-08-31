@@ -291,17 +291,6 @@ class Rprop(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        # due to the way that theano handles updates, we cannot update a
-        # parameter twice during the same function call. so, instead of handling
-        # everything in the updates for self.f_learn(...), we split the
-        # parameter updates into two function calls. the first "prepares" the
-        # parameters for the gradient computation by moving the entire model one
-        # step according to the current velocity. then the second computes the
-        # gradient at that new model position and performs the usual velocity
-        # and parameter updates.
-
-        self.params = network.params(**kwargs)
-
         self.step_increase = kwargs.get('rprop_increase', 1.2)
         self.step_decrease = kwargs.get('rprop_decrease', 0.5)
 
@@ -310,6 +299,7 @@ class Rprop(SGD):
         step = kwargs.get('rprop_initial_step', 0.001)
 
         # set up space for temporary variables used during learning.
+        self.params = network.params(**kwargs)
         self.grads = []
         self.steps = []
         for param in self.params:

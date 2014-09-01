@@ -305,8 +305,8 @@ class Rprop(SGD):
         for param in self.params:
             v = param.get_value()
             n = param.name
-            self.grads.append(theano.shared(np.zeros_like(v) + step, name=n + '_grad'))
-            self.steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
+            self.grads.append(theano.shared(np.zeros_like(v), name=n + '_grad'))
+            self.steps.append(theano.shared(np.zeros_like(v) + step, name=n + '_step'))
 
         super(Rprop, self).__init__(network, **kwargs)
 
@@ -314,10 +314,11 @@ class Rprop(SGD):
         for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
             grad = TT.grad(self.J, param)
             same = grad * grad_tm1 > 0
-            zero = grad * grad_tm1 == 0
             diff = grad * grad_tm1 < 0
-            growth = same * self.step_increase + zero * 1 + diff * self.step_decrease
-            step = TT.minimum(self.max_step, TT.maximum(self.min_step, step_tm1 * growth))
+            step = TT.minimum(self.max_step, TT.maximum(self.min_step, step_tm1 * (
+                (1 - same) * (1 - diff) +
+                same * self.step_increase +
+                diff * self.step_decrease)))
             grad = grad - diff * grad
             yield param, param - TT.sgn(grad) * step
             yield grad_tm1, grad

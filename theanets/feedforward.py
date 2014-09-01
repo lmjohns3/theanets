@@ -22,10 +22,10 @@
 '''
 
 import climate
-import pickle
 import functools
 import gzip
 import numpy as np
+import pickle
 import theano
 import theano.tensor as TT
 import warnings
@@ -177,7 +177,7 @@ class Network(object):
             assert np.allclose(encode - decode[::-1], 0), error
             sizes = layers[:k+1]
 
-        _, parameter_count = self._create_forward_map(sizes, activation, **kwargs)
+        _, parameter_count = self.create_forward_map(sizes, activation, **kwargs)
 
         output_activation = self._build_activation(self.output_activation)
         if hasattr(output_activation, '__theanets_name__'):
@@ -197,7 +197,7 @@ class Network(object):
             decoders = []
             for i in range(w - 1, w - 1 - self.decode_from, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
-                Di, _, count = self._create_layer(b, n, 'out_%d' % i)
+                Di, _, count = self.create_layer(b, n, 'out_%d' % i)
                 parameter_count += count - n
                 decoders.append(TT.dot(self.hiddens[i], Di))
                 self.weights.append(Di)
@@ -226,7 +226,7 @@ class Network(object):
             yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
 
     @staticmethod
-    def _create_layer(a, b, suffix, sparse=None):
+    def create_layer(a, b, suffix, sparse=None):
         '''Create a layer of weights and bias values.
 
         Parameters
@@ -239,7 +239,7 @@ class Network(object):
             of "output" units that the weight matrix connects.
         suffix : str
             A string suffix to use in the Theano name for the created variables.
-            This string will be appended to "W_" (for the weights) and "b_" (for
+            This string will be appended to 'W_' (for the weights) and 'b_' (for
             the biases) parameters that are created and returned.
         sparse : float in (0, 1)
             If given, ensure that the weight matrix for the layer has only this
@@ -265,7 +265,7 @@ class Network(object):
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 
-    def _create_forward_map(self, sizes, activation, **kwargs):
+    def create_forward_map(self, sizes, activation, **kwargs):
         '''Set up a computation graph to map the input to layer activations.
 
         Parameters
@@ -300,14 +300,14 @@ class Network(object):
             kwargs.get('input_noise', 0.),
             kwargs.get('input_dropouts', 0.))
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            Wi, bi, count = self._create_layer(a, b, i)
+            W, b, count = self.create_layer(a, b, i)
             parameter_count += count
             self.hiddens.append(self._add_noise(
-                activation(TT.dot(z, Wi) + bi),
+                activation(TT.dot(z, W) + b),
                 kwargs.get('hidden_noise', 0.),
                 kwargs.get('hidden_dropouts', 0.)))
-            self.weights.append(Wi)
-            self.biases.append(bi)
+            self.weights.append(W)
+            self.biases.append(b)
             z = self.hiddens[-1]
         return z, parameter_count
 

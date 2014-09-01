@@ -28,6 +28,8 @@ g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
 g.add_argument('-g', '--activation', default='logistic', metavar='[linear|logistic|tanh|relu|...]',
                help='function for hidden unit activations')
+g.add_argument('--output-activation', default='linear', metavar='[linear|logistic|tanh|relu|...]',
+               help='function for output unit activations')
 g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
 g.add_argument('--decode', type=int, default=1, metavar='N',

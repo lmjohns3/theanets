@@ -133,6 +133,9 @@ class Network(object):
     activation : str
         A string describing the hidden unit activation function.
 
+    output_activation : str
+        A string describing the output unit activation function.
+
     tied_weights : bool
         True iff this is an autoencoder model with tied decoding weights.
 
@@ -146,6 +149,7 @@ class Network(object):
     def __init__(self, layers, activation, **kwargs):
         self.layers = tuple(layers)
         self.activation = activation
+        self.output_activation = kwargs.get('output_activation', 'linear')
         self.tied_weights = bool(kwargs.get('tied_weights'))
         self.decode_from = int(kwargs.get('decode', 1))
 
@@ -158,7 +162,7 @@ class Network(object):
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
 
-        activation = self._build_activation(activation)
+        activation = self._build_activation(self.activation)
         if hasattr(activation, '__theanets_name__'):
             logging.info('hidden activation: %s', activation.__theanets_name__)
 
@@ -175,6 +179,10 @@ class Network(object):
 
         _, parameter_count = self._create_forward_map(sizes, activation, **kwargs)
 
+        output_activation = self._build_activation(self.output_activation)
+        if hasattr(output_activation, '__theanets_name__'):
+            logging.info('output activation: %s', output_activation.__theanets_name__)
+
         # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
         if self.tied_weights:
@@ -183,7 +191,7 @@ class Network(object):
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
                 # --tied-weights implies --no-learn-biases (biases are zero).
-                self.hiddens.append(TT.dot(h, self.weights[i].T))
+                self.hiddens.append(output_activation(TT.dot(h, self.weights[i].T)))
         else:
             n = layers[-1]
             decoders = []
@@ -196,7 +204,7 @@ class Network(object):
             parameter_count += n
             bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
             self.biases.append(bias)
-            self.hiddens.append(sum(decoders) + bias)
+            self.hiddens.append(output_activation(sum(decoders) + bias))
 
         logging.info('%d total network parameters', parameter_count)
 
@@ -450,6 +458,7 @@ class Network(object):
             biases=[p.get_value().copy() for p in self.biases],
             layers=self.layers,
             activation=self.activation,
+            output_activation=self.output_activation,
             tied_weights=self.tied_weights,
             decode_from=self.decode_from,
         ), handle, -1)

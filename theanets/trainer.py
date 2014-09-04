@@ -29,6 +29,7 @@ import theano
 import theano.tensor as TT
 import sys
 
+from . import feedforward
 from . import recurrent
 
 logging = climate.get_logger(__name__)
@@ -550,6 +551,8 @@ class Layerwise(Trainer):
         for i in range(1, len(nhids)):
             W, b, _ = self.network.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
             self.network.y = TT.dot(hiddens[i-1], W) + b
+            if isinstance(self.network, feedforward.Classifier):
+                self.network.y = feedforward.Classifier.softmax(self.network.y)
             self.network.hiddens = hiddens[:i]
             self.network.weights = weights[:i] + [W]
             self.network.biases = biases[:i] + [b]

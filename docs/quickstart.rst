@@ -5,30 +5,31 @@ Quickstart
 This page provides a quick overview of the ``theanets`` package that should get
 you up and running with a few simple examples. Once you understand the basic
 workflow, you will be able to extend the examples to your own datasets and
-modeling problems!
-
-Along the way, there are links to the reference documentation and to the `User's
-Guide <http://theanets.readthedocs.org/en/latest/guide.html>`_, which expands on
-the ideas here to hopefully make them more accessible.
+modeling problems. Along the way, there are links to the reference documentation
+and to the `User's Guide <http://theanets.readthedocs.org/en/latest/guide.html>`_,
+which expands on the ideas presented here.
 
 If you find an error in these documents, or just want to clarify something,
 please file an issue or send a pull request to
-https://github.com/lmjohns3/theano-nets and we'll work on fixing it up!
+https://github.com/lmjohns3/theano-nets.
 
 Getting started
 ===============
 
-You'll probably want first of all to download and install ``theanets``. You can
-do this any number of ways, but probably the easiest is to use ``pip``::
+First of all, you'll probably want to download and install ``theanets``. You can
+do this any number of ways, but the easiest is to use ``pip``::
 
     pip install theanets
+
+This command will automatically install all of the dependencies for
+``theanets``, including ``numpy`` and ``Theano``.
 
 MNIST digits
 ------------
 
 .. image:: http://www.heikohoffmann.de/htmlthesis/img679.gif
 
-The examples on this page will use the `MNIST digits dataset
+The examples on this page will all use the `MNIST digits dataset
 <http://yann.lecun.com/exdb/mnist/>`_. If you want to follow along, you can
 download a ready-to-go Python pickle of the dataset from
 http://deeplearning.net/data/mnist/mnist.pkl.gz.
@@ -36,18 +37,21 @@ http://deeplearning.net/data/mnist/mnist.pkl.gz.
 Creating a model
 ================
 
-The workflow in ``theanets`` involves two basic steps:
+The ``theanets`` package is a tool for (a) defining and (b) optimizing cost
+functions over a set of data. As such, the workflow in ``theanets`` involves two
+basic steps:
 
-#. First, you need to create or define the structure of the model that you'll
-   use for your task. For instance, if you're trying to classify MNIST digits,
-   then you'll want something that takes in pixels and outputs digit classes. If
-   you're trying to model the digit images without labels, you might want to use
-   some sort of autoencoder.
-#. Second, you will probably need to train your model so that the parameters in
-   the model perform well with respect to some benchmark. For classification,
-   you might want to adjust your model parameters to minimize the negative
-   log-likelihood of the correct image class, and for autoencoders you might
-   want to minimize the reconstruction error.
+#. First, you need to define the structure of the model that you'll use for your
+   task. For instance, if you're trying to classify MNIST digits, then you'll
+   want something that takes in pixels and outputs digit classes (a
+   "classifier"). If you're trying to model the digit images without labels, you
+   might want to use a model that takes in pixels and outputs pixels (an
+   "autoencoder").
+#. Second, you will likely need to train or adjust the parameters in your model
+   so that it has a low cost or performs well with respect to some benchmark.
+   For classification, you might want to adjust your model parameters to
+   minimize the negative log-likelihood of the correct image class, and for
+   autoencoders you might want to minimize the reconstruction error.
 
 The ``theanets`` package provides a helper class, :class:`theanets.Experiment`,
 that is designed to perform both of these tasks with relatively low effort on
@@ -61,23 +65,24 @@ To classify a dataset like the MNIST digits, you can use the
 continuous-valued inputs through a series of hidden layers and finally to a
 softmax output layer.
 
-The MNIST digits each contain 784 values (28 times 28 pixels = 784 variables),
-and each digit falls into one of 10 classes. These values determine the number
-of input and output units in our network. The hidden structure---the number and
+The MNIST digits each contain 784 values (28 by 28 pixels = 784 variables), and
+each digit falls into one of 10 classes. These values determine the number of
+input and output units in our network. The hidden structure---the number and
 size of layers between the input and output---can be determined by other
 constraints of the problem.
 
 To create an appropriate classification network, use the ``layers`` keyword
-argument when setting your experiment::
+argument when creating an :class:`theanets.Experiment` in ``theanets``::
 
     experiment = theanets.Experiment(
         theanets.Classifier,
         layers=(784, 100, 10),
     )
 
-In this example, the network will have one hidden layer containing 100 neurons.
-You can give your network three hidden layers by using something like
-``layers=(784, 500, 200, 100, 10)``.
+In this example, the network will have one input layer containing 784 neurons,
+one hidden layer containing 100 neurons, and one output layer containing 10
+neurons. You can give your network three hidden layers simply by adjusting the
+value of the ``layers`` argument, e.g. ``layers=(784, 500, 200, 100, 10)``.
 
 Command-line arguments
 ^^^^^^^^^^^^^^^^^^^^^^

@@ -376,7 +376,8 @@ class Network(object):
             'softplus': TT.nnet.softplus,
 
             # shorthands
-            'relu': lambda z: TT.maximum(0, z),
+            'relu': lambda z: z * (z > 0),
+            'trel': lambda z: z * (z > 0) * (z < 1),
             'trec': lambda z: z * (z > 1),
             'tlin': lambda z: z * (abs(z) > 1),
 

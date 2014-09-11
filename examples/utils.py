@@ -1,39 +1,43 @@
 import climate
 import pickle
 import gzip
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tempfile
-
-KW = {}
-try:
-    import urllib.request
-    KW['encoding'] = 'latin1'
-except: # Python 2.x
-    import urllib
 
 logging = climate.get_logger(__name__)
 
 climate.enable_default_logging()
 
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    logging.critical('please install matplotlib to run the examples!')
+    raise
 
-def load_mnist(
-        labels=False,
-        url='http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz',
-        local=os.path.join(tempfile.gettempdir(), 'mnist.pkl.gz')):
+try:
+    import skdata.mnist
+except ImportError:
+    logging.critical('please install skdata to run the examples!')
+    raise
+
+
+def load_mnist(labels=False):
     '''Load the MNIST digits dataset.'''
-    if not os.path.isfile(local):
-        logging.info('downloading mnist digit dataset from %s' % url)
-        try:
-            urllib.request.urlretrieve(url, local)
-        except: # Python 2.x
-            urllib.urlretrieve(url, local)
-        logging.info('saved mnist digits to %s' % local)
-    dig = [(x, y.astype('int32')) for x, y in pickle.load(gzip.open(local), **KW)]
-    if not labels:
-        dig = [x[0] for x in dig]
-    return dig
+    mnist = skdata.mnist.dataset.MNIST()
+    mnist.meta  # trigger download if needed.
+    def arr(n, dtype):
+        arr = mnist.arrays[n]
+        return arr.reshape((len(arr), -1)).astype(dtype)
+    train_images = arr('train_images', 'f') / 255.
+    train_labels = arr('train_labels', np.uint8)
+    test_images = arr('test_images', 'f') / 255.
+    test_labels = arr('test_labels', np.uint8)
+    if labels:
+        return ((train_images[:50000], train_labels[:50000, 0]),
+                (train_images[50000:], train_labels[50000:, 0]),
+                (test_images, test_labels[:, 0]))
+    return train_images[:50000], train_images[50000:], test_images
 
 
 def plot_images(imgs, loc, title=None):

@@ -2,7 +2,7 @@ theanets
 ========
 
 This package contains implementations of several common neural network
-structures, using the amazing Theano_ package for optimization.
+structures, using Theano_ for optimization.
 
 .. _Theano: http://deeplearning.net/software/theano/
 
@@ -23,7 +23,7 @@ Getting started
 ---------------
 
 There are a few examples in the ``examples/`` directory. Run an example with the
-``--help`` flag to get a list of all the command-line arguments ; there are many
+``--help`` flag to get a list of all the command-line arguments; there are many
 of them, but some of the notable ones are::
 
     -n or --layers N1 N2 N3 N4
@@ -34,11 +34,12 @@ example code, since it needs to correspond to the shape of the data being
 processed.)
 
 ::
-    -g or --activation logistic|relu|linear|norm:mean+logistic|...
+    -g or --hidden-activation logistic|relu|linear|...
 
-Use the given activation function for hidden layer units. (All output layer
-units have a linear activation function.) Several activation functions can be
-pipelined together using whitespace.
+Use the given activation function for hidden layer units. (Output layer units
+have a linear activation function by default, but an alternative can be given
+using the ``--output-activation`` flag.) Several activation functions can be
+pipelined together using whitespace or the plus symbol.
 
 ::
     -O or --optimize sgd|hf|sgd hf|layerwise hf|...
@@ -53,7 +54,7 @@ Using the library
 Probably the easiest way to start with the library is to copy one of the
 examples and modify it to perform your tasks. The usual workflow involves
 instantiating ``theanets.Experiment`` with a subclass of ``theanets.Network``,
-then adding some data by calling ``add_dataset(...)``, and finally calling
+adding some data by calling ``add_dataset(...)``, and finally calling
 ``train()`` to learn a good set of parameters for your data::
 
     exp = theanets.Experiment(theanets.Classifier)

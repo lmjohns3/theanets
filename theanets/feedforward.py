@@ -36,6 +36,7 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
+
 def load(klass, filename, **kwargs):
     '''Load an entire network from a pickle file on disk.
 
@@ -43,14 +44,16 @@ def load(klass, filename, **kwargs):
     ----------
     klass : callable
         The constructor for a Network subclass (e.g., Autoencoder, Regressor,
-        etc.). This constructor will be invoked using topology information
-        loaded from the given pickle file. The newly created network will then
-        load parameters (weights and biases) from the pickle file.
+        etc.). This constructor will be invoked using keyword arguments loaded
+        from the given pickle file (and updated using any keyword arguments
+        passed to this load() invocation). The newly created network will then
+        load saved parameters (weights and biases) from the pickle file.
 
     filename : str
-        Load the topology and parameters of a network from a pickle file at the
-        named path. If this name ends in ".gz" then the input will automatically
-        be gunzipped; otherwise the input will be treated as a "raw" pickle.
+        Load the keyword arguments and parameters of a network from a pickle
+        file at the named path. If this name ends in ".gz" then the input will
+        automatically be gunzipped; otherwise the input will be treated as a
+        "raw" pickle.
 
     Returns
     -------
@@ -60,10 +63,10 @@ def load(klass, filename, **kwargs):
     '''
     opener = gzip.open if filename.lower().endswith('.gz') else open
     handle = opener(filename, 'rb')
-    params = pickle.load(handle)
-    kwargs['tied_weights'] = params['tied_weights']
-    kwargs['decode'] = params['decode_from']
-    net = klass(params['layers'], params['activation'], **kwargs)
+    kw = pickle.load(handle)['kwargs']
+    handle.close()
+    kw.update(kwargs)
+    net = klass(**kw)
     net.load_params(filename)
     return net
 
@@ -83,8 +86,13 @@ class Network(object):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
-    activation : string
+    hidden_activation : str
         The name of an activation function to use on hidden network units.
+        Defaults to 'sigmoid'.
+
+    output_activation : str
+        The name of an activation function to use on output units. Defaults to
+        'linear'.
 
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
@@ -130,7 +138,7 @@ class Network(object):
         is the size of the output, and the intervening numbers are the sizes of
         the hidden layers.
 
-    activation : str
+    hidden_activation : str
         A string describing the hidden unit activation function.
 
     output_activation : str
@@ -144,44 +152,46 @@ class Network(object):
         the value of the output layer. By default this is 1, which corresponds
         to a traditional feedforward neural network, in which the "topmost"
         hidden layer is the only layer that feeds into the output.
+
     '''
 
-    def __init__(self, layers, activation, **kwargs):
-        self.layers = tuple(layers)
-        self.activation = activation
-        self.output_activation = kwargs.get('output_activation', 'linear')
-        self.tied_weights = bool(kwargs.get('tied_weights'))
-        self.decode_from = int(kwargs.get('decode', 1))
-
+    def __init__(self, **kwargs):
         self.hiddens = []
         self.weights = []
         self.biases = []
 
         self.rng = kwargs.get('rng') or RandomStreams()
 
-        # x is a proxy for our network's input, and y for its output.
-        self.x = TT.matrix('x')
+        self.layers = tuple(kwargs['layers'])
+        self.tied_weights = bool(kwargs.get('tied_weights'))
+        self.decode_from = int(kwargs.get('decode', 1))
 
-        activation = self._build_activation(self.activation)
-        if hasattr(activation, '__theanets_name__'):
-            logging.info('hidden activation: %s', activation.__theanets_name__)
+        self.hidden_activation = kwargs.get('hidden_activation') or \
+                                 kwargs.get('activation', 'sigmoid')
+        hidden_activation = self._build_activation(self.hidden_activation)
+        if hasattr(hidden_activation, '__theanets_name__'):
+            logging.info('hidden activation: %s', hidden_activation.__theanets_name__)
 
-        # ensure that --layers is compatible with --tied-weights.
-        sizes = layers[:-1]
-        if self.tied_weights:
-            error = 'with --tied-weights, --layers must be an odd-length palindrome'
-            assert len(layers) % 2 == 1, error
-            k = len(layers) // 2
-            encode = np.asarray(layers[:k])
-            decode = np.asarray(layers[k+1:])
-            assert np.allclose(encode - decode[::-1], 0), error
-            sizes = layers[:k+1]
-
-        _, parameter_count = self.create_forward_map(sizes, activation, **kwargs)
-
+        self.output_activation = kwargs.get('output_activation', 'linear')
         output_activation = self._build_activation(self.output_activation)
         if hasattr(output_activation, '__theanets_name__'):
             logging.info('output activation: %s', output_activation.__theanets_name__)
+
+        # ensure that --layers is compatible with --tied-weights.
+        sizes = self.layers[:-1]
+        if self.tied_weights:
+            error = 'with --tied-weights, --layers must be an odd-length palindrome'
+            assert len(self.layers) % 2 == 1, error
+            k = len(self.layers) // 2
+            encode = np.asarray(self.layers[:k])
+            decode = np.asarray(self.layers[k+1:])
+            assert np.allclose(encode - decode[::-1], 0), error
+            sizes = self.layers[:k+1]
+
+        # x is a proxy for our network's input, and y for its output.
+        self.x = TT.matrix('x')
+
+        _, parameter_count = self.create_forward_map(sizes, hidden_activation, **kwargs)
 
         # set up the "decoding" computations from layer activations to output.
         w = len(self.weights)
@@ -193,7 +203,7 @@ class Network(object):
                 # --tied-weights implies --no-learn-biases (biases are zero).
                 self.hiddens.append(output_activation(TT.dot(h, self.weights[i].T)))
         else:
-            n = layers[-1]
+            n = self.layers[-1]
             decoders = []
             for i in range(w - 1, w - 1 - self.decode_from, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
@@ -457,12 +467,13 @@ class Network(object):
         pickle.dump(dict(
             weights=[p.get_value().copy() for p in self.weights],
             biases=[p.get_value().copy() for p in self.biases],
-            layers=self.layers,
-            activation=self.activation,
-            output_activation=self.output_activation,
-            tied_weights=self.tied_weights,
-            decode_from=self.decode_from,
-        ), handle, -1)
+            kwargs=dict(
+                layers=self.layers,
+                hidden_activation=self.hidden_activation,
+                output_activation=self.output_activation,
+                tied_weights=self.tied_weights,
+                decode_from=self.decode_from,
+            )), handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
 
@@ -478,13 +489,12 @@ class Network(object):
         '''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
-        params = pickle.load(handle)
-        assert self.layers == params['layers']
-        assert self.tied_weights == params['tied_weights']
-        assert self.decode_from == params['decode_from']
-        for target, source in zip(self.weights, params['weights']):
+        saved = pickle.load(handle)
+        for target, source in zip(self.weights, saved['weights']):
+            logging.info('%s: setting value %s', target.name, source.shape)
             target.set_value(source)
-        for target, source in zip(self.biases, params['biases']):
+        for target, source in zip(self.biases, saved['biases']):
+            logging.info('%s: setting value %s', target.name, source.shape)
             target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)
@@ -597,9 +607,9 @@ class Autoencoder(Network):
 class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.k = TT.matrix('k')
-        super(Regressor, self).__init__(*args, **kwargs)
+        super(Regressor, self).__init__(**kwargs)
 
     @property
     def inputs(self):
@@ -614,9 +624,9 @@ class Regressor(Network):
 class Classifier(Network):
     '''A classifier attempts to match a 1-hot target output.'''
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.k = TT.ivector('k')
-        super(Classifier, self).__init__(*args, **kwargs)
+        super(Classifier, self).__init__(**kwargs)
         self.y = self.softmax(self.y)
 
     @staticmethod

@@ -22,6 +22,7 @@
 
 import climate
 import theano.tensor as TT
+import warnings
 
 from .dataset import SequenceDataset as Dataset
 from . import feedforward
@@ -41,6 +42,9 @@ def parse_args(**overrides):
         setattr(args, k, v)
     kwargs = {}
     kwargs.update(vars(args))
+    if 'activation' in kwargs:
+        warnings.warn('please use --hidden-activation instead of --activation',
+                      DeprecationWarning)
     logging.info('runtime arguments:')
     for k in sorted(kwargs):
         logging.info('--%s = %s', k, kwargs[k])

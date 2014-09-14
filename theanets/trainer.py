@@ -499,6 +499,8 @@ class Sample(Trainer):
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         samples = ifci(first(t) for t in train_set)
         for i, h in enumerate(self.network.hiddens):
+            if i == len(self.network.weights):
+                break
             w = self.network.weights[i]
             m, k = w.get_value(borrow=True).shape
             arr = np.vstack(Sample.reservoir(samples, k)).T

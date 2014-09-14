@@ -565,8 +565,8 @@ class Layerwise(Trainer):
             W, b, _ = self.network.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
             self.network.y = output_activation(TT.dot(hiddens[i-1], W) + b)
             self.network.hiddens = hiddens[:i]
-            self.network.weights = weights[:i] + [W]
-            self.network.biases = biases[:i] + [b]
+            self.network.weights = [weights[i-1], W]
+            self.network.biases = [biases[i-1], b]
             logging.info('layerwise: training weights %s', self.network.weights[0].name)
             trainer = self.factory(self.network, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):

@@ -522,11 +522,8 @@ class Layerwise(Trainer):
 
     By inserting taps into the original network, we preserve all of the relevant
     settings of noise, dropouts, loss function and the like, in addition to
-    obviating the need for copying trained weights around between different
+    removing the need for copying trained weights around between different
     Network instances.
-
-    I believe this variant of layerwise training was first described by Bengio,
-    but I haven't located the citation yet.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):
@@ -536,6 +533,21 @@ class Layerwise(Trainer):
         self.kwargs = kwargs
 
     def train(self, train_set, valid_set=None, **kwargs):
+        '''Train a network using a layerwise strategy.
+
+        If the network has tied weights, then this method calls `train_tied`.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.Dataset`
+            A training set to use while training the weights in our network.
+        valid_set : :class:`theanets.Dataset`
+            A validation set to use while training the weights in our network.
+
+        Returns
+        -------
+        Generates a series of cost values as the network weights are tuned.
+        '''
         if self.network.tied_weights:
             for costs in self.train_tied(train_set, valid_set=valid_set, **kwargs):
                 yield costs
@@ -571,6 +583,19 @@ class Layerwise(Trainer):
             yield costs
 
     def train_tied(self, train_set, valid_set=None, **kwargs):
+        '''Train a network with tied weights using a layerwise strategy.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.Dataset`
+            A training set to use while training the weights in our network.
+        valid_set : :class:`theanets.Dataset`
+            A validation set to use while training the weights in our network.
+
+        Returns
+        -------
+        Generates a series of cost values as the network weights are tuned.
+        '''
         net = self.network
 
         y = net.y

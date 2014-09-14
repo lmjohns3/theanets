@@ -535,8 +535,6 @@ class Layerwise(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         '''Train a network using a layerwise strategy.
 
-        If the network has tied weights, then this method calls `train_tied`.
-
         Parameters
         ----------
         train_set : :class:`theanets.Dataset`
@@ -548,11 +546,6 @@ class Layerwise(Trainer):
         -------
         Generates a series of cost values as the network weights are tuned.
         '''
-        if self.network.tied_weights:
-            for costs in self.train_tied(train_set, valid_set=valid_set, **kwargs):
-                yield costs
-            return
-
         net = self.network
 
         y = net.y
@@ -563,63 +556,28 @@ class Layerwise(Trainer):
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
         output_activation = net._build_activation(net.output_activation)
-        for i in range(1, len(nhids)):
-            W, b, _ = net.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
-            net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
-            net.hiddens = hiddens[:i]
-            net.weights = [weights[i-1], W]
-            net.biases = [biases[i-1], b]
+        for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
+            if net.tied_weights:
+                net.weights = [weights[i-1]]
+                net.hiddens = hiddens[:i]
+                for j in range(i - 1, -1, -1):
+                    net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
+                net.y = output_activation(net.hiddens.pop())
+            else:
+                W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
+                net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
+                net.hiddens = hiddens[:i]
+                net.weights = [weights[i-1], W]
+                net.biases = [biases[i-1], b]
             logging.info('layerwise: training weights %s', net.weights[0].name)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
                 yield costs
 
-        # restore the original network configuration and make a final pass to
-        # train the last layer.
         net.y = y
         net.hiddens = hiddens
         net.weights = weights
         net.biases = biases
-        logging.info('layerwise: training full network')
-        trainer = self.factory(net, *self.args, **self.kwargs)
-        for costs in trainer.train(train_set, valid_set):
-            yield costs
-
-    def train_tied(self, train_set, valid_set=None, **kwargs):
-        '''Train a network with tied weights using a layerwise strategy.
-
-        Parameters
-        ----------
-        train_set : :class:`theanets.Dataset`
-            A training set to use while training the weights in our network.
-        valid_set : :class:`theanets.Dataset`
-            A validation set to use while training the weights in our network.
-
-        Returns
-        -------
-        Generates a series of cost values as the network weights are tuned.
-        '''
-        net = self.network
-
-        y = net.y
-        hiddens = list(net.hiddens)
-        weights = list(net.weights)
-
-        output_activation = net._build_activation(net.output_activation)
-        for i in range(1, len(weights) + 1):
-            net.weights = [weights[i-1]]
-            net.hiddens = hiddens[:i]
-            for j in range(i - 1, -1, -1):
-                net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-            net.y = output_activation(net.hiddens.pop())
-            logging.info('layerwise: training weights %s', net.weights[0].name)
-            trainer = self.factory(net, *self.args, **self.kwargs)
-            for costs in trainer.train(train_set, valid_set):
-                yield costs
-
-        net.y = y
-        net.hiddens = hiddens
-        net.weights = weights
 
 
 class FORCE(Trainer):

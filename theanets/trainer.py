@@ -559,15 +559,15 @@ class Layerwise(Trainer):
         biases = list(self.network.biases)
 
         nout = len(biases[-1].get_value(borrow=True))
-        nhids = [len(b.get_value(borrow=True)) for b in biases[:-1]]
+        nhids = [len(b.get_value(borrow=True)) for b in biases]
+        output_activation = self.network._build_activation(self.network.output_activation)
         for i in range(1, len(nhids)):
             W, b, _ = self.network.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
-            self.network.y = TT.dot(hiddens[i-1], W) + b
-            if isinstance(self.network, feedforward.Classifier):
-                self.network.y = feedforward.Classifier.softmax(self.network.y)
+            self.network.y = output_activation(TT.dot(hiddens[i-1], W) + b)
             self.network.hiddens = hiddens[:i]
             self.network.weights = weights[:i] + [W]
             self.network.biases = biases[:i] + [b]
+            logging.info('layerwise: training weights %s', self.network.weights[0].name)
             trainer = self.factory(self.network, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
                 yield costs
@@ -578,6 +578,7 @@ class Layerwise(Trainer):
         self.network.hiddens = hiddens
         self.network.weights = weights
         self.network.biases = biases
+        logging.info('layerwise: training full network')
         trainer = self.factory(self.network, *self.args, **self.kwargs)
         for costs in trainer.train(train_set, valid_set):
             yield costs
@@ -602,12 +603,14 @@ class Layerwise(Trainer):
         hiddens = list(net.hiddens)
         weights = list(net.weights)
 
+        output_activation = net._build_activation(net.output_activation)
         for i in range(1, len(weights) + 1):
             net.weights = [weights[i-1]]
             net.hiddens = hiddens[:i]
             for j in range(i - 1, -1, -1):
                 net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-            net.y = net.hiddens.pop()
+            net.y = output_activation(net.hiddens.pop())
+            logging.info('layerwise: training weights %s', net.weights[0].name)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
                 yield costs

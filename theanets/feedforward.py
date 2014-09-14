@@ -68,6 +68,12 @@ def load(klass, filename, **kwargs):
     return net
 
 
+def softmax(x):
+    # TT.nnet.softmax doesn't work with the HF trainer.
+    z = TT.exp(x.T - x.T.max(axis=0))
+    return (z / z.sum(axis=0)).T
+
+
 class Network(object):
     '''The network class encapsulates a fully-connected feedforward net.
 
@@ -374,6 +380,7 @@ class Network(object):
             'logistic': TT.nnet.sigmoid,
             'sigmoid': TT.nnet.sigmoid,
             'softplus': TT.nnet.softplus,
+            'softmax': softmax,
 
             # shorthands
             'relu': lambda z: z * (z > 0),
@@ -617,13 +624,7 @@ class Classifier(Network):
     def __init__(self, *args, **kwargs):
         self.k = TT.ivector('k')
         super(Classifier, self).__init__(*args, **kwargs)
-        self.y = self.softmax(self.y)
-
-    @staticmethod
-    def softmax(x):
-        # TT.nnet.softmax doesn't work with the HF trainer.
-        z = TT.exp(x.T - x.T.max(axis=0))
-        return (z / z.sum(axis=0)).T
+        self.y = softmax(self.y)
 
     @property
     def inputs(self):

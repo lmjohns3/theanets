@@ -553,33 +553,35 @@ class Layerwise(Trainer):
                 yield costs
             return
 
-        y = self.network.y
-        hiddens = list(self.network.hiddens)
-        weights = list(self.network.weights)
-        biases = list(self.network.biases)
+        net = self.network
+
+        y = net.y
+        hiddens = list(net.hiddens)
+        weights = list(net.weights)
+        biases = list(net.biases)
 
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
-        output_activation = self.network._build_activation(self.network.output_activation)
+        output_activation = net._build_activation(net.output_activation)
         for i in range(1, len(nhids)):
-            W, b, _ = self.network.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
-            self.network.y = output_activation(TT.dot(hiddens[i-1], W) + b)
-            self.network.hiddens = hiddens[:i]
-            self.network.weights = [weights[i-1], W]
-            self.network.biases = [biases[i-1], b]
-            logging.info('layerwise: training weights %s', self.network.weights[0].name)
-            trainer = self.factory(self.network, *self.args, **self.kwargs)
+            W, b, _ = net.create_layer(nhids[i-1], nout, 'lwout-%d' % i)
+            net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
+            net.hiddens = hiddens[:i]
+            net.weights = [weights[i-1], W]
+            net.biases = [biases[i-1], b]
+            logging.info('layerwise: training weights %s', net.weights[0].name)
+            trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
                 yield costs
 
         # restore the original network configuration and make a final pass to
         # train the last layer.
-        self.network.y = y
-        self.network.hiddens = hiddens
-        self.network.weights = weights
-        self.network.biases = biases
+        net.y = y
+        net.hiddens = hiddens
+        net.weights = weights
+        net.biases = biases
         logging.info('layerwise: training full network')
-        trainer = self.factory(self.network, *self.args, **self.kwargs)
+        trainer = self.factory(net, *self.args, **self.kwargs)
         for costs in trainer.train(train_set, valid_set):
             yield costs
 

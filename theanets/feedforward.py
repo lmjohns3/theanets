@@ -633,8 +633,8 @@ class Classifier(Network):
 
     def __init__(self, **kwargs):
         self.k = TT.ivector('k')
+        kwargs['output_activation'] = 'softmax'
         super(Classifier, self).__init__(**kwargs)
-        self.y = softmax(self.y)
 
     @property
     def inputs(self):

@@ -45,6 +45,9 @@ def parse_args(**overrides):
     if 'activation' in kwargs:
         warnings.warn('please use --hidden-activation instead of --activation',
                       DeprecationWarning)
+        activation = kwargs.pop('activation')
+        if not kwargs.get('hidden_activation'):
+            kwargs['hidden_activation'] = activation
     logging.info('runtime arguments:')
     for k in sorted(kwargs):
         logging.info('--%s = %s', k, kwargs[k])

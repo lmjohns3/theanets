@@ -91,29 +91,34 @@ class Network(ff.Network):
 
         sizes = self.check_layer_sizes()
 
-        z, count = super(Network, self).setup_encoder(**kwargs)
+        x, forward_count = super(Network, self).setup_encoder(**kwargs)
+        f, recurrent_count = self.setup_recurrence(sizes[-1])
 
+        self.hiddens.pop()
+        batch_size = kwargs.get('batch_size', 64)
+        h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)
+        z = self.hiddens[-1] if self.hiddens else x
+        h, up = theano.scan(fn=f, sequences=z, outputs_info=[h_0])
+        self.updates.update(up)
+        self.hiddens.append(h)
+
+        return h, forward_count + recurrent_count
+
+    def setup_recurrence(self, size):
         # once we've set up the encoding layers, we add a recurrent connection
         # on the topmost layer. this entails creating a new weight matrix
         # W_pool, but we reuse the existing bias values.
         W_in = self.weights[-1]
         b_pool = 0 if self.tied_weights else self.biases[-1]
-        W_pool, _, n = self.create_layer(sizes[-1], sizes[-1], 'pool')
-        count += n - sizes[-1]
+        W_pool, _, count = self.create_layer(size, size, 'pool')
+        count -= size
 
         def recurrence(z_t, h_tm1):
             return self._hidden_func(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
 
-        batch_size = kwargs.get('batch_size', 64)
-        h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)
-        h, self.updates = theano.scan(
-            fn=recurrence, sequences=z, outputs_info=[h_0])
-
-        self.hiddens.pop()
-        self.hiddens.append(h)
         self.weights.append(W_pool)
 
-        return h, count
+        return recurrence, count
 
 
 class Autoencoder(Network):

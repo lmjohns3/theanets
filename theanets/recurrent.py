@@ -87,6 +87,8 @@ class Network(ff.Network):
         self.x = TT.tensor3('x')
 
     def setup_encoder(self, **kwargs):
+        self.error_start = kwargs.get('pool_error_start', 3)
+
         sizes = self.check_layer_sizes()
 
         z, count = super(Network, self).setup_encoder(**kwargs)
@@ -94,7 +96,8 @@ class Network(ff.Network):
         # once we've set up the encoding layers, we add a recurrent connection
         # on the topmost layer. this entails creating a new weight matrix
         # W_pool, but we reuse the existing bias values.
-        b_pool = self.biases[-1]
+        W_in = self.weights[-1]
+        b_pool = 0 if self.tied_weights else self.biases[-1]
         W_pool, _, n = self.create_layer(sizes[-1], sizes[-1], 'pool')
         count += n - sizes[-1]
 
@@ -109,6 +112,7 @@ class Network(ff.Network):
         self.hiddens.pop()
         self.hiddens.append(h)
         self.weights.append(W_pool)
+
         return h, count
 
 

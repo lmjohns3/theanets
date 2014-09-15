@@ -243,9 +243,8 @@ class Network(object):
         '''
         parameter_count = 0
 
-        w = len(self.weights)
         if self.tied_weights:
-            for i in range(w - 1, -1, -1):
+            for i in range(len(self.weights) - 1, -1, -1):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
@@ -253,9 +252,10 @@ class Network(object):
                 self.hiddens.append(self._output_func(TT.dot(h, self.weights[i].T)))
 
         else:
+            B = len(self.biases) - 1
             n = self.layers[-1]
             decoders = []
-            for i in range(w - 1, w - 1 - self.decode_from, -1):
+            for i in range(B, B - self.decode_from, -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
                 Di, _, count = self.create_layer(b, n, 'out_%d' % i)
                 parameter_count += count - n

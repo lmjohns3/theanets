@@ -99,7 +99,7 @@ class Network(ff.Network):
         count += n - sizes[-1]
 
         def recurrence(z_t, h_tm1):
-            return hidden_activation(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
+            return self._hidden_func(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
 
         batch_size = kwargs.get('batch_size', 64)
         h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)

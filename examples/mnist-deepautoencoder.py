@@ -10,7 +10,7 @@ train, valid, _ = load_mnist()
 
 e = theanets.Experiment(
     theanets.Autoencoder,
-    layers=(784, 256, 64, 16, 64, 256, 784),
+    layers=(784, 256, 64, 36, 64, 256, 784),
     train_batches=100,
     tied_weights=True,
 )

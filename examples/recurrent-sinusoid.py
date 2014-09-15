@@ -52,8 +52,6 @@ for loc, spine in ax.spines.items():
     elif loc in 'right top':
         spine.set_color('none')
 
-plot(batch[:, 0, 0], 'Source1')
-plot(batch[:, 0, 1], 'Source2')
 plot(batch[:, 0, 0] + batch[:, 0, 1], 'Target')
 plot(predict, 'Prediction')
 

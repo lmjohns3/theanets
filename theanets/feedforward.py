@@ -266,7 +266,7 @@ class Network(object):
             self.biases.append(bias)
             self.hiddens.append(self._output_func(sum(decoders) + bias))
 
-        return parameter_count, self.hiddens.pop()
+        return self.hiddens.pop(), parameter_count
 
     def check_layer_sizes(self):
         # ensure that --layers is compatible with --tied-weights.

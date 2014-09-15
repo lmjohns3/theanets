@@ -176,12 +176,12 @@ class Network(object):
         self.hidden_activation = kwargs.get('hidden_activation') or \
                                  kwargs.get('activation', 'sigmoid')
         self._hidden_func = self._build_activation(self.hidden_activation)
-        if hasattr(hidden_activation, '__theanets_name__'):
+        if hasattr(self._hidden_func, '__theanets_name__'):
             logging.info('hidden activation: %s', self._hidden_func.__theanets_name__)
 
         self.output_activation = kwargs.get('output_activation', 'linear')
         self._output_func = self._build_activation(self.output_activation)
-        if hasattr(output_activation, '__theanets_name__'):
+        if hasattr(self._output_func, '__theanets_name__'):
             logging.info('output activation: %s', self._output_func.__theanets_name__)
 
         self.setup_vars()

@@ -185,7 +185,7 @@ class Network(object):
             logging.info('output activation: %s', self._output_func.__theanets_name__)
 
         self.setup_vars()
-        self.z, encode_count = self.setup_encoder(**kwargs)
+        _, encode_count = self.setup_encoder(**kwargs)
         self.y, decode_count = self.setup_decoder(**kwargs)
 
         logging.info('%d total network parameters', encode_count + decode_count)
@@ -215,14 +215,14 @@ class Network(object):
 
         Returns
         -------
-        z : Theano variable
-            A variable representing the state of the topmost hidden layer.
+        x : Theano variable
+            A variable representing the (possibly noisy) input vector.
         parameter_count : int
             The number of parameters created in the forward map.
         '''
         sizes = self.check_layer_sizes()
         parameter_count = 0
-        z = self._add_noise(
+        x = z = self._add_noise(
             self.x,
             kwargs.get('input_noise', 0.),
             kwargs.get('input_dropouts', 0.))
@@ -236,7 +236,7 @@ class Network(object):
             self.weights.append(W)
             self.biases.append(b)
             z = self.hiddens[-1]
-        return z, parameter_count
+        return x, parameter_count
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.

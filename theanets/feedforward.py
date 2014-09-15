@@ -165,6 +165,7 @@ class Network(object):
         self.hiddens = []
         self.weights = []
         self.biases = []
+        self.updates = {}
 
         self.rng = kwargs.get('rng') or RandomStreams()
 
@@ -174,32 +175,74 @@ class Network(object):
 
         self.hidden_activation = kwargs.get('hidden_activation') or \
                                  kwargs.get('activation', 'sigmoid')
-        hidden_activation = self._build_activation(self.hidden_activation)
+        self._hidden_func = self._build_activation(self.hidden_activation)
         if hasattr(hidden_activation, '__theanets_name__'):
-            logging.info('hidden activation: %s', hidden_activation.__theanets_name__)
+            logging.info('hidden activation: %s', self._hidden_func.__theanets_name__)
 
         self.output_activation = kwargs.get('output_activation', 'linear')
-        output_activation = self._build_activation(self.output_activation)
+        self._output_func = self._build_activation(self.output_activation)
         if hasattr(output_activation, '__theanets_name__'):
-            logging.info('output activation: %s', output_activation.__theanets_name__)
+            logging.info('output activation: %s', self._output_func.__theanets_name__)
 
-        # ensure that --layers is compatible with --tied-weights.
-        sizes = self.layers[:-1]
-        if self.tied_weights:
-            error = 'with --tied-weights, --layers must be an odd-length palindrome'
-            assert len(self.layers) % 2 == 1, error
-            k = len(self.layers) // 2
-            encode = np.asarray(self.layers[:k])
-            decode = np.asarray(self.layers[k+1:])
-            assert np.allclose(encode - decode[::-1], 0), error
-            sizes = self.layers[:k+1]
+        self.setup_vars()
+        self.z, encode_count = self.setup_encoder(**kwargs)
+        self.y, decode_count = self.setup_decoder(**kwargs)
 
+        logging.info('%d total network parameters', encode_count + decode_count)
+
+    def setup_vars(self):
+        '''Setup Theano variables for our network.'''
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
 
-        _, parameter_count = self.create_forward_map(sizes, hidden_activation, **kwargs)
+    def setup_encoder(self, **kwargs):
+        '''Set up a computation graph to map the input to layer activations.
 
-        # set up the "decoding" computations from layer activations to output.
+        Parameters
+        ----------
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
+
+        Returns
+        -------
+        z : Theano variable
+            A variable representing the state of the topmost hidden layer.
+        parameter_count : int
+            The number of parameters created in the forward map.
+        '''
+        sizes = self.check_layer_sizes()
+        parameter_count = 0
+        z = self._add_noise(
+            self.x,
+            kwargs.get('input_noise', 0.),
+            kwargs.get('input_dropouts', 0.))
+        for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
+            W, b, count = self.create_layer(a, b, i)
+            parameter_count += count
+            self.hiddens.append(self._add_noise(
+                self._hidden_func(TT.dot(z, W) + b),
+                kwargs.get('hidden_noise', 0.),
+                kwargs.get('hidden_dropouts', 0.)))
+            self.weights.append(W)
+            self.biases.append(b)
+            z = self.hiddens[-1]
+        return z, parameter_count
+
+    def setup_decoder(self, **kwargs):
+        '''Set up the "decoding" computations from layer activations to output.
+        '''
+        parameter_count = 0
+
         w = len(self.weights)
         if self.tied_weights:
             for i in range(w - 1, -1, -1):
@@ -207,7 +250,8 @@ class Network(object):
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
                 # --tied-weights implies --no-learn-biases (biases are zero).
-                self.hiddens.append(output_activation(TT.dot(h, self.weights[i].T)))
+                self.hiddens.append(self._output_func(TT.dot(h, self.weights[i].T)))
+
         else:
             n = self.layers[-1]
             decoders = []
@@ -220,12 +264,22 @@ class Network(object):
             parameter_count += n
             bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
             self.biases.append(bias)
-            self.hiddens.append(output_activation(sum(decoders) + bias))
+            self.hiddens.append(self._output_func(sum(decoders) + bias))
 
-        logging.info('%d total network parameters', parameter_count)
+        return parameter_count, self.hiddens.pop()
 
-        self.y = self.hiddens.pop()
-        self.updates = {}
+    def check_layer_sizes(self):
+        # ensure that --layers is compatible with --tied-weights.
+        sizes = self.layers[:-1]
+        if self.tied_weights:
+            error = 'with --tied-weights, --layers must be an odd-length palindrome'
+            assert len(self.layers) % 2 == 1, error
+            k = len(self.layers) // 2
+            encode = np.asarray(self.layers[:k])
+            decode = np.asarray(self.layers[k+1:])
+            assert np.allclose(encode - decode[::-1], 0), error
+            sizes = self.layers[:k+1]
+        return sizes
 
     @property
     def inputs(self):
@@ -280,52 +334,6 @@ class Network(object):
         bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
-
-    def create_forward_map(self, sizes, activation, **kwargs):
-        '''Set up a computation graph to map the input to layer activations.
-
-        Parameters
-        ----------
-        sizes : list of int
-            A list of the number of nodes in each feedforward hidden layer.
-
-        activation : callable
-            The activation function to use on each feedforward hidden layer.
-
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
-
-        Returns
-        -------
-        parameter_count : int
-            The number of parameters created in the forward map.
-        '''
-        parameter_count = 0
-        z = self._add_noise(
-            self.x,
-            kwargs.get('input_noise', 0.),
-            kwargs.get('input_dropouts', 0.))
-        for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            W, b, count = self.create_layer(a, b, i)
-            parameter_count += count
-            self.hiddens.append(self._add_noise(
-                activation(TT.dot(z, W) + b),
-                kwargs.get('hidden_noise', 0.),
-                kwargs.get('hidden_dropouts', 0.)))
-            self.weights.append(W)
-            self.biases.append(b)
-            z = self.hiddens[-1]
-        return z, parameter_count
 
     def _add_noise(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.
@@ -632,9 +640,15 @@ class Classifier(Network):
     '''A classifier attempts to match a 1-hot target output.'''
 
     def __init__(self, **kwargs):
-        self.k = TT.ivector('k')
         kwargs['output_activation'] = 'softmax'
         super(Classifier, self).__init__(**kwargs)
+
+    def setup_vars(self):
+        # x is a proxy for our network's input, and y for its output.
+        self.x = TT.matrix('x')
+
+        # for a classifier, k specifies the correct labels for a given input.
+        self.k = TT.ivector('k')
 
     @property
     def inputs(self):

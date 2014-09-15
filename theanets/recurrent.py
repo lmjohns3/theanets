@@ -40,13 +40,18 @@ class Network(ff.Network):
     Parameters
     ----------
     layers : sequence of int
-        A sequence of three integers specifying the number of units in the
-        input, hidden, and output layers, respectively.
+        A sequence of integers specifying the number of units at each layer. As
+        an example, layers=(10, 20, 3) has one "input" layer with 10 units, one
+        "hidden" layer with 20 units, and one "output" layer with 3 units. That
+        is, inputs should be of length 10, and outputs will be of length 3.
 
-    activation : callable(numeric) -> numeric
-        A callable that takes one argument (a matrix) and returns another
-        matrix. This is the activation function that each hidden unit in the
-        network uses.
+    hidden_activation : str
+        The name of an activation function to use on hidden network units.
+        Defaults to 'sigmoid'.
+
+    output_activation : str
+        The name of an activation function to use on output units. Defaults to
+        'linear'.
 
     rng : theano.RandomStreams, optional
         Use a specific Theano random number generator. A new one will be created
@@ -76,53 +81,35 @@ class Network(ff.Network):
         Compute error metrics starting at this time step. (Defaults to 3.)
     '''
 
-    def __init__(self, layers, activation, rng=None, **kwargs):
-        self.layers = tuple(layers)
-        self.activation = activation
-        self.hiddens = []
-        self.weights = []
-        self.biases = []
-
-        self.rng = kwargs.get('rng') or RandomStreams()
-        self.error_start = kwargs.get('pool_error_start', 3)
-
+    def setup_vars(self):
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
-        activation = self._build_activation(activation)
-        if hasattr(activation, '__theanets_name__'):
-            logging.info('hidden activation: %s', activation.__theanets_name__)
+    def setup_encoder(self, **kwargs):
+        sizes = self.check_layer_sizes()
 
-        sizes = list(layers)
-        num_out = sizes.pop()
-        num_pool = sizes.pop()
+        z, count = super(Network, self).setup_encoder(**kargs)
 
-        z, parameter_count = self.create_forward_map(sizes, activation, **kwargs)
-
-        # set up a recurrent computation graph to pass hidden states in time.
-        W_in, _, count = self.create_layer(sizes[-1], num_pool, 'in')
-        parameter_count += count - num_pool
-        W_pool, b_pool, count = self.create_layer(num_pool, num_pool, 'pool')
-        parameter_count += count
-        W_out, b_out, count = self.create_layer(num_pool, num_out, 'out')
-        parameter_count += count
-        logging.info('%d total network parameters', parameter_count)
+        # once we've set up the encoding layers, we add a recurrent connection
+        # on the topmost layer. this entails creating a new weight matrix
+        # W_pool, but we reuse the existing bias values.
+        b_pool = self.biases[-1]
+        W_pool, _, n = self.create_layer(sizes[-1], sizes[-1], 'pool')
+        count += n - sizes[-1]
 
         def recurrence(z_t, h_tm1):
-            return activation(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
+            return hidden_activation(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
 
         batch_size = kwargs.get('batch_size', 64)
-        h_0 = TT.zeros((batch_size, num_pool), dtype=ff.FLOAT)
+        h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)
         h, self.updates = theano.scan(
             fn=recurrence, sequences=z, outputs_info=[h_0])
 
-        # map hidden states to outputs using a linear transform.
-        self.y = TT.dot(h, W_out) + b_out
-
+        self.hiddens.pop()
         self.hiddens.append(h)
-        self.weights.extend([W_in, W_pool, W_out])
-        self.biases.extend([b_pool, b_out])
+        self.weights.append(W_pool)
+        return h, count
 
 
 class Autoencoder(Network):

@@ -89,7 +89,7 @@ class Network(ff.Network):
     def setup_encoder(self, **kwargs):
         sizes = self.check_layer_sizes()
 
-        z, count = super(Network, self).setup_encoder(**kargs)
+        z, count = super(Network, self).setup_encoder(**kwargs)
 
         # once we've set up the encoding layers, we add a recurrent connection
         # on the topmost layer. this entails creating a new weight matrix

@@ -622,9 +622,9 @@ class Autoencoder(Network):
 class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
-    def __init__(self, **kwargs):
+    def setup_vars(self):
+        # the k variable holds the target output for input x.
         self.k = TT.matrix('k')
-        super(Regressor, self).__init__(**kwargs)
 
     @property
     def inputs(self):

@@ -285,8 +285,8 @@ class Rprop(SGD):
     momentum-based SGD methods but effectively maintains parameter-specific
     momentum values.
 
-    The implementation here actually uses the "iRprop-" variant or Rprop
-    described Algorithm 4 of in Igel and Huesken (2000), "Improving the Rprop
+    The implementation here actually uses the "iRprop-" variant of Rprop
+    described in Algorithm 4 from Igel and Huesken (2000), "Improving the Rprop
     Learning Algorithm." This variant resets the running gradient estimates to
     zero in cases where the previous and current gradients have switched signs.
     '''

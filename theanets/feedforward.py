@@ -623,6 +623,8 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
+        super(Classifier, self).setup_vars()
+
         # the k variable holds the target output for input x.
         self.k = TT.matrix('k')
 
@@ -644,8 +646,7 @@ class Classifier(Network):
         super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):
-        # x is a proxy for our network's input, and y for its output.
-        self.x = TT.matrix('x')
+        super(Classifier, self).setup_vars()
 
         # for a classifier, k specifies the correct labels for a given input.
         self.k = TT.ivector('k')

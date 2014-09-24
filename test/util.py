@@ -5,6 +5,7 @@ import skdata.mnist
 
 class MNIST:
     NUM_DIGITS = 100
+    DIGIT_SIZE = 784
 
     def setUp(self):
         mnist = skdata.mnist.dataset.MNIST()

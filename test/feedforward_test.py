@@ -7,7 +7,7 @@ import util
 class TestNetwork(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Regressor(
-            layers=(784, ) + hiddens,
+            layers=(self.DIGIT_SIZE, ) + hiddens,
             hidden_activation='logistic',
             **kwargs)
 
@@ -27,7 +27,7 @@ class TestNetwork(util.MNIST):
 class TestClassifier(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Classifier(
-            layers=(784, ) + hiddens + (10, ),
+            layers=(self.DIGIT_SIZE, ) + hiddens + (10, ),
             hidden_activation='logistic',
             **kwargs)
 
@@ -45,7 +45,7 @@ class TestClassifier(util.MNIST):
 class TestAutoencoder(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Autoencoder(
-            layers=(784, ) + hiddens + (784, ),
+            layers=(self.DIGIT_SIZE, ) + hiddens + (self.DIGIT_SIZE, ),
             hidden_activation='logistic',
             **kwargs)
 
@@ -67,15 +67,15 @@ class TestAutoencoder(util.MNIST):
     def test_decode_onelayer(self):
         net = self._build(13)
         x = net.decode(net.encode(self.images))
-        assert x.shape == (self.NUM_DIGITS, 784)
+        assert x.shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
 
     def test_decode_twolayer(self):
         net = self._build(13, 14)
         x = net.decode(net.encode(self.images))
-        assert x.shape == (self.NUM_DIGITS, 784)
+        assert x.shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
 
     def test_decode_threelayer(self):
         net = self._build(13, 14, 15)
         x = net.decode(net.encode(self.images))
-        assert x.shape == (self.NUM_DIGITS, 784)
+        assert x.shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
         #err = ((valid - xhat) ** 2).sum(axis=1).mean()

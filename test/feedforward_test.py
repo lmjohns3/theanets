@@ -1,26 +1,14 @@
 import theanets
 import numpy as np
-import skdata.mnist
+
+import util
 
 
-class MNIST:
-    NUM_DIGITS = 100
-
-    def setUp(self):
-        mnist = skdata.mnist.dataset.MNIST()
-        mnist.meta  # trigger download if needed.
-        def arr(n, dtype):
-            arr = mnist.arrays[n]
-            return arr.reshape((len(arr), -1)).astype(dtype)
-        self.images = arr('train_images', 'f')[:MNIST.NUM_DIGITS] / 255.
-        self.labels = arr('train_labels', 'b')[:MNIST.NUM_DIGITS]
-
-
-class TestNetwork(MNIST):
+class TestNetwork(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Regressor(
             layers=(784, ) + hiddens,
-            activation='logistic',
+            hidden_activation='logistic',
             **kwargs)
 
     def test_predict(self):
@@ -36,11 +24,11 @@ class TestNetwork(MNIST):
         assert hs[1].shape == (self.NUM_DIGITS, 13)
 
 
-class TestClassifier(MNIST):
+class TestClassifier(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Classifier(
             layers=(784, ) + hiddens + (10, ),
-            activation='logistic',
+            hidden_activation='logistic',
             **kwargs)
 
     def test_classify_onelayer(self):
@@ -54,11 +42,11 @@ class TestClassifier(MNIST):
         assert z.shape == (self.NUM_DIGITS, )
 
 
-class TestAutoencoder(MNIST):
+class TestAutoencoder(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Autoencoder(
             layers=(784, ) + hiddens + (784, ),
-            activation='logistic',
+            hidden_activation='logistic',
             **kwargs)
 
     def test_encode_onelayer(self):

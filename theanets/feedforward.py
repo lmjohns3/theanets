@@ -356,11 +356,11 @@ class Network(object):
             The parameter x, plus additional noise as specified.
         '''
         if sigma > 0 and rho > 0:
-            noise = self.rng.normal(size=x.shape, std=sigma)
+            noise = self.rng.normal(size=x.shape, std=sigma, dtype=FLOAT)
             mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
             return mask * (x + noise)
         if sigma > 0:
-            return x + self.rng.normal(size=x.shape, std=sigma)
+            return x + self.rng.normal(size=x.shape, std=sigma, dtype=FLOAT)
         if rho > 0:
             mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
             return mask * x

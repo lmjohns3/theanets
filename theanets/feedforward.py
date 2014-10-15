@@ -138,6 +138,10 @@ class Network(object):
     hiddens : list of Theano variables
         Computed Theano variables for the state of hidden units in the network.
 
+    preacts : list of Theano variables
+        Computed Theano variables representing the pre-activation inputs for
+        network units.
+
     layers : tuple of int
         A list of the numbers of units in each of the layers of the network. The
         zero element of this tuple is the size of the input, the final element
@@ -158,10 +162,10 @@ class Network(object):
         the value of the output layer. By default this is 1, which corresponds
         to a traditional feedforward neural network, in which the "topmost"
         hidden layer is the only layer that feeds into the output.
-
     '''
 
     def __init__(self, **kwargs):
+        self.preacts = []
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -229,8 +233,9 @@ class Network(object):
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
             W, b, count = self.create_layer(a, b, i)
             parameter_count += count
+            self.preacts.append(TT.dot(z, W) + b)
             self.hiddens.append(self._add_noise(
-                self._hidden_func(TT.dot(z, W) + b),
+                self._hidden_func(self.preacts[-1]),
                 kwargs.get('hidden_noise', 0.),
                 kwargs.get('hidden_dropouts', 0.)))
             self.weights.append(W)
@@ -249,7 +254,8 @@ class Network(object):
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
                 # --tied-weights implies --no-learn-biases (biases are zero).
-                self.hiddens.append(self._output_func(TT.dot(h, self.weights[i].T)))
+                self.preacts.append(TT.dot(h, self.weights[i].T))
+                self.hiddens.append(self._output_func(self.preacts[-1]))
 
         else:
             B = len(self.biases) - 1
@@ -264,7 +270,8 @@ class Network(object):
             parameter_count += n
             bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
             self.biases.append(bias)
-            self.hiddens.append(self._output_func(sum(decoders) + bias))
+            self.preacts.append(sum(decoders) + bias)
+            self.hiddens.append(self._output_func(self.preacts[-1]))
 
         return self.hiddens.pop(), parameter_count
 

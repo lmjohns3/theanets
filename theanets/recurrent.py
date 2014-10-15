@@ -145,8 +145,8 @@ class Predictor(Autoencoder):
 class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
-    def __init__(self, *args, **kwargs):
-        super(Regressor, self).__init__(*args, **kwargs)
+    def setup_vars(self):
+        self.x = TT.tensor3('x')
         self.k = TT.tensor3('k')
 
     @property

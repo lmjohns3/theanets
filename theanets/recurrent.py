@@ -45,11 +45,11 @@ class Network(ff.Network):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
-    hidden_activation : str
+    hidden_activation : str, optional
         The name of an activation function to use on hidden network units.
         Defaults to 'sigmoid'.
 
-    output_activation : str
+    output_activation : str, optional
         The name of an activation function to use on output units. Defaults to
         'linear'.
 

@@ -253,9 +253,10 @@ class Network(object):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
-                # --tied-weights implies --no-learn-biases (biases are zero).
-                self.preacts.append(TT.dot(h, self.weights[i].T))
-                self.hiddens.append(self._output_func(self.preacts[-1]))
+                o = theano.shared(np.zeros((b, ), FLOAT), name='b_out{}'.format(i))
+                self.preacts.append(TT.dot(h, self.weights[i].T) + o)
+                func = self._output_func if i == 0 else self._hidden_func
+                self.hiddens.append(func(self.preacts[-1]))
 
         else:
             B = len(self.biases) - 1

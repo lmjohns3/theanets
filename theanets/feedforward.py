@@ -284,7 +284,7 @@ class Network(object):
             k = len(self.layers) // 2
             encode = np.asarray(self.layers[:k])
             decode = np.asarray(self.layers[k+1:])
-            assert np.allclose(encode - decode[::-1], 0), error
+            assert (encode == decode[::-1]).all(), error
             sizes = self.layers[:k+1]
         return sizes
 

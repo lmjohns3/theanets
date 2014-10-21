@@ -45,6 +45,16 @@ class Network(ff.Network):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
+    recurrent_layers : sequence of int, optional
+        A sequence of integers specifying the indices of recurrent layers in the
+        network. Non-recurrent network layers receive input only from the
+        preceding layers for a given input, while recurrent layers also receive
+        input from the output of the recurrent layer from the previous time
+        step. The index values in this sequence must be in (0, len(layers)) --
+        that is, the input and output of a network cannot be recurrent. Defaults
+        to [len(layers) - 1] -- the penultimate layer of the network is the only
+        recurrent layer.
+
     hidden_activation : str, optional
         The name of an activation function to use on hidden network units.
         Defaults to 'sigmoid'.

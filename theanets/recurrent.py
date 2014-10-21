@@ -120,6 +120,49 @@ class Network(ff.Network):
 
         return recurrence, count
 
+    def lstm_recurrence(self, input_size, cell_size):
+        count = 0
+
+        W_xi, b_i, n = self.create_layer(input_size, cell_size, 'xi')
+        count += n
+        W_hi, W_ci, n = self.create_layer(cell_size, cell_size, 'hi')
+        W_ci.name = 'W_ci'
+        count += n
+
+        W_xf, b_f, n = self.create_layer(input_size, cell_size, 'xf')
+        count += n
+        W_hf, W_cf, n = self.create_layer(cell_size, cell_size, 'hf')
+        W_cf.name = 'W_cf'
+        count += n
+
+        W_xo, b_o, n = self.create_layer(input_size, cell_size, 'xo')
+        count += n
+        W_ho, W_co, n = self.create_layer(cell_size, cell_size, 'ho')
+        W_co.name = 'W_co'
+        count += n
+
+        W_xc, b_c, n = self.create_layer(input_size, cell_size, 'xc')
+        count += n
+        W_hc, _, n = self.create_layer(cell_size, cell_size, 'hc')
+        count += n - cell_size
+
+        def recurrence(x_t, h_tm1, c_tm1):
+            i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) +
+                                  TT.dot(h_tm1, W_hi) +
+                                  TT.dot(c_tm1, TT.diag(W_ci)) + b_i)
+            f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) +
+                                  TT.dot(h_tm1, W_hf) +
+                                  TT.dot(c_tm1, TT.diag(W_cf)) + b_f)
+            c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) +
+                                              TT.dot(h_tm1, W_hc) + b_c)
+            o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) +
+                                  TT.dot(h_tm1, W_ho) +
+                                  TT.dot(c_t, TT.diag(W_co)) + b_o)
+            h_t = o_t * TT.tanh(c_t)
+            return h_t, c_t
+
+        return recurrence, count
+
 
 class Autoencoder(Network):
     '''An autoencoder attempts to reproduce its input.'''

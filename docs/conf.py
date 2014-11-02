@@ -12,6 +12,7 @@ extensions = [
     'sphinx.ext.mathjax',
     #'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.tikz',
     'numpydoc',
     ]
 autosummary_generate = True
@@ -60,7 +61,10 @@ htmlhelp_basename = 'theanetsdoc'
 latex_elements = {
 #'papersize': 'letterpaper',
 #'pointsize': '10pt',
-#'preamble': '',
+'preamble': r'''
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{arrows}''',
 }
 latex_documents = [
   ('index', 'theanets.tex', u'theanets Documentation',

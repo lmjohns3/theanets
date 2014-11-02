@@ -314,10 +314,11 @@ class Rprop(SGD):
     def learning_updates(self):
         for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
             grad = TT.grad(self.J, param)
-            same = grad * grad_tm1 > 0
-            diff = grad * grad_tm1 < 0
+            test = grad * grad_tm1
+            same = TT.gt(test, 0)
+            diff = TT.lt(test, 0)
             step = TT.minimum(self.max_step, TT.maximum(self.min_step, step_tm1 * (
-                (1 - same) * (1 - diff) +
+                TT.eq(test, 0) +
                 same * self.step_increase +
                 diff * self.step_decrease)))
             grad = grad - diff * grad

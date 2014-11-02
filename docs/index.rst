@@ -1,3 +1,4 @@
+======================
 Theanets Documentation
 ======================
 
@@ -5,7 +6,10 @@ Theanets Documentation
 -----------------
 
 * :ref:`qs-setup`
-* :ref:`qs-quickstart`
+* :ref:`qs-overview`
+* :ref:`qs-classifier`
+* :ref:`qs-autoencoder`
+* :ref:`qs-deepautoencoder`
 * :ref:`qs-cli`
 
 :doc:`models`
@@ -24,14 +28,14 @@ Theanets Documentation
 * :ref:`trainers-scipy`
 * :ref:`trainers-misc`
 
-:doc:`reference`
-----------------
-
 :doc:`hacking`
 --------------
 
 * :ref:`hacking-extending`
 * :ref:`hacking-contributing`
+
+:doc:`reference`
+----------------
 
 Indices and tables
 ------------------

@@ -23,7 +23,7 @@ Installation
 First of all, you'll probably want to download and install ``theanets``. The
 easiest way to do this is by using ``pip``::
 
-    pip install theanets
+  pip install theanets
 
 This command will automatically install all of the dependencies for
 ``theanets``, including ``numpy`` and ``Theano``.
@@ -46,28 +46,28 @@ examples in this document.
 
 You can download a copy of the dataset by using the ``skdata`` package::
 
-    pip install skdata
-    pip install matplotlib
+  pip install skdata
+  pip install matplotlib
 
 To show a few of the digits, for example::
 
-    import matplotlib.pyplot as plt
-    import numpy.random as rng
-    import skdata.mnist
+  import matplotlib.pyplot as plt
+  import numpy.random as rng
+  import skdata.mnist
 
-    mnist = skdata.mnist.dataset.MNIST()
-    mnist.meta  # trigger download if needed.
-    digits = mnist.arrays['train_images']
+  mnist = skdata.mnist.dataset.MNIST()
+  mnist.meta  # trigger download if needed.
+  digits = mnist.arrays['train_images']
 
-    # show a 5 x 5 grid of MNIST samples.
-    for axes in plt.subplots(5, 5)[1]:
-        for ax in axes:
-            ax.imshow(digits[rng.randint(len(digits))])
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_frame_on(False)
+  # show a 5 x 5 grid of MNIST samples.
+  for axes in plt.subplots(5, 5)[1]:
+      for ax in axes:
+          ax.imshow(digits[rng.randint(len(digits))])
+          ax.set_xticks([])
+          ax.set_yticks([])
+          ax.set_frame_on(False)
 
-    plt.show()
+  plt.show()
 
 .. _qs-overview:
 
@@ -95,26 +95,26 @@ your part. You will typically define a model by creating an experiment with a
 number of *hyperparameters* that define the specific behavior of your model. The
 skeleton of your code will usually look something like this::
 
-    # some imports -- we will leave these out of
-    # subsequent code blocks.
-    import matplotlib.pyplot as plt
-    import skdata.mnist
-    import theanets
+  # some imports -- we will leave these out of
+  # subsequent code blocks.
+  import matplotlib.pyplot as plt
+  import skdata.mnist
+  import theanets
 
-    # create an experiment to define and train a model.
-    exp = theanets.Experiment(
-        Model,
-        hyperparam1=value1,
-        hyperparam2=value2,
-        ...)
+  # create an experiment to define and train a model.
+  exp = theanets.Experiment(
+      Model,
+      hyperparam1=value1,
+      hyperparam2=value2,
+      ...)
 
-    # train the model.
-    exp.add_trainer(...)
-    exp.run(training_data, validation_data)
+  # train the model.
+  exp.add_trainer(...)
+  exp.run(training_data, validation_data)
 
-    # use the trained model.
-    model = exp.network
-    model.predict(test_data)
+  # use the trained model.
+  model = exp.network
+  model.predict(test_data)
 
 Several broad classes of models are pre-defined in ``theanets``:
 
@@ -144,11 +144,11 @@ MNIST digit as a 0, a 1, a 2, etc. For this task, you can use the
 :ref:`Classifier <models-classification>` feedforward network model. To use this
 model in your code, the skeleton above expands like::
 
-    exp = theanets.Experiment(
-        theanets.Classifier,  # use the classifier model type.
-        hyperparam1=value1,
-        hyperparam2=value2,
-        ...)
+  exp = theanets.Experiment(
+      theanets.Classifier,  # use the classifier model type.
+      hyperparam1=value1,
+      hyperparam2=value2,
+      ...)
 
 Defining the classifier
 -----------------------
@@ -169,10 +169,9 @@ focus on models with just one hidden layer, so you need to choose a value for
 the number of hidden nodes. Let's just choose a nice round number like 100 and
 see what happens::
 
-    exp = theanets.Experiment(
-        theanets.Classifier,
-        layers=(784, 100, 10),
-    )
+  exp = theanets.Experiment(
+      theanets.Classifier,
+      layers=(784, 100, 10))
 
 This is already close to a model that can be trained up and used. In this
 example, the classifier network will have one input layer containing 784
@@ -192,7 +191,56 @@ The :class:`theanets.Experiment` class handles the general case of training with
 fairly little work. Most of the effort required here is in processing your
 dataset so that you can use it to train a network.
 
+Before you can train your model, you'll need to write a little glue code to
+arrange for a training and a validation dataset. With the MNIST digits, this is
+pretty straightforward::
 
+  def load_mnist():
+      mnist = skdata.mnist.dataset.MNIST()
+      mnist.meta  # trigger download if needed.
+      def arr(n, dtype):
+          arr = mnist.arrays[n]
+          return arr.reshape((len(arr), -1)).astype(dtype)
+      train_images = arr('train_images', 'f') / 255.
+      train_labels = arr('train_labels', np.uint8)
+      test_images = arr('test_images', 'f') / 255.
+      test_labels = arr('test_labels', np.uint8)
+      return ((train_images[:50000], train_labels[:50000, 0]),
+              (train_images[50000:], train_labels[50000:, 0]),
+              (test_images, test_labels[:, 0]))
+
+Here we've rescaled the image data so that each pixel lies in the interval [0,
+1] instead of the default [0, 255]. The load function returns a training split
+(the first 50000 images), a validation split (the remainder of the training data
+from ``skdata``), and a test split (the test split from ``skdata``).
+
+.. note::
+
+   Because ``theanets`` uses Theano for its computations, most datasets need to
+   be cast to a value that is compatible with your setting for `Theano's
+   ``floatX`` configuration parameter`_. Unless you have a really expensive GPU,
+   this is likely to mean that you need to use 32-bit floats.
+
+.. _Theano's ``floatX`` configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
+
+The next step is to specify the training algorithm to use, and any associated
+hyperparameter values. This is most naturally accomplished using the
+``add_trainer`` method of the experiment object::
+
+    exp.add_trainer('nag', learning_rate=1e-3, momentum=0.9)
+
+The first argument to the method is the name of a training algorithm, and any
+subsequent keyword arguments will be passed to the training code. The available
+training methods are described in :doc:`trainers`; here we've used Nesterov's
+Accelerated Gradient, a type of stochastic gradient descent.
+
+Finally, the model needs to be trained before it can be used. Putting everything
+together yields code that looks like this::
+
+  train, valid, test = load_mnist()
+  exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
+  exp.add_trainer('nag', learning_rate=1e-3, momentum=0.9)
+  exp.run(train, valid)
 
 .. _qs-autoencoder:
 

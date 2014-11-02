@@ -435,10 +435,7 @@ class Network(object):
         '''Return a list of the Theano parameters for this network.'''
         params = []
         params.extend(self.weights)
-        if getattr(self, 'tied_weights', False) or kwargs.get('no_learn_biases'):
-            # --tied-weights implies --no-learn-biases.
-            pass
-        else:
+        if not kwargs.get('no_learn_biases'):
             params.extend(self.biases)
         return params
 

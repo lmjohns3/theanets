@@ -339,7 +339,8 @@ class Network(object):
         if sparse is not None:
             arr *= np.random.binomial(n=1, p=sparse, size=(a, b))
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
-        bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
+        arr = 1e-3 * np.random.randn(b)
+        bias = theano.shared(arr.astype(FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 

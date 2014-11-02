@@ -20,6 +20,7 @@
 
 '''This file contains an object encapsulating a main process.'''
 
+import argparse
 import climate
 import theano.tensor as TT
 import warnings
@@ -31,13 +32,24 @@ from . import trainer
 logging = climate.get_logger(__name__)
 
 
+# from http://stackoverflow.com/questions/5376837
+def is_running_in_ipython():
+    try:
+        __IPYTHON__
+        return True
+    except NameError:
+        return False
+
+
 def parse_args(**overrides):
     '''Parse command-line arguments, overriding with keyword arguments.
 
     Returns an ordered pair of the command-line argument structure, as well as a
     dictionary version of these arguments.
     '''
-    args = climate.get_args().parse_args()
+    args = argparse.Namespace()
+    if not is_running_in_ipython():
+        args = climate.get_args().parse_args()
     for k, v in overrides.items():
         setattr(args, k, v)
     kwargs = {}

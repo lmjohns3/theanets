@@ -13,6 +13,8 @@ If you find an error in these documents, or just want to clarify something,
 please file an issue or send a pull request to
 https://github.com/lmjohns3/theano-nets.
 
+.. _qs-setup:
+
 Getting started
 ===============
 
@@ -33,6 +35,8 @@ The examples on this page will all use the `MNIST digits dataset
 <http://yann.lecun.com/exdb/mnist/>`_. If you want to follow along, you can
 download a ready-to-go Python pickle of the dataset from
 http://deeplearning.net/data/mnist/mnist.pkl.gz.
+
+.. _qs-quickstart:
 
 Creating a model
 ================
@@ -160,3 +164,8 @@ More information
 
 This concludes the quick start guide! Please read more information about
 ``theanets`` in the `User's Guide <http://theanets.readthedocs.org/en/latest/guide.html>`_.
+
+.. _qs-cli:
+
+Using the Command Line
+======================

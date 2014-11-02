@@ -1,6 +1,6 @@
-============
-User's Guide
-============
+==================
+Defining a Network
+==================
 
 This is a user guide!
 
@@ -89,3 +89,23 @@ space :math:`\\mathcal{T}` using parameters :math:`\\theta`. To compute
 :math:`f`, a network defines a graph of computation units called "artificial
 neurons" because they behave, at a very high level, a bit like biological
 neurons in animals.
+
+.. _models-autoencoders:
+
+Autoencoders
+============
+
+.. _models-regression:
+
+Regression
+==========
+
+.. _models-classification:
+
+Classification
+==============
+
+.. _models-regularization:
+
+Regularization
+==============

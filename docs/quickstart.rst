@@ -28,6 +28,12 @@ easiest way to do this is by using ``pip``::
 This command will automatically install all of the dependencies for
 ``theanets``, including ``numpy`` and ``Theano``.
 
+To work through the documentation you should also install a couple of supporting
+packages::
+
+  pip install skdata
+  pip install matplotlib
+
 MNIST digits
 ------------
 
@@ -44,12 +50,7 @@ MNIST digits are also labeled, they are useful for testing out models of
 supervised learning like classifiers. We'll address both of these tasks as
 examples in this document.
 
-You can download a copy of the dataset by using the ``skdata`` package::
-
-  pip install skdata
-  pip install matplotlib
-
-To show a few of the digits, for example::
+For now, you can look at a few of the digits by plotting them::
 
   import matplotlib.pyplot as plt
   import numpy.random as rng
@@ -217,9 +218,9 @@ from ``skdata``), and a test split (the test split from ``skdata``).
 .. note::
 
    Because ``theanets`` uses Theano for its computations, most datasets need to
-   be cast to a value that is compatible with your setting for `Theano's
-   ``floatX`` configuration parameter`_. Unless you have a really expensive GPU,
-   this is likely to mean that you need to use 32-bit floats.
+   be cast to a value that is compatible with your setting for
+   `Theano's ``floatX`` configuration parameter`_. Unless you have a really
+   expensive GPU, this is likely to mean that you need to use 32-bit floats.
 
 .. _Theano's ``floatX`` configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
 

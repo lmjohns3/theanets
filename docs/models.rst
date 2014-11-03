@@ -1,24 +1,36 @@
-========================
-Defining a Network Model
-========================
+==============
+Network Models
+==============
 
-A feedforward neural network computes a mapping
+``theanets`` comes with several families of popular neural network models
+built-in. This document describes the available models using the language of
+mathematical optimization, and then shows how the ``theanets`` code needs to be
+invoked to use these models.
+
+Background
+==========
+
+A feedforward neural network describes a parametric mapping
 
 .. math::
    r_\theta: \mathcal{S} \to \mathcal{T}
 
 between a source space :math:`\mathcal{S}` and a target space
-:math:`\mathcal{T}` using parameters :math:`\theta`.
+:math:`\mathcal{T}`. The parameters :math:`\theta` describe all trainable
+elements of the mapping, primarily consisting of weights connecting computation
+nodes, and biases for the computation nodes.
 
 .. tikz::
     \draw[thick,rounded corners=8pt]
     (0,0)--(0,2)--(1,3.25)--(2,2)--(2,0)--(0,2)--(2,2)--(0,0)--(2,0);
 
-To compute :math:`r`, a network with :math:`k` layers defines a
-:math:`k`-partite graph of computational nodes that are often called units or
-neurons. The nodes in this graph are just convenient ways of representing
-specific types of computations, and the edges in the graph describe the pathways
-along which information can flow from one node to another.
+Neural networks actually compute an approximation to :math:`r` by assuming that
+the computations conform to a specific kind of structure. In particular, a
+network with :math:`k` layers defines a :math:`k`-partite graph of computational
+nodes that are often called units or neurons. The nodes in this graph are just
+convenient ways of representing specific types of computations, and the edges in
+the graph describe the pathways along which information can flow from one node
+to another.
 
 Traditionally, each node :math:`i` in layer :math:`k+1` receives inputs from all
 nodes in layer :math:`k` and performs a transform of a weighted summation of

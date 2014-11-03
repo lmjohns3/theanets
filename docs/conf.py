@@ -34,7 +34,7 @@ exclude_patterns = ['_build']
 #add_function_parentheses = True
 #add_module_names = True
 #show_authors = False
-pygments_style = 'sphinx'
+pygments_style = 'tango'
 #modindex_common_prefix = []
 
 html_theme = 'sphinx_rtd_theme'

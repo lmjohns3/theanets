@@ -80,14 +80,7 @@ class Network(ff.Network):
     hidden_dropouts : float, optional
         Proportion of hidden unit activations to randomly set to 0.
 
-    pool_noise : float, optional
-        Add gaussian noise to recurrent pool neurons with this variance.
-
-    pool_dropouts : float in [0, 1], optional
-        Randomly set the state of this fraction of recurrent pool neurons to
-        zero.
-
-    pool_error_start : int, optional
+    recurrent_error_start : int, optional
         Compute error metrics starting at this time step. (Defaults to 3.)
     '''
 
@@ -97,7 +90,7 @@ class Network(ff.Network):
         self.x = TT.tensor3('x')
 
     def setup_encoder(self, **kwargs):
-        self.error_start = kwargs.get('pool_error_start', 3)
+        self.error_start = kwargs.get('recurrent_error_start', 3)
 
         sizes = self.check_layer_sizes()
 

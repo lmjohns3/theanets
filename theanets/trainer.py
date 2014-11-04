@@ -584,15 +584,15 @@ class Layerwise(Trainer):
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
         for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
+            net.hiddens = hiddens[:i]
             if net.tied_weights:
                 net.weights = [weights[i-1]]
-                net.hiddens = hiddens[:i]
+                net.biases = [biases[i-1]]
                 for j in range(i - 1, -1, -1):
                     net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
                 net.y = net._output_func(net.hiddens.pop())
             else:
                 W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
-                net.hiddens = hiddens[:i]
                 net.weights = [weights[i-1], W]
                 net.biases = [biases[i-1], b]
                 net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)

@@ -49,7 +49,10 @@ def parse_args(**overrides):
     '''
     args = argparse.Namespace()
     if not is_running_in_ipython():
-        args = climate.get_args().parse_args()
+        try:
+            args, _ = climate.parse_args()
+        except NameError:
+            args = climate.get_args().parse_args()
     for k, v in overrides.items():
         setattr(args, k, v)
     kwargs = {}

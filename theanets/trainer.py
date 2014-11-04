@@ -327,6 +327,30 @@ class Rprop(SGD):
             yield step_tm1, step
 
 
+class RmsProp(SGD):
+    '''RmsProp scales the gradient with a moving RMS normalizer.
+
+    As gradients are computed, an exponential moving average of squared gradient
+    magnitudes is maintained. At each update step, the EMA is used to compute an
+    estimate of the root-mean-square (RMS) gradient value that's been seen in
+    the recent past. The actual gradient is normalized by this RMS "average"
+    before being applied to update the parameters.
+
+    The weight for the EMA window is taken from the "momentum" parameter. If
+    this weight is set to a low value, the EMA will have a short memory and will
+    be prone to changing quickly. If the momentum parameter is set close to 1,
+    the EMA will have a long history and will change slowly.
+    '''
+
+    def learning_updates(self):
+        for param in self.params:
+            grad = TT.grad(self.J, param)
+            rms = theano.shared(
+                np.zeros_like(param.get_value()), name=param.name + '_rms')
+            yield rms, self.momentum * rms + (1 - self.momentum) * grad * grad
+            yield param, param - self.learning_rate * grad / TT.sqrt(rms + 1e-8)
+
+
 class Scipy(Trainer):
     '''General trainer for neural nets using `scipy.optimize.minimize`.'''
 

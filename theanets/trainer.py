@@ -605,30 +605,3 @@ class Layerwise(Trainer):
         net.hiddens = hiddens
         net.weights = weights
         net.biases = biases
-
-
-class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
-
-    This implementation needs some more love before it will work.
-    '''
-
-    def __init__(self, network, **kwargs):
-        super(FORCE, Trainer).__init__(network, **kwargs)
-
-    def train(self, train_set, valid_set=None, **kwargs):
-        W_in, W_pool, W_out = network.weights
-
-        n = W_pool.get_value(borrow=True).shape[0]
-        P = theano.shared(np.eye(n).astype(FLOAT) * self.learning_rate)
-
-        k = TT.dot(P, network.state)
-        rPr = TT.dot(network.state, k)
-        c = 1. / (1. + rPr)
-        dw = network.error(**kwargs) * c * k
-
-        updates = {}
-        updates[P] = P - c * TT.outer(k, k)
-        updates[W_pool] = W_pool - dw
-        updates[W_out] = W_out - dw
-        updates[b_out] = b_out - self.learning_rate * TT.grad(J, b_out)

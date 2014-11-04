@@ -84,9 +84,9 @@ g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
 
 g = climate.add_arg_group('Rprop Optimization')
-g.add_argument('--rprop-increase', type=float, default=1.0001, metavar='R',
+g.add_argument('--rprop-increase', type=float, default=1.01, metavar='R',
                help='increase parameter steps at rate R')
-g.add_argument('--rprop-decrease', type=float, default=0.9999, metavar='R',
+g.add_argument('--rprop-decrease', type=float, default=0.99, metavar='R',
                help='decrease parameter steps at rate R')
 g.add_argument('--rprop-min-step', type=float, default=0., metavar='V',
                help='cap parameter steps to V at the smallest')

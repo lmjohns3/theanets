@@ -292,8 +292,8 @@ class Rprop(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.step_increase = kwargs.get('rprop_increase', 1.2)
-        self.step_decrease = kwargs.get('rprop_decrease', 0.5)
+        self.step_increase = kwargs.get('rprop_increase', 1.01)
+        self.step_decrease = kwargs.get('rprop_decrease', 0.99)
 
         self.min_step = kwargs.get('rprop_min_step', 0.)
         self.max_step = kwargs.get('rprop_max_step', 100.)

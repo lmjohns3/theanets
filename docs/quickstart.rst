@@ -219,10 +219,10 @@ from ``skdata``), and a test split (the test split from ``skdata``).
 
    Because ``theanets`` uses Theano for its computations, most datasets need to
    be cast to a value that is compatible with your setting for
-   `Theano's ``floatX`` configuration parameter`_. Unless you have a really
+   `Theano's "floatX" configuration parameter`_. Unless you have a really
    expensive GPU, this is likely to mean that you need to use 32-bit floats.
 
-.. _Theano's ``floatX`` configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
+.. _Theano's "floatX" configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
 
 The next step is to specify the training algorithm to use, and any associated
 hyperparameter values. This is most naturally accomplished using the

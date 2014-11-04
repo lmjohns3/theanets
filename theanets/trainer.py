@@ -518,7 +518,7 @@ class Sample(Trainer):
             if w.name.startswith('W_out_'):
                 arr = np.vstack(Sample.reservoir(samples, k))
                 logging.info('setting weights for %s: %d x %d <- %s', w.name, k, n, arr.shape)
-                w.set_value(arr)
+                w.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
         # set input (encoding) weights on the network.
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
@@ -530,7 +530,7 @@ class Sample(Trainer):
             m, k = w.get_value(borrow=True).shape
             arr = np.vstack(Sample.reservoir(samples, k)).T
             logging.info('setting weights for %s: %d x %d <- %s', w.name, m, k, arr.shape)
-            w.set_value(arr)
+            w.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
             samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
         yield {'J': -1}

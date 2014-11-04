@@ -92,8 +92,6 @@ g.add_argument('--rprop-min-step', type=float, default=0., metavar='V',
                help='cap parameter steps to V at the smallest')
 g.add_argument('--rprop-max-step', type=float, default=1., metavar='V',
                help='cap parameter steps to V at the largest')
-g.add_argument('--rprop-initial-step', type=float, default=1e-4, metavar='V',
-               help='set initial parameter steps to V')
 
 g = climate.add_arg_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',

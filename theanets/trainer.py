@@ -297,7 +297,7 @@ class Rprop(SGD):
 
         self.min_step = kwargs.get('rprop_min_step', 0.)
         self.max_step = kwargs.get('rprop_max_step', 100.)
-        step = kwargs.get('rprop_initial_step', 0.001)
+        step = kwargs.get('learning_rate', 1e-4)
 
         # set up space for temporary variables used during learning.
         self.params = network.params(**kwargs)

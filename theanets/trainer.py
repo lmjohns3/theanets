@@ -136,8 +136,8 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
-        self.momentum = kwargs.get('momentum', 0.5)
-        self.learning_rate = kwargs.get('learning_rate', 0.01)
+        self.momentum = kwargs.get('momentum', 0.9)
+        self.learning_rate = kwargs.get('learning_rate', 1e-4)
 
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(

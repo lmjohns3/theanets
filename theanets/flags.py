@@ -26,14 +26,11 @@ import climate
 g = climate.add_arg_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
-g.add_argument('-g', '--activation', default='logistic',
-               metavar='[linear|logistic|tanh|relu|...]',
+g.add_argument('-g', '--activation', default='logistic', metavar='FUNC',
                help='function for hidden unit activations DEPRECATED')
-g.add_argument('--hidden-activation',
-               metavar='[linear|logistic|tanh|relu|...]',
+g.add_argument('--hidden-activation', default='logistic', metavar='FUNC',
                help='function for hidden unit activations')
-g.add_argument('--output-activation', default='linear',
-               metavar='[linear|logistic|tanh|relu|...]',
+g.add_argument('--output-activation', default='linear', metavar='FUNC',
                help='function for output unit activations')
 g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
@@ -41,8 +38,8 @@ g.add_argument('--decode', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
 g = climate.add_arg_group('Training')
-g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='[sgd|nag|rprop|hf|cg|sample|...]',
-               help='train with the given optimization method(s)')
+g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',
+               help='train with the given optimization algorithm(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
 g.add_argument('-p', '--patience', type=int, default=50, metavar='N',

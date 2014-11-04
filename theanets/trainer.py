@@ -583,20 +583,19 @@ class Layerwise(Trainer):
 
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
-        output_activation = net._build_activation(net.output_activation)
         for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
             if net.tied_weights:
                 net.weights = [weights[i-1]]
                 net.hiddens = hiddens[:i]
                 for j in range(i - 1, -1, -1):
                     net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-                net.y = output_activation(net.hiddens.pop())
+                net.y = net._output_func(net.hiddens.pop())
             else:
                 W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
-                net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
                 net.hiddens = hiddens[:i]
                 net.weights = [weights[i-1], W]
                 net.biases = [biases[i-1], b]
+                net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)
             logging.info('layerwise: training weights %s', net.weights[0].name)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):

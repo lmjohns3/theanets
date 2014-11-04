@@ -345,9 +345,10 @@ class RmsProp(SGD):
     def learning_updates(self):
         for param in self.params:
             grad = TT.grad(self.J, param)
-            rms = theano.shared(
+            rms_ = theano.shared(
                 np.zeros_like(param.get_value()), name=param.name + '_rms')
-            yield rms, self.momentum * rms + (1 - self.momentum) * grad * grad
+            rms = self.momentum * rms_ + (1 - self.momentum) * grad * grad
+            yield rms_, rms
             yield param, param - self.learning_rate * grad / TT.sqrt(rms + 1e-8)
 
 

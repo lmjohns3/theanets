@@ -75,7 +75,7 @@ g.add_argument('--weight-l1', type=float, default=0, metavar='K',
 g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
-g = climate.add_arg_group('SGD Optimization')
+g = climate.add_arg_group('SGD/NAG/RmsProp Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=1e-4, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',

@@ -118,6 +118,7 @@ class Experiment:
                 factory = dict(
                     hf=trainer.HF,
                     nag=trainer.NAG,
+                    rmsprop=trainer.RmsProp,
                     rprop=trainer.Rprop,
                     sample=trainer.Sample,
                     sgd=trainer.SGD,

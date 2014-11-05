@@ -347,9 +347,10 @@ class RmsProp(SGD):
     def learning_updates(self):
         for param in self.params:
             grad = TT.grad(self.J, param)
-            rms = theano.shared(
+            rms_ = theano.shared(
                 np.zeros_like(param.get_value()), name=param.name + '_rms')
-            yield rms, self.momentum * rms + (1 - self.momentum) * grad * grad
+            rms = self.momentum * rms_ + (1 - self.momentum) * grad * grad
+            yield rms_, rms
             yield param, param - self.learning_rate * grad / TT.sqrt(rms + 1e-8)
 
 
@@ -584,20 +585,19 @@ class Layerwise(Trainer):
 
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
-        output_activation = net._build_activation(net.output_activation)
         for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
+            net.hiddens = hiddens[:i]
             if net.tied_weights:
                 net.weights = [weights[i-1]]
-                net.hiddens = hiddens[:i]
+                net.biases = [biases[i-1]]
                 for j in range(i - 1, -1, -1):
                     net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-                net.y = output_activation(net.hiddens.pop())
+                net.y = net._output_func(net.hiddens.pop())
             else:
                 W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
-                net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
-                net.hiddens = hiddens[:i]
                 net.weights = [weights[i-1], W]
                 net.biases = [biases[i-1], b]
+                net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)
             logging.info('layerwise: training weights %s', net.weights[0].name)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
@@ -607,30 +607,3 @@ class Layerwise(Trainer):
         net.hiddens = hiddens
         net.weights = weights
         net.biases = biases
-
-
-class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
-
-    This implementation needs some more love before it will work.
-    '''
-
-    def __init__(self, network, **kwargs):
-        super(FORCE, Trainer).__init__(network, **kwargs)
-
-    def train(self, train_set, valid_set=None, **kwargs):
-        W_in, W_pool, W_out = network.weights
-
-        n = W_pool.get_value(borrow=True).shape[0]
-        P = theano.shared(np.eye(n).astype(FLOAT) * self.learning_rate)
-
-        k = TT.dot(P, network.state)
-        rPr = TT.dot(network.state, k)
-        c = 1. / (1. + rPr)
-        dw = network.error(**kwargs) * c * k
-
-        updates = {}
-        updates[P] = P - c * TT.outer(k, k)
-        updates[W_pool] = W_pool - dw
-        updates[W_out] = W_out - dw
-        updates[b_out] = b_out - self.learning_rate * TT.grad(J, b_out)

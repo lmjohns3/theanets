@@ -323,18 +323,25 @@ class Rprop(SGD):
 
 
 class RmsProp(SGD):
-    '''RmsProp scales the gradient with a moving RMS normalizer.
+    '''RmsProp trains neural network models using scaled SGD.
 
-    As gradients are computed, an exponential moving average of squared gradient
-    magnitudes is maintained. At each update step, the EMA is used to compute an
-    estimate of the root-mean-square (RMS) gradient value that's been seen in
-    the recent past. The actual gradient is normalized by this RMS "average"
-    before being applied to update the parameters.
+    The Rprop method uses the same general strategy as SGD (both methods are
+    make small parameter adjustments using local derivative information). The
+    difference here is that as gradients are computed during each parameter
+    update, an exponential moving average of squared gradient magnitudes is
+    maintained as well. At each update, the EMA is used to compute the
+    root-mean-square (RMS) gradient value that's been seen in the recent past.
+    The actual gradient is normalized by this RMS scale before being applied to
+    update the parameters.
 
-    The weight for the EMA window is taken from the "momentum" parameter. If
-    this weight is set to a low value, the EMA will have a short memory and will
-    be prone to changing quickly. If the momentum parameter is set close to 1,
-    the EMA will have a long history and will change slowly.
+    Like Rprop, this learning method effectively maintains a sort of
+    parameter-specific momentum value, but the difference here is that only the
+    magnitudes of the gradients are taken into account, rather than the signs.
+
+    The weight parameter for the EMA window is taken from the "momentum" keyword
+    argument. If this weight is set to a low value, the EMA will have a short
+    memory and will be prone to changing quickly. If the momentum parameter is
+    set close to 1, the EMA will have a long history and will change slowly.
     '''
 
     def learning_updates(self):

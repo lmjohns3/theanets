@@ -20,7 +20,6 @@
 
 '''This file contains an object encapsulating a main process.'''
 
-import argparse
 import climate
 import theano.tensor as TT
 import warnings
@@ -32,41 +31,7 @@ from . import trainer
 logging = climate.get_logger(__name__)
 
 
-# from http://stackoverflow.com/questions/5376837
-def is_running_in_ipython():
-    try:
-        __IPYTHON__
-        return True
-    except NameError:
-        return False
-
-
-def parse_args(**overrides):
-    '''Parse command-line arguments, overriding with keyword arguments.
-
-    Returns an ordered pair of the command-line argument structure, as well as a
-    dictionary version of these arguments.
-    '''
-    args = argparse.Namespace()
-    if not is_running_in_ipython():
-        args = climate.get_args().parse_args()
-    for k, v in overrides.items():
-        setattr(args, k, v)
-    kwargs = {}
-    kwargs.update(vars(args))
-    if 'activation' in kwargs:
-        warnings.warn('please use --hidden-activation instead of --activation',
-                      DeprecationWarning)
-        activation = kwargs.pop('activation')
-        if not kwargs.get('hidden_activation'):
-            kwargs['hidden_activation'] = activation
-    logging.info('runtime arguments:')
-    for k in sorted(kwargs):
-        logging.info('--%s = %s', k, kwargs[k])
-    return args, kwargs
-
-
-class Experiment(object):
+class Experiment:
     '''This class encapsulates tasks for training and evaluating a network.'''
 
     def __init__(self, network_class, **overrides):
@@ -94,7 +59,14 @@ class Experiment(object):
         self.trainers = []
         self.datasets = {}
 
-        self.args, self.kwargs = parse_args(**overrides)
+        self.args, self.kwargs = climate.parse_args(**overrides)
+        if 'activation' in self.kwargs:
+            warnings.warn(
+                'please use --hidden-activation instead of --activation',
+                DeprecationWarning)
+            activation = self.kwargs.pop('activation')
+            if not self.kwargs.get('hidden_activation'):
+                self.kwargs['hidden_activation'] = activation
 
         kw = {}
         kw.update(self.kwargs)

@@ -21,6 +21,7 @@
 '''This file contains an object encapsulating a main process.'''
 
 import climate
+import sys
 import theano.tensor as TT
 import warnings
 
@@ -29,6 +30,82 @@ from . import feedforward
 from . import trainer
 
 logging = climate.get_logger(__name__)
+
+
+HELP_ACTIVATION = '''\
+Available Activation Functions
+==============================
+
+The names on the left show the possible values for the --hidden-activation and
+--output-activation configuration parameters. They can be chained together by
+combining multiple names with a + (plus); for example, tanh+relu will result in
+the rectified tanh activation function g(z) = max(0, tanh(z)).
+
+linear     g(z) = z                     plain linear
+
+sigmoid    g(z) = 1 / (1 + e^-z)        logistic sigmoid
+logistic   g(z) = 1 / (1 + e^-z)        logistic sigmoid
+tanh       g(z) = tanh(z)               hyperbolic tangent
+
+softplus   g(z) = log(1 + exp(z))       smooth approximation to relu
+
+softmax    g(z) = e^z / sum(e^z)        categorical distribution
+
+relu       g(z) = max(0, z)             rectified linear
+trel       g(z) = max(0, min(1, z))     truncated rectified linear
+trec       g(z) = z if z > 1 else 0     thresholded rectified linear
+tlin       g(z) = z if |z| > 1 else 0   thresholded linear
+
+rect:max   g(z) = min(1, z)             truncation operator
+rect:min   g(z) = max(0, z)             rectification operator
+
+norm:dc    g(z) = z - mean(z)           mean-normalization operator
+norm:max   g(z) = z - max(abs(z))       max-normalization operator
+norm:std   g(z) = z - std(z)            variance-normalization operator
+'''
+
+HELP_OPTIMIZE = '''\
+Available Optimizers
+====================
+
+First-Order Gradient Descent
+----------------------------
+sgd: Stochastic Gradient Descent
+  --learning-rate
+  --momentum
+
+nag: Nesterov's Accelerated Gradient
+  --learning-rate
+  --momentum
+
+rprop: Resilient Backpropagation
+  --learning-rate (sets initial learning rate)
+  --rprop-increase, --rprop-decrease
+  --rprop-min-step, --rprop-max-step
+
+rmsprop: RMS-scaled Backpropagation
+  --learning-rate
+  --momentum (sets decay for exponential moving average)
+
+bfgs, cg, dogleg, newton-cg, trust-ncg
+  These use the implementations in scipy.optimize.minimize.
+
+Second-Order Gradient Descent
+-----------------------------
+hf: Hessian-Free
+  --cg-batches
+  --initial-lambda
+  --global-backtracking
+  --num-updates
+  --preconditioner
+
+Miscellaneous
+-------------
+sample: Set model parameters to training data samples
+
+layerwise: Greedy layerwise pre-training
+  This trainer applies NAG to each layer.
+'''
 
 
 class Experiment:
@@ -67,6 +144,14 @@ class Experiment:
             activation = self.kwargs.pop('activation')
             if not self.kwargs.get('hidden_activation'):
                 self.kwargs['hidden_activation'] = activation
+
+        if self.kwargs.get('help_activation'):
+            print(HELP_ACTIVATION)
+            sys.exit(0)
+
+        if self.kwargs.get('help_optimize'):
+            print(HELP_OPTIMIZE)
+            sys.exit(0)
 
         kw = {}
         kw.update(self.kwargs)

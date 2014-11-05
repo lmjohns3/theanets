@@ -276,7 +276,7 @@ class Rprop(SGD):
     each parameter is independent of the magnitude of the gradient for that
     parameter.
 
-    More accurately, Rprop maintains a separate learning rate for every
+    To accomplish this, Rprop maintains a separate learning rate for every
     parameter in the model, and adjusts this learning rate based on the
     consistency of the sign of the gradient of J with respect to that parameter
     over time. Whenever two consecutive gradients for a parameter have the same
@@ -294,13 +294,12 @@ class Rprop(SGD):
     def __init__(self, network, **kwargs):
         self.step_increase = kwargs.get('rprop_increase', 1.01)
         self.step_decrease = kwargs.get('rprop_decrease', 0.99)
-
         self.min_step = kwargs.get('rprop_min_step', 0.)
         self.max_step = kwargs.get('rprop_max_step', 100.)
-        step = kwargs.get('learning_rate', 1e-4)
+        super(Rprop, self).__init__(network, **kwargs)
 
-        # set up space for temporary variables used during learning.
-        self.params = network.params(**kwargs)
+    def learning_updates(self):
+        step = self.learning_rate
         self.grads = []
         self.steps = []
         for param in self.params:
@@ -308,10 +307,6 @@ class Rprop(SGD):
             n = param.name
             self.grads.append(theano.shared(np.zeros_like(v), name=n + '_grad'))
             self.steps.append(theano.shared(np.zeros_like(v) + step, name=n + '_step'))
-
-        super(Rprop, self).__init__(network, **kwargs)
-
-    def learning_updates(self):
         for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
             grad = TT.grad(self.J, param)
             test = grad * grad_tm1

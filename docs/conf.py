@@ -3,6 +3,10 @@ import sys
 
 import sphinx_rtd_theme
 
+if os.environ.get('READTHEDOCS', None) == 'True':
+    os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
+    os.environ['LD_LIBRARY_PATH'] = os.path.abspath('_bin')
+
 #needs_sphinx = '1.0'
 extensions = [
     'sphinx.ext.autodoc',

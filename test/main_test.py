@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import tempfile
 
 import theanets
@@ -26,9 +27,10 @@ class TestExperiment(util.MNIST):
         exp = theanets.Experiment(
             theanets.Autoencoder, layers=(10, 3, 4, 10))
         net = exp.network
-        _, p = tempfile.mkstemp(suffix='pkl')
+        f, p = tempfile.mkstemp(suffix='pkl')
+        os.close(f)
+        os.unlink(p)
         try:
-            assert not os.path.isfile(p)
             exp.save(p)
             assert os.path.isfile(p)
             exp.load(p)

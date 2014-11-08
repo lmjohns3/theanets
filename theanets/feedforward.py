@@ -482,6 +482,7 @@ class Network(object):
         pickle.dump(dict(
             weights=[p.get_value().copy() for p in self.weights],
             biases=[p.get_value().copy() for p in self.biases],
+            klass=self.__class__,
             kwargs=dict(
                 layers=self.layers,
                 hidden_activation=self.hidden_activation,

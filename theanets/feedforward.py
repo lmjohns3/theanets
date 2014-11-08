@@ -37,18 +37,11 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def load(klass, filename, **kwargs):
+def load(filename, **kwargs):
     '''Load an entire network from a pickle file on disk.
 
     Parameters
     ----------
-    klass : callable
-        The constructor for a Network subclass (e.g., Autoencoder, Regressor,
-        etc.). This constructor will be invoked using keyword arguments loaded
-        from the given pickle file (and updated using any keyword arguments
-        passed to this load() invocation). The newly created network will then
-        load saved parameters (weights and biases) from the pickle file.
-
     filename : str
         Load the keyword arguments and parameters of a network from a pickle
         file at the named path. If this name ends in ".gz" then the input will
@@ -63,10 +56,11 @@ def load(klass, filename, **kwargs):
     '''
     opener = gzip.open if filename.lower().endswith('.gz') else open
     handle = opener(filename, 'rb')
-    kw = pickle.load(handle)['kwargs']
+    pkl = pickle.load(handle)
     handle.close()
+    kw = pkl['kwargs']
     kw.update(kwargs)
-    net = klass(**kw)
+    net = pkl['klass'](**kw)
     net.load_params(filename)
     return net
 

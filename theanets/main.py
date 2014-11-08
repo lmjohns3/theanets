@@ -280,11 +280,31 @@ class Experiment:
                 yield costs
 
     def save(self, path):
-        '''Save the parameters in the network to a pickle file on disk.
+        '''Save the current network to a pickle file on disk.
+
+        Parameters
+        ----------
+        path : str
+            Location of the file to save the network.
         '''
         self.network.save(path)
 
-    def load(self, path):
-        '''Load the parameters in the network from a pickle file on disk.
+    def load(self, path, **kwargs):
+        '''Load a saved network from a pickle file on disk.
+
+        Parameters
+        ----------
+        filename : str
+            Load the keyword arguments and parameters of a network from a pickle
+            file at the named path. If this name ends in ".gz" then the input
+            will automatically be gunzipped; otherwise the input will be treated
+            as a "raw" pickle.
+
+        Returns
+        -------
+        Network :
+            A newly-constructed network, with topology and parameters loaded
+            from the given pickle file.
         '''
-        self.network.load(path)
+        self.network = feedforward.load(path, **kwargs)
+        return self.network

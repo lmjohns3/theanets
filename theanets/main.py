@@ -172,6 +172,8 @@ class Experiment:
     def _build_trainers(self, **kwargs):
         '''Build trainers from command-line arguments.
         '''
+        if not hasattr(self.args, 'optimize'):
+            self.args.optimize = 'nag'
         if isinstance(self.args.optimize, str):
             self.args.optimize = self.args.optimize.strip().split()
         for factory in self.args.optimize:

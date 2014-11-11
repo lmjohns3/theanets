@@ -13,18 +13,35 @@ hand-written digits. Each MNIST digit is labeled with the correct digit class
 (0, 1, ... 9). Please see the :ref:`qs-mnist` section for a brief overview of
 this dataset if you're not already familiar with it.
 
-Background
-==========
+Mathematics Background
+======================
 
-A feedforward neural network describes a parametric mapping
+Neural networks are really just a concise, computational way of describing a
+mathematical model of some data. Before getting into the models below, we'll
+first set up the ideas and notation that are used on this page.
+
+At a high level, a feedforward neural network describes a parametric mapping
 
 .. math::
    F_\theta: \mathcal{S} \to \mathcal{T}
 
 between a source space :math:`\mathcal{S}` and a target space
-:math:`\mathcal{T}`. For the MNIST digits, for example,
-:math:`\mathcal{S} = \mathbb{R}^{784}`, and for a digit classification task,
-:math:`\mathcal{T} = \mathbb{R}^{10}`.
+:math:`\mathcal{T}`. For the MNIST digits, for example we could think of
+:math:`\mathcal{S} = \mathbb{R}^{28 \times 28} = \mathbb{R}^{784}` (i.e., the
+space of all 28×28 images), and for classifying the MNIST digits we could think
+of :math:`\mathcal{T} = \{0, 1\}^{10}` (i.e., vectors of length 10 composed only
+of 0s and 1s).
+
+This mapping is assumed to be fairly complex. If it were not -- if you could
+capture the mapping using a simple expression like :math:`F_\theta(x) = x^2` --
+then we would just use the expression directly and not need to deal with an
+entire network. So if the mapping is complex, we will do a couple of things to
+make our problem tractable. First, we will assume some structure for
+:math:`F_\theta`. Second, we will fit our model to some set of data that we have
+obtained.
+
+Model structure
+---------------
 
 .. tikz::
    :libs: arrows
@@ -37,40 +54,80 @@ between a source space :math:`\mathcal{S}` and a target space
    \node[draw] (output) [right of=hkm1] {Output} edge[<-] (hkm1);
 
 The mapping :math:`F_\theta` is implemented in neural networks by assuming a
-specific, layered form. Computation nodes -- also called units or sometimes
+specific, layered form. Computation nodes -- also called units or (sometimes)
 neurons -- are arranged in a :math:`k` partite graph, with layer :math:`k`
-containing :math:`n_k` nodes. A *weight* matrix :math:`W^k \in \mathbb{R}^{n_k
+containing :math:`n_k` nodes. A **weight matrix** :math:`W^k \in \mathbb{R}^{n_k
 \times n_{k+1}}` specifies the strength of the connection between nodes in layer
 :math:`k` and those in layer :math:`k+1` -- all other pairs of nodes are not
-connected. Each node typically also has a scalar *bias* parameter that
-determines its offset from the origin. Together, the parameters :math:`\theta`
-of the model are these :math:`k-1` weight matrices and :math:`k` bias vectors.
+connected. Each layer of nodes typically also has a **bias vector** that
+determines the offset of each node from the origin. Together, the parameters
+:math:`\theta` of the model are these :math:`k-1` weight matrices (weights only
+exist between layers of computation nodes) and :math:`k-1` bias vectors (there
+are no biases for the input nodes in the graph).
 
 .. tikz::
    :libs: arrows
 
-   [thick,->,>=stealth',circle,minimum size=10mm,node distance=10mm,below]
-   \node[draw] (x) at (0, 0) {$a_i^{k+1}$};
-   \node[draw] (b) at (-30mm, 0) {$a_j^k$} edge node {$w^k_{ji}$} (x);
+   [thick,->,>=stealth',circle,minimum size=10mm,node distance=10mm,below,near start]
+   \node[draw] (z) at (0, 0) {$\sum$};
+   \node[draw] (x) at (20mm, 1.5mm) {$a_i^{k+1}$} edge[<-] (z);
+   \node[draw] (b) at (-30mm, 0) {$a_j^k$} edge node {$w^k_{ji}$} (z);
    \node (adots) [above of=b] {$\vdots$};
-   \node[draw] (a) [above of=adots] {$a_1^k$} edge node[above] {$w^k_{1i}$} (x);
+   \node[draw] (a) [above of=adots] {$a_1^k$} edge node {$w^k_{1i}$} (z);
    \node (cdots) [below of=b] {$\vdots$};
-   \node[draw] (c) [below of=cdots] {$a_{n_k}^k$} edge node {$w^k_{n_ki}$} (x);
+   \node[draw] (c) [below of=cdots] {$a_{n_k}^k$} edge node {$w^k_{n_ki}$} (z);
+   \node[draw] (bias) at (0, -20mm) {$b^{k+1}_i$} edge (z);
 
 In a standard feedforward network, each node :math:`i` in layer :math:`k+1`
 receives inputs from all nodes in layer :math:`k`, then transforms the weighted
 sum of these inputs:
 
 .. math::
-   a_i^{k+1} = \sigma\left( \sum_{j=1}^{n_k} w^k_{ij} a_j^k \right)
+   a_i^{k+1} = \sigma\left( b_i^{k+1} + \sum_{j=1}^{n_k} w^k_{ij} a_j^k \right)
 
-where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is some activation function.
-Typical choices of the activation function are linear :math:`\sigma(z) = z`,
-rectified :math:`\sigma(z) = \max(0, z)`, or sigmoidal :math:`\sigma(z) = (1 +
-e^{-z})^{-1}`. Usually all hidden nodes in a network share the same activation
-function; nodes in the input layer are assumed to have linear activation, and
-nodes in the output layer might have linear or nonlinear activations depending
-on the modeling task.
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function."
+Although many functions will work, typical choices of the activation function
+are:
+
+- **linear** :math:`\sigma(z) = z`,
+- **rectified/rectified linear/relu** :math:`\sigma(z) = \max(0, z)`, or
+- **logistic sigmoid** :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
+
+Usually all hidden nodes in a network share the same activation function. Nodes
+in the input layer are assumed to have linear activation (i.e., the input nodes
+simply represent the state of the input data), and nodes in the output layer
+might have linear or nonlinear activations depending on the modeling task.
+
+Data
+----
+
+Now that we have defined some structure for the model, we will probably need to
+fit the model to some empirical data. We assume that we have obtained a set of
+samples from a distribution :math:`p(\mathcal{S}, \mathcal{T})` over the two
+spaces of our model or problem.
+
+The data that we need will depend on the task at hand. For a classification task
+using the MNIST digits, for example, we will need some samples from
+:math:`\mathcal{S} = \mathbb{R}^{28\times 28}` (e.g., pixel arrays of MNIST
+digits) as well as the accompanying **labels** from :math:`\mathcal{T} = \{0,
+1\}^{10}` digit labels (e.g., vectors with ten entries containing a 1 in the
+slot representing the correct digit class). For an autoencoder or density
+estimation task, we only need the **unlabeled** samples from
+:math:`\mathcal{S}`.
+
+The samples from :math:`\mathcal{S}` will be referred to below as :math:`x`,
+while the samples (labels) from :math:`\mathcal{T}` will be referred to below as
+:math:`y`. If many samples are grouped together, we'll assume they are rows in a
+matrix :math:`X` or :math:`Y`.
+
+.. note::
+   Typically in mathematics samples are treated as columns, but the ``theanets``
+   library, as well as many other Python-based machine learning libraries,
+   treats these quantities as rows. To avoid confusion with the coding world,
+   the math on this page assumes row vectors and row-oriented matrices.
+
+With the mathematics notation out of the way, it's time to look at different
+neural network models!
 
 .. _models-autoencoders:
 
@@ -82,23 +139,76 @@ An autoencoder defines a mapping from a source space to itself.
 .. math::
    F_\theta: \mathcal{S} \to \mathcal{S}
 
-Typically, this mapping is decomposed into an "encoding" :math:`f_\alpha(\cdot)`
-and a corresponding "decoding" :math:`g_\beta(\cdot)` to and from a latent space
-:math:`\mathcal{T}`:
+Typically, this mapping is decomposed into an "encoding" stage
+:math:`f_\alpha(\cdot)` and a corresponding "decoding" stage
+:math:`g_\beta(\cdot)` to and from some latent space :math:`\mathcal{Z} =
+\mathbb{R}^{n_z}`:
 
 .. math::
-   f_\alpha: \mathcal{S} \to \mathcal{T}, \qquad
-   g_\beta: \mathcal{T} \to \mathcal{S}
+   f_\alpha: \mathcal{S} \to \mathcal{Z}, \qquad
+   g_\beta: \mathcal{Z} \to \mathcal{S}
 
-Autoencoders are often trained with respect to a reconstruction loss:
+Autoencoders form an interesting class of models for several reasons. They:
+
+- require only "unlabeled" data (which is typically easy to obtain),
+- are generalizations of many popular density estimation techniques, and
+- can be used to model the "manifold" or density of a dataset.
+
+A generic autoencoder can be defined in ``theanets`` by using the
+:class:`theanets.Autoencoder` class::
+
+  exp = theanets.Experiment(theanets.Autoencoder)
+
+The ``layers`` parameter is required to define such a model; it can be provided
+on the command-line by using ``--layers A B C ... A``, or in your code::
+
+  exp = theanets.Experiment(
+      theanets.Autoencoder,
+      layers=(A, B, C, ..., A))
+
+.. note::
+   Command-line arguments do not work when running your code in IPython.
+
+A subset of autoencoders with an odd-length, palindromic number of layers can be
+defined as having **tied weights** whenever the parameters from the decoder are
+the transpose of the parameters from the encoder. Tied-weights autoencoders form
+an interesting subset of autoencoder models.
+
+Let's look at a few example models that fall into the autoencoder class.
+
+Principal Component Analysis (PCA)
+----------------------------------
+
+The most popular density estimation technique out there is Principal Component
+Analysis (PCA). Principal components are a set of orthogonal directions of
+maximal variance in a dataset; that is, PCA computes a rotation of the dataset
+such that the axes of the rotated system capture as much variance as possible.
+
+In PCA, a modeler assumes that the data come from a single
+ellipsoidal blob in :math:`\mathcal{S}`; that is, PCA assumes the data are drawn
+from a multivariate Gaussian distribution :math:`p(X) = \mathcal{N}(\mu,
+\Sigma)` and then automatically identifies the subspace :math:`\mathcal{Z} =
+\mathbb{R}^{n_z}` such that a linear projection to :math:`\mathcal{Z}` and back
+to :math:`\mathcal{S}` preserves the maximum variance in the data.
+
+Let's look at this mathematically for a minute.
 
 .. math::
-   \ell = \frac{1}{M} \sum_{i=1}^M \left\| g_\beta\left(f_\alpha(x_i)\right) - x_i \right\|_2^2 + R(\alpha, \beta)
+   x = Wz + \epsilon = WW^\top x + \epsilon
 
-The idea here is that the model should be able to recover the original input
-data after performing the encoding and subsequent decoding of the input. Seen
-from this perspective, the autoencoder is learning an encoding that preserves as
-much information as possible about the input (in the least-squares sense).
+   0 = WW^\top x - x + \epsilon
+
+   -\log p(X) \propto \|WW^\top x - x\|_2^2
+
+Given this way of looking at PCA, we can see that it is really a sort of linear
+autoencoder with tied weights. To implement such a model in ``theanets``, we
+only need to provide the following hyperparameters::
+
+  pca = theanets.Experiment(
+      theanets.Autoencoder,
+      tied_weights=True,
+      hidden_activation='linear',
+  )
 
 Sparse autoencoders
 -------------------

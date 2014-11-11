@@ -223,6 +223,26 @@ This penalty forces the encoder and decoder of the autoencoder model to
 cooperate together to represent the input using as little of the latent space as
 possible.
 
+Independent Component Analysis (ICA)
+------------------------------------
+
+While PCA assumes that the underlying data distribution is Gaussian, this
+assumption is not necessarily true for many datasets. A better model for some
+datasets like photographs of the natural world turns out to assume that the
+underlying data distribution is *not* Gaussian, by maximizing the independence
+of the latent components of the model.
+
+One way to accomplish this maximization is to maximize the kurtosis of the model
+distribution, but another is to force the model to use a sparse representation
+while still using linear encoding and decoding with tied weights::
+
+  ica = theanets.Experiment(
+      theanets.Autoencoder,
+      tied_weights=True,
+      hidden_activation='linear',
+      hidden_l1=1,
+  )
+
 .. _models-regression:
 
 Regression

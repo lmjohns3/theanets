@@ -363,6 +363,7 @@ class Scipy(Trainer):
         super(Scipy, self).__init__(network, **kwargs)
 
         self.method = method
+        self.iterations = kwargs.get('num_updates', 100)
 
         logging.info('compiling gradient function')
         self.f_grad = theano.function(network.inputs, TT.grad(self.J, self.params))
@@ -385,8 +386,7 @@ class Scipy(Trainer):
             costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             cost_desc = ' '.join(
                 '%s=%.2f' % el for el in zip(self.cost_names, costs))
-            logging.info('scipy %s %i/%i %s',
-                         self.method, i + 1, self.iterations, cost_desc)
+            logging.info('scipy.%s %i %s', self.method, i + 1, cost_desc)
 
         for i in range(self.iterations):
             try:

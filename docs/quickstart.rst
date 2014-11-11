@@ -7,9 +7,10 @@ getting you up and running with a few simple examples. Once you understand the
 basic workflow, you will be able to extend the examples to your own datasets and
 modeling problems.
 
-This document does not explain the theory behind most of the models that are
-implemented in the ``theanets`` package. Instead, it contains links links to the
-reference documentation, which expands on the ideas presented here.
+This document does not explain the theory behind most of the models or
+optimization algorithms that are implemented in the ``theanets`` package.
+Instead, it contains links links to the reference documentation, which expands
+on the ideas presented here.
 
 If you find an error in any of the documentation, or just want to clarify
 something, please file an issue or send a pull request to
@@ -26,13 +27,18 @@ easiest way to do this is by using ``pip``::
   pip install theanets
 
 This command will automatically install all of the dependencies for
-``theanets``, including ``numpy`` and ``Theano``.
+``theanets``, including ``numpy`` and ``theano``.
 
 To work through the documentation you should also install a couple of supporting
 packages::
 
   pip install skdata
   pip install matplotlib
+
+These will help you obtain the example dataset described below, and also help in
+making plots of various things.
+
+.. _qs-mnist:
 
 MNIST digits
 ------------
@@ -45,12 +51,13 @@ hand-written digits. Each MNIST digit is labeled with the correct digit class
 .. image:: http://www.heikohoffmann.de/htmlthesis/img679.gif
 
 Because the MNIST digits are high-dimensional pixel arrays, they are useful for
-testing out models of unsupervised learning like autoencoders. But because the
-MNIST digits are also labeled, they are useful for testing out models of
+evaluating models of unsupervised learning like autoencoders. But because the
+MNIST digits are also labeled, they are also useful for evaluating models of
 supervised learning like classifiers. We'll address both of these tasks as
 examples in this document.
 
-For now, you can look at a few of the digits by plotting them::
+For now, you can look at a few of the digits in the image above, or by plotting
+them on your computer::
 
   import matplotlib.pyplot as plt
   import numpy.random as rng
@@ -96,8 +103,8 @@ your part. You will typically define a model by creating an experiment with a
 number of *hyperparameters* that define the specific behavior of your model. The
 skeleton of your code will usually look something like this::
 
-  # some imports -- we will leave these out of
-  # subsequent code blocks.
+  # some imports -- we will omit these
+  # from subsequent code blocks.
   import matplotlib.pyplot as plt
   import skdata.mnist
   import theanets
@@ -109,8 +116,10 @@ skeleton of your code will usually look something like this::
       hyperparam2=value2,
       ...)
 
-  # train the model.
+  # add an optimization algorithm to learn model parameters.
   exp.add_trainer(...)
+
+  # train the model.
   exp.run(training_data, validation_data)
 
   # use the trained model.
@@ -128,12 +137,14 @@ Several broad classes of models are pre-defined in ``theanets``:
   attempting to produce a `one-hot`_ output, a regressor attempts to produce
   some continuous-valued target vector for each input.
 
+.. _one-hot: http://en.wikipedia.org/wiki/One-hot
+
+:doc:`models` contains detailed documentation about each of the types of models
+implemented in ``theanets``.
+
 It's also pretty simple to create custom models using ``theanets``, but this is
 not needed to get started. Please see :ref:`hacking-extending` for more
-information about extending the existing models. :doc:`models` contains detailed
-documentation about each of the types of models implemented in ``theanets``.
-
-.. _one-hot: http://en.wikipedia.org/wiki/One-hot
+information about extending the existing models.
 
 .. _qs-classifier:
 
@@ -141,7 +152,7 @@ Classifying MNIST digits
 ========================
 
 Suppose you're interested in learning a model that can classify an image of an
-MNIST digit as a 0, a 1, a 2, etc. For this task, you can use the
+MNIST digit as a 0, a 1, a 2, etc. For this task, you would normally use the
 :ref:`Classifier <models-classification>` feedforward network model. To use this
 model in your code, the skeleton above expands like::
 
@@ -166,18 +177,17 @@ So the first hyperparameter that you'll need to set is ``layers``, which
 specifies the number and size of each layer in your network. For this example,
 the size of the MNIST images (784) determines the number of input nodes you
 need, and the number of digit classes (10) determines the output. For now, we'll
-focus on models with just one hidden layer, so you need to choose a value for
-the number of hidden nodes. Let's just choose a nice round number like 100 and
-see what happens::
+focus on models with just one hidden layer, so you only need to choose a value
+for the number of hidden nodes. Let's just choose a nice round number like 100
+and see what happens::
 
   exp = theanets.Experiment(
       theanets.Classifier,
       layers=(784, 100, 10))
 
-This is already close to a model that can be trained up and used. In this
-example, the classifier network will have one input layer containing 784
-neurons, one hidden layer containing 100 neurons, and one softmax output layer
-containing 10 neurons.
+This is all you need to do to define a classifier model that can be trained up
+and used. There are many more hyperparameters available, but for now we'll stick
+with the defaults for most of them.
 
 Training the classifier
 -----------------------
@@ -200,6 +210,7 @@ pretty straightforward::
       mnist = skdata.mnist.dataset.MNIST()
       mnist.meta  # trigger download if needed.
       def arr(n, dtype):
+          # convert an array to the proper shape and dtype
           arr = mnist.arrays[n]
           return arr.reshape((len(arr), -1)).astype(dtype)
       train_images = arr('train_images', 'f') / 255.
@@ -233,33 +244,45 @@ hyperparameter values. This is most naturally accomplished using the
 The first argument to the method is the name of a training algorithm, and any
 subsequent keyword arguments will be passed to the training code. The available
 training methods are described in :doc:`trainers`; here we've used Nesterov's
-Accelerated Gradient, a type of stochastic gradient descent.
+Accelerated Gradient, a type of stochastic gradient descent with momentum.
 
 Finally, the model needs to be trained before it can be used. Putting everything
 together yields code that looks like this::
 
-  train, valid, test = load_mnist()
+  train, valid, _ = load_mnist()
   exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
   exp.add_trainer('nag', learning_rate=1e-3, momentum=0.9)
   exp.run(train, valid)
 
-.. _qs-autoencoder:
+If you put this code (plus any necessary imports) into a file called, say,
+``mnist-classifier.py``, and then run it on the command-line, your computer will
+do a bunch of work to learn good parameter values for your model ... and then it
+will throw it all away!
 
-Learning an autoencoder
-=======================
+Displaying learned features
+---------------------------
 
-.. _qs-deepautoencoder:
+Let's get this example to do something useful by showing a plot of the
+"features" that the model learns::
 
-Learning a deep autoencoder
-===========================
+  img = np.zeros((28 * 10, 28 * 10), dtype='f')
+  for i, pix in enumerate(exp.network.weights[0].get_value().T):
+      r, c = divmod(i, 10)
+      img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
+  plt.imshow(img, cmap=plt.cm.gray)
+  plt.show()
 
-You can give your network three hidden layers simply by adjusting the value of
-the ``layers`` argument, e.g. ``layers=(784, 500, 200, 100, 10)``. You can add
-as many numbers as desired to the ``layers`` sequence, but keep in mind that
-including more layers often tends to yield models that:
+After the model is trained, we've accessed the weights connecting the input to
+the hidden layer using ``exp.network.weights[0]``. This value is a Theano shared
+array, so to get its current value we need to call ``.get_value()``. This array
+has one column of 784 values for each hidden node in the network, so we can
+iterate over the transpose and put each column -- properly reshaped into a 28×28
+pixel array -- into a giant image and then just plot that image.
 
-- consume more resources (both memory and processing time), and
-- are more difficult to train.
+The ``theanets`` source code contains a complete ``mnist-classifier.py`` example
+that you can play around with. In addition, there are also examples of using
+:class:`theanets.Autoencoder` and "deep" autoencoders for learning features from
+the MNIST digits.
 
 .. _qs-cli:
 
@@ -279,7 +302,7 @@ network using flags defined on the command line::
 This will create the same network as the classification model above if you run
 your file as::
 
-    (venv)~$ my-classifier.py --layers 784 100 10
+    (venv)~$ mnist-classifier.py --layers 784 100 10
 
 In both cases, the model has one input layer with 784 units, one hidden layer
 containing 100 model neurons, and one softmax output layer with 10 units.

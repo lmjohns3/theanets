@@ -433,6 +433,44 @@ class Network(object):
             params.extend(self.biases)
         return params
 
+    def get_weights(self, layer, borrow=False):
+        '''Return the current weights for a given layer.
+
+        Parameters
+        ----------
+        layer : int
+            The layer of weights to return.
+        borrow : bool, optional
+            Whether to "borrow" the reference to the weights. If True, this
+            returns a view onto the current weight array; if False (default), it
+            returns a copy of the weight array.
+
+        Returns
+        -------
+        ndarray :
+            The weight values, as a numpy array.
+        '''
+        return self.weights[layer].get_value(borrow=borrow)
+
+    def get_biases(self, layer, borrow=False):
+        '''Return the current bias vector for a given layer.
+
+        Parameters
+        ----------
+        layer : int
+            The layer of bias values to return.
+        borrow : bool, optional
+            Whether to "borrow" the reference to the biases. If True, this
+            returns a view onto the current bias vector; if False (default), it
+            returns a copy of the biases.
+
+        Returns
+        -------
+        ndarray :
+            The bias values, as a numpy vector.
+        '''
+        return self.biases[layer].get_value(borrow=borrow)
+
     def feed_forward(self, x):
         '''Compute a forward pass of all activations from the given input.
 

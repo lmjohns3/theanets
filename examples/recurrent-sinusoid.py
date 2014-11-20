@@ -21,6 +21,7 @@ def waves(n=64):
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
     layers=(2, 10, 1),
+    batch_size=64,
     train_batches=16)
 
 def sum_waves():

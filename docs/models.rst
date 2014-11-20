@@ -167,7 +167,8 @@ on the command-line by using ``--layers A B C ... A``, or in your code::
       layers=(A, B, C, ..., A))
 
 .. note::
-   Command-line arguments do not work when running your code in IPython.
+   Command-line arguments do not work when running ``theanets`` code in IPython;
+   within IPython, all parameters must be specified as keyword arguments.
 
 A subset of autoencoders with an odd-length, palindromic number of layers can be
 defined as having **tied weights** whenever the parameters from the decoder are

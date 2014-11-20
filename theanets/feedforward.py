@@ -196,6 +196,7 @@ class Network(object):
         self.x = TT.matrix('x')
 
     def setup_encoder(self, **kwargs):
+        #only call this once
         '''Set up a computation graph to map the input to layer activations.
 
         Parameters
@@ -239,6 +240,7 @@ class Network(object):
         return x, parameter_count
 
     def setup_decoder(self, **kwargs):
+        #only call this once
         '''Set up the "decoding" computations from layer activations to output.
         '''
         parameter_count = 0

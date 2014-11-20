@@ -37,18 +37,11 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def load(klass, filename, **kwargs):
+def load(filename, **kwargs):
     '''Load an entire network from a pickle file on disk.
 
     Parameters
     ----------
-    klass : callable
-        The constructor for a Network subclass (e.g., Autoencoder, Regressor,
-        etc.). This constructor will be invoked using keyword arguments loaded
-        from the given pickle file (and updated using any keyword arguments
-        passed to this load() invocation). The newly created network will then
-        load saved parameters (weights and biases) from the pickle file.
-
     filename : str
         Load the keyword arguments and parameters of a network from a pickle
         file at the named path. If this name ends in ".gz" then the input will
@@ -63,10 +56,11 @@ def load(klass, filename, **kwargs):
     '''
     opener = gzip.open if filename.lower().endswith('.gz') else open
     handle = opener(filename, 'rb')
-    kw = pickle.load(handle)['kwargs']
+    pkl = pickle.load(handle)
     handle.close()
+    kw = pkl['kwargs']
     kw.update(kwargs)
-    net = klass(**kw)
+    net = pkl['klass'](**kw)
     net.load_params(filename)
     return net
 
@@ -138,6 +132,10 @@ class Network(object):
     hiddens : list of Theano variables
         Computed Theano variables for the state of hidden units in the network.
 
+    preacts : list of Theano variables
+        Computed Theano variables representing the pre-activation inputs for
+        network units.
+
     layers : tuple of int
         A list of the numbers of units in each of the layers of the network. The
         zero element of this tuple is the size of the input, the final element
@@ -158,10 +156,10 @@ class Network(object):
         the value of the output layer. By default this is 1, which corresponds
         to a traditional feedforward neural network, in which the "topmost"
         hidden layer is the only layer that feeds into the output.
-
     '''
 
     def __init__(self, **kwargs):
+        self.preacts = []
         self.hiddens = []
         self.weights = []
         self.biases = []
@@ -230,8 +228,9 @@ class Network(object):
         for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
             W, b, count = self.create_layer(a, b, i)
             parameter_count += count
+            self.preacts.append(TT.dot(z, W) + b)
             self.hiddens.append(self._add_noise(
-                self._hidden_func(TT.dot(z, W) + b),
+                self._hidden_func(self.preacts[-1]),
                 kwargs.get('hidden_noise', 0.),
                 kwargs.get('hidden_dropouts', 0.)))
             self.weights.append(W)
@@ -250,8 +249,10 @@ class Network(object):
                 h = self.hiddens[-1]
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
-                # --tied-weights implies --no-learn-biases (biases are zero).
-                self.hiddens.append(self._output_func(TT.dot(h, self.weights[i].T)))
+                o = theano.shared(np.zeros((a, ), FLOAT), name='b_out{}'.format(i))
+                self.preacts.append(TT.dot(h, self.weights[i].T) + o)
+                func = self._output_func if i == 0 else self._hidden_func
+                self.hiddens.append(func(self.preacts[-1]))
 
         else:
             B = len(self.biases) - 1
@@ -266,7 +267,8 @@ class Network(object):
             parameter_count += n
             bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
             self.biases.append(bias)
-            self.hiddens.append(self._output_func(sum(decoders) + bias))
+            self.preacts.append(sum(decoders) + bias)
+            self.hiddens.append(self._output_func(self.preacts[-1]))
 
         return self.hiddens.pop(), parameter_count
 
@@ -279,7 +281,7 @@ class Network(object):
             k = len(self.layers) // 2
             encode = np.asarray(self.layers[:k])
             decode = np.asarray(self.layers[k+1:])
-            assert np.allclose(encode - decode[::-1], 0), error
+            assert (encode == decode[::-1]).all(), error
             sizes = self.layers[:k+1]
         return sizes
 
@@ -333,7 +335,8 @@ class Network(object):
         if sparse is not None:
             arr *= np.random.binomial(n=1, p=sparse, size=(a, b))
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
-        bias = theano.shared(np.zeros((b, ), FLOAT), name='b_{}'.format(suffix))
+        arr = 1e-3 * np.random.randn(b)
+        bias = theano.shared(arr.astype(FLOAT), name='b_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, bias, (a + 1) * b
 
@@ -428,12 +431,47 @@ class Network(object):
         '''Return a list of the Theano parameters for this network.'''
         params = []
         params.extend(self.weights)
-        if getattr(self, 'tied_weights', False) or kwargs.get('no_learn_biases'):
-            # --tied-weights implies --no-learn-biases.
-            pass
-        else:
+        if not kwargs.get('no_learn_biases'):
             params.extend(self.biases)
         return params
+
+    def get_weights(self, layer, borrow=False):
+        '''Return the current weights for a given layer.
+
+        Parameters
+        ----------
+        layer : int
+            The layer of weights to return.
+        borrow : bool, optional
+            Whether to "borrow" the reference to the weights. If True, this
+            returns a view onto the current weight array; if False (default), it
+            returns a copy of the weight array.
+
+        Returns
+        -------
+        ndarray :
+            The weight values, as a numpy array.
+        '''
+        return self.weights[layer].get_value(borrow=borrow)
+
+    def get_biases(self, layer, borrow=False):
+        '''Return the current bias vector for a given layer.
+
+        Parameters
+        ----------
+        layer : int
+            The layer of bias values to return.
+        borrow : bool, optional
+            Whether to "borrow" the reference to the biases. If True, this
+            returns a view onto the current bias vector; if False (default), it
+            returns a copy of the biases.
+
+        Returns
+        -------
+        ndarray :
+            The bias values, as a numpy vector.
+        '''
+        return self.biases[layer].get_value(borrow=borrow)
 
     def feed_forward(self, x):
         '''Compute a forward pass of all activations from the given input.
@@ -484,6 +522,7 @@ class Network(object):
         pickle.dump(dict(
             weights=[p.get_value().copy() for p in self.weights],
             biases=[p.get_value().copy() for p in self.biases],
+            klass=self.__class__,
             kwargs=dict(
                 layers=self.layers,
                 hidden_activation=self.hidden_activation,

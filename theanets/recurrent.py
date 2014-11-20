@@ -45,11 +45,21 @@ class Network(ff.Network):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
-    hidden_activation : str
+    recurrent_layers : sequence of int, optional
+        A sequence of integers specifying the indices of recurrent layers in the
+        network. Non-recurrent network layers receive input only from the
+        preceding layers for a given input, while recurrent layers also receive
+        input from the output of the recurrent layer from the previous time
+        step. The index values in this sequence must be in (0, len(layers)) --
+        that is, the input and output of a network cannot be recurrent. Defaults
+        to [len(layers) - 1] -- the penultimate layer of the network is the only
+        recurrent layer.
+
+    hidden_activation : str, optional
         The name of an activation function to use on hidden network units.
         Defaults to 'sigmoid'.
 
-    output_activation : str
+    output_activation : str, optional
         The name of an activation function to use on output units. Defaults to
         'linear'.
 
@@ -70,14 +80,7 @@ class Network(ff.Network):
     hidden_dropouts : float, optional
         Proportion of hidden unit activations to randomly set to 0.
 
-    pool_noise : float, optional
-        Add gaussian noise to recurrent pool neurons with this variance.
-
-    pool_dropouts : float in [0, 1], optional
-        Randomly set the state of this fraction of recurrent pool neurons to
-        zero.
-
-    pool_error_start : int, optional
+    recurrent_error_start : int, optional
         Compute error metrics starting at this time step. (Defaults to 3.)
     '''
 
@@ -87,7 +90,7 @@ class Network(ff.Network):
         self.x = TT.tensor3('x')
 
     def setup_encoder(self, **kwargs):
-        self.error_start = kwargs.get('pool_error_start', 3)
+        self.error_start = kwargs.get('recurrent_error_start', 3)
 
         sizes = self.check_layer_sizes()
 
@@ -120,6 +123,49 @@ class Network(ff.Network):
 
         return recurrence, count
 
+    def lstm_recurrence(self, input_size, cell_size):
+        count = 0
+
+        W_xi, b_i, n = self.create_layer(input_size, cell_size, 'xi')
+        count += n
+        W_hi, W_ci, n = self.create_layer(cell_size, cell_size, 'hi')
+        W_ci.name = 'W_ci'
+        count += n
+
+        W_xf, b_f, n = self.create_layer(input_size, cell_size, 'xf')
+        count += n
+        W_hf, W_cf, n = self.create_layer(cell_size, cell_size, 'hf')
+        W_cf.name = 'W_cf'
+        count += n
+
+        W_xo, b_o, n = self.create_layer(input_size, cell_size, 'xo')
+        count += n
+        W_ho, W_co, n = self.create_layer(cell_size, cell_size, 'ho')
+        W_co.name = 'W_co'
+        count += n
+
+        W_xc, b_c, n = self.create_layer(input_size, cell_size, 'xc')
+        count += n
+        W_hc, _, n = self.create_layer(cell_size, cell_size, 'hc')
+        count += n - cell_size
+
+        def recurrence(x_t, h_tm1, c_tm1):
+            i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) +
+                                  TT.dot(h_tm1, W_hi) +
+                                  TT.dot(c_tm1, TT.diag(W_ci)) + b_i)
+            f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) +
+                                  TT.dot(h_tm1, W_hf) +
+                                  TT.dot(c_tm1, TT.diag(W_cf)) + b_f)
+            c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) +
+                                              TT.dot(h_tm1, W_hc) + b_c)
+            o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) +
+                                  TT.dot(h_tm1, W_ho) +
+                                  TT.dot(c_t, TT.diag(W_co)) + b_o)
+            h_t = o_t * TT.tanh(c_t)
+            return h_t, c_t
+
+        return recurrence, count
+
 
 class Autoencoder(Network):
     '''An autoencoder attempts to reproduce its input.'''
@@ -145,8 +191,8 @@ class Predictor(Autoencoder):
 class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
-    def __init__(self, *args, **kwargs):
-        super(Regressor, self).__init__(*args, **kwargs)
+    def setup_vars(self):
+        self.x = TT.tensor3('x')
         self.k = TT.tensor3('k')
 
     @property

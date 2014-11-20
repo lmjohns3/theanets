@@ -2,10 +2,10 @@
 Reference
 =========
 
-.. _feedforward_ref:
+.. _ref-feedforward:
 
-Feedforward Networks
---------------------
+Feedforward networks
+====================
 
 .. automodule:: theanets.feedforward
    :no-members:
@@ -19,10 +19,10 @@ Feedforward Networks
    theanets.feedforward.Network
    theanets.feedforward.Regressor
 
-.. _recurrent_ref:
+.. _ref-recurrent:
 
-Recurrent Networks
-------------------
+Recurrent networks
+==================
 
 :mod:`theanets.recurrent`
 
@@ -34,14 +34,14 @@ Recurrent Networks
    :toctree: generated/
 
    theanets.recurrent.Autoencoder
-   theanets.recurrent.Classifier
    theanets.recurrent.Network
+   theanets.recurrent.Predictor
    theanets.recurrent.Regressor
 
-.. _trainer_ref:
+.. _ref-trainers:
 
-Training Strategies
--------------------
+Training strategies
+===================
 
 :mod:`theanets.trainer`
 
@@ -54,15 +54,16 @@ Training Strategies
 
    theanets.trainer.HF
    theanets.trainer.Layerwise
+   theanets.trainer.Rprop
    theanets.trainer.Sample
    theanets.trainer.Scipy
    theanets.trainer.SGD
    theanets.trainer.Trainer
 
-.. _main_ref:
+.. _ref-main:
 
 Drivers
--------
+=======
 
 :mod:`theanets.main`
 
@@ -75,8 +76,10 @@ Drivers
 
    theanets.main.Experiment
 
+.. _ref-datasets:
+
 Datasets
---------
+========
 
 :mod:`theanets.dataset`
 

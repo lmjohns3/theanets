@@ -136,8 +136,8 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
-        self.momentum = kwargs.get('momentum', 0.5)
-        self.learning_rate = kwargs.get('learning_rate', 0.01)
+        self.momentum = kwargs.get('momentum', 0.9)
+        self.learning_rate = kwargs.get('learning_rate', 1e-4)
 
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(
@@ -276,7 +276,7 @@ class Rprop(SGD):
     each parameter is independent of the magnitude of the gradient for that
     parameter.
 
-    More accurately, Rprop maintains a separate learning rate for every
+    To accomplish this, Rprop maintains a separate learning rate for every
     parameter in the model, and adjusts this learning rate based on the
     consistency of the sign of the gradient of J with respect to that parameter
     over time. Whenever two consecutive gradients for a parameter have the same
@@ -292,15 +292,14 @@ class Rprop(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.step_increase = kwargs.get('rprop_increase', 1.2)
-        self.step_decrease = kwargs.get('rprop_decrease', 0.5)
-
+        self.step_increase = kwargs.get('rprop_increase', 1.01)
+        self.step_decrease = kwargs.get('rprop_decrease', 0.99)
         self.min_step = kwargs.get('rprop_min_step', 0.)
         self.max_step = kwargs.get('rprop_max_step', 100.)
-        step = kwargs.get('rprop_initial_step', 0.001)
+        super(Rprop, self).__init__(network, **kwargs)
 
-        # set up space for temporary variables used during learning.
-        self.params = network.params(**kwargs)
+    def learning_updates(self):
+        step = self.learning_rate
         self.grads = []
         self.steps = []
         for param in self.params:
@@ -308,22 +307,51 @@ class Rprop(SGD):
             n = param.name
             self.grads.append(theano.shared(np.zeros_like(v), name=n + '_grad'))
             self.steps.append(theano.shared(np.zeros_like(v) + step, name=n + '_step'))
-
-        super(Rprop, self).__init__(network, **kwargs)
-
-    def learning_updates(self):
         for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
             grad = TT.grad(self.J, param)
-            same = grad * grad_tm1 > 0
-            diff = grad * grad_tm1 < 0
+            test = grad * grad_tm1
+            same = TT.gt(test, 0)
+            diff = TT.lt(test, 0)
             step = TT.minimum(self.max_step, TT.maximum(self.min_step, step_tm1 * (
-                (1 - same) * (1 - diff) +
+                TT.eq(test, 0) +
                 same * self.step_increase +
                 diff * self.step_decrease)))
             grad = grad - diff * grad
             yield param, param - TT.sgn(grad) * step
             yield grad_tm1, grad
             yield step_tm1, step
+
+
+class RmsProp(SGD):
+    '''RmsProp trains neural network models using scaled SGD.
+
+    The Rprop method uses the same general strategy as SGD (both methods are
+    make small parameter adjustments using local derivative information). The
+    difference here is that as gradients are computed during each parameter
+    update, an exponential moving average of squared gradient magnitudes is
+    maintained as well. At each update, the EMA is used to compute the
+    root-mean-square (RMS) gradient value that's been seen in the recent past.
+    The actual gradient is normalized by this RMS scale before being applied to
+    update the parameters.
+
+    Like Rprop, this learning method effectively maintains a sort of
+    parameter-specific momentum value, but the difference here is that only the
+    magnitudes of the gradients are taken into account, rather than the signs.
+
+    The weight parameter for the EMA window is taken from the "momentum" keyword
+    argument. If this weight is set to a low value, the EMA will have a short
+    memory and will be prone to changing quickly. If the momentum parameter is
+    set close to 1, the EMA will have a long history and will change slowly.
+    '''
+
+    def learning_updates(self):
+        for param in self.params:
+            grad = TT.grad(self.J, param)
+            rms_ = theano.shared(
+                np.zeros_like(param.get_value()), name=param.name + '_rms')
+            rms = self.momentum * rms_ + (1 - self.momentum) * grad * grad
+            yield rms_, rms
+            yield param, param - self.learning_rate * grad / TT.sqrt(rms + 1e-8)
 
 
 class Scipy(Trainer):
@@ -335,6 +363,7 @@ class Scipy(Trainer):
         super(Scipy, self).__init__(network, **kwargs)
 
         self.method = method
+        self.iterations = kwargs.get('num_updates', 100)
 
         logging.info('compiling gradient function')
         self.f_grad = theano.function(network.inputs, TT.grad(self.J, self.params))
@@ -357,8 +386,7 @@ class Scipy(Trainer):
             costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             cost_desc = ' '.join(
                 '%s=%.2f' % el for el in zip(self.cost_names, costs))
-            logging.info('scipy %s %i/%i %s',
-                         self.method, i + 1, self.iterations, cost_desc)
+            logging.info('scipy.%s %i %s', self.method, i + 1, cost_desc)
 
         for i in range(self.iterations):
             try:
@@ -493,7 +521,7 @@ class Sample(Trainer):
             if w.name.startswith('W_out_'):
                 arr = np.vstack(Sample.reservoir(samples, k))
                 logging.info('setting weights for %s: %d x %d <- %s', w.name, k, n, arr.shape)
-                w.set_value(arr)
+                w.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
         # set input (encoding) weights on the network.
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
@@ -505,7 +533,7 @@ class Sample(Trainer):
             m, k = w.get_value(borrow=True).shape
             arr = np.vstack(Sample.reservoir(samples, k)).T
             logging.info('setting weights for %s: %d x %d <- %s', w.name, m, k, arr.shape)
-            w.set_value(arr)
+            w.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
             samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
 
         yield {'J': -1}
@@ -557,20 +585,19 @@ class Layerwise(Trainer):
 
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
-        output_activation = net._build_activation(net.output_activation)
         for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
+            net.hiddens = hiddens[:i]
             if net.tied_weights:
                 net.weights = [weights[i-1]]
-                net.hiddens = hiddens[:i]
+                net.biases = [biases[i-1]]
                 for j in range(i - 1, -1, -1):
                     net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-                net.y = output_activation(net.hiddens.pop())
+                net.y = net._output_func(net.hiddens.pop())
             else:
                 W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
-                net.y = output_activation(TT.dot(hiddens[i-1], W) + b)
-                net.hiddens = hiddens[:i]
                 net.weights = [weights[i-1], W]
                 net.biases = [biases[i-1], b]
+                net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)
             logging.info('layerwise: training weights %s', net.weights[0].name)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
@@ -580,30 +607,3 @@ class Layerwise(Trainer):
         net.hiddens = hiddens
         net.weights = weights
         net.biases = biases
-
-
-class FORCE(Trainer):
-    '''FORCE is a training method for recurrent nets by Sussillo & Abbott.
-
-    This implementation needs some more love before it will work.
-    '''
-
-    def __init__(self, network, **kwargs):
-        super(FORCE, Trainer).__init__(network, **kwargs)
-
-    def train(self, train_set, valid_set=None, **kwargs):
-        W_in, W_pool, W_out = network.weights
-
-        n = W_pool.get_value(borrow=True).shape[0]
-        P = theano.shared(np.eye(n).astype(FLOAT) * self.learning_rate)
-
-        k = TT.dot(P, network.state)
-        rPr = TT.dot(network.state, k)
-        c = 1. / (1. + rPr)
-        dw = network.error(**kwargs) * c * k
-
-        updates = {}
-        updates[P] = P - c * TT.outer(k, k)
-        updates[W_pool] = W_pool - dw
-        updates[W_out] = W_out - dw
-        updates[b_out] = b_out - self.learning_rate * TT.grad(J, b_out)

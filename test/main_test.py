@@ -1,5 +1,8 @@
-import theanets
 import numpy as np
+import os
+import tempfile
+
+import theanets
 
 import util
 
@@ -19,3 +22,20 @@ class TestExperiment(util.MNIST):
         exp = theanets.Experiment(
             theanets.Regressor, layers=(self.DIGIT_SIZE, 2, 4))
         assert isinstance(exp.network, theanets.Regressor)
+
+    def test_save_load(self):
+        exp = theanets.Experiment(
+            theanets.Autoencoder, layers=(10, 3, 4, 10))
+        net = exp.network
+        f, p = tempfile.mkstemp(suffix='pkl')
+        os.close(f)
+        os.unlink(p)
+        try:
+            exp.save(p)
+            assert os.path.isfile(p)
+            exp.load(p)
+            assert exp.network is not net
+            assert exp.network.layers == (10, 3, 4, 10)
+        finally:
+            if os.path.exists(p):
+                os.unlink(p)

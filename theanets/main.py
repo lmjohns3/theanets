@@ -21,6 +21,7 @@
 '''This file contains an object encapsulating a main process.'''
 
 import climate
+import sys
 import theano.tensor as TT
 import warnings
 
@@ -31,30 +32,83 @@ from . import trainer
 logging = climate.get_logger(__name__)
 
 
-def parse_args(**overrides):
-    '''Parse command-line arguments, overriding with keyword arguments.
+HELP_ACTIVATION = '''\
+Available Activation Functions
+==============================
 
-    Returns an ordered pair of the command-line argument structure, as well as a
-    dictionary version of these arguments.
-    '''
-    args = climate.get_args().parse_args()
-    for k, v in overrides.items():
-        setattr(args, k, v)
-    kwargs = {}
-    kwargs.update(vars(args))
-    if 'activation' in kwargs:
-        warnings.warn('please use --hidden-activation instead of --activation',
-                      DeprecationWarning)
-        activation = kwargs.pop('activation')
-        if not kwargs.get('hidden_activation'):
-            kwargs['hidden_activation'] = activation
-    logging.info('runtime arguments:')
-    for k in sorted(kwargs):
-        logging.info('--%s = %s', k, kwargs[k])
-    return args, kwargs
+The names on the left show the possible values for the --hidden-activation and
+--output-activation configuration parameters. They can be chained together by
+combining multiple names with a + (plus); for example, tanh+relu will result in
+the rectified tanh activation function g(z) = max(0, tanh(z)).
+
+linear     g(z) = z                     plain linear
+
+sigmoid    g(z) = 1 / (1 + e^-z)        logistic sigmoid
+logistic   g(z) = 1 / (1 + e^-z)        logistic sigmoid
+tanh       g(z) = tanh(z)               hyperbolic tangent
+
+softplus   g(z) = log(1 + exp(z))       smooth approximation to relu
+
+softmax    g(z) = e^z / sum(e^z)        categorical distribution
+
+relu       g(z) = max(0, z)             rectified linear
+trel       g(z) = max(0, min(1, z))     truncated rectified linear
+trec       g(z) = z if z > 1 else 0     thresholded rectified linear
+tlin       g(z) = z if |z| > 1 else 0   thresholded linear
+
+rect:max   g(z) = min(1, z)             truncation operator
+rect:min   g(z) = max(0, z)             rectification operator
+
+norm:dc    g(z) = z - mean(z)           mean-normalization operator
+norm:max   g(z) = z - max(abs(z))       max-normalization operator
+norm:std   g(z) = z - std(z)            variance-normalization operator
+'''
+
+HELP_OPTIMIZE = '''\
+Available Optimizers
+====================
+
+First-Order Gradient Descent
+----------------------------
+sgd: Stochastic Gradient Descent
+  --learning-rate
+  --momentum
+
+nag: Nesterov's Accelerated Gradient
+  --learning-rate
+  --momentum
+
+rprop: Resilient Backpropagation
+  --learning-rate (sets initial learning rate)
+  --rprop-increase, --rprop-decrease
+  --rprop-min-step, --rprop-max-step
+
+rmsprop: RMS-scaled Backpropagation
+  --learning-rate
+  --momentum (sets decay for exponential moving average)
+
+bfgs, cg, dogleg, newton-cg, trust-ncg
+  These use the implementations in scipy.optimize.minimize.
+
+Second-Order Gradient Descent
+-----------------------------
+hf: Hessian-Free
+  --cg-batches
+  --initial-lambda
+  --global-backtracking
+  --num-updates
+  --preconditioner
+
+Miscellaneous
+-------------
+sample: Set model parameters to training data samples
+
+layerwise: Greedy layerwise pre-training
+  This trainer applies NAG to each layer.
+'''
 
 
-class Experiment(object):
+class Experiment:
     '''This class encapsulates tasks for training and evaluating a network.'''
 
     def __init__(self, network_class, **overrides):
@@ -82,7 +136,22 @@ class Experiment(object):
         self.trainers = []
         self.datasets = {}
 
-        self.args, self.kwargs = parse_args(**overrides)
+        self.args, self.kwargs = climate.parse_args(**overrides)
+        if 'activation' in self.kwargs:
+            warnings.warn(
+                'please use --hidden-activation instead of --activation',
+                DeprecationWarning)
+            activation = self.kwargs.pop('activation')
+            if not self.kwargs.get('hidden_activation'):
+                self.kwargs['hidden_activation'] = activation
+
+        if self.kwargs.get('help_activation'):
+            print(HELP_ACTIVATION)
+            sys.exit(0)
+
+        if self.kwargs.get('help_optimize'):
+            print(HELP_OPTIMIZE)
+            sys.exit(0)
 
         kw = {}
         kw.update(self.kwargs)
@@ -103,6 +172,8 @@ class Experiment(object):
     def _build_trainers(self, **kwargs):
         '''Build trainers from command-line arguments.
         '''
+        if not hasattr(self.args, 'optimize'):
+            self.args.optimize = 'nag'
         if isinstance(self.args.optimize, str):
             self.args.optimize = self.args.optimize.strip().split()
         for factory in self.args.optimize:
@@ -134,6 +205,7 @@ class Experiment(object):
                 factory = dict(
                     hf=trainer.HF,
                     nag=trainer.NAG,
+                    rmsprop=trainer.RmsProp,
                     rprop=trainer.Rprop,
                     sample=trainer.Sample,
                     sgd=trainer.SGD,
@@ -210,11 +282,31 @@ class Experiment(object):
                 yield costs
 
     def save(self, path):
-        '''Save the parameters in the network to a pickle file on disk.
+        '''Save the current network to a pickle file on disk.
+
+        Parameters
+        ----------
+        path : str
+            Location of the file to save the network.
         '''
         self.network.save(path)
 
-    def load(self, path):
-        '''Load the parameters in the network from a pickle file on disk.
+    def load(self, path, **kwargs):
+        '''Load a saved network from a pickle file on disk.
+
+        Parameters
+        ----------
+        filename : str
+            Load the keyword arguments and parameters of a network from a pickle
+            file at the named path. If this name ends in ".gz" then the input
+            will automatically be gunzipped; otherwise the input will be treated
+            as a "raw" pickle.
+
+        Returns
+        -------
+        Network :
+            A newly-constructed network, with topology and parameters loaded
+            from the given pickle file.
         '''
-        self.network.load(path)
+        self.network = feedforward.load(path, **kwargs)
+        return self.network

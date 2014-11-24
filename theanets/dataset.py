@@ -89,8 +89,9 @@ class SequenceDataset:
             if not self.number_batches:
                 self.number_batches = cardinality
 
-        logging.info('data %s: %s mini-batches of %s',
-            self.label, cardinality, ', '.join(str(x.shape) for x in batch))
+        logging.info('data %s: %dx %s mini-batches of %s',
+                     self.label, self.number_batches, cardinality,
+                     ', '.join(str(x.shape) for x in batch))
 
     def __iter__(self):
         return self.iterate(True)

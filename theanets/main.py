@@ -25,7 +25,7 @@ import sys
 import theano.tensor as TT
 import warnings
 
-from .dataset import SequenceDataset as Dataset
+from . import dataset
 from . import feedforward
 from . import trainer
 
@@ -117,25 +117,13 @@ class Experiment:
         The only input this constructor needs is the Python class of the network
         to build. Other configuration---for example, creating the appropriate
         trainer class---typically takes place by parsing command-line argument
-        values.
-
-        Datasets also need to be added to the experiment, either :
-
-        - manually, by calling add_dataset(...), or
-        - at runtime, by providing data to the run(train_data, valid_data)
-          method.
-
-        Datasets are typically provided as numpy arrays, but they can also be
-        provided as callables, as described in the dataset module.
+        values, or by a call to train(...).
 
         Any keyword arguments provided to the constructor will be used to
         override values passed on the command line. (Typically this is used to
         provide experiment-specific default values for command line arguments
         that have no global defaults, e.g., network architecture.)
         '''
-        self.trainers = []
-        self.datasets = {}
-
         self.args, self.kwargs = climate.parse_args(**overrides)
         if 'activation' in self.kwargs:
             warnings.warn(
@@ -153,37 +141,16 @@ class Experiment:
             print(HELP_OPTIMIZE)
             sys.exit(0)
 
-        kw = {}
-        kw.update(self.kwargs)
-        self.network = self._build_network(network_class, **kw)
-
-        kw = {}
-        kw.update(self.kwargs)
-        self._build_trainers(**kw)
-
-    def _build_network(self, network_class, **kwargs):
-        '''Build a Network class instance to compute input transformations.
-        '''
         assert network_class is not feedforward.Network, \
             'use a concrete theanets.Network subclass ' \
             'like theanets.{Autoencoder,Regressor,...}'
-        return network_class(**kwargs)
+        self.network = network_class(**self.kwargs)
 
-    def _build_trainers(self, **kwargs):
-        '''Build trainers from command-line arguments.
-        '''
-        if not hasattr(self.args, 'optimize'):
-            self.args.optimize = 'nag'
-        if isinstance(self.args.optimize, str):
-            self.args.optimize = self.args.optimize.strip().split()
-        for factory in self.args.optimize:
-            self.add_trainer(factory, **kwargs)
+    def create_trainer(self, factory, *args, **kwargs):
+        '''Create a trainer.
 
-    def add_trainer(self, factory, *args, **kwargs):
-        '''Add a new trainer to this experiment.
-
-        Arguments
-        ---------
+        Parameters
+        ----------
         factory : str or callable
             A callable that creates a Trainer instance, or a string that maps to
             a Trainer constructor.
@@ -213,12 +180,12 @@ class Experiment:
         kw = {}
         kw.update(self.kwargs)
         kw.update(kwargs)
-        logging.info('adding trainer %s', factory)
-        for k in sorted(kwargs):
+        logging.info('creating trainer %s', factory)
+        for k in sorted(kw):
             logging.info('--%s = %s', k, kw[k])
-        self.trainers.append(factory(*args, **kw))
+        return factory(*args, **kw)
 
-    def add_dataset(self, label, dataset, **kwargs):
+    def create_dataset(self, label, data, **kwargs):
         '''Add a dataset to this experiment.
 
         The provided label is used to determine the type of data in the set.
@@ -232,53 +199,85 @@ class Experiment:
 
         Other labels can be added, but but they are not currently used.
 
-        The value that you provide for dataset will be encapsulated inside a
-        SequenceDataset instance ; see that class for documentation on the types
+        The value that you provide for data will be encapsulated inside a
+        SequenceDataset instance; see that class for documentation on the types
         of things it needs. In particular, you can currently pass in either a
         list/array/etc. of data, or a callable that generates data dynamically.
         '''
         if 'batches' not in kwargs:
-            b = getattr(self.args, '%s_batches' % label, None)
-            kwargs['batches'] = b
+            kwargs['batches'] = self.kwargs.get('%s_batches' % label, None)
         if 'size' not in kwargs:
             kwargs['size'] = self.args.batch_size
         kwargs['label'] = label
-        if not isinstance(dataset, (tuple, list)):
-            dataset = (dataset, )
-        self.datasets[label] = Dataset(*dataset, **kwargs)
+        if not isinstance(data, (tuple, list)):
+            data = (data, )
+        return dataset.Dataset(*data, **kwargs)
 
-    def run(self, train=None, valid=None):
-        '''Run this experiment by training and validating our network.
+    def run(self, *args, **kwargs):
+        warnings.warn(
+            'please use Experiment.train() instead of Experiment.run()',
+            DeprecationWarning)
+        return self.train(*args, **kwargs)
+
+    def train(self, *args, **kwargs):
+        '''Train the network until the trainer converges.
+
+        All arguments are passed to `itertrain`.
         '''
-        for _ in self.train(train=train, valid=valid):
+        for _ in self.itertrain(*args, **kwargs):
             pass
 
-    def train(self, train=None, valid=None):
-        '''Train (and validate) our network.
+    def itertrain(self, train_set=None, valid_set=None, optimize=None, **kwargs):
+        '''Train our network, one batch at a time.
 
-        Before calling this method, datasets will typically need to have been
-        added to the experiment by calling add_dataset(...). However, as a
-        shortcut, you can provide training and validation data as arguments to
-        this method, and these arguments will be used to add datasets as needed.
+        The output of this method is whatever is logged to the console during
+        training, but the method pauses after each trainer completes a training
+        iteration.
 
-        Usually the output of this method is whatever is logged to the console
-        during training. After training completes, the network attribute of this
-        class will contain the trained network parameters.
+        After training completes, the network attribute of this class will
+        contain the trained network parameters.
+
+        Parameters
+        ----------
+        train_set : any
+            A dataset to use when training the network. If this is a `Dataset`
+            instance, it will be used directly as the training datset. If it is
+            another type, like a numpy array, it will be converted to a
+            `Dataset` and then used as the training set.
+        valid_set : any, optional
+            If this is provided, it will be used as a validation dataset. If not
+            provided, the training set will be used for validation. (This is not
+            recommended!)
+        optimize : any, optional
+            One or more optimization algorithms to use for training our network.
+            If this is not provided, then optimizers will be created based on
+            command-line arguments. If neither are provided, NAG will be used.
+
+        Returns
+        -------
+        sequence of dict :
+            This method generates a series of dictionaries that represent the
+            cost values of the model being trained. Each dictionary should have
+            a "J" key providing the total cost of the model with respect to the
+            training dataset. Other keys are available depending on the trainer.
         '''
-        if not self.trainers:
-            # train using NAG if no other trainer has been added.
-            self.add_trainer('nag')
-        if train is not None:
-            if 'train' not in self.datasets:
-                self.add_dataset('train', train)
-            if 'cg' not in self.datasets:
-                self.add_dataset('cg', train)
-        if valid is not None and 'valid' not in self.datasets:
-            self.add_dataset('valid', valid)
-        for trainer in self.trainers:
-            for costs in trainer.train(train_set=self.datasets['train'],
-                                       valid_set=self.datasets['valid'],
-                                       cg_set=self.datasets['cg']):
+        if valid_set is None:
+            valid_set = train_set
+        if not isinstance(valid_set, dataset.Dataset):
+            valid_set = self.create_dataset('valid', valid_set)
+        if not isinstance(train_set, dataset.Dataset):
+            train_set = self.create_dataset('train', train_set)
+        sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
+        if optimize is None:
+            optimize = self.kwargs.get('optimize')
+        if not optimize:
+            optimize = 'nag'  # use nag if nothing else is defined.
+        if isinstance(optimize, str):
+            optimize = optimize.split()
+        for opt in optimize:
+            if not callable(getattr(opt, 'train', None)):
+                opt = self.create_trainer(opt, **kwargs)
+            for costs in opt.train(**sets):
                 yield costs
 
     def save(self, path):

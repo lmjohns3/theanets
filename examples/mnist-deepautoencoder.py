@@ -14,7 +14,7 @@ e = theanets.Experiment(
     train_batches=100,
     tied_weights=True,
 )
-e.run(train, valid)
+e.train(train, valid)
 
 plot_layers(e.network.weights, tied_weights=True)
 plt.tight_layout()

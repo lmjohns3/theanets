@@ -134,9 +134,7 @@ class Experiment:
             warnings.warn(
                 'please use --hidden-activation instead of --activation',
                 DeprecationWarning)
-            activation = self.kwargs.pop('activation')
-            if not self.kwargs.get('hidden_activation'):
-                self.kwargs['hidden_activation'] = activation
+            self.kwargs['hidden_activation'] = self.kwargs.pop('activation')
 
         if self.kwargs.get('help_activation'):
             print(HELP_ACTIVATION)

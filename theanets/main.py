@@ -105,6 +105,11 @@ sample: Set model parameters to training data samples
 
 layerwise: Greedy layerwise pre-training
   This trainer applies NAG to each layer.
+
+pretrain: Greedy unsupervised layerwise pre-training.
+  This trainer applies NAG to a tied-weights "shadow" autoencoder using an
+  unlabeled dataset, and then transfers the learned autoencoder weights to the
+  model being trained.
 '''
 
 
@@ -168,6 +173,11 @@ class Experiment:
                     # use NAG trainer by default for individual layers
                     args += (trainer.NAG, )
                 factory = trainer.Layerwise
+            elif factory.lower().startswith('p'):
+                if len(args) == 1:
+                    # use NAG trainer by default for pretrainer
+                    args += (trainer.NAG, )
+                factory = trainer.UnsupervisedPretrainer
             else:
                 factory = dict(
                     hf=trainer.HF,

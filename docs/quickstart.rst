@@ -116,11 +116,8 @@ skeleton of your code will usually look something like this::
       hyperparam2=value2,
       ...)
 
-  # add an optimization algorithm to learn model parameters.
-  exp.add_trainer(...)
-
   # train the model.
-  exp.run(training_data, validation_data)
+  exp.run(training_data, validation_data, ...)
 
   # use the trained model.
   model = exp.network
@@ -237,22 +234,30 @@ from ``skdata``), and a test split (the test split from ``skdata``).
 
 The next step is to specify the training algorithm to use, and any associated
 hyperparameter values. This is most naturally accomplished using the
-``add_trainer`` method of the experiment object::
+``train`` method of the experiment object::
 
-    exp.add_trainer('nag', learning_rate=1e-3, momentum=0.9)
+    exp.train(training_data,
+      optimize='nag',
+      learning_rate=1e-3,
+      momentum=0.9)
 
-The first argument to the method is the name of a training algorithm, and any
-subsequent keyword arguments will be passed to the training code. The available
-training methods are described in :doc:`trainers`; here we've used Nesterov's
-Accelerated Gradient, a type of stochastic gradient descent with momentum.
+The first argument to the method is the training dataset, and the second (if
+provided) is a validation dataset -- if this is not provided, the training
+dataset will be used for validation. The ``optimize`` keyword argument specifies
+a training algorithm, and any subsequent keyword arguments will be passed to the
+training algorithm implementation. The available training methods are described
+in :doc:`trainers`; here we've used `Nesterov's Accelerated Gradient`_, a type
+of stochastic gradient descent with momentum.
 
-Finally, the model needs to be trained before it can be used. Putting everything
-together yields code that looks like this::
+.. _Nesterov's Accelerated Gradient: https://blogs.princeton.edu/imabandit/2013/04/01/acceleratedgradientdescent/
+
+The training method also needs to be provided with a dataset to use during
+training -- in this case, we will use the MNIST digits dataset from above.
+Putting everything together yields code that looks like this::
 
   train, valid, _ = load_mnist()
   exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
-  exp.add_trainer('nag', learning_rate=1e-3, momentum=0.9)
-  exp.run(train, valid)
+  exp.train(train, valid, optimize='nag', learning_rate=1e-3, momentum=0.9)
 
 If you put this code (plus any necessary imports) into a file called, say,
 ``mnist-classifier.py``, and then run it on the command-line, your computer will
@@ -266,18 +271,17 @@ Let's get this example to do something useful by showing a plot of the
 "features" that the model learns::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
-  for i, pix in enumerate(exp.network.weights[0].get_value().T):
+  for i, pix in enumerate(exp.network.get_weights(0).T):
       r, c = divmod(i, 10)
       img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
   plt.imshow(img, cmap=plt.cm.gray)
   plt.show()
 
 After the model is trained, we've accessed the weights connecting the input to
-the hidden layer using ``exp.network.weights[0]``. This value is a Theano shared
-array, so to get its current value we need to call ``.get_value()``. This array
-has one column of 784 values for each hidden node in the network, so we can
-iterate over the transpose and put each column -- properly reshaped into a 28×28
-pixel array -- into a giant image and then just plot that image.
+the hidden layer using ``exp.network.get_weights(0)``. This array has one column
+of 784 values for each hidden node in the network, so we can iterate over the
+transpose and put each column -- properly reshaped into a 28×28 pixel array --
+into a giant image and then just plot that image.
 
 The ``theanets`` source code contains a complete ``mnist-classifier.py`` example
 that you can play around with. In addition, there are also examples of using

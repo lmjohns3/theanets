@@ -607,3 +607,46 @@ class Layerwise(Trainer):
         net.hiddens = hiddens
         net.weights = weights
         net.biases = biases
+
+
+class UnsupervisedPretrainer(Trainer):
+    '''Train a discriminative model using an unsupervised pre-training step.
+
+    This trainer is a bit of glue code that creates a "shadow" autoencoder based
+    on a current network model, trains the autoencoder, and then transfers the
+    trained weights back to the original model.
+
+    This code is intended mostly as a proof-of-concept; more elaborate training
+    strategies are certainly possible but should be coded outside the core
+    package.
+    '''
+
+    def __init__(self, network, *args, **kwargs):
+        self.network = network
+        self.args = args
+        self.kwargs = kwargs
+
+    def train(self, train_set, valid_set=None, **kwargs):
+        # construct a copy of the input network, with tied weights in an
+        # autoencoder configuration.
+        layers = self.network.layers[:-1]
+        ae = feedforward.Autoencoder(
+            tied_weights=True,
+            layers=layers[:-1] + layers[::-1],
+            hidden_activation=self.network.hidden_activation,
+            output_activation='linear')
+
+        # copy the current weights into the autoencoder.
+        for i in range(len(layers) - 1):
+            ae.weights[i].set_value(self.network.get_weights(i))
+            ae.biases[i].set_value(self.network.get_biases(i))
+
+        # train the autoencoder using a layerwise strategy.
+        pre = Layerwise(ae, *self.args, **self.kwargs)
+        for costs in pre.train(train_set, valid_set=valid_set, **kwargs):
+            yield costs
+
+        # copy the trained autoencoder weights into our original model.
+        for i in range(len(layers) - 1):
+            self.network.weights[i].set_value(ae.get_weights(i))
+            self.network.biases[i].set_value(ae.get_biases(i))

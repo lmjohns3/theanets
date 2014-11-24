@@ -56,7 +56,7 @@ e = theanets.Experiment(
     train_batches=100,
     weight_inverse=0.01,
 )
-e.run(whiten(train), whiten(valid))
+e.train(whiten(train), whiten(valid))
 
 # color the network weights so they are viewable as digits.
 plot_layers(

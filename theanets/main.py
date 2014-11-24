@@ -117,7 +117,7 @@ class Experiment:
     '''This class encapsulates tasks for training and evaluating a network.'''
 
     def __init__(self, network_class, **overrides):
-        '''Set up an experiment -- build a network and a trainer.
+        '''Set up an experiment by parsing arguments and building a network.
 
         The only input this constructor needs is the Python class of the network
         to build. Other configuration---for example, creating the appropriate
@@ -152,14 +152,19 @@ class Experiment:
     def create_trainer(self, factory, *args, **kwargs):
         '''Create a trainer.
 
+        Additional positional and keyword arguments are passed directly to the
+        trainer factory.
+
         Parameters
         ----------
         factory : str or callable
             A callable that creates a Trainer instance, or a string that maps to
             a Trainer constructor.
 
-        Remaining positional and keyword arguments are passed directly to the
-        trainer factory.
+        Returns
+        -------
+        trainer.Trainer :
+            A Trainer instance to alter the parameters of our network.
         '''
         args = (self.network, ) + args
         if isinstance(factory, str):
@@ -196,21 +201,30 @@ class Experiment:
     def create_dataset(self, label, data, **kwargs):
         '''Add a dataset to this experiment.
 
-        The provided label is used to determine the type of data in the set.
-        Currently this label can be :
+        Parameters
+        ----------
+        label : str
+            The provided label is used to determine the type of data in the set.
+            Currently this label can be :
 
-        - train -- for training data,
-        - valid -- for validation data, typically a small slice of the training
-          data, or
-        - cg -- for using the HF optimizer, typically using the same underlying
-          data as the training set.
+            - train -- for training data, or
+            - valid -- for validation data.
 
-        Other labels can be added, but but they are not currently used.
+            Other labels can be provided, but but they are not currently used
+            for anything special.
 
-        The value that you provide for data will be encapsulated inside a
-        SequenceDataset instance; see that class for documentation on the types
-        of things it needs. In particular, you can currently pass in either a
-        list/array/etc. of data, or a callable that generates data dynamically.
+        data : any
+            The value that you provide for data will be encapsulated inside a
+            `dataset.Dataset` instance; see that class for documentation on the
+            types of things it needs. In particular, you can currently pass in
+            either a list/array/etc. of data, or a callable that generates data
+            dynamically.
+
+        Returns
+        -------
+        dataset.Dataset :
+            A Dataset capable of providing mini-batches of data to a training
+            algorithm.
         '''
         if 'batches' not in kwargs:
             kwargs['batches'] = self.kwargs.get('%s_batches' % label, None)

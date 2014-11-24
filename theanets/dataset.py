@@ -27,40 +27,43 @@ import numpy.random as rng
 logging = climate.get_logger(__name__)
 
 
-class SequenceDataset(object):
+class SequenceDataset:
     '''This class handles batching and shuffling a dataset.
 
     It's mostly copied from the dataset class from hf.py, except that the
     constructor has slightly different semantics.
+
+    Parameters
+    ----------
+
+    There should be one unnamed keyword argument for each input in the
+    neural network that will be processing this dataset. For instance, if
+    you are dealing with a classifier network, you'll need one argument for
+    the inputs (e.g., mnist digit pixels), and another argument for the
+    target outputs (e.g., digit class labels). The order of the arguments
+    should be the same as the order of inputs in the network. All arguments
+    are expected to have the same number of elements along the first axis.
+
+    Alternatively, if there is only one positional arg, and it is callable,
+    then that callable will be invoked repeatedly at training and test time.
+    Each invocation of the callable should return a tuple containing one
+    minibatch of data. The callable will not be passed any arguments.
+
+    size or batch_size : int, optional
+      The size of the mini-batches to create from the data sequences. Defaults
+      to 32.
+
+    batches : int, optional
+      The number of batches to yield for each call to iterate(). Defaults to the
+      length of the data divided by batch_size.
+
+    label : str, optional
+      A string that is used to describe this dataset. Usually something like
+      'test' or 'train'.
     '''
 
     def __init__(self, *data, **kwargs):
-        '''Create a minibatch dataset from a number of different data arrays.
-
-        Positional arguments:
-
-        There should be one unnamed keyword argument for each input in the
-        neural network that will be processing this dataset. For instance, if
-        you are dealing with a classifier network, you'll need one argument for
-        the inputs (e.g., mnist digit pixels), and another argument for the
-        target outputs (e.g., digit class labels). The order of the arguments
-        should be the same as the order of inputs in the network. All arguments
-        are expected to have the same number of elements along the first axis.
-
-        Alternatively, if there is only one positional arg, and it is callable,
-        then that callable will be invoked repeatedly at training and test time.
-        Each invocation of the callable should return a tuple containing one
-        minibatch of data. The callable will not be passed any arguments.
-
-        Keyword arguments:
-
-        size or batch_size: The size of the mini-batches to create from the
-          data sequences. Defaults to 32.
-        batches: The number of batches to yield for each call to iterate().
-          Defaults to the length of the data divided by batch_size.
-        label: A string that is used to describe this dataset. Usually something
-          like 'test' or 'train'.
-        '''
+        '''Create a minibatch dataset from a number of different data arrays.'''
         self.label = kwargs.get('label', 'dataset')
         self.number_batches = kwargs.get('batches')
         self.batch = 0
@@ -118,3 +121,6 @@ class SequenceDataset(object):
         if self.batch >= len(self.batches):
             self.shuffle()
             self.batch = 0
+
+
+Dataset = SequenceDataset

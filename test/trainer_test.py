@@ -11,8 +11,7 @@ class TestTrainer(util.MNIST):
             layers=(self.DIGIT_SIZE, 10, self.DIGIT_SIZE))
 
     def assert_progress(self, *args, **kwargs):
-        self.exp.add_trainer(*args, **kwargs)
-        trainer = self.exp.train(self.images, self.images)
+        trainer = self.exp.itertrain(self.images, *args, **kwargs)
         costs0 = next(trainer)
         costs1 = next(trainer)
         assert costs1['J'] < costs0['J']

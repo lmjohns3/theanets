@@ -80,9 +80,15 @@ class SequenceDataset:
             if not self.number_batches:
                 self.number_batches = size
         else:
-            self.batches = [
-                [d[i:i + size] for d in data]
-                for i in range(0, len(data[0]), size)]
+            shape = data[0].shape
+            axis = kwargs.get('axis', 1 if len(shape) == 3 else 0)
+            slices = [slice(None), slice(None)]
+            self.batches = []
+            i = 0
+            while i + size < shape[axis]:
+                slices[axis] = slice(i, i + size)
+                self.batches.append([d[tuple(slices)] for d in data])
+                i += size
             self.shuffle()
             cardinality = len(self.batches)
             batch = self.batches[0]

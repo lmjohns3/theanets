@@ -10,11 +10,12 @@ class TestTrainer(util.MNIST):
             theanets.Autoencoder,
             layers=(self.DIGIT_SIZE, 10, self.DIGIT_SIZE))
 
-    def assert_progress(self, *args, **kwargs):
-        trainer = self.exp.itertrain(self.images, *args, **kwargs)
+    def assert_progress(self, algo, **kwargs):
+        trainer = self.exp.itertrain(self.images, optimize=algo, **kwargs)
         costs0 = next(trainer)
         costs1 = next(trainer)
-        assert costs1['J'] < costs0['J']
+        costs2 = next(trainer)
+        assert costs2['J'] < costs0['J']
 
     def test_sgd(self):
         self.assert_progress('sgd', learning_rate=1e-4)

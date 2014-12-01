@@ -69,16 +69,14 @@ class SequenceDataset:
         self.batch = 0
 
         size = kwargs.get('size', kwargs.get('batch_size', 32))
-        batch = None
-        cardinality = None
         self.callable = None
         self.batches = None
         if len(data) == 1 and isinstance(data[0], collections.Callable):
             self.callable = data[0]
-            cardinality = '->'
-            batch = self.callable()
             if not self.number_batches:
                 self.number_batches = size
+            logging.info('data %s: %dx mini-batches from callable',
+                         self.label, self.number_batches)
         else:
             shape = data[0].shape
             axis = kwargs.get('axis', 1 if len(shape) == 3 else 0)
@@ -90,14 +88,11 @@ class SequenceDataset:
                 self.batches.append([d[tuple(slices)] for d in data])
                 i += size
             self.shuffle()
-            cardinality = len(self.batches)
-            batch = self.batches[0]
             if not self.number_batches:
-                self.number_batches = cardinality
-
-        logging.info('data %s: %dx %s mini-batches of %s',
-                     self.label, self.number_batches, cardinality,
-                     ', '.join(str(x.shape) for x in batch))
+                self.number_batches = len(self.batches)
+            logging.info('data %s: %dx %s mini-batches of %s',
+                         self.label, self.number_batches, len(self.batches),
+                         ', '.join(str(x.shape) for x in self.batches[0]))
 
     def __iter__(self):
         return self.iterate(True)

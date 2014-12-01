@@ -198,7 +198,7 @@ class Experiment:
             logging.info('--%s = %s', k, kw[k])
         return factory(*args, **kw)
 
-    def create_dataset(self, label, data, **kwargs):
+    def create_dataset(self, label, *data, **kwargs):
         '''Add a dataset to this experiment.
 
         Parameters
@@ -214,7 +214,7 @@ class Experiment:
             for anything special.
 
         data : any
-            The value that you provide for data will be encapsulated inside a
+            The values that you provide for data will be encapsulated inside a
             `dataset.Dataset` instance; see that class for documentation on the
             types of things it needs. In particular, you can currently pass in
             either a list/array/etc. of data, or a callable that generates data
@@ -231,8 +231,6 @@ class Experiment:
         if 'size' not in kwargs:
             kwargs['size'] = self.args.batch_size
         kwargs['label'] = label
-        if not isinstance(data, (tuple, list)):
-            data = (data, )
         return dataset.Dataset(*data, **kwargs)
 
     def run(self, *args, **kwargs):
@@ -286,9 +284,9 @@ class Experiment:
         if valid_set is None:
             valid_set = train_set
         if not isinstance(valid_set, dataset.Dataset):
-            valid_set = self.create_dataset('valid', valid_set)
+            valid_set = self.create_dataset('valid', *valid_set)
         if not isinstance(train_set, dataset.Dataset):
-            train_set = self.create_dataset('train', train_set)
+            train_set = self.create_dataset('train', *train_set)
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
         if optimize is None:
             optimize = self.kwargs.get('optimize')

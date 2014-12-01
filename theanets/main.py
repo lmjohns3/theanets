@@ -198,22 +198,18 @@ class Experiment:
             logging.info('--%s = %s', k, kw[k])
         return factory(*args, **kw)
 
-    def create_dataset(self, label, *data, **kwargs):
+    def create_dataset(self, name, data, **kwargs):
         '''Add a dataset to this experiment.
 
         Parameters
         ----------
-        label : str
-            The provided label is used to determine the type of data in the set.
-            Currently this label can be :
+        name : str
+            The provided name is used to determine the type of data in the set.
+            Currently name is treated specially if it is "train" (for training
+            data) or "valid" (for validation data). Other names may be provided,
+            but but they are not treated specially.
 
-            - train -- for training data, or
-            - valid -- for validation data.
-
-            Other labels can be provided, but but they are not currently used
-            for anything special.
-
-        data : any
+        data : ndarray, (ndarray, ndarray), or callable
             The values that you provide for data will be encapsulated inside a
             `dataset.Dataset` instance; see that class for documentation on the
             types of things it needs. In particular, you can currently pass in
@@ -226,11 +222,16 @@ class Experiment:
             A Dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
-        if 'batches' not in kwargs:
-            kwargs['batches'] = self.kwargs.get('%s_batches' % label, None)
-        if 'size' not in kwargs:
-            kwargs['size'] = self.args.batch_size
-        kwargs['label'] = label
+        kwargs['name'] = name
+        if 'batch_size' not in kwargs:
+            kwargs['batch_size'] = self.kwargs.get('batch_size', 32)
+        if 'iteration_size' not in kwargs:
+            num_batches = '%s_batches' % name
+            kwargs['iteration_size'] = self.kwargs.get(num_batches, None)
+            if num_batches in kwargs:
+                kwargs['iteration_size'] = kwargs.pop(num_batches)
+        if not isinstance(data, (tuple, list)):
+            data = (data, )
         return dataset.Dataset(*data, **kwargs)
 
     def run(self, *args, **kwargs):
@@ -284,9 +285,9 @@ class Experiment:
         if valid_set is None:
             valid_set = train_set
         if not isinstance(valid_set, dataset.Dataset):
-            valid_set = self.create_dataset('valid', *valid_set)
+            valid_set = self.create_dataset('valid', valid_set)
         if not isinstance(train_set, dataset.Dataset):
-            train_set = self.create_dataset('train', *train_set)
+            train_set = self.create_dataset('train', train_set)
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
         if optimize is None:
             optimize = self.kwargs.get('optimize')

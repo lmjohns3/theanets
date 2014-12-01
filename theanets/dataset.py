@@ -35,64 +35,87 @@ class SequenceDataset:
 
     Parameters
     ----------
+    samples : ndarray or callable
+        A set of samples from some data distribution.
 
-    There should be one unnamed keyword argument for each input in the
-    neural network that will be processing this dataset. For instance, if
-    you are dealing with a classifier network, you'll need one argument for
-    the inputs (e.g., mnist digit pixels), and another argument for the
-    target outputs (e.g., digit class labels). The order of the arguments
-    should be the same as the order of inputs in the network. All arguments
-    are expected to have the same number of elements along the first axis.
+        If this parameter is not callable, it is expected to be an ndarray
+        containing the "unlabeled" sample data to be used during training,
+        validation, etc.
 
-    Alternatively, if there is only one positional arg, and it is callable,
-    then that callable will be invoked repeatedly at training and test time.
-    Each invocation of the callable should return a tuple containing one
-    minibatch of data. The callable will not be passed any arguments.
+        If this parameter is callable, then mini-batches will be obtained by
+        calling the callable with no arguments; the callable is expected to
+        return a tuple of ndarrays that will be suitable for training a network.
 
-    size or batch_size : int, optional
-      The size of the mini-batches to create from the data sequences. Defaults
-      to 32.
+    labels : ndarray, optional
+        A set of labels corresponding to the sample data. The labels array, if
+        present, is expected to have the same number of elements along the
+        splitting axis as the samples array. This parameter is ignored if
+        `samples` is callable.
 
-    batches : int, optional
-      The number of batches to yield for each call to iterate(). Defaults to the
-      length of the data divided by batch_size.
+    name : str, optional
+        A string that is used to describe this dataset. Usually something like
+        'test' or 'train'.
 
-    label : str, optional
-      A string that is used to describe this dataset. Usually something like
-      'test' or 'train'.
+    batch_size : int, optional
+        The size of the mini-batches to create from the data sequences. Defaults
+        to 32.
+
+    iteration_size : int, optional
+        The number of batches to yield for each call to iterate(). Defaults to
+        the length of the data divided by batch_size, or to 100 for callable
+        datasets.
+
+    axis : int, optional
+        The axis along which to split the samples and labels. If not provided,
+        defaults to 0 (first axis) for 2-dimensional datasets, and to 1 (second
+        axis) for 3-dimensional datasets (e.g., for recurrent networks).
     '''
 
-    def __init__(self, *data, **kwargs):
-        '''Create a minibatch dataset from a number of different data arrays.'''
-        self.label = kwargs.get('label', 'dataset')
-        self.number_batches = kwargs.get('batches')
-        self.batch = 0
+    def __init__(self, samples, labels=None, name=None, batch_size=32,
+                 iteration_size=None, axis=None):
+        '''Create a minibatch dataset from data arrays or a callable.'''
+        self.name = name or 'dataset'
+        self.batch_size = batch_size
+        self.iteration_size = iteration_size
 
-        size = kwargs.get('size', kwargs.get('batch_size', 32))
-        self.callable = None
-        self.batches = None
-        if len(data) == 1 and isinstance(data[0], collections.Callable):
-            self.callable = data[0]
-            if not self.number_batches:
-                self.number_batches = size
-            logging.info('data %s: %dx mini-batches from callable',
-                         self.label, self.number_batches)
+        self.batches = []
+
+        if isinstance(samples, collections.Callable):
+            self._init_callable(samples)
         else:
-            shape = data[0].shape
-            axis = kwargs.get('axis', 1 if len(shape) == 3 else 0)
-            slices = [slice(None), slice(None)]
-            self.batches = []
-            i = 0
-            while i + size <= shape[axis]:
-                slices[axis] = slice(i, i + size)
-                self.batches.append([d[tuple(slices)] for d in data])
-                i += size
-            self.shuffle()
-            if not self.number_batches:
-                self.number_batches = len(self.batches)
-            logging.info('data %s: %dx %s mini-batches of %s',
-                         self.label, self.number_batches, len(self.batches),
-                         ', '.join(str(x.shape) for x in self.batches[0]))
+            self._init_arrays(samples, labels, axis)
+
+    def _init_callable(self, samples):
+        self.batches = samples
+        if not self.iteration_size:
+            self.iteration_size = 100
+        logging.info('%s: %d mini-batches from callable',
+                     self.name, self.iteration_size)
+
+    def _init_arrays(self, samples, labels, axis):
+        self._index = 0  # index for iteration.
+
+        if axis is None:
+            axis = 1 if len(samples.shape) == 3 else 0
+        slices = [slice(None), slice(None)][:axis + 1]
+        for i in range(0, samples.shape[axis], self.batch_size):
+            slices[axis] = slice(i, i + self.batch_size)
+            batch = [samples[tuple(slices)]]
+            if labels is not None:
+                batch.append(labels[tuple(slices)])
+            self.batches.append(batch)
+        self.shuffle()
+
+        if not self.iteration_size:
+            self.iteration_size = len(self.batches)
+
+        shapes = str(self.batches[0][0].shape)
+        if labels is not None:
+            x, y = self.batches[0]
+            shapes = '{} -> {}'.format(x.shape, y.shape)
+        logging.info('%s: %d of %d mini-batches of %s',
+                     self.name, self.iteration_size,
+                     len(self.batches), shapes)
 
     def __iter__(self):
         return self.iterate(True)
@@ -101,28 +124,26 @@ class SequenceDataset:
         rng.shuffle(self.batches)
 
     def iterate(self, update=True):
-        if self.callable:
-            return self._iter_callable()
-        return self._iter_batches(update)
+        return self._iter_callable() \
+            if callable(self.batches) \
+            else self._iter_batches(update)
 
     def _iter_batches(self, update=True):
         k = len(self.batches)
-        for b in range(self.number_batches):
-            yield self.batches[(self.batch + b) % k]
+        for _ in range(self.iteration_size):
+            self._index += 1
+            yield self.batches[self._index % k]
         if update:
             self.update()
 
     def _iter_callable(self):
-        for b in range(self.number_batches):
-            yield self.callable()
+        for _ in range(self.iteration_size):
+            yield self.batches()
 
     def update(self):
-        if self.callable:
-            return
-        self.batch += self.number_batches
-        if self.batch >= len(self.batches):
+        if self._index >= len(self.batches):
             self.shuffle()
-            self.batch = 0
+            self._index = 0
 
 
 Dataset = SequenceDataset

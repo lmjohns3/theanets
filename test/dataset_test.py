@@ -3,13 +3,14 @@ import theanets
 
 
 class TestDataset:
+    def setUp(self):
+        np.random.seed(3)
+
     def test_iterate(self):
         dataset = theanets.dataset.Dataset(
-            np.random.randn(101, 1),
-            label='foo',
-            batches=4,
-            size=10,
-        )
+            np.random.randn(100, 2), iteration_size=4, batch_size=10)
+
+        assert len(dataset.batches) == 10
 
         batches_ = list(dataset.batches)
 
@@ -27,13 +28,11 @@ class TestDataset:
 
     def test_threedee(self):
         dataset = theanets.dataset.Dataset(
-            np.random.randn(101, 202, 3),
-            batches=4,
-            size=20,
-        )
+            np.random.randn(5, 102, 3), iteration_size=13, batch_size=10)
 
         i = 0
         for x, in dataset:
-            assert x.shape == (101, 20, 3)
+            print(x.shape)
+            assert x.shape == (5, 10, 3) or x.shape == (5, 2, 3)
             i += 1
-        assert i == 4
+        assert i == 13

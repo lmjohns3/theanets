@@ -83,7 +83,7 @@ class SequenceDataset:
             slices = [slice(None), slice(None)]
             self.batches = []
             i = 0
-            while i + size < shape[axis]:
+            while i + size <= shape[axis]:
                 slices[axis] = slice(i, i + size)
                 self.batches.append([d[tuple(slices)] for d in data])
                 i += size

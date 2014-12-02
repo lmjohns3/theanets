@@ -21,6 +21,8 @@
 '''This file contains an object encapsulating a main process.'''
 
 import climate
+import datetime
+import os
 import sys
 import theano.tensor as TT
 import warnings
@@ -278,6 +280,7 @@ class Experiment:
             a "J" key providing the total cost of the model with respect to the
             training dataset. Other keys are available depending on the trainer.
         '''
+        # set up datasets
         if valid_set is None:
             valid_set = train_set
         if not isinstance(valid_set, dataset.Dataset):
@@ -285,17 +288,37 @@ class Experiment:
         if not isinstance(train_set, dataset.Dataset):
             train_set = self.create_dataset(train_set, name='train', **kwargs)
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
+
+        # set up training algorithm(s)
         if optimize is None:
             optimize = self.kwargs.get('optimize')
         if not optimize:
             optimize = 'nag'  # use nag if nothing else is defined.
         if isinstance(optimize, str):
             optimize = optimize.split()
+
+        # set up auto-saving if enabled, load existing model if one exists
+        timeout = self.kwargs.get('save_every', 0)
+        if timeout < 0:  # timeout < 0 is in minutes instead of iterations.
+            timeout *= 60
+        progress = self.kwargs.get('save_progress')
+        if progress and os.path.exists(progress):
+            self.load(progress)
+
+        # loop over training iterations, saving every N minutes if enabled
         for opt in optimize:
             if not callable(getattr(opt, 'train', None)):
                 opt = self.create_trainer(opt, **kwargs)
-            for costs in opt.train(**sets):
+            start = datetime.datetime.now()
+            for i, costs in enumerate(opt.train(**sets)):
                 yield costs
+                now = datetime.datetime.now()
+                elapsed = (now - start).total_seconds()
+                if i and progress and timeout and (
+                        (timeout < 0 and elapsed > -timeout) or
+                        (timeout > 0 and i % int(timeout) == 0)):
+                    self.save(progress)
+                    start = now
 
     def save(self, path):
         '''Save the current network to a pickle file on disk.
@@ -305,6 +328,7 @@ class Experiment:
         path : str
             Location of the file to save the network.
         '''
+        logging.info('saving model to %s', path)
         self.network.save(path)
 
     def load(self, path, **kwargs):
@@ -324,5 +348,6 @@ class Experiment:
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''
+        logging.info('loading model from %s', path)
         self.network = feedforward.load(path, **kwargs)
         return self.network

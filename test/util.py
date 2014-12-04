@@ -1,5 +1,6 @@
 '''Helper code for theanets unit tests.'''
 
+import numpy as np
 import skdata.mnist
 
 
@@ -8,6 +9,8 @@ class MNIST:
     DIGIT_SIZE = 784
 
     def setUp(self):
+        np.random.seed(3)
+
         mnist = skdata.mnist.dataset.MNIST()
         mnist.meta  # trigger download if needed.
         def arr(n, dtype):

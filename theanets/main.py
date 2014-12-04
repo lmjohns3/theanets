@@ -21,6 +21,8 @@
 '''This file contains an object encapsulating a main process.'''
 
 import climate
+import datetime
+import os
 import sys
 import theano.tensor as TT
 import warnings
@@ -198,23 +200,13 @@ class Experiment:
             logging.info('--%s = %s', k, kw[k])
         return factory(*args, **kw)
 
-    def create_dataset(self, label, data, **kwargs):
-        '''Add a dataset to this experiment.
+    def create_dataset(self, data, **kwargs):
+        '''Create a dataset for this experiment.
 
         Parameters
         ----------
-        label : str
-            The provided label is used to determine the type of data in the set.
-            Currently this label can be :
-
-            - train -- for training data, or
-            - valid -- for validation data.
-
-            Other labels can be provided, but but they are not currently used
-            for anything special.
-
-        data : any
-            The value that you provide for data will be encapsulated inside a
+        data : ndarray, (ndarray, ndarray), or callable
+            The values that you provide for data will be encapsulated inside a
             `dataset.Dataset` instance; see that class for documentation on the
             types of things it needs. In particular, you can currently pass in
             either a list/array/etc. of data, or a callable that generates data
@@ -226,14 +218,19 @@ class Experiment:
             A Dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
-        if 'batches' not in kwargs:
-            kwargs['batches'] = self.kwargs.get('%s_batches' % label, None)
-        if 'size' not in kwargs:
-            kwargs['size'] = self.args.batch_size
-        kwargs['label'] = label
-        if not isinstance(data, (tuple, list)):
-            data = (data, )
-        return dataset.Dataset(*data, **kwargs)
+        samples, labels = data, None
+        if isinstance(data, (tuple, list)):
+            if len(data) > 0:
+                samples = data[0]
+            if len(data) > 1:
+                labels = data[1]
+        name = kwargs.get('name', 'dataset')
+        b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
+        return dataset.Dataset(
+            samples, labels=labels, name=name,
+            batch_size=kwargs.get(b, self.kwargs.get(b, 32)),
+            iteration_size=kwargs.get(i, kwargs.get(s, self.kwargs.get(s))),
+            axis=kwargs.get('axis'))
 
     def run(self, *args, **kwargs):
         warnings.warn(
@@ -283,24 +280,45 @@ class Experiment:
             a "J" key providing the total cost of the model with respect to the
             training dataset. Other keys are available depending on the trainer.
         '''
+        # set up datasets
         if valid_set is None:
             valid_set = train_set
         if not isinstance(valid_set, dataset.Dataset):
-            valid_set = self.create_dataset('valid', valid_set)
+            valid_set = self.create_dataset(valid_set, name='valid', **kwargs)
         if not isinstance(train_set, dataset.Dataset):
-            train_set = self.create_dataset('train', train_set)
+            train_set = self.create_dataset(train_set, name='train', **kwargs)
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
+
+        # set up training algorithm(s)
         if optimize is None:
             optimize = self.kwargs.get('optimize')
         if not optimize:
             optimize = 'nag'  # use nag if nothing else is defined.
         if isinstance(optimize, str):
             optimize = optimize.split()
+
+        # set up auto-saving if enabled, load existing model if one exists
+        timeout = self.kwargs.get('save_every', 0)
+        if timeout < 0:  # timeout < 0 is in minutes instead of iterations.
+            timeout *= 60
+        progress = self.kwargs.get('save_progress')
+        if progress and os.path.exists(progress):
+            self.load(progress)
+
+        # loop over training iterations, saving every N minutes if enabled
         for opt in optimize:
             if not callable(getattr(opt, 'train', None)):
                 opt = self.create_trainer(opt, **kwargs)
-            for costs in opt.train(**sets):
+            start = datetime.datetime.now()
+            for i, costs in enumerate(opt.train(**sets)):
                 yield costs
+                now = datetime.datetime.now()
+                elapsed = (now - start).total_seconds()
+                if i and progress and timeout and (
+                        (timeout < 0 and elapsed > -timeout) or
+                        (timeout > 0 and i % int(timeout) == 0)):
+                    self.save(progress)
+                    start = now
 
     def save(self, path):
         '''Save the current network to a pickle file on disk.
@@ -310,6 +328,7 @@ class Experiment:
         path : str
             Location of the file to save the network.
         '''
+        logging.info('saving model to %s', path)
         self.network.save(path)
 
     def load(self, path, **kwargs):
@@ -329,5 +348,6 @@ class Experiment:
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''
+        logging.info('loading model from %s', path)
         self.network = feedforward.load(path, **kwargs)
         return self.network

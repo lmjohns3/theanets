@@ -271,6 +271,11 @@ class Experiment:
             One or more optimization algorithms to use for training our network.
             If this is not provided, then optimizers will be created based on
             command-line arguments. If neither are provided, NAG will be used.
+        save_progress : string, optional
+            Name of the filename to save the network in
+        save_every : int, optional
+            If positive, saves every N iterations
+            If negative, saves every N minutes
 
         Returns
         -------

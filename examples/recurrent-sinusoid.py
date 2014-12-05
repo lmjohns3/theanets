@@ -18,18 +18,14 @@ def waves(n=64):
 
 # set up a network and train it using some sinusoidal data.
 
-e = theanets.Experiment(
-    theanets.recurrent.Regressor,
-    layers=(2, 10, 1),
-    batch_size=64,
-    train_batches=16)
+e = theanets.Experiment(theanets.recurrent.Regressor, layers=(2, 10, 1))
 
 def sum_waves():
     x = waves()
     y = waves()
     return [np.concatenate([x, y], axis=2), x + y]
 
-e.run(sum_waves, sum_waves)
+e.train(sum_waves, batch_size=64, train_batches=16)
 
 # use the network to predict a novel output.
 

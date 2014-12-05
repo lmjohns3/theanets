@@ -100,7 +100,7 @@ class Network(ff.Network):
         self.hiddens.pop()
         batch_size = kwargs.get('batch_size', 64)
         h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)
-        z = self.hiddens[-1] if self.hiddens else x #if no hidden unit spec'ed => use x
+        z = self.hiddens[-1] if self.hiddens else x
         h, up = theano.scan(fn=f, sequences=z, outputs_info=[h_0])
         self.updates.update(up)
         self.hiddens.append(h)

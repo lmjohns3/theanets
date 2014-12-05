@@ -293,7 +293,7 @@ class Experiment:
         if optimize is None:
             optimize = self.kwargs.get('optimize')
         if not optimize:
-            optimize = 'nag'  # use nag if nothing else is defined.
+            optimize = 'rmsprop'  # use rmsprop if nothing else is defined.
         if isinstance(optimize, str):
             optimize = optimize.split()
 

@@ -62,8 +62,9 @@ class SequenceDataset:
 
     iteration_size : int, optional
         The number of batches to yield for each call to iterate(). Defaults to
-        the length of the data divided by batch_size, or to 100 for callable
-        datasets.
+        the length of the data divided by batch_size. If the dataset is a
+        callable, then the number is len(callable). If callable has no len, 
+        then the number is set to 100.
 
     axis : int, optional
         The axis along which to split the samples and labels. If not provided,
@@ -88,7 +89,10 @@ class SequenceDataset:
     def _init_callable(self, samples):
         self.batches = samples
         if not self.iteration_size:
-            self.iteration_size = 100
+            try:
+                self.iteration_size = len(samples)
+            except TypeError: # has no len
+                self.iteration_size = 100
         logging.info('%s: %d mini-batches from callable',
                      self.name, self.iteration_size)
 

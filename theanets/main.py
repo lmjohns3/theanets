@@ -175,13 +175,13 @@ class Experiment:
                 factory = trainer.Scipy
             elif factory.lower().startswith('l'):
                 if len(args) == 1:
-                    # use NAG trainer by default for individual layers
-                    args += (trainer.NAG, )
+                    # use RmsProp trainer by default for individual layers
+                    args += (trainer.RmsProp, )
                 factory = trainer.Layerwise
             elif factory.lower().startswith('p'):
                 if len(args) == 1:
-                    # use NAG trainer by default for pretrainer
-                    args += (trainer.NAG, )
+                    # use RmsProp trainer by default for pretrainer
+                    args += (trainer.RmsProp, )
                 factory = trainer.UnsupervisedPretrainer
             else:
                 factory = dict(
@@ -305,7 +305,7 @@ class Experiment:
         if progress and os.path.exists(progress):
             self.load(progress)
 
-        # loop over training iterations, saving every N minutes if enabled
+        # loop over trainers, saving every N minutes/iterations if enabled
         for opt in optimize:
             if not callable(getattr(opt, 'train', None)):
                 opt = self.create_trainer(opt, **kwargs)

@@ -86,11 +86,11 @@ class Network(object):
         "hidden" layer with 20 units, and one "output" layer with 3 units. That
         is, inputs should be of length 10, and outputs will be of length 3.
 
-    hidden_activation : str
+    hidden_activation : str, optional
         The name of an activation function to use on hidden network units.
         Defaults to 'sigmoid'.
 
-    output_activation : str
+    output_activation : str, optional
         The name of an activation function to use on output units. Defaults to
         'linear'.
 
@@ -111,15 +111,15 @@ class Network(object):
     hidden_dropouts : float in [0, 1], optional
         Proportion of hidden unit activations to randomly set to 0.
 
-    decode : positive int, optional
+    decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
         which decodes from just the last layer.
 
     tied_weights : bool, optional
         Construct decoding weights using the transpose of the encoding weights
-        on corresponding layers. If not True, decoding weights will be
-        constructed using a separate weight matrix.
+        on corresponding layers. Defaults to False, which means decoding weights
+        will be constructed using a separate weight matrix.
 
     Attributes
     ----------
@@ -136,26 +136,9 @@ class Network(object):
         Computed Theano variables representing the pre-activation inputs for
         network units.
 
-    layers : tuple of int
-        A list of the numbers of units in each of the layers of the network. The
-        zero element of this tuple is the size of the input, the final element
-        is the size of the output, and the intervening numbers are the sizes of
-        the hidden layers.
-
-    hidden_activation : str
-        A string describing the hidden unit activation function.
-
-    output_activation : str
-        A string describing the output unit activation function.
-
-    tied_weights : bool
-        True iff this is an autoencoder model with tied decoding weights.
-
-    decode_from : int
-        An integer describing the number of hidden layers from which to "decode"
-        the value of the output layer. By default this is 1, which corresponds
-        to a traditional feedforward neural network, in which the "topmost"
-        hidden layer is the only layer that feeds into the output.
+    kwargs : dict
+        A dictionary containing the keyword arguments used to construct the
+        network.
     '''
 
     def __init__(self, **kwargs):
@@ -167,12 +150,12 @@ class Network(object):
 
         self.rng = kwargs.get('rng') or RandomStreams()
 
-        self.layers = tuple(kwargs['layers'])
-        self.tied_weights = bool(kwargs.get('tied_weights'))
-        self.decode_from = int(kwargs.get('decode', 1))
+        if 'decode_from' not in kwargs:
+            kwargs['decode_from'] = 1
+        self.kwargs = kwargs
 
-        self.hidden_activation = kwargs.get('hidden_activation') or \
-                                 kwargs.get('activation', 'sigmoid')
+        self.hidden_activation = kwargs.get(
+            'hidden_activation', kwargs.get('activation', 'sigmoid'))
         self._hidden_func = self._build_activation(self.hidden_activation)
         if hasattr(self._hidden_func, '__theanets_name__'):
             logging.info('hidden activation: %s', self._hidden_func.__theanets_name__)
@@ -256,7 +239,7 @@ class Network(object):
             B = len(self.biases) - 1
             n = self.layers[-1]
             decoders = []
-            for i in range(B, B - self.decode_from, -1):
+            for i in range(B, B - self.kwargs['decode_from'], -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
                 Di, _, count = self.create_layer(b, n, 'out_%d' % i)
                 parameter_count += count - n
@@ -296,6 +279,16 @@ class Network(object):
         for i, h in enumerate(self.hiddens):
             yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
             yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
+
+    @property
+    def layers(self):
+        '''A tuple containing the layer configuration for this network.'''
+        return self.kwargs['layers']
+
+    @property
+    def tied_weights(self):
+        '''A boolean indicating this network uses tied weights.'''
+        return self.kwargs.get('tied_weights', False)
 
     @staticmethod
     def create_layer(a, b, suffix, sparse=None):
@@ -520,14 +513,7 @@ class Network(object):
         pickle.dump(dict(
             weights=[p.get_value().copy() for p in self.weights],
             biases=[p.get_value().copy() for p in self.biases],
-            klass=self.__class__,
-            kwargs=dict(
-                layers=self.layers,
-                hidden_activation=self.hidden_activation,
-                output_activation=self.output_activation,
-                tied_weights=self.tied_weights,
-                decode_from=self.decode_from,
-            )), handle, -1)
+            klass=self.__class__, kwargs=self.kwargs), handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
 

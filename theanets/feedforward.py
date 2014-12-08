@@ -227,23 +227,52 @@ class Network(object):
         '''
         count = 0
         sizes = self.check_layer_sizes()
-        x = z = self._add_noise(
-            self.x,
-            kwargs.get('input_noise', 0.),
-            kwargs.get('input_dropouts', 0.))
+        noise = kwargs.get('input_noise', 0)
+        dropout = kwargs.get('input_dropouts', 0)
+        z = self._add_noise(self.x, noise, dropout)
+        noise = kwargs.get('hidden_noise', 0)
+        dropout = kwargs.get('hidden_dropouts', 0)
         for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
+            z = self.add_feedforward_layer(z, nin, nout, i, noise, dropout)
             count += (nin + 1) * nout
-            W = self.create_weights(nin, nout, i)
-            b = self.create_bias(nout, i)
-            self.preacts.append(TT.dot(z, W) + b)
-            self.hiddens.append(self._add_noise(
-                self._hidden_func(self.preacts[-1]),
-                kwargs.get('hidden_noise', 0.),
-                kwargs.get('hidden_dropouts', 0.)))
-            self.weights.append(W)
-            self.biases.append(b)
-            z = self.hiddens[-1]
         return count
+
+    def add_feedforward_layer(self, input, nin, nout, label=None, noise=0, dropout=0):
+        '''Add a new feedforward layer to the network.
+
+        Parameters
+        ----------
+        input : theano variable
+            The theano variable that represents the inputs to this layer.
+        nin : int
+            The number of input units to this layer.
+        nout : out
+            The number of output units from this layer.
+        label : any, optional
+            The name of this layer, used for logging and as the theano variable
+            name suffix. Defaults to the index of this layer in the network.
+        noise : float, optional
+            Add zero-mean gaussian noise to the output activation of hidden
+            units. Defaults to 0 (no noise).
+        dropout : float, optional
+            Simulate "dropout" in this layer by setting the given fraction of
+            output activations randomly to zero. Defaults to 0 (no dropout).
+
+        Returns
+        -------
+        output : theano variable
+            The theano variable that represents the outputs from this layer.
+        '''
+        label = label or len(self.hiddens)
+        W, _ = self.create_weights(nin, nout, label)
+        b, _ = self.create_bias(nout, label)
+        pre = TT.dot(input, W) + b
+        output = self._add_noise(self._hidden_func(pre), noise, dropout)
+        self.weights.append(W)
+        self.biases.append(b)
+        self.preacts.append(pre)
+        self.hiddens.append(output)
+        return output
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.

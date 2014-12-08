@@ -200,7 +200,7 @@ class Network(object):
         '''
         inputs = self.setup_encoder(**kwargs)
         self.y, outputs = self.setup_decoder(**kwargs)
-        logging.info('%d total network parameters', count)
+        logging.info('%d total network parameters', inputs + outputs)
 
     def setup_encoder(self, **kwargs):
         '''Set up a computation graph to map the input to layer activations.

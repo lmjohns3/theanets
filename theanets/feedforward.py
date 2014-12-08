@@ -147,12 +147,8 @@ class Network:
         self.weights = []
         self.biases = []
         self.updates = {}
-
-        self.rng = kwargs.get('rng') or RandomStreams()
-
-        if 'decode_from' not in kwargs:
-            kwargs['decode_from'] = 1
         self.kwargs = kwargs
+        self.rng = kwargs.get('rng') or RandomStreams()
 
         self.hidden_activation = kwargs.get(
             'hidden_activation', kwargs.get('activation', 'sigmoid'))

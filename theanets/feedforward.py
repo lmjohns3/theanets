@@ -233,9 +233,10 @@ class Network(object):
             self.x,
             kwargs.get('input_noise', 0.),
             kwargs.get('input_dropouts', 0.))
-        for i, (a, b) in enumerate(zip(sizes[:-1], sizes[1:])):
-            W, b, count = self.create_layer(a, b, i)
-            parameter_count += count
+        for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
+            parameter_count += (nin + 1) * nout
+            W = self.create_weights(nin, nout, i)
+            b = self.create_bias(nout, i)
             self.preacts.append(TT.dot(z, W) + b)
             self.hiddens.append(self._add_noise(
                 self._hidden_func(self.preacts[-1]),
@@ -263,16 +264,16 @@ class Network(object):
 
         else:
             B = len(self.biases) - 1
-            n = self.layers[-1]
+            nout = self.layers[-1]
             decoders = []
             for i in range(B, B - self.kwargs['decode_from'], -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
-                Di, _, count = self.create_layer(b, n, 'out_%d' % i)
-                parameter_count += count - n
+                Di, n = self.create_weights(b, nout, 'out_%d' % i)
+                parameter_count += n
                 decoders.append(TT.dot(self.hiddens[i], Di))
                 self.weights.append(Di)
-            parameter_count += n
-            bias = theano.shared(np.zeros((n, ), FLOAT), name='bias_out')
+            parameter_count += nout
+            bias = theano.shared(np.zeros((nout, ), FLOAT), name='bias_out')
             self.biases.append(bias)
             self.preacts.append(sum(decoders) + bias)
             self.hiddens.append(self._output_func(self.preacts[-1]))
@@ -317,8 +318,8 @@ class Network(object):
         return self.kwargs.get('tied_weights', False)
 
     @staticmethod
-    def create_layer(a, b, suffix, sparse=None):
-        '''Create a layer of weights and bias values.
+    def create_weights(a, b, suffix, sparse=None):
+        '''Create a layer of randomly-initialized weights.
 
         Parameters
         ----------
@@ -330,8 +331,8 @@ class Network(object):
             of "output" units that the weight matrix connects.
         suffix : str
             A string suffix to use in the Theano name for the created variables.
-            This string will be appended to 'W_' (for the weights) and 'b_' (for
-            the biases) parameters that are created and returned.
+            This string will be appended to 'W_' to name the parameters that are
+            created and returned.
         sparse : float in (0, 1)
             If given, ensure that the weight matrix for the layer has only this
             proportion of nonzero entries.
@@ -341,9 +342,6 @@ class Network(object):
         weight : Theano shared array
             A shared array containing Theano values representing the weights
             connecting each "input" unit to each "output" unit.
-        bias : Theano shared array
-            A shared array containing Theano values representing the bias
-            values on each of the "output" units.
         count : int
             The number of parameters that are included in the returned
             variables.
@@ -352,10 +350,34 @@ class Network(object):
         if sparse is not None:
             arr *= np.random.binomial(n=1, p=sparse, size=(a, b))
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
+        logging.info('weights for layer %s: %s x %s', suffix, a, b)
+        return weight, a * b
+
+    @staticmethod
+    def create_bias(b, suffix):
+        '''Create a vector of bias values.
+
+        Parameters
+        ----------
+        b : int
+            Number of units of bias to create.
+        suffix : str
+            A string suffix to use in the Theano name for the created variables.
+            This string will be appended to 'b_' to name the parameters that are
+            created and returned.
+
+        Returns
+        -------
+        bias : Theano shared array
+            A shared array containing Theano values representing the bias for a
+            set of computation units.
+        count : int
+            The number of parameters that are included in the returned
+            variables.
+        '''
         arr = 1e-3 * np.random.randn(b)
         bias = theano.shared(arr.astype(FLOAT), name='b_{}'.format(suffix))
-        logging.info('weights for layer %s: %s x %s', suffix, a, b)
-        return weight, bias, (a + 1) * b
+        return bias, b
 
     def _add_noise(self, x, sigma, rho):
         '''Add noise and dropouts to elements of x as needed.

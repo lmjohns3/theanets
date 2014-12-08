@@ -594,7 +594,8 @@ class Layerwise(Trainer):
                     net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
                 net.y = net._output_func(net.hiddens.pop())
             else:
-                W, b, _ = net.create_layer(nhids[i-1], nout, 'layerwise')
+                W, _ = net.create_weights(nhids[i-1], nout, 'layerwise')
+                b, _ = net.create_bias(nout, 'layerwise')
                 net.weights = [weights[i-1], W]
                 net.biases = [biases[i-1], b]
                 net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)

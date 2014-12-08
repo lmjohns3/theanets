@@ -166,15 +166,41 @@ class Network(object):
             logging.info('output activation: %s', self._output_func.__theanets_name__)
 
         self.setup_vars()
-        _, encode_count = self.setup_encoder(**kwargs)
-        self.y, decode_count = self.setup_decoder(**kwargs)
-
-        logging.info('%d total network parameters', encode_count + decode_count)
+        self.setup_layers(**kwargs)
 
     def setup_vars(self):
         '''Setup Theano variables for our network.'''
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
+
+    def setup_layers(self, **kwargs):
+        '''Set up a computation graph to map the input to layer activations.
+
+        Parameters
+        ----------
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
+
+        Returns
+        -------
+        y : Theano variable
+            A variable representing the output vector.
+        count : int
+            The number of parameters created in the network.
+        '''
+        _, inputs = self.setup_encoder(**kwargs)
+        self.y, outputs = self.setup_decoder(**kwargs)
+        logging.info('%d total network parameters', count)
 
     def setup_encoder(self, **kwargs):
         '''Set up a computation graph to map the input to layer activations.

@@ -71,7 +71,7 @@ def softmax(x):
     return (z / z.sum(axis=0)).T
 
 
-class Network(object):
+class Network:
     '''The network class encapsulates a fully-connected feedforward net.
 
     In addition to defining standard functionality for feedforward nets, there

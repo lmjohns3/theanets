@@ -50,10 +50,10 @@ class Network(ff.Network):
         network. Non-recurrent network layers receive input only from the
         preceding layers for a given input, while recurrent layers also receive
         input from the output of the recurrent layer from the previous time
-        step. The index values in this sequence must be in (0, len(layers)) --
-        that is, the input and output of a network cannot be recurrent. Defaults
-        to [len(layers) - 1] -- the penultimate layer of the network is the only
-        recurrent layer.
+        step. The index values in this sequence must be greater than 0; that is,
+        the input of a network cannot be recurrent. Defaults to
+        [len(layers) // 2 - 1], i.e., the "middle" layer of the network is the
+        only recurrent layer.
 
     hidden_activation : str, optional
         The name of an activation function to use on hidden network units.
@@ -84,48 +84,86 @@ class Network(ff.Network):
         Compute error metrics starting at this time step. (Defaults to 3.)
     '''
 
+    @property
+    def error_start(self):
+        return self.kwargs.get('recurrent_error_start', 3)
+
     def setup_vars(self):
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
-    def setup_encoder(self, **kwargs):
-        self.error_start = kwargs.get('recurrent_error_start', 3)
+    def setup_layers(self, **kwargs):
+        '''
+        '''
+        count = 0
 
-        sizes = self.check_layer_sizes()
+        noise = kwargs.get('input_noise', 0)
+        dropout = kwargs.get('input_dropouts', 0)
+        x = self._add_noise(self.x, noise, dropout)
 
-        x, forward_count = super(Network, self).setup_encoder(**kwargs)
-        f, recurrent_count = self.setup_recurrence(sizes[-1])
+        noise = kwargs.get('hidden_noise', 0)
+        dropout = kwargs.get('hidden_dropouts', 0)
+        layers = kwargs.get('layers')
+        recurrent = set(kwargs.get('recurrent_layers', [len(layers) // 2 - 1]))
+        for i, (nin, nout) in enumerate(zip(layers[:-1], layers[1:])):
+            if i in recurrent:
+                x, n = self.add_recurrent_layer(x, nin, nout, i)
+                count += n
+            else:
+                count += (nin + 1) * nout
+                x = self.add_feedforward_layer(
+                    x, nin, nout, i, noise=noise, dropout=dropout)
 
-        self.hiddens.pop()
-        batch_size = kwargs.get('batch_size', 64)
-        h_0 = TT.zeros((batch_size, sizes[-1]), dtype=ff.FLOAT)
-        z = self.hiddens[-1] if self.hiddens else x
-        h, up = theano.scan(fn=f, sequences=z, outputs_info=[h_0])
-        self.updates.update(up)
+        self.y = self.hiddens.pop()
+        logging.info('%d total network parameters', count)
+
+    def add_recurrent_layer(self, x, nin, nout, label=None):
+        '''Add a new recurrent layer to the network.
+
+        Parameters
+        ----------
+        input : theano variable
+            The theano variable that represents the inputs to this layer.
+        nin : int
+            The number of input units to this layer.
+        nout : out
+            The number of output units from this layer.
+        label : any, optional
+            The name of this layer, used for logging and as the theano variable
+            name suffix. Defaults to the index of this layer in the network.
+
+        Returns
+        -------
+        output : theano variable
+            The theano variable that represents the outputs from this layer.
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        b_h, _ = self.create_bias(nout, 'h_{}'.format(label))
+        W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
+        W_hh, _ = self.create_weights(nout, nout, 'hh_{}'.format(label))
+
+        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
+            return self._hidden_func(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+
+        batch_size = self.kwargs.get('batch_size', 64)
+        h, updates = theano.scan(
+            name='f_{}'.format(label),
+            fn=fn,
+            sequences=x,
+            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT)],
+            non_sequences=[W_xh, W_hh, b_h])
+
+        self.updates.update(updates)
         self.hiddens.append(h)
+        self.weights.extend([W_xh, W_hh])
+        self.biases.append(b_h)
 
-        return h, forward_count + recurrent_count
-
-    def setup_recurrence(self, size):
-        # once we've set up the encoding layers, we add a recurrent connection
-        # on the topmost layer. this entails creating a new weight matrix
-        # W_pool, but we reuse the existing bias values.
-        W_in = self.weights[-1]
-        b_pool = 0 if self.tied_weights else self.biases[-1]
-        W_pool, _, count = self.create_layer(size, size, 'pool')
-        count -= size
-
-        def recurrence(z_t, h_tm1):
-            return self._hidden_func(TT.dot(z_t, W_in) + TT.dot(h_tm1, W_pool) + b_pool)
-
-        self.weights.append(W_pool)
-
-        return recurrence, count
+        return h, nout * (1 + nin + nout)
 
     def lstm_recurrence(self, input_size, cell_size):
         count = 0
-
         W_xi, b_i, n = self.create_layer(input_size, cell_size, 'xi')
         count += n
         W_hi, W_ci, n = self.create_layer(cell_size, cell_size, 'hi')

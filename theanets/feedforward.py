@@ -198,7 +198,7 @@ class Network(object):
         count : int
             The number of parameters created in the network.
         '''
-        _, inputs = self.setup_encoder(**kwargs)
+        inputs = self.setup_encoder(**kwargs)
         self.y, outputs = self.setup_decoder(**kwargs)
         logging.info('%d total network parameters', count)
 
@@ -222,19 +222,17 @@ class Network(object):
 
         Returns
         -------
-        x : Theano variable
-            A variable representing the (possibly noisy) input vector.
-        parameter_count : int
+        count : int
             The number of parameters created in the forward map.
         '''
+        count = 0
         sizes = self.check_layer_sizes()
-        parameter_count = 0
         x = z = self._add_noise(
             self.x,
             kwargs.get('input_noise', 0.),
             kwargs.get('input_dropouts', 0.))
         for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
-            parameter_count += (nin + 1) * nout
+            count += (nin + 1) * nout
             W = self.create_weights(nin, nout, i)
             b = self.create_bias(nout, i)
             self.preacts.append(TT.dot(z, W) + b)
@@ -245,12 +243,31 @@ class Network(object):
             self.weights.append(W)
             self.biases.append(b)
             z = self.hiddens[-1]
-        return x, parameter_count
+        return count
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.
+
+        Parameters
+        ----------
+        tied_weights : bool, optional
+            If True, use decoding weights that are "tied" to the encoding
+            weights. This only makes sense for a limited set of "autoencoder"
+            layer configurations. Defaults to False.
+        decode_from : int, optional
+            Compute the activation of the output vector using the activations of
+            the last N hidden layers in the network. Defaults to 1, which
+            results in a traditional setup that decodes only from the
+            penultimate layer in the network.
+
+        Returns
+        -------
+        y : Theano variable
+            A variable representing the output vector.
+        count : int
+            The number of parameters created in the decoding map.
         '''
-        parameter_count = 0
+        count = 0
 
         if self.tied_weights:
             for i in range(len(self.weights) - 1, -1, -1):
@@ -258,6 +275,7 @@ class Network(object):
                 a, b = self.weights[i].get_value(borrow=True).shape
                 logging.info('tied weights from layer %d: %s x %s', i, b, a)
                 o = theano.shared(np.zeros((a, ), FLOAT), name='b_out{}'.format(i))
+                count += a
                 self.preacts.append(TT.dot(h, self.weights[i].T) + o)
                 func = self._output_func if i == 0 else self._hidden_func
                 self.hiddens.append(func(self.preacts[-1]))
@@ -266,19 +284,19 @@ class Network(object):
             B = len(self.biases) - 1
             nout = self.layers[-1]
             decoders = []
-            for i in range(B, B - self.kwargs['decode_from'], -1):
+            for i in range(B, B - kwargs['decode_from'], -1):
                 b = self.biases[i].get_value(borrow=True).shape[0]
                 Di, n = self.create_weights(b, nout, 'out_%d' % i)
-                parameter_count += n
+                count += n
                 decoders.append(TT.dot(self.hiddens[i], Di))
                 self.weights.append(Di)
-            parameter_count += nout
+            count += nout
             bias = theano.shared(np.zeros((nout, ), FLOAT), name='bias_out')
             self.biases.append(bias)
             self.preacts.append(sum(decoders) + bias)
             self.hiddens.append(self._output_func(self.preacts[-1]))
 
-        return self.hiddens.pop(), parameter_count
+        return self.hiddens.pop(), count
 
     def check_layer_sizes(self):
         # ensure that --layers is compatible with --tied-weights.

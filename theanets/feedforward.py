@@ -170,68 +170,47 @@ class Network:
         self.x = TT.matrix('x')
 
     def setup_layers(self, **kwargs):
-        '''Set up a computation graph to map the input to layer activations.
+        '''Set up a computation graph for our network.
 
         Parameters
         ----------
         input_noise : float, optional
             Standard deviation of desired noise to inject into input.
-
         hidden_noise : float, optional
             Standard deviation of desired noise to inject into hidden unit
             activation output.
-
         input_dropouts : float in [0, 1], optional
             Proportion of input units to randomly set to 0.
-
         hidden_dropouts : float in [0, 1], optional
             Proportion of hidden unit activations to randomly set to 0.
-
-        Returns
-        -------
-        y : Theano variable
-            A variable representing the output vector.
-        count : int
-            The number of parameters created in the network.
-        '''
-        inputs = self.setup_encoder(**kwargs)
-        self.y, outputs = self.setup_decoder(**kwargs)
-        logging.info('%d total network parameters', inputs + outputs)
-
-    def setup_encoder(self, **kwargs):
-        '''Set up a computation graph to map the input to layer activations.
-
-        Parameters
-        ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
-
-        Returns
-        -------
-        count : int
-            The number of parameters created in the forward map.
+        tied_weights : bool, optional
+            If True, use decoding weights that are "tied" to the encoding
+            weights. This only makes sense for a limited set of "autoencoder"
+            layer configurations. Defaults to False.
+        decode_from : int, optional
+            Compute the activation of the output vector using the activations of
+            the last N hidden layers in the network. Defaults to 1, which
+            results in a traditional setup that decodes only from the
+            penultimate layer in the network.
         '''
         count = 0
-        sizes = self.check_layer_sizes()
+
+        # add noise to inputs.
         noise = kwargs.get('input_noise', 0)
         dropout = kwargs.get('input_dropouts', 0)
         z = self._add_noise(self.x, noise, dropout)
+
+        # setup "encoder" layers.
         noise = kwargs.get('hidden_noise', 0)
         dropout = kwargs.get('hidden_dropouts', 0)
+        sizes = self.get_encoder_layers()
         for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
             z = self.add_feedforward_layer(z, nin, nout, i, noise, dropout)
             count += (nin + 1) * nout
-        return count
+
+        count += self.setup_decoder(**kwargs)
+
+        logging.info('%d total network parameters', count)
 
     def add_feedforward_layer(self, input, nin, nout, label=None, noise=0, dropout=0):
         '''Add a new feedforward layer to the network.
@@ -287,54 +266,36 @@ class Network:
 
         Returns
         -------
-        y : Theano variable
-            A variable representing the output vector.
         count : int
             The number of parameters created in the decoding map.
         '''
         count = 0
+        B = len(self.biases) - 1
+        nout = self.layers[-1]
+        decoders = []
+        for i in range(B, B - kwargs.get('decode_from', 1), -1):
+            nin = self.biases[i].get_value(borrow=True).shape[0]
+            W, n = self.create_weights(nin, nout, 'out_%d' % i)
+            count += n
+            decoders.append(TT.dot(self.hiddens[i], W))
+            self.weights.append(W)
+        bias = theano.shared(np.zeros((nout, ), FLOAT), name='bias_out')
+        count += nout
+        pre = sum(decoders) + bias
+        self.biases.append(bias)
+        self.preacts.append(pre)
+        self.y = self._output_func(pre)
+        return count
 
-        if self.tied_weights:
-            for i in range(len(self.weights) - 1, -1, -1):
-                h = self.hiddens[-1]
-                a, b = self.weights[i].get_value(borrow=True).shape
-                logging.info('tied weights from layer %d: %s x %s', i, b, a)
-                o = theano.shared(np.zeros((a, ), FLOAT), name='b_out{}'.format(i))
-                count += a
-                self.preacts.append(TT.dot(h, self.weights[i].T) + o)
-                func = self._output_func if i == 0 else self._hidden_func
-                self.hiddens.append(func(self.preacts[-1]))
+    def get_encoder_layers(self):
+        '''Compute the layers that will be part of the network encoder.
 
-        else:
-            B = len(self.biases) - 1
-            nout = self.layers[-1]
-            decoders = []
-            for i in range(B, B - kwargs['decode_from'], -1):
-                b = self.biases[i].get_value(borrow=True).shape[0]
-                Di, n = self.create_weights(b, nout, 'out_%d' % i)
-                count += n
-                decoders.append(TT.dot(self.hiddens[i], Di))
-                self.weights.append(Di)
-            count += nout
-            bias = theano.shared(np.zeros((nout, ), FLOAT), name='bias_out')
-            self.biases.append(bias)
-            self.preacts.append(sum(decoders) + bias)
-            self.hiddens.append(self._output_func(self.preacts[-1]))
-
-        return self.hiddens.pop(), count
-
-    def check_layer_sizes(self):
-        # ensure that --layers is compatible with --tied-weights.
-        sizes = self.layers[:-1]
-        if self.tied_weights:
-            error = 'with --tied-weights, --layers must be an odd-length palindrome'
-            assert len(self.layers) % 2 == 1, error
-            k = len(self.layers) // 2
-            encode = np.asarray(self.layers[:k])
-            decode = np.asarray(self.layers[k+1:])
-            assert (encode == decode[::-1]).all(), error
-            sizes = self.layers[:k+1]
-        return sizes
+        Returns
+        -------
+        layers : list of int
+            A list of integers specifying sizes of the encoder network layers.
+        '''
+        return self.layers[:-1]
 
     @property
     def inputs(self):
@@ -674,6 +635,58 @@ class Network:
 
 class Autoencoder(Network):
     '''An autoencoder attempts to reproduce its input.'''
+
+    def setup_decoder(self, **kwargs):
+        '''Set up weights for the decoder layers of an autoencoder.
+
+        This implementation allows for weights to be tied to encoder weights.
+
+        Returns
+        -------
+        count : int
+            A count of the number of tunable decoder parameters.
+        '''
+        if not self.tied_weights:
+            return super(Autoencoder, self).setup_decoder(**kwargs)
+        count = 0
+        noise = kwargs.get('hidden_noise', 0)
+        dropout = kwargs.get('hidden_dropouts', 0)
+        for i in range(len(self.weights) - 1, -1, -1):
+            nin, nout = self.weights[i].get_value(borrow=True).shape
+            logging.info('tied weights from layer %d: %s x %s', i, nout, nin)
+            bias = theano.shared(np.zeros((nin, ), FLOAT), name='b_out{}'.format(i))
+            count += nin
+            pre = TT.dot(self.hiddens[-1], self.weights[i].T) + bias
+            act = self._add_noise(self._hidden_func(pre), noise, dropout)
+            if i == 0:
+                act = self._output_func(pre)
+            self.biases.append(bias)
+            self.preacts.append(pre)
+            self.hiddens.append(act)
+        self.y = self.hiddens.pop()
+        return count
+
+    def get_encoder_layers(self):
+        '''Compute the layers that will be part of the network encoder.
+
+        This implementation ensures that --layers is compatible with
+        --tied-weights.
+
+        Returns
+        -------
+        layers : list of int
+            A list of integers specifying sizes of the encoder network layers.
+        '''
+        sizes = self.layers[:-1]
+        if self.tied_weights:
+            error = 'with --tied-weights, --layers must be an odd-length palindrome'
+            assert len(self.layers) % 2 == 1, error
+            k = len(self.layers) // 2
+            encode = np.asarray(self.layers[:k])
+            decode = np.asarray(self.layers[k+1:])
+            assert (encode == decode[::-1]).all(), error
+            sizes = self.layers[:k+1]
+        return sizes
 
     @property
     def cost(self):

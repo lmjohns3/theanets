@@ -162,32 +162,54 @@ class Network(ff.Network):
 
         return h, nout * (1 + nin + nout)
 
-    def lstm_recurrence(self, input_size, cell_size):
-        count = 0
-        W_xi, b_i, n = self.create_layer(input_size, cell_size, 'xi')
-        count += n
-        W_hi, W_ci, n = self.create_layer(cell_size, cell_size, 'hi')
-        W_ci.name = 'W_ci'
-        count += n
 
-        W_xf, b_f, n = self.create_layer(input_size, cell_size, 'xf')
-        count += n
-        W_hf, W_cf, n = self.create_layer(cell_size, cell_size, 'hf')
-        W_cf.name = 'W_cf'
-        count += n
+class LSTM(Network):
+    '''
+    '''
 
-        W_xo, b_o, n = self.create_layer(input_size, cell_size, 'xo')
-        count += n
-        W_ho, W_co, n = self.create_layer(cell_size, cell_size, 'ho')
-        W_co.name = 'W_co'
-        count += n
+    def add_recurrent_layer(self, x, nin, nout, label=None):
+        '''Add a new recurrent layer to the network.
 
-        W_xc, b_c, n = self.create_layer(input_size, cell_size, 'xc')
-        count += n
-        W_hc, _, n = self.create_layer(cell_size, cell_size, 'hc')
-        count += n - cell_size
+        Parameters
+        ----------
+        input : theano variable
+            The theano variable that represents the inputs to this layer.
+        nin : int
+            The number of input units to this layer.
+        nout : out
+            The number of output units from this layer.
+        label : any, optional
+            The name of this layer, used for logging and as the theano variable
+            name suffix. Defaults to the index of this layer in the network.
 
-        def recurrence(x_t, h_tm1, c_tm1):
+        Returns
+        -------
+        output : theano variable
+            The theano variable that represents the outputs from this layer.
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        b_i, _ = self.create_bias(nout, 'input')
+        b_f, _ = self.create_bias(nout, 'forget')
+        b_o, _ = self.create_bias(nout, 'output')
+        b_c, _ = self.create_bias(nout, 'cell')
+
+        # these weight matrices are always diagonal.
+        W_ci, _ = self.create_bias(nout, 'ci')
+        W_cf, _ = self.create_bias(nout, 'cf')
+        W_co, _ = self.create_bias(nout, 'co')
+
+        W_xi, _ = self.create_weights(nin, nout, 'xi')
+        W_xf, _ = self.create_weights(nin, nout, 'xf')
+        W_xo, _ = self.create_weights(nin, nout, 'xo')
+        W_xc, _ = self.create_weights(nin, nout, 'xc')
+
+        W_hi, _ = self.create_weights(nout, nout, 'hi')
+        W_hf, _ = self.create_weights(nout, nout, 'hf')
+        W_ho, _ = self.create_weights(nout, nout, 'ho')
+        W_hc, _ = self.create_weights(nout, nout, 'hc')
+
+        def fn(x_t, h_tm1, c_tm1, W_ci, W_cf, W_co, W_xi, W_xf, W_xo, W_xc, W_hi, W_hf, W_ho, W_hc, b_i, b_f, b_o, b_c):
             i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) +
                                   TT.dot(h_tm1, W_hi) +
                                   TT.dot(c_tm1, TT.diag(W_ci)) + b_i)
@@ -202,7 +224,21 @@ class Network(ff.Network):
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
 
-        return recurrence, count
+        W = [W_ci, W_cf, W_co, W_xi, W_xf, W_xo, W_xc, W_hi, W_hf, W_ho, W_hc]
+        B = [b_i, b_f, b_o, b_c]
+
+        batch_size = self.kwargs.get('batch_size', 64)
+        (h, _), updates = theano.scan(
+            name='f_{}'.format(label), fn=fn, non_sequences=W + B, sequences=x,
+            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
+                          TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
+
+        self.updates.update(updates)
+        self.hiddens.append(h)
+        self.weights.extend(W)
+        self.biases.extend(B)
+
+        return h, nout * (7 + 4 * nout + 4 * nin)
 
 
 class Autoencoder(Network):

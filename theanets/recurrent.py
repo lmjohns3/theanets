@@ -50,10 +50,8 @@ class Network(ff.Network):
         network. Non-recurrent network layers receive input only from the
         preceding layers for a given input, while recurrent layers also receive
         input from the output of the recurrent layer from the previous time
-        step. The index values in this sequence must be greater than 0; that is,
-        the input of a network cannot be recurrent. Defaults to
-        [len(layers) // 2 - 1], i.e., the "middle" layer of the network is the
-        only recurrent layer.
+        step. Defaults to [len(layers) // 2 - 1], i.e., the "middle" layer of
+        the network is the only recurrent layer.
 
     hidden_activation : str, optional
         The name of an activation function to use on hidden network units.

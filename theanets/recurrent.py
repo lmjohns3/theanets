@@ -241,3 +241,40 @@ class Regressor(Network):
     def cost(self):
         err = self.y - self.k
         return TT.mean((err * err).sum(axis=2)[self.error_start:])
+
+
+class Classifier(Network):
+    '''A classifier attempts to match a 1-hot target output.'''
+
+    def __init__(self, **kwargs):
+        kwargs['output_activation'] = 'softmax'
+        super(Classifier, self).__init__(**kwargs)
+
+    def setup_vars(self):
+        super(Classifier, self).setup_vars()
+
+        # for a classifier, k specifies the correct labels for a given input.
+        self.k = TT.ivector('k')
+
+    @property
+    def inputs(self):
+        return [self.x, self.k]
+
+    @property
+    def cost(self):
+        return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
+
+    @property
+    def accuracy(self):
+        '''Compute the percent correct classifications.'''
+        return 100 * TT.mean(TT.eq(TT.argmax(self.y, axis=1), self.k))
+
+    @property
+    def monitors(self):
+        yield 'acc', self.accuracy
+        for i, h in enumerate(self.hiddens):
+            yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
+            yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
+
+    def classify(self, x):
+        return self.predict(x).argmax(axis=1)

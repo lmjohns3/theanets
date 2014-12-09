@@ -150,8 +150,7 @@ class Network(object):
         self.kwargs = kwargs
         self.rng = kwargs.get('rng') or RandomStreams()
 
-        self.hidden_activation = kwargs.get(
-            'hidden_activation', kwargs.get('activation', 'sigmoid'))
+        self.hidden_activation = kwargs.get('hidden_activation', 'logistic')
         self._hidden_func = self._build_activation(self.hidden_activation)
         if hasattr(self._hidden_func, '__theanets_name__'):
             logging.info('hidden activation: %s', self._hidden_func.__theanets_name__)

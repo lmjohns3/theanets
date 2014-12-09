@@ -215,15 +215,37 @@ class Autoencoder(Network):
 
 
 class Predictor(Autoencoder):
-    '''A predictor network attempts to predict its next time step.'''
+    '''A predictor network attempts to predict its next time step.
+    '''
 
     @property
     def cost(self):
         # we want the network to predict the next time step. y is the prediction
         # (output of the network), so we want y[0] to match x[1], y[1] to match
         # x[2], and so forth.
-        err = self.x[1:] - self.y[:-1]
+        err = self.x[1:] - self.generate_prediction(self.y)[:-1]
         return TT.mean((err * err).sum(axis=2)[self.error_start:])
+
+    def generate_prediction(self, y):
+        '''Given outputs from each time step, map them to subsequent inputs.
+
+        This defaults to the identity transform, i.e., the output from one time
+        step is treated as the input to the next time step with no
+        transformation. Override this method in a subclass to provide, e.g.,
+        predictions based on random samples, lookups in a dictionary, etc.
+
+        Parameters
+        ----------
+        y : theano variable
+            A symbolic variable representing the "raw" output of the recurrent
+            predictor.
+
+        Returns
+        -------
+        y : theano variable
+            A symbolic variable representing the inputs for the next time step.
+        '''
+        return y
 
 
 class Regressor(Network):

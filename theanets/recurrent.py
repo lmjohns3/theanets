@@ -189,25 +189,27 @@ class LSTM(Network):
         count : int
             The number of learnable parameters in this layer.
         '''
-        b_i, _ = self.create_bias(nout, 'input')
-        b_f, _ = self.create_bias(nout, 'forget')
-        b_o, _ = self.create_bias(nout, 'output')
-        b_c, _ = self.create_bias(nout, 'cell')
+        label = label or len(self.hiddens)
+
+        b_i, _ = self.create_bias(nout, 'input_{}'.format(label))
+        b_f, _ = self.create_bias(nout, 'forget_{}'.format(label))
+        b_o, _ = self.create_bias(nout, 'output_{}'.format(label))
+        b_c, _ = self.create_bias(nout, 'cell_{}'.format(label))
 
         # these weight matrices are always diagonal.
-        W_ci, _ = self.create_bias(nout, 'ci')
-        W_cf, _ = self.create_bias(nout, 'cf')
-        W_co, _ = self.create_bias(nout, 'co')
+        W_ci, _ = self.create_bias(nout, 'ci_{}'.format(label))
+        W_cf, _ = self.create_bias(nout, 'cf_{}'.format(label))
+        W_co, _ = self.create_bias(nout, 'co_{}'.format(label))
 
-        W_xi, _ = self.create_weights(nin, nout, 'xi')
-        W_xf, _ = self.create_weights(nin, nout, 'xf')
-        W_xo, _ = self.create_weights(nin, nout, 'xo')
-        W_xc, _ = self.create_weights(nin, nout, 'xc')
+        W_xi, _ = self.create_weights(nin, nout, 'xi_{}'.format(label))
+        W_xf, _ = self.create_weights(nin, nout, 'xf_{}'.format(label))
+        W_xo, _ = self.create_weights(nin, nout, 'xo_{}'.format(label))
+        W_xc, _ = self.create_weights(nin, nout, 'xc_{}'.format(label))
 
-        W_hi, _ = self.create_weights(nout, nout, 'hi')
-        W_hf, _ = self.create_weights(nout, nout, 'hf')
-        W_ho, _ = self.create_weights(nout, nout, 'ho')
-        W_hc, _ = self.create_weights(nout, nout, 'hc')
+        W_hi, _ = self.create_weights(nout, nout, 'hi_{}'.format(label))
+        W_hf, _ = self.create_weights(nout, nout, 'hf_{}'.format(label))
+        W_ho, _ = self.create_weights(nout, nout, 'ho_{}'.format(label))
+        W_hc, _ = self.create_weights(nout, nout, 'hc_{}'.format(label))
 
         def fn(x_t, h_tm1, c_tm1, W_ci, W_cf, W_co, W_xi, W_xf, W_xo, W_xc, W_hi, W_hf, W_ho, W_hc, b_i, b_f, b_o, b_c):
             i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) +

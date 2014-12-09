@@ -140,6 +140,8 @@ class Network(ff.Network):
         count : int
             The number of learnable parameters in this layer.
         '''
+        label = label or len(self.hiddens)
+
         b_h, _ = self.create_bias(nout, 'h_{}'.format(label))
         W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
         W_hh, _ = self.create_weights(nout, nout, 'hh_{}'.format(label))

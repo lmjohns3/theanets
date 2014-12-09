@@ -31,9 +31,7 @@ climate.add_arg('--help-optimize', action='store_true',
 g = climate.add_arg_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
-g.add_argument('-g', '--activation', default='logistic', metavar='FUNC',
-               help='function for hidden unit activations DEPRECATED')
-g.add_argument('--hidden-activation', default='logistic', metavar='FUNC',
+g.add_argument('-g', '--hidden-activation', default='logistic', metavar='FUNC',
                help='function for hidden unit activations')
 g.add_argument('--output-activation', default='linear', metavar='FUNC',
                help='function for output unit activations')

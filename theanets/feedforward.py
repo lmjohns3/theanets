@@ -183,10 +183,6 @@ class Network(object):
             Proportion of input units to randomly set to 0.
         hidden_dropouts : float in [0, 1], optional
             Proportion of hidden unit activations to randomly set to 0.
-        tied_weights : bool, optional
-            If True, use decoding weights that are "tied" to the encoding
-            weights. This only makes sense for a limited set of "autoencoder"
-            layer configurations. Defaults to False.
         decode_from : int, optional
             Compute the activation of the output vector using the activations of
             the last N hidden layers in the network. Defaults to 1, which
@@ -254,10 +250,6 @@ class Network(object):
 
         Parameters
         ----------
-        tied_weights : bool, optional
-            If True, use decoding weights that are "tied" to the encoding
-            weights. This only makes sense for a limited set of "autoencoder"
-            layer configurations. Defaults to False.
         decode_from : int, optional
             Compute the activation of the output vector using the activations of
             the last N hidden layers in the network. Defaults to 1, which
@@ -640,6 +632,27 @@ class Autoencoder(Network):
         '''Set up weights for the decoder layers of an autoencoder.
 
         This implementation allows for weights to be tied to encoder weights.
+
+        Parameters
+        ----------
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
+        tied_weights : bool, optional
+            If True, use decoding weights that are "tied" to the encoding
+            weights. This only makes sense for a limited set of "autoencoder"
+            layer configurations. Defaults to False.
+        decode_from : int, optional
+            For networks without tied weights, compute the activation of the
+            output vector using the activations of the last N hidden layers in
+            the network. Defaults to 1, which results in a traditional setup
+            that decodes only from the penultimate layer in the network.
 
         Returns
         -------

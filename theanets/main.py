@@ -132,7 +132,7 @@ class Experiment:
         that have no global defaults, e.g., network architecture.)
         '''
         self.args, self.kwargs = climate.parse_args(**overrides)
-        if 'activation' in self.kwargs:
+        if self.kwargs.get('activation') and 'hidden_activation' not in overrides:
             warnings.warn(
                 'please use --hidden-activation instead of --activation',
                 DeprecationWarning)

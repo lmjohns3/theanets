@@ -84,13 +84,19 @@ g.add_argument('--weight-l1', type=float, default=0, metavar='K',
 g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
-g = climate.add_arg_group('SGD/NAG/RmsProp Optimization')
+g = climate.add_arg_group('SGD-Based Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=1e-4, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
+
+g = climate.add_arg_group('RmsProp Optimization')
+g.add_argument('--rms-clip', type=float, default=1000, metavar='V',
+               help='clip gradient values outside [-V, V]')
+g.add_argument('--rms-ema', type=float, default=0.9, metavar='V',
+               help='use an exponential moving average with weight V')
 
 g = climate.add_arg_group('Rprop Optimization')
 g.add_argument('--rprop-increase', type=float, default=1.01, metavar='R',

@@ -342,16 +342,31 @@ class RmsProp(SGD):
     argument. If this weight is set to a low value, the EMA will have a short
     memory and will be prone to changing quickly. If the momentum parameter is
     set close to 1, the EMA will have a long history and will change slowly.
+
+    The implementation here is modeled after Graves (2013), "Generating
+    Sequences With Recurrent Neural Networks," http://arxiv.org/abs/1308.0850.
     '''
+
+    def __init__(self, network, **kwargs):
+        self.clip = kwargs.get('rms_clip', 1000)
+        self.ema = kwargs.get('rms_ema', 0.9)
+        super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):
         for param in self.params:
-            grad = TT.grad(self.J, param)
-            rms_ = theano.shared(
-                np.zeros_like(param.get_value()), name=param.name + '_rms')
-            rms = self.momentum * rms_ + (1 - self.momentum) * grad * grad
-            yield rms_, rms
-            yield param, param - self.learning_rate * grad / TT.sqrt(rms + 1e-8)
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
+            z = lambda: np.zeros_like(param.get_value())
+            g1_ = theano.shared(z(), name=param.name + '_g1')
+            g2_ = theano.shared(z(), name=param.name + '_g2')
+            vel_ = theano.shared(z(), name=param.name + '_vel')
+            g1 = self.ema * g1_ + (1 - self.ema) * grad
+            g2 = self.ema * g2_ + (1 - self.ema) * grad * grad
+            rms = TT.sqrt(g2 - g1 * g1 + 1e-4)
+            vel = self.momentum * vel_ - self.learning_rate * grad / rms
+            yield g1_, g1
+            yield g2_, g2
+            yield vel_, vel
+            yield param, param + vel
 
 
 class Scipy(Trainer):

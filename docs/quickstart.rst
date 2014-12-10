@@ -79,8 +79,8 @@ them on your computer::
 
 .. _qs-overview:
 
-Overview
-========
+Package Overview
+================
 
 At a high level, the ``theanets`` package is a tool for (a) defining and (b)
 optimizing cost functions over a set of data. The workflow in ``theanets``
@@ -92,16 +92,16 @@ typically involves two basic steps:
    you're trying to model the digit images without labels, you might want to use
    a model that takes in pixels and outputs pixels (an "autoencoder").
 #. Second, you train or adjust the parameters in your model so that it has a low
-   cost or performs well with respect to some benchmark. For classification, you
+   cost or performs well with respect to some task. For classification, you
    might want to adjust your model parameters to minimize the negative
-   log-likelihood of the correct image class, and for autoencoders you might
-   want to minimize the reconstruction error.
+   log-likelihood of the correct image class given the pixels, and for
+   autoencoders you might want to minimize the reconstruction error.
 
 The ``theanets`` package provides a helper class, :class:`theanets.Experiment`,
-that is designed to perform both of these tasks with relatively low effort on
-your part. You will typically define a model by creating an experiment with a
-number of *hyperparameters* that define the specific behavior of your model. The
-skeleton of your code will usually look something like this::
+that performs both of these tasks with relatively low effort on your part. You
+will typically define a model by creating an experiment with a number of
+*hyperparameters* that define the specific behavior of your model. The skeleton
+of your code will usually look something like this::
 
   # some imports -- we will omit these
   # from subsequent code blocks.
@@ -117,7 +117,7 @@ skeleton of your code will usually look something like this::
       ...)
 
   # train the model.
-  exp.run(training_data, validation_data, ...)
+  exp.train(training_data, validation_data, ...)
 
   # use the trained model.
   model = exp.network
@@ -242,18 +242,22 @@ hyperparameter values. This is most naturally accomplished using the
       momentum=0.9)
 
 The first argument to the method is the training dataset, and the second (if
-provided) is a validation dataset -- if this is not provided, the training
-dataset will be used for validation. The ``optimize`` keyword argument specifies
-a training algorithm, and any subsequent keyword arguments will be passed to the
-training algorithm implementation. The available training methods are described
-in :doc:`trainers`; here we've used `Nesterov's Accelerated Gradient`_, a type
-of stochastic gradient descent with momentum.
+provided) is a validation dataset -- if a validation dataset is not provided,
+the training dataset will be used for validation.
+
+The ``optimize`` keyword argument specifies an algorithm to use for training,
+and any subsequent keyword arguments will be passed to the training algorithm
+implementation. These arguments typically specify hyperparameters of the
+training algorithm like the learning rate and so forth.
+
+The available training methods are described in :doc:`trainers`; here we've used
+`Nesterov's Accelerated Gradient`_, a type of stochastic gradient descent with
+momentum.
 
 .. _Nesterov's Accelerated Gradient: https://blogs.princeton.edu/imabandit/2013/04/01/acceleratedgradientdescent/
 
-The training method also needs to be provided with a dataset to use during
-training -- in this case, we will use the MNIST digits dataset from above.
-Putting everything together yields code that looks like this::
+To train our model, we will use the MNIST digits dataset from above. Putting
+everything together yields code that looks like this::
 
   train, valid, _ = load_mnist()
   exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
@@ -261,14 +265,13 @@ Putting everything together yields code that looks like this::
 
 If you put this code (plus any necessary imports) into a file called, say,
 ``mnist-classifier.py``, and then run it on the command-line, your computer will
-do a bunch of work to learn good parameter values for your model ... and then it
-will throw it all away!
+do a bunch of work to learn good parameter values for your model!
 
 Displaying learned features
 ---------------------------
 
-Let's get this example to do something useful by showing a plot of the
-"features" that the model learns::
+Once we've trained our model, we should do something useful with it. Let's get
+this example to show us a plot of the "features" that the model learns::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
   for i, pix in enumerate(exp.network.get_weights(0).T):
@@ -281,7 +284,7 @@ After the model is trained, we've accessed the weights connecting the input to
 the hidden layer using ``exp.network.get_weights(0)``. This array has one column
 of 784 values for each hidden node in the network, so we can iterate over the
 transpose and put each column -- properly reshaped into a 28×28 pixel array --
-into a giant image and then just plot that image.
+into a giant image and then plot that image.
 
 The ``theanets`` source code contains a complete ``mnist-classifier.py`` example
 that you can play around with. In addition, there are also examples of using

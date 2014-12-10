@@ -211,10 +211,11 @@ class NAG(SGD):
     technique, in the absence of a new gradient.
 
     In theory, this helps correct for oversteps during learning: If momentum
-    would lead us to overshoot, then the gradient at that overshot place
-    will point backwards, toward where we came from. (For details see
-    Sutskever, Martens, Dahl, and Hinton, ICML 2013, "On the importance of
-    initialization and momentum in deep learning.")
+    would lead us to overshoot, then the gradient at that overshot place will
+    point backwards, toward where we came from. (For details see Sutskever,
+    Martens, Dahl, and Hinton, ICML 2013, "On the importance of initialization
+    and momentum in deep learning." A PDF of this paper is freely available at
+    http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf)
     '''
 
     def __init__(self, network, **kwargs):

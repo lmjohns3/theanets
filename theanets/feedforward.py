@@ -193,14 +193,15 @@ class Network(object):
         # add noise to inputs.
         noise = kwargs.get('input_noise', 0)
         dropout = kwargs.get('input_dropouts', 0)
-        z = self._add_noise(self.x, noise, dropout)
+        x = self._add_noise(self.x, noise, dropout)
 
         # setup "encoder" layers.
         noise = kwargs.get('hidden_noise', 0)
         dropout = kwargs.get('hidden_dropouts', 0)
         sizes = self.get_encoder_layers()
         for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
-            z = self.add_feedforward_layer(z, nin, nout, i, noise, dropout)
+            z = self.hiddens and self.hiddens[-1] or x
+            self.add_feedforward_layer(z, nin, nout, i, noise, dropout)
             count += (nin + 1) * nout
 
         count += self.setup_decoder(**kwargs)
@@ -227,11 +228,6 @@ class Network(object):
         dropout : float, optional
             Simulate "dropout" in this layer by setting the given fraction of
             output activations randomly to zero. Defaults to 0 (no dropout).
-
-        Returns
-        -------
-        output : theano variable
-            The theano variable that represents the outputs from this layer.
         '''
         label = label or len(self.hiddens)
         W, _ = self.create_weights(nin, nout, label)
@@ -242,7 +238,6 @@ class Network(object):
         self.biases.append(b)
         self.preacts.append(pre)
         self.hiddens.append(output)
-        return output
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.

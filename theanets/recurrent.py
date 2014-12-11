@@ -114,14 +114,17 @@ class Network(ff.Network):
         )
         for i, (nin, nout) in enumerate(zip(layers[:-1], layers[1:])):
             if i in recurrent:
-                x, n = self.add_recurrent_layer(x, nin, nout, label=i, **kw)
+                z = self.hiddens and self.hiddens[-1] or x
+                n = self.add_recurrent_layer(z, nin, nout, label=i, **kw)
                 count += n
             else:
+                z = self.hiddens and self.hiddens[-1] or x
+                self.add_feedforward_layer(
+                    z, nin, nout, label=i, noise=noise, dropout=dropout)
                 count += (nin + 1) * nout
-                x = self.add_feedforward_layer(
-                    x, nin, nout, i, noise=noise, dropout=dropout)
 
-        self.y = self.hiddens.pop()
+        self.hiddens.pop()
+        self.y = self._output_func(self.preacts[-1])
         logging.info('%d total network parameters', count)
 
     def add_recurrent_layer(self, x, nin, nout, **kwargs):
@@ -148,8 +151,6 @@ class Network(ff.Network):
 
         Returns
         -------
-        output : theano variable
-            The theano variable that represents the outputs from this layer.
         count : int
             The number of learnable parameters in this layer.
         '''
@@ -159,23 +160,26 @@ class Network(ff.Network):
         W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
         W_hh, _ = self.create_weights(nout, nout, 'hh_{}'.format(label), **kwargs)
 
-        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
-            return self._hidden_func(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+        def fn(x_t, _, h_tm1, W_xh, W_hh, b_h):
+            pre = TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h
+            return pre, self._hidden_func(pre)
 
         batch_size = self.kwargs.get('batch_size', 64)
-        h, updates = theano.scan(
-            name='f_{}'.format(label),
+        (pre, hid), updates = theano.scan(
+            name='rnn_{}'.format(label),
             fn=fn,
             sequences=x,
-            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT)],
-            non_sequences=[W_xh, W_hh, b_h])
+            non_sequences=[W_xh, W_hh, b_h],
+            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
+                          TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
 
         self.updates.update(updates)
-        self.hiddens.append(h)
         self.weights.extend([W_xh, W_hh])
         self.biases.append(b_h)
+        self.preacts.append(pre)
+        self.hiddens.append(hid)
 
-        return h, nout * (1 + nin + nout)
+        return nout * (1 + nin + nout)
 
 
 class LSTM(Network):

@@ -9,7 +9,6 @@ Feedforward networks
 
 .. automodule:: theanets.feedforward
    :no-members:
-   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/
@@ -28,7 +27,6 @@ Recurrent networks
 
 .. automodule:: theanets.recurrent
    :no-members:
-   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/
@@ -47,7 +45,6 @@ Training strategies
 
 .. automodule:: theanets.trainer
    :no-members:
-   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/
@@ -69,7 +66,6 @@ Drivers
 
 .. automodule:: theanets.main
    :no-members:
-   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/
@@ -85,7 +81,6 @@ Datasets
 
 .. automodule:: theanets.dataset
    :no-members:
-   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/

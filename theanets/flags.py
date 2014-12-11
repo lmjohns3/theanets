@@ -119,3 +119,5 @@ g.add_argument('--preconditioner', action='store_true',
 g = climate.add_arg_group('Recurrent Nets')
 g.add_argument('--recurrent-error-start', type=int, default=3, metavar='T',
                help='compute network error starting at time T')
+g.add_argument('--recurrent-sparsity', type=float, default=0, metavar='R',
+               help='create recurrent weights with fraction R as 0')

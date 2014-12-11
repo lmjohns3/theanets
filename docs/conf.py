@@ -45,7 +45,7 @@ pygments_style = 'tango'
 html_theme = 'readable'
 html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
 html_static_path = ['_static']
-html_context = dict(google_analytics_id='UA-57658-4')
+html_context = dict(google_analytics_id='UA-57658-10')
 htmlhelp_basename = 'theanetsdoc'
 
 latex_elements = {

@@ -306,6 +306,23 @@ representations that are more interpretable to humans than dense models [2]_.
 References
 ==========
 
-.. [1] Lee et al, "Sparse representation"
-.. [2] Tibshirani, "Lasso"
-.. [3] Olshausen, B and Field, DJ.
+.. [Lee08] H Lee, C Ekanadham, AY Ng. "Sparse deep belief net model for visual
+           area V2." *Proc. NIPS*, 2008.
+
+.. [Tib96] R Tibshirani. "Regression shrinkage and selection via the lasso."
+           *Journal of the Royal Statistical Society: Series B (Methodological)*
+           267-288, 1996.
+
+.. [Ols94] B Olshausen, DJ Field. "Emergence of simple-cell receptive fields
+           properties by learning a sparse code for natural images." *Nature*
+           **381** 6583:607-609, 1994.
+
+.. [Le11] QV Le, A Karpenko, J Ngiam, AY Ng. "ICA with reconstruction cost for
+          efficient overcomplete feature learning." *Proc NIPS*, 2011.
+
+.. [Jut91] C Jutten, J Herault. "Blind separation of sources, part I: An
+           adaptive algorithm based on neuromimetic architecture." *Signal
+           Processing* 24:1-10, 1991.
+
+.. [Hyv97] A Hyvärinen, "Independent Component Analysis by Minimization of
+           Mutual Information." University of Helsinki Tech Report, 1997.

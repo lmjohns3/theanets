@@ -313,7 +313,7 @@ class Network(object):
         return self.kwargs.get('tied_weights', False)
 
     @staticmethod
-    def create_weights(a, b, suffix, sparse=None):
+    def create_weights(a, b, suffix, sparse=0):
         '''Create a layer of randomly-initialized weights.
 
         Parameters
@@ -328,9 +328,9 @@ class Network(object):
             A string suffix to use in the Theano name for the created variables.
             This string will be appended to 'W_' to name the parameters that are
             created and returned.
-        sparse : float in (0, 1)
-            If given, ensure that the weight matrix for the layer has only this
-            proportion of nonzero entries.
+        sparse : float in (0, 1), optional
+            If given, ensure that the given fraction of the weight matrix is
+            set to zero. Defaults to 0, meaning all weights are nonzero.
 
         Returns
         -------
@@ -342,8 +342,11 @@ class Network(object):
             variables.
         '''
         arr = np.random.randn(a, b) / np.sqrt(a + b)
-        if sparse is not None:
-            arr *= np.random.binomial(n=1, p=sparse, size=(a, b))
+        if 0 < sparse < 1:
+            k = min(a, b)
+            mask = np.random.binomial(n=1, p=1 - sparse, size=(a, b)).astype(bool)
+            mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
+            arr *= mask
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, a * b

@@ -1,7 +1,7 @@
 import os
 import sys
 
-import sphinx_rtd_theme
+import sphinx_readable_theme
 
 if os.environ.get('READTHEDOCS', None) == 'True':
     os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
@@ -41,28 +41,10 @@ exclude_patterns = ['_build']
 pygments_style = 'tango'
 #modindex_common_prefix = []
 
-html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = 'readable'
+html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
 html_static_path = ['_static']
-html_context = dict(
-    google_analytics_id='UA-57658-4',
-)
-#html_title = None
-#html_short_title = None
-#html_logo = None
-#html_favicon = None
-#html_last_updated_fmt = '%b %d, %Y'
-#html_use_smartypants = True
-#html_sidebars = {}
-#html_additional_pages = {}
-#html_domain_indices = True
-#html_use_index = True
-#html_split_index = False
-#html_show_sourcelink = True
-#html_show_sphinx = True
-#html_show_copyright = True
-#html_use_opensearch = ''
-#html_file_suffix = None
+html_context = dict(google_analytics_id='UA-57658-4')
 htmlhelp_basename = 'theanetsdoc'
 
 latex_elements = {

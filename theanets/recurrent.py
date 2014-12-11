@@ -108,10 +108,11 @@ class Network(ff.Network):
         dropout = kwargs.get('hidden_dropouts', 0)
         layers = kwargs.get('layers')
         sparse = kwargs.get('recurrent_sparsity', 0)
+        radius = kwargs.get('recurrent_radius', 0)
         recurrent = set(kwargs.get('recurrent_layers', [len(layers) // 2 - 1]))
         for i, (nin, nout) in enumerate(zip(layers[:-1], layers[1:])):
             if i in recurrent:
-                x, n = self.add_recurrent_layer(x, nin, nout, i, sparse)
+                x, n = self.add_recurrent_layer(x, nin, nout, i, sparse, radius)
                 count += n
             else:
                 count += (nin + 1) * nout
@@ -121,7 +122,7 @@ class Network(ff.Network):
         self.y = self.hiddens.pop()
         logging.info('%d total network parameters', count)
 
-    def add_recurrent_layer(self, x, nin, nout, label=None, sparse=0):
+    def add_recurrent_layer(self, x, nin, nout, label=None, sparse=0, radius=0):
         '''Add a new recurrent layer to the network.
 
         Parameters
@@ -139,6 +140,9 @@ class Network(ff.Network):
             If given, create sparse connections in the recurrent weight matrix,
             such that this fraction of the weights is set to zero. By default,
             this parameter is 0, meaning all recurrent  weights are nonzero.
+        radius : float, optional
+            If given, rescale the initial weights to have this spectral radius.
+            No scaling is performed by default.
 
         Returns
         -------
@@ -151,7 +155,8 @@ class Network(ff.Network):
 
         b_h, _ = self.create_bias(nout, 'h_{}'.format(label))
         W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
-        W_hh, _ = self.create_weights(nout, nout, 'hh_{}'.format(label), sparse=sparse)
+        W_hh, _ = self.create_weights(
+            nout, nout, 'hh_{}'.format(label), sparse=sparse, radius=radius)
 
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self._hidden_func(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)

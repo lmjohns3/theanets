@@ -313,7 +313,7 @@ class Network(object):
         return self.kwargs.get('tied_weights', False)
 
     @staticmethod
-    def create_weights(a, b, suffix, sparse=0):
+    def create_weights(a, b, suffix, sparse=0, radius=0):
         '''Create a layer of randomly-initialized weights.
 
         Parameters
@@ -331,6 +331,9 @@ class Network(object):
         sparse : float in (0, 1), optional
             If given, ensure that the given fraction of the weight matrix is
             set to zero. Defaults to 0, meaning all weights are nonzero.
+        radius : float, optional
+            If given, rescale the initial weights to have this spectral radius.
+            No scaling is performed by default.
 
         Returns
         -------
@@ -347,6 +350,10 @@ class Network(object):
             mask = np.random.binomial(n=1, p=1 - sparse, size=(a, b)).astype(bool)
             mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
             arr *= mask
+        if radius:
+            # rescale weights to have the appropriate spectral radius.
+            u, s, vT = np.linalg.svd(arr)
+            arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)
         weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
         logging.info('weights for layer %s: %s x %s', suffix, a, b)
         return weight, a * b

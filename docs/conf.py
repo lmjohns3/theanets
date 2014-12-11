@@ -20,7 +20,7 @@ extensions = [
     'numpydoc',
     ]
 autosummary_generate = True
-autodoc_default_flags = ['members', 'inherited-members']
+autodoc_default_flags = ['members']
 numpydoc_show_class_members = False
 templates_path = ['_templates']
 source_suffix = '.rst'

@@ -313,7 +313,7 @@ class Network(object):
         return self.kwargs.get('tied_weights', False)
 
     @staticmethod
-    def create_weights(a, b, suffix, sparse=0, radius=0):
+    def create_weights(a, b, suffix, **kwargs):
         '''Create a layer of randomly-initialized weights.
 
         Parameters
@@ -345,11 +345,13 @@ class Network(object):
             variables.
         '''
         arr = np.random.randn(a, b) / np.sqrt(a + b)
-        if 0 < sparse < 1:
+        sparse = kwargs.get('sparse')
+        if sparse and 0 < sparse < 1:
             k = min(a, b)
             mask = np.random.binomial(n=1, p=1 - sparse, size=(a, b)).astype(bool)
             mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
             arr *= mask
+        radius = kwargs.get('radius')
         if radius:
             # rescale weights to have the appropriate spectral radius.
             u, s, vT = np.linalg.svd(arr)

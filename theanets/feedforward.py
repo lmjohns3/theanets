@@ -386,7 +386,7 @@ class Network(object):
             The number of parameters that are included in the returned
             variables.
         '''
-        arr = 1e-3 * np.random.randn(b)
+        arr = 1e-6 * np.random.randn(b)
         bias = theano.shared(arr.astype(FLOAT), name='b_{}'.format(suffix))
         return bias, b
 

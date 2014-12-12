@@ -6,10 +6,13 @@ structures, using Theano_ for optimization, symbolic differentiation, and
 transparent GPU computations. Some things it does:
 
 - Provides several common neural network models:
+
   - Feedforward Classifier, Autoencoder, Regression
   - Recurrent Classifier, Autoencoder, Regression, Prediction
   - Easy to specify models with any number of layers
+
 - Allows for many different types of regularization:
+
   - L1 and L2 weight decay
   - L1 and L2 hidden activation penalties (e.g., sparse autoencoders)
   - Dropout on inputs (e.g., denoising autoencoders)
@@ -17,11 +20,14 @@ transparent GPU computations. Some things it does:
   - Noise on inputs (e.g., denoising autoencoders)
   - Noise on hidden units
   - Implement custom regularization with a bit of Python code
+
 - Implements several optimization algorithms:
+
   - SGD variants: NAG, Rprop, RmsProp
   - Many algorithms in ``scipy.optimize.minimize``
   - Hessian-Free (not currently compatible with Python3)
   - Greedy layerwise pre-training
+
 - Compatible with Python2 and Python3
 
 And here are some things it does not do:

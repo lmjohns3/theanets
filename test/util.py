@@ -4,7 +4,7 @@ import numpy as np
 import skdata.mnist
 
 
-class MNIST:
+class MNIST(object):
     NUM_DIGITS = 100
     DIGIT_SIZE = 784
 

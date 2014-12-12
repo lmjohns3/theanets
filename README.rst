@@ -15,10 +15,8 @@ transparent GPU computations. Some things it does:
 
   - L1 and L2 weight decay
   - L1 and L2 hidden activation penalties (e.g., sparse autoencoders)
-  - Dropout on inputs (e.g., denoising autoencoders)
-  - Dropout on hidden units
-  - Noise on inputs (e.g., denoising autoencoders)
-  - Noise on hidden units
+  - Dropout/gaussian noise on inputs (e.g., denoising autoencoders)
+  - Dropout/gaussian noise on hidden units
   - Implement custom regularization with a bit of Python code
 
 - Implements several optimization algorithms:
@@ -29,12 +27,10 @@ transparent GPU computations. Some things it does:
   - Greedy layerwise pre-training
 
 - Compatible with Python2 and Python3
+- Configure many parameters from the command-line
+- Relatively easy to extend
 
-And here are some things it does not do:
-
-- RBMs
-- Convolutions
-- Maxout
+At present there are no RBMs, convolutions, or maxout in ``theanets``.
 
 .. _Theano: http://deeplearning.net/software/theano/
 

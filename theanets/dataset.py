@@ -86,6 +86,10 @@ class SequenceDataset:
         else:
             self._init_arrays(samples, labels, axis)
 
+    @property
+    def number_batches(self):
+        return self.iteration_size  # for HF compatibility
+
     def _init_callable(self, samples):
         self.batches = samples
         if not self.iteration_size:

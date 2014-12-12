@@ -251,9 +251,10 @@ class LSTM(Network):
                           TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
 
         self.updates.update(updates)
-        self.hiddens.append(h)
         self.weights.extend(W)
         self.biases.extend(B)
+        self.preacts.append(h)  # consider lstm output as its own preactivation
+        self.hiddens.append(h)
 
         return h, nout * (7 + 4 * nout + 4 * nin)
 

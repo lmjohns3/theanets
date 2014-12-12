@@ -191,24 +191,25 @@ class Network(object):
         count = 0
 
         # add noise to inputs.
-        noise = kwargs.get('input_noise', 0)
-        dropout = kwargs.get('input_dropouts', 0)
-        x = self._add_noise(self.x, noise, dropout)
+        x = self._add_noise(self.x,
+                            kwargs.get('input_noise', 0),
+                            kwargs.get('input_dropouts', 0))
 
         # setup "encoder" layers.
-        noise = kwargs.get('hidden_noise', 0)
-        dropout = kwargs.get('hidden_dropouts', 0)
+        kw = dict(
+            noise=kwargs.get('hidden_noise', 0),
+            dropout=kwargs.get('hidden_dropouts', 0),
+        )
         sizes = self.get_encoder_layers()
         for i, (nin, nout) in enumerate(zip(sizes[:-1], sizes[1:])):
             z = self.hiddens and self.hiddens[-1] or x
-            self.add_feedforward_layer(z, nin, nout, i, noise, dropout)
-            count += (nin + 1) * nout
+            count += self.add_feedforward_layer(z, nin, nout, label=i, **kw)
 
         count += self.setup_decoder(**kwargs)
 
         logging.info('%d total network parameters', count)
 
-    def add_feedforward_layer(self, input, nin, nout, label=None, noise=0, dropout=0):
+    def add_feedforward_layer(self, input, nin, nout, **kwargs):
         '''Add a new feedforward layer to the network.
 
         Parameters
@@ -228,16 +229,24 @@ class Network(object):
         dropout : float, optional
             Simulate "dropout" in this layer by setting the given fraction of
             output activations randomly to zero. Defaults to 0 (no dropout).
+
+        Returns
+        -------
+        count : int
+            A count of the number of learnable parameters in this layer.
         '''
-        label = label or len(self.hiddens)
-        W, _ = self.create_weights(nin, nout, label)
-        b, _ = self.create_bias(nout, label)
+        label = kwargs.get('label') or len(self.hiddens)
+        W, nw = self.create_weights(nin, nout, label)
+        b, nb = self.create_bias(nout, label)
         pre = TT.dot(input, W) + b
-        output = self._add_noise(self._hidden_func(pre), noise, dropout)
+        out = self._add_noise(self._hidden_func(pre),
+                              kwargs.get('noise', 0),
+                              kwargs.get('dropout', 0))
         self.weights.append(W)
         self.biases.append(b)
         self.preacts.append(pre)
-        self.hiddens.append(output)
+        self.hiddens.append(out)
+        return nw + nb
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.

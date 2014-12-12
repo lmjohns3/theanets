@@ -104,24 +104,20 @@ class Network(ff.Network):
         dropout = kwargs.get('input_dropouts', 0)
         x = self._add_noise(self.x, noise, dropout)
 
-        noise = kwargs.get('hidden_noise', 0)
-        dropout = kwargs.get('hidden_dropouts', 0)
-        layers = kwargs.get('layers')
-        recurrent = set(kwargs.get('recurrent_layers', [len(layers) // 2 - 1]))
         kw = dict(
             sparse=kwargs.get('recurrent_sparsity', 0),
             radius=kwargs.get('recurrent_radius', 0),
+            noise=kwargs.get('hidden_noise', 0),
+            dropout=kwargs.get('hidden_dropouts', 0),
         )
+        layers = kwargs.get('layers')
+        recurrent = set(kwargs.get('recurrent_layers', [len(layers) // 2 - 1]))
         for i, (nin, nout) in enumerate(zip(layers[:-1], layers[1:])):
+            z = self.hiddens and self.hiddens[-1] or x
+            add = self.add_feedforward_layer
             if i in recurrent:
-                z = self.hiddens and self.hiddens[-1] or x
-                n = self.add_recurrent_layer(z, nin, nout, label=i, **kw)
-                count += n
-            else:
-                z = self.hiddens and self.hiddens[-1] or x
-                self.add_feedforward_layer(
-                    z, nin, nout, label=i, noise=noise, dropout=dropout)
-                count += (nin + 1) * nout
+                add = self.add_recurrent_layer
+            count += add(z, nin, nout, label=i, **kw)
 
         self.hiddens.pop()
         self.y = self._output_func(self.preacts[-1])

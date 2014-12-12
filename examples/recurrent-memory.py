@@ -14,7 +14,7 @@ BATCH_SIZE = 32
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(1, 100, 1),
+    layers=(1, 10, 1),
     recurrent_error_start=TIME - BITS,
     batch_size=BATCH_SIZE)
 
@@ -27,11 +27,10 @@ def generate():
 src, tgt = generate()
 logging.info('data batches: %s -> %s', src.shape, tgt.shape)
 
-e.train(generate)
+e.train(generate, momentum=0.99)
 
-target = tgt[-BITS:, :, 0]
-predict = e.network.predict(src)[-BITS:, :, 0]
-vm = max(abs(target).max(), abs(predict).max())
+predict = e.network.predict(src)[:, :, 0]
+vm = max(abs(src[:BITS]).max(), abs(predict[-BITS]).max())
 
 def plot(n, z, label):
     ax = plt.subplot(2, 1, n)
@@ -41,9 +40,10 @@ def plot(n, z, label):
     ax.imshow(z, cmap='gray', vmin=-vm, vmax=vm)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_ylabel(label)
+    ax.set_xlabel('Example')
+    ax.set_ylabel('{} Time'.format(label))
 
-plot(1, target, 'Target')
+plot(1, src[:, :, 0], 'Source')
 plot(2, predict, 'Prediction')
 
 plt.show()

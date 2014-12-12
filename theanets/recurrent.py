@@ -178,6 +178,71 @@ class Network(ff.Network):
         return nout * (1 + nin + nout)
 
 
+class MRNN(Network):
+    '''Define recurrent network layers using multiplicative dynamics.
+
+    The formulation of MRNN implemented here uses a factored dynamics matrix as
+    described in Sutskever, Martens & Hinton, ICML 2011, "Generating text with
+    recurrent neural networks." This paper is available online at
+    http://www.icml-2011.org/papers/524_icmlpaper.pdf.
+    '''
+
+    def add_recurrent_layer(self, x, nin, nout, **kwargs):
+        '''Add a new recurrent layer to the network.
+
+        Parameters
+        ----------
+        input : theano variable
+            The theano variable that represents the inputs to this layer.
+        nin : int
+            The number of input units to this layer.
+        nout : out
+            The number of output units from this layer.
+        label : any, optional
+            The name of this layer, used for logging and as the theano variable
+            name suffix. Defaults to the index of this layer in the network.
+        factors : int, optional
+            The number of factors to use in the hidden-to-hidden dynamics
+            matrix. Defaults to the number of hidden units.
+
+        Returns
+        -------
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        label = kwargs.get('label') or len(self.hiddens)
+        factors = kwargs.get('factors') or nout
+
+        b_h, _ = self.create_bias(nout, 'h_{}'.format(label))
+
+        W_xf, _ = self.create_weights(nin, factors, 'xf_{}'.format(label))
+        W_hf, _ = self.create_weights(nout, factors, 'hf_{}'.format(label))
+        W_fh, _ = self.create_weights(factors, nout, 'fh_{}'.format(label))
+        W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
+
+        def fn(x_t, _, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
+            f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
+            pre = TT.dot(x_t, W_xh) + b_h + f_t
+            return pre, self._hidden_func(pre)
+
+        batch_size = self.kwargs.get('batch_size', 64)
+        (pre, hid), self.updates = theano.scan(
+            name='mrnn_{}'.format(label),
+            fn=fn,
+            sequences=[x],
+            non_sequences=[W_xh, W_xf, W_hf, W_fh, b_h],
+            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
+                          TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
+
+        self.updates.update(updates)
+        self.weights.extend([W_xh, W_xf, W_hf, W_fh])
+        self.biases.append(b_h)
+        self.preacts.append(pre)
+        self.hiddens.append(hid)
+
+        return nout * (1 + nin) + factors * (2 * nout + nin)
+
+
 class LSTM(Network):
     '''
     '''

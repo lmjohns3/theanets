@@ -164,7 +164,7 @@ class Network(ff.Network):
         (pre, hid), updates = theano.scan(
             name='rnn_{}'.format(label),
             fn=fn,
-            sequences=x,
+            sequences=[x],
             non_sequences=[W_xh, W_hh, b_h],
             outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
                           TT.zeros((batch_size, nout), dtype=ff.FLOAT)])

@@ -3,47 +3,47 @@
 import climate
 import logging
 import matplotlib.pyplot as plt
-import numpy.random as rng
+import numpy as np
 import theanets
 
 climate.enable_default_logging()
 
 TIME = 10
+BITS = 3
 BATCH_SIZE = 32
 
 e = theanets.Experiment(
-    theanets.recurrent.Autoencoder,
-    layers=(3, 100, 3),
-    recurrent_error_start=TIME - 1,
+    theanets.recurrent.Regressor,
+    layers=(1, 100, 1),
+    recurrent_error_start=TIME - BITS,
     batch_size=BATCH_SIZE)
 
 def generate():
-    r = rng.randn(TIME, BATCH_SIZE, 3).astype('f')
-    r[-1] = r[0]
-    return [r]
+    s = np.zeros((TIME, BATCH_SIZE, 1), 'f')
+    t = np.zeros((TIME, BATCH_SIZE, 1), 'f')
+    s[:BITS] = t[-BITS:] = np.random.randn(BITS, BATCH_SIZE, 1)
+    return [s, t]
 
-batch = generate()
-logging.info('data batches: %s', batch[0].shape)
+src, tgt = generate()
+logging.info('data batches: %s -> %s', src.shape, tgt.shape)
 
 e.train(generate)
 
-target = batch[0][-1]
-predict = e.network.predict(batch[0])[-1]
+target = tgt[-BITS:, :, 0]
+predict = e.network.predict(src)[-BITS:, :, 0]
 vm = max(abs(target).max(), abs(predict).max())
 
-ax = plt.subplot(211)
-ax.set_frame_on(False)
-for loc, spine in ax.spines.items():
-    spine.set_color('none')
-ax.imshow(target.T, cmap='gray', vmin=-vm, vmax=vm)
-ax.set_xticks([])
-ax.set_yticks([])
+def plot(n, z, label):
+    ax = plt.subplot(2, 1, n)
+    ax.set_frame_on(False)
+    for loc, spine in ax.spines.items():
+        spine.set_color('none')
+    ax.imshow(z, cmap='gray', vmin=-vm, vmax=vm)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_ylabel(label)
 
-ax = plt.subplot(212)
-ax.set_frame_on(False)
-for loc, spine in ax.spines.items():
-    spine.set_color('none')
-ax.imshow(predict.T, cmap='gray', vmin=-vm, vmax=vm)
-ax.set_yticks([])
+plot(1, target, 'Target')
+plot(2, predict, 'Prediction')
 
 plt.show()

@@ -118,7 +118,7 @@ pretrain: Greedy unsupervised layerwise pre-training.
 class Experiment:
     '''This class encapsulates tasks for training and evaluating a network.'''
 
-    def __init__(self, network_class, **overrides):
+    def __init__(self, network_class=None, **overrides):
         '''Set up an experiment by parsing arguments and building a network.
 
         The only input this constructor needs is the Python class of the network
@@ -146,10 +146,16 @@ class Experiment:
             print(HELP_OPTIMIZE)
             sys.exit(0)
 
-        assert network_class is not feedforward.Network, \
-            'use a concrete theanets.Network subclass ' \
-            'like theanets.{Autoencoder,Regressor,...}'
-        self.network = network_class(**self.kwargs)
+        # load an existing model if so configured
+        progress = self.kwargs.get('save_progress')
+        if progress and os.path.exists(progress):
+            self.load(progress)
+        else:
+            assert network_class, 'network class must be provided!'
+            assert network_class is not feedforward.Network, \
+                'use a concrete theanets.Network subclass ' \
+                'like theanets.{Autoencoder,Regressor,...}'
+            self.network = network_class(**self.kwargs)
 
     def create_trainer(self, factory, *args, **kwargs):
         '''Create a trainer.
@@ -297,13 +303,11 @@ class Experiment:
         if isinstance(optimize, str):
             optimize = optimize.split()
 
-        # set up auto-saving if enabled, load existing model if one exists
+        # set up auto-saving if enabled
+        progress = self.kwargs.get('save_progress')
         timeout = self.kwargs.get('save_every', 0)
         if timeout < 0:  # timeout < 0 is in minutes instead of iterations.
             timeout *= 60
-        progress = self.kwargs.get('save_progress')
-        if progress and os.path.exists(progress):
-            self.load(progress)
 
         # loop over trainers, saving every N minutes/iterations if enabled
         for opt in optimize:

@@ -271,10 +271,10 @@ class LSTM(Network):
         '''
         label = label or len(self.hiddens)
 
-        b_i, _ = self.create_bias(nout, 'input_{}'.format(label))
-        b_f, _ = self.create_bias(nout, 'forget_{}'.format(label))
-        b_o, _ = self.create_bias(nout, 'output_{}'.format(label))
-        b_c, _ = self.create_bias(nout, 'cell_{}'.format(label))
+        b_i, _ = self.create_bias(nout, 'i_{}'.format(label))
+        b_f, _ = self.create_bias(nout, 'f_{}'.format(label))
+        b_o, _ = self.create_bias(nout, 'o_{}'.format(label))
+        b_c, _ = self.create_bias(nout, 'c_{}'.format(label))
 
         # these weight matrices are always diagonal.
         W_ci, _ = self.create_bias(nout, 'ci_{}'.format(label))
@@ -292,17 +292,10 @@ class LSTM(Network):
         W_hc, _ = self.create_weights(nout, nout, 'hc_{}'.format(label))
 
         def fn(x_t, h_tm1, c_tm1, W_ci, W_cf, W_co, W_xi, W_xf, W_xo, W_xc, W_hi, W_hf, W_ho, W_hc, b_i, b_f, b_o, b_c):
-            i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) +
-                                  TT.dot(h_tm1, W_hi) +
-                                  TT.dot(c_tm1, TT.diag(W_ci)) + b_i)
-            f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) +
-                                  TT.dot(h_tm1, W_hf) +
-                                  TT.dot(c_tm1, TT.diag(W_cf)) + b_f)
-            c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) +
-                                              TT.dot(h_tm1, W_hc) + b_c)
-            o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) +
-                                  TT.dot(h_tm1, W_ho) +
-                                  TT.dot(c_t, TT.diag(W_co)) + b_o)
+            i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci + b_i)
+            f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf + b_f)
+            c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) + TT.dot(h_tm1, W_hc) + b_c)
+            o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) + TT.dot(h_tm1, W_ho) + c_t * W_co + b_o)
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
 
@@ -310,16 +303,19 @@ class LSTM(Network):
         B = [b_i, b_f, b_o, b_c]
 
         batch_size = self.kwargs.get('batch_size', 64)
-        (h, _), updates = theano.scan(
-            name='f_{}'.format(label), fn=fn, non_sequences=W + B, sequences=x,
+        (hid, _), updates = theano.scan(
+            name='f_{}'.format(label),
+            fn=fn,
+            sequences=[x],
+            non_sequences=W + B,
             outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
                           TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
 
         self.updates.update(updates)
         self.weights.extend(W)
         self.biases.extend(B)
-        self.preacts.append(h)  # consider lstm output as its own preactivation
-        self.hiddens.append(h)
+        self.preacts.append(hid)  # consider lstm output as preactivation
+        self.hiddens.append(hid)
 
         return h, nout * (7 + 4 * nout + 4 * nin)
 

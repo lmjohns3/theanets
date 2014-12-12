@@ -264,8 +264,6 @@ class LSTM(Network):
 
         Returns
         -------
-        output : theano variable
-            The theano variable that represents the outputs from this layer.
         count : int
             The number of learnable parameters in this layer.
         '''
@@ -317,7 +315,7 @@ class LSTM(Network):
         self.preacts.append(hid)  # consider lstm output as preactivation
         self.hiddens.append(hid)
 
-        return h, nout * (7 + 4 * nout + 4 * nin)
+        return nout * (7 + 4 * nout + 4 * nin)
 
 
 class Autoencoder(Network):

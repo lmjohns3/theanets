@@ -23,10 +23,10 @@ transparent GPU computations. Some things it does:
 
   - SGD variants: NAG, Rprop, RmsProp
   - Many algorithms in ``scipy.optimize.minimize``
-  - Hessian-Free (not currently compatible with Python3)
+  - Hessian-Free
   - Greedy layerwise pre-training
 
-- Compatible with Python2 and Python3
+- Compatible with Python2 and Python3 (except HF optimizer)
 - Configure many parameters from the command-line
 - Relatively easy to extend
 

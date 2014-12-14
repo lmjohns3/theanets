@@ -13,6 +13,8 @@ hand-written digits. Each MNIST digit is labeled with the correct digit class
 (0, 1, ... 9). Please see the :ref:`qs-mnist` section for a brief overview of
 this dataset if you're not already familiar with it.
 
+.. _models-background:
+
 Mathematics Background
 ======================
 
@@ -26,15 +28,14 @@ At a high level, a feedforward neural network describes a parametric mapping
    F_\theta: \mathcal{S} \to \mathcal{T}
 
 between a source space :math:`\mathcal{S}` and a target space
-:math:`\mathcal{T}`. For the MNIST digits, for example we could think of
-:math:`\mathcal{S} = \mathbb{R}^{28 \times 28} = \mathbb{R}^{784}` (i.e., the
-space of all 28×28 images), and for classifying the MNIST digits we could think
-of :math:`\mathcal{T} = \{0, 1\}^{10}` (i.e., vectors of length 10 composed only
-of 0s and 1s).
+:math:`\mathcal{T}`, using parameters :math:`\theta`. For the MNIST digits, for
+example we could think of :math:`\mathcal{S} = \mathbb{R}^{28 \times 28} =
+\mathbb{R}^{784}` (i.e., the space of all 28×28 images), and for classifying the
+MNIST digits we could think of :math:`\mathcal{T} = \mathbb{R}^{10}`.
 
 This mapping is assumed to be fairly complex. If it were not -- if you could
-capture the mapping using a simple expression like :math:`F_\theta(x) = x^2` --
-then we would just use the expression directly and not need to deal with an
+capture the mapping using a simple expression like :math:`F_{\{a\}}(x) = ax^2`
+-- then we would just use the expression directly and not need to deal with an
 entire network. So if the mapping is complex, we will do a couple of things to
 make our problem tractable. First, we will assume some structure for
 :math:`F_\theta`. Second, we will fit our model to some set of data that we have

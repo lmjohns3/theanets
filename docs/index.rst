@@ -13,6 +13,7 @@ Theanets Documentation
 :doc:`Network Models <models>`
 ------------------------------
 
+* :ref:`models-background`
 * :ref:`models-autoencoders`
 * :ref:`models-regression`
 * :ref:`models-classification`

@@ -8,6 +8,7 @@ Theanets Documentation
 * :ref:`qs-setup`
 * :ref:`qs-overview`
 * :ref:`qs-classifier`
+* :ref:`qs-autoencoder`
 * :ref:`qs-cli`
 
 :doc:`Network Models <models>`

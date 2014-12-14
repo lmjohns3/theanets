@@ -305,6 +305,76 @@ That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around
 with.
 
+.. _qs-autoencoder:
+
+Encoding MNIST digits
+=====================
+
+Some types of neural network models display a powerful ability to learn useful
+features from a set of data without requiring any label information. Often
+referred to as feature learning or manifold learning, this ability is useful
+because labeled data (e.g., images annotated with the objects in them) are often
+difficult to obtain, while unlabeled data (e.g., images) are relatively easy to
+find.
+
+A class of neural network architectures known as autoencoders can perform such a
+learning task; an autoencoder takes as input a data sample and attempts to
+produce the same data sample as its output. Mathematically, an autoencoder with
+a single hidden layer can be expressed using this forward transform:
+
+.. math::
+   f(x) = g_o(W_o g_h(W_h x + b_h) + b_o)
+
+Here, :math:`g_i`, :math:`W_i`, and :math:`b_i` are the activation function,
+weights, and bias of layer :math:`i` in the network. The trainable parameters
+are :math:`\theta = (W_o, W_h, b_o, b_h)`.
+
+To train the weights and biases in the network, an autoencoder typically
+optimizes a squared-error reconstruction loss:
+
+.. math::
+   \ell(x) = \left\| f(x) - x \right\|_2^2 + \lambda R(\theta, x)
+
+Where :math:`R()` is some regularizer that helps prevent the model from
+overfitting.
+
+This optimization process could result in a trivial model, depending on the
+setup of the network; for example, with linear activations :math:`g_o(z) =
+g_h(z) = z`, identity weights :math:`W_o = W_h = I`, and zero bias :math:`b_o =
+b_h = 0`, an autoencoder implements the identity transform:
+
+.. math::
+   f(x) = x
+
+Similarly, even if the hidden unit activations are nonlinear, the network is
+capable of learning an identity transform. But things get much more interesting
+when the network is forced to reproduce the input under some constraint.
+
+One popular form of constraint is dimensionality reduction, which forces the
+network to project its input into a lower-dimensional space and then project it
+back to the original dimensionality. With linear hidden activations, tied
+weights, and no bias, this model will recover the same subspace as PCA:
+
+.. math::
+   \ell = \left\| WW^\top x - x \right\|_2^2
+
+After all, PCA is by definition the subspace that preserves the most variance in
+the data! This model limits us to at most :math:`d` features, however (where the
+elements of :math:`x` are :math:`d`-dimensional). Let's see what else is
+possible.
+
+If instead we wanted to learn an overcomplete feature set (i.e., more than
+:math:`d` features), we could encourage the model to learn a non-trivial
+representation of the data by adding a regularizer that specifies how the
+features should behave. For instance, if we require that the model reproduce the
+input data using as little feature representation as possible, we could add an
+:math:`\ell_1` penalty to the hidden representation:
+
+.. math::
+   \ell = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
+
+Le et al. showed that this model is actually equivalent to ICA.
+
 .. _qs-cli:
 
 Using the command line

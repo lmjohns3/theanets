@@ -34,6 +34,47 @@ from . import feedforward as ff
 logging = climate.get_logger(__name__)
 
 
+def batches(samples, labels=None, steps=100, batch_size=64):
+    '''Return a callable that generates samples from a dataset.
+
+    Parameters
+    ----------
+    samples : ndarray (time-steps, data-dimensions)
+        An array of data. Rows in this array correspond to time steps, and
+        columns to variables.
+    labels : ndarray (time-steps, label-dimensions), optional
+        An array of data. Rows in this array correspond to time steps, and
+        columns to labels.
+    steps : int, optional
+        Generate samples of this many time steps. Defaults to 100.
+    batch_size : int, optional
+        Generate this many samples per call. Defaults to 64. This must match the
+        batch_size parameter that was used when creating the recurrent network
+        that will process the data.
+
+    Returns
+    -------
+    callable :
+        A callable that can be used inside a dataset for training a recurrent
+        network.
+    '''
+    def unlabeled_sample():
+        xs = np.zeros((steps, batch_size, samples.shape[1]), ff.FLOAT)
+        for i in range(batch_size):
+            j = rng.randint(len(samples) - steps)
+            xs[:, i, :] = samples[j:j+steps]
+        return [xs]
+    def labeled_sample():
+        xs = np.zeros((steps, batch_size, samples.shape[1]), ff.FLOAT)
+        ys = np.zeros((steps, batch_size, labels.shape[1]), ff.FLOAT)
+        for i in range(batch_size):
+            j = rng.randint(len(samples) - steps)
+            xs[:, i, :] = samples[j:j+steps]
+            ys[:, i, :] = labels[j:j+steps]
+        return [xs, ys]
+    return unlabeled_sample if labels is None else labeled_sample
+
+
 class Network(ff.Network):
     '''A fully connected recurrent network with one input and one output layer.
 

@@ -105,11 +105,11 @@ Miscellaneous
 -------------
 sample: Set model parameters to training data samples
 
-layerwise: Greedy layerwise pre-training
-  This trainer applies NAG to each layer.
+layerwise: Greedy supervised layerwise pre-training
+  This trainer applies RmsProp to each layer sequentially.
 
 pretrain: Greedy unsupervised layerwise pre-training.
-  This trainer applies NAG to a tied-weights "shadow" autoencoder using an
+  This trainer applies RmsProp to a tied-weights "shadow" autoencoder using an
   unlabeled dataset, and then transfers the learned autoencoder weights to the
   model being trained.
 '''
@@ -318,7 +318,7 @@ class Experiment:
                 yield costs
                 now = datetime.datetime.now()
                 elapsed = (now - start).total_seconds()
-                if i and progress and timeout and (
+                if i and progress and (
                         (timeout < 0 and elapsed > -timeout) or
                         (timeout > 0 and i % int(timeout) == 0)):
                     self.save(progress)

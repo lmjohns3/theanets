@@ -7,6 +7,26 @@ STEPS = 11
 ALL = 30
 BATCH = 10
 
+
+class TestFunctions:
+    def setUp(self):
+        self.samples = np.random.randn(2 * STEPS, INS)
+        self.labels = np.random.randn(2 * STEPS, OUTS)
+
+    def test_batches_labeled(self):
+        f = theanets.recurrent.batches(
+            self.samples, self.labels, steps=STEPS, batch_size=BATCH)
+        assert len(f()) == 2
+        assert f()[0].shape == (STEPS, BATCH, INS)
+        assert f()[1].shape == (STEPS, BATCH, OUTS)
+
+    def test_batches_unlabeled(self):
+        f = theanets.recurrent.batches(
+            self.samples, steps=STEPS, batch_size=BATCH)
+        assert len(f()) == 1
+        assert f()[0].shape == (STEPS, BATCH, INS)
+
+
 class Base:
     def setUp(self):
         np.random.seed(3)

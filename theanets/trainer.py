@@ -349,8 +349,8 @@ class RmsProp(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.clip = kwargs.get('rms_clip', 1000)
-        self.ema = kwargs.get('rms_ema', 0.9)
+        self.clip = kwargs.get('rmsprop_clip', 1000)
+        self.alpha = np.exp(-np.log(2) / kwargs.get('rmsprop_halflife', 100))
         super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):
@@ -360,8 +360,8 @@ class RmsProp(SGD):
             g1_ = theano.shared(z(), name=param.name + '_g1')
             g2_ = theano.shared(z(), name=param.name + '_g2')
             vel_ = theano.shared(z(), name=param.name + '_vel')
-            g1 = self.ema * g1_ + (1 - self.ema) * grad
-            g2 = self.ema * g2_ + (1 - self.ema) * grad * grad
+            g1 = self.alpha * g1_ + (1 - self.alpha) * grad
+            g2 = self.alpha * g2_ + (1 - self.alpha) * grad * grad
             rms = TT.sqrt(g2 - g1 * g1 + 1e-4)
             vel = self.momentum * vel_ - self.learning_rate * grad / rms
             yield g1_, g1

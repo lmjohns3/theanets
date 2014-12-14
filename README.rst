@@ -23,16 +23,22 @@ transparent GPU computations. Some things it does:
 
   - SGD variants: NAG, Rprop, RmsProp
   - Many algorithms in ``scipy.optimize.minimize``
-  - Hessian-Free (not currently compatible with Python3)
+  - Hessian-Free
   - Greedy layerwise pre-training
 
-- Compatible with Python2 and Python3
+- Compatible with Python2 and Python3 (except HF optimizer)
 - Configure many parameters from the command-line
 - Relatively easy to extend
 
-At present there are no RBMs, convolutions, or maxout in ``theanets``.
+At present there are no RBMs, convolutions, or maxout in ``theanets`` -- for
+those, you might want to look at Morb_ or pylearn2_. There are many other neural
+networks toolkits out there as well; see `this stackoverflow question`_ for a
+few additional pointers.
 
 .. _Theano: http://deeplearning.net/software/theano/
+.. _Morb: https://github.com/benanne/morb
+.. _pylearn2: http://deeplearning.net/software/pylearn2
+.. _this stackoverflow question: http://stackoverflow.com/questions/11477145/open-source-neural-network-library
 
 Installation
 ------------
@@ -66,7 +72,7 @@ optimization algorithms available. Many of the available options can be
 configured from the command-line. To get help on the command-line options, run
 an example with the ``--help`` flag::
 
-    python examples/mnist-autoencoder.py
+    python examples/mnist-autoencoder.py --help
 
 There are many arguments, but some of the notable ones are::
 
@@ -77,20 +83,20 @@ units, and ``N4`` outputs. (Note that this argument is held constant in most of
 the examples, since it needs to correspond to the shape of the data being
 processed.)
 
-::
+To set the activation function of the hidden units::
+
     -g or --hidden-activation logistic|relu|linear|...
 
-Use the given activation function for hidden layer units. (Output layer units
-have a linear activation function by default, but an alternative can be given
-using the ``--output-activation`` flag.) Several activation functions can be
-pipelined together using the plus symbol.
+Output layer units have a linear activation function by default, but an
+alternative can be given using the ``--output-activation`` flag. Several
+activation functions can be pipelined together using the plus symbol.
 
-::
+To specify the algorithm to use for optimizing parameters::
+
     -O or --optimize sgd|hf|sgd hf|layerwise hf|...
 
-Use the given optimization algorithm(s) to train network parameters. Several
-training algorithms can be used in sequence by separating their names with
-spaces on the command line.
+Several training algorithms can be used in sequence by separating their names
+with spaces on the command line.
 
 Using the library
 -----------------

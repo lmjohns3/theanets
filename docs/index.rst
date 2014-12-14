@@ -2,38 +2,40 @@
 Theanets Documentation
 ======================
 
-:doc:`quickstart`
------------------
+:doc:`Quickstart <quickstart>`
+------------------------------
 
 * :ref:`qs-setup`
 * :ref:`qs-overview`
 * :ref:`qs-classifier`
+* :ref:`qs-autoencoder`
 * :ref:`qs-cli`
 
-:doc:`models`
--------------
+:doc:`Network Models <models>`
+------------------------------
 
+* :ref:`models-background`
 * :ref:`models-autoencoders`
 * :ref:`models-regression`
 * :ref:`models-classification`
 * :ref:`models-regularization`
 
-:doc:`trainers`
----------------
+:doc:`Optimization Algorithms <trainers>`
+-----------------------------------------
 
 * :ref:`trainers-sgd`
 * :ref:`trainers-hf`
 * :ref:`trainers-scipy`
 * :ref:`trainers-misc`
 
-:doc:`hacking`
---------------
+:doc:`Hacking on theanets <hacking>`
+------------------------------------
 
 * :ref:`hacking-extending`
 * :ref:`hacking-contributing`
 
-:doc:`reference`
-----------------
+:doc:`Reference <reference>`
+----------------------------
 
 Indices and tables
 ------------------

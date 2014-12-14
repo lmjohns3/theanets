@@ -91,10 +91,10 @@ g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
 
 g = climate.add_arg_group('RmsProp Optimization')
-g.add_argument('--rms-clip', type=float, default=1000, metavar='V',
+g.add_argument('--rmsprop-clip', type=float, default=1000, metavar='V',
                help='clip gradient values outside [-V, V]')
-g.add_argument('--rms-ema', type=float, default=0.9, metavar='V',
-               help='use an exponential moving average with weight V')
+g.add_argument('--rmsprop-halflife', type=float, default=7, metavar='N',
+               help='use a half-life of N for the RMS EWMA')
 
 g = climate.add_arg_group('Rprop Optimization')
 g.add_argument('--rprop-increase', type=float, default=1.01, metavar='R',

@@ -7,7 +7,6 @@ if os.environ.get('READTHEDOCS', None) == 'True':
     os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
     os.environ['LD_LIBRARY_PATH'] = os.path.abspath('_bin')
 
-#needs_sphinx = '1.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -29,22 +28,13 @@ source_encoding = 'utf-8-sig'
 master_doc = 'index'
 project = u'theanets'
 copyright = u'2014, Leif Johnson'
-version = '0.4.0'
+version = '0.4'
 release = '0.4.0'
-#language = None
-#today = ''
-#today_fmt = '%B %d, %Y'
 exclude_patterns = ['_build']
-#default_role = None
-#add_function_parentheses = True
-#add_module_names = True
-#show_authors = False
 pygments_style = 'tango'
-#modindex_common_prefix = []
 
 html_theme = 'readable'
 html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
-html_static_path = ['_static']
 html_context = dict(google_analytics_id='UA-57658-10')
 htmlhelp_basename = 'theanetsdoc'
 
@@ -60,18 +50,11 @@ latex_documents = [
   ('index', 'theanets.tex', u'theanets Documentation',
    u'Leif Johnson', 'manual'),
 ]
-#latex_logo = None
-#latex_use_parts = False
-#latex_show_pagerefs = False
-#latex_show_urls = False
-#latex_appendices = []
-#latex_domain_indices = True
 
 man_pages = [
     ('index', 'theanets', u'theanets Documentation',
      [u'Leif Johnson'], 1)
 ]
-#man_show_urls = False
 
 texinfo_documents = [
   ('index',
@@ -82,8 +65,5 @@ texinfo_documents = [
    'One line description of project.',
    'Miscellaneous'),
 ]
-#texinfo_appendices = []
-#texinfo_domain_indices = True
-#texinfo_show_urls = 'footnote'
 
 intersphinx_mapping = {'http://docs.python.org/': None}

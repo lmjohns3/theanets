@@ -3,10 +3,6 @@ import sys
 
 import sphinx_readable_theme
 
-if os.environ.get('READTHEDOCS', None) == 'True':
-    os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
-    os.environ['LD_LIBRARY_PATH'] = os.path.abspath('_bin')
-
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',

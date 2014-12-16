@@ -288,7 +288,7 @@ class LSTM(Network):
     '''
     '''
 
-    def add_recurrent_layer(self, x, nin, nout, label=None):
+    def add_recurrent_layer(self, x, nin, nout, **kwargs):
         '''Add a new recurrent layer to the network.
 
         Parameters
@@ -308,7 +308,7 @@ class LSTM(Network):
         count : int
             The number of learnable parameters in this layer.
         '''
-        label = label or len(self.hiddens)
+        label = kwargs.get('label') or len(self.hiddens)
 
         b_i, _ = self.create_bias(nout, 'i_{}'.format(label))
         b_f, _ = self.create_bias(nout, 'f_{}'.format(label))

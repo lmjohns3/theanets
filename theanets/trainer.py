@@ -350,7 +350,7 @@ class RmsProp(SGD):
 
     def __init__(self, network, **kwargs):
         self.clip = kwargs.get('rmsprop_clip', 1000)
-        self.alpha = np.exp(-np.log(2) / kwargs.get('rmsprop_halflife', 100))
+        self.alpha = float(np.exp(-np.log(2) / kwargs.get('rmsprop_halflife', 7)))
         super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):

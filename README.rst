@@ -9,7 +9,7 @@ transparent GPU computations. Some things it does:
 
   - Feedforward Classifier, Autoencoder, Regression
   - Recurrent Classifier, Autoencoder, Regression, Prediction
-  - Easy to specify models with any number of layers
+  - Easy to specify models with any number of layers (e.g., "deep" networks)
 
 - Allows for many different types of regularization:
 

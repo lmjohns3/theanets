@@ -87,7 +87,12 @@ rprop: Resilient Backpropagation
 
 rmsprop: RMS-scaled Backpropagation
   --learning-rate
-  --momentum (sets decay for exponential moving average)
+  --momentum
+  --rms-halflife
+
+adadelta: ADADELTA
+  --learning-rate (sets RMS normalization)
+  --rms-halflife
 
 bfgs, cg, dogleg, newton-cg, trust-ncg
   These use the implementations in scipy.optimize.minimize.

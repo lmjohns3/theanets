@@ -191,6 +191,7 @@ class Experiment:
                 factory = trainer.UnsupervisedPretrainer
             else:
                 factory = dict(
+                    adadelta=trainer.ADADELTA,
                     hf=trainer.HF,
                     nag=trainer.NAG,
                     rmsprop=trainer.RmsProp,

@@ -29,6 +29,9 @@ class TestTrainer(util.MNIST):
     def test_rmsprop(self):
         self.assert_progress('rmsprop', learning_rate=1e-4)
 
+    def test_adadelta(self):
+        self.assert_progress('adadelta', learning_rate=1e-4)
+
     def test_hf(self):
         self.assert_progress('hf')
 

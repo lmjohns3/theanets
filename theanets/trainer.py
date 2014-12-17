@@ -371,6 +371,42 @@ class RmsProp(SGD):
             yield param, param + vel
 
 
+class ADADELTA(RmsProp):
+    '''ADADELTA trains neural network models using scaled SGD.
+
+    The ADADELTA method uses the same general strategy as SGD (both methods are
+    make small parameter adjustments using local derivative information). The
+    difference here is that as gradients are computed during each parameter
+    update, an exponential weighted moving average gradient value, as well as an
+    exponential weighted moving average of recent parameter steps, are
+    maintained as well. The actual gradient is normalized by the ratio of the
+    parameter step RMS values to the gradient RMS values.
+
+    Like Rprop and RmsProp, this learning method effectively maintains a sort of
+    parameter-specific momentum value. The primary difference between this
+    method and RmsProp is that ADADELTA additionally incorporates a sliding
+    window of RMS parameter steps, obviating the need for learning rate or
+    momentum parameters.
+
+    The implementation here is modeled after Zeiler (2013), "ADADELTA: An
+    adaptive learning rate method," available at http://arxiv.org/abs/1212.5701.
+    '''
+
+    def learning_updates(self):
+        def rms(x):
+            return TT.sqrt(x + self.learning_rate)
+        for param in self.params:
+            z = lambda: np.zeros_like(param.get_value())
+            x2_ = theano.shared(z(), name=param.name + '_x2_ewma')
+            g2_ = theano.shared(z(), name=param.name + '_g2_ewma')
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
+            g2 = self.ewma * g2_ + (1 - self.ewma) * grad * grad
+            delta = grad * rms(x2_) / rms(g2)
+            yield g2_, g2
+            yield x2_, self.ewma * x2_ + (1 - self.ewma) * delta * delta
+            yield param, param - delta
+
+
 class Scipy(Trainer):
     '''General trainer for neural nets using `scipy.optimize.minimize`.'''
 

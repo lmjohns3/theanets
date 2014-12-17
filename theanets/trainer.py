@@ -356,11 +356,11 @@ class RmsProp(SGD):
 
     def learning_updates(self):
         for param in self.params:
-            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             z = lambda: np.zeros_like(param.get_value())
-            g1_ = theano.shared(z(), name=param.name + '_g1')
-            g2_ = theano.shared(z(), name=param.name + '_g2')
+            g1_ = theano.shared(z(), name=param.name + '_g1_ewma')
+            g2_ = theano.shared(z(), name=param.name + '_g2_ewma')
             vel_ = theano.shared(z(), name=param.name + '_vel')
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             g1 = self.ewma * g1_ + (1 - self.ewma) * grad
             g2 = self.ewma * g2_ + (1 - self.ewma) * grad * grad
             rms = TT.sqrt(g2 - g1 * g1 + 1e-4)

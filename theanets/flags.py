@@ -93,8 +93,8 @@ g.add_argument('--gradient-clip', type=float, default=1e6, metavar='V',
                help='clip gradient values outside [-V, V]')
 
 g = climate.add_arg_group('RmsProp Optimization')
-g.add_argument('--rmsprop-halflife', type=float, default=7, metavar='N',
-               help='use a half-life of N for the RMS EWMA')
+g.add_argument('--rms-halflife', type=float, default=7, metavar='N',
+               help='use a half-life of N for RMS exponential moving averages')
 
 g = climate.add_arg_group('Rprop Optimization')
 g.add_argument('--rprop-increase', type=float, default=1.01, metavar='R',

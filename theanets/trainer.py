@@ -136,6 +136,7 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
+        self.clip = kwargs.get('gradient_clip', 1e6)
         self.momentum = kwargs.get('momentum', 0.9)
         self.learning_rate = kwargs.get('learning_rate', 1e-4)
 
@@ -147,10 +148,10 @@ class SGD(Trainer):
 
     def learning_updates(self):
         for param in self.params:
-            delta = self.learning_rate * TT.grad(self.J, param)
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             velocity = theano.shared(
                 np.zeros_like(param.get_value()), name=param.name + '_vel')
-            yield velocity, self.momentum * velocity - delta
+            yield velocity, self.momentum * velocity - self.learning_rate * grad
             yield param, param + velocity
 
     def train(self, train_set, valid_set=None, **kwargs):
@@ -255,7 +256,8 @@ class NAG(SGD):
     def learning_updates(self):
         # step 2. record the gradient here.
         for param, step, velocity in zip(self.params, self._steps, self._velocities):
-            yield velocity, step - self.learning_rate * TT.grad(self.J, param)
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
+            yield velocity, step - self.learning_rate * grad
 
         # step 3. update each of the parameters, removing the step that we took
         # to compute the gradient.
@@ -309,7 +311,7 @@ class Rprop(SGD):
             self.grads.append(theano.shared(np.zeros_like(v), name=n + '_grad'))
             self.steps.append(theano.shared(np.zeros_like(v) + step, name=n + '_step'))
         for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
-            grad = TT.grad(self.J, param)
+            grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             test = grad * grad_tm1
             same = TT.gt(test, 0)
             diff = TT.lt(test, 0)
@@ -326,7 +328,7 @@ class Rprop(SGD):
 class RmsProp(SGD):
     '''RmsProp trains neural network models using scaled SGD.
 
-    The Rprop method uses the same general strategy as SGD (both methods are
+    The RmsProp method uses the same general strategy as SGD (both methods are
     make small parameter adjustments using local derivative information). The
     difference here is that as gradients are computed during each parameter
     update, an exponential moving average of squared gradient magnitudes is
@@ -349,7 +351,6 @@ class RmsProp(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.clip = kwargs.get('rmsprop_clip', 1000)
         self.alpha = float(np.exp(-np.log(2) / kwargs.get('rmsprop_halflife', 7)))
         super(RmsProp, self).__init__(network, **kwargs)
 

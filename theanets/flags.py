@@ -89,10 +89,10 @@ g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
+g.add_argument('--gradient-clip', type=float, default=1e6, metavar='V',
+               help='clip gradient values outside [-V, V]')
 
 g = climate.add_arg_group('RmsProp Optimization')
-g.add_argument('--rmsprop-clip', type=float, default=1000, metavar='V',
-               help='clip gradient values outside [-V, V]')
 g.add_argument('--rmsprop-halflife', type=float, default=7, metavar='N',
                help='use a half-life of N for the RMS EWMA')
 

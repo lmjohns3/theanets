@@ -149,10 +149,15 @@ class SGD(Trainer):
     def learning_updates(self):
         for param in self.params:
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
-            velocity = theano.shared(
-                np.zeros_like(param.get_value()), name=param.name + '_vel')
-            yield velocity, self.momentum * velocity - self.learning_rate * grad
-            yield param, param + velocity
+            vel_tm1 = self.shared_like(param, 'vel')
+            vel_t = self.momentum * vel_tm1 - self.learning_rate * grad
+            yield vel_tm1, vel_t
+            yield param, param + vel_t
+
+    @staticmethod
+    def shared_like(param, name, init=0):
+        return theano.shared(np.zeros_like(param.get_value()) + init,
+                             name='{}_{}'.format(param.name, name))
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''We train over mini-batches and evaluate periodically.'''
@@ -234,35 +239,33 @@ class NAG(SGD):
 
         # set up space for temporary variables used during learning.
         self._steps = []
-        self._velocities = []
+        self._vels = []
         for param in self.params:
-            v = param.get_value()
-            n = param.name
-            self._steps.append(theano.shared(np.zeros_like(v), name=n + '_step'))
-            self._velocities.append(theano.shared(np.zeros_like(v), name=n + '_vel'))
+            self._steps.append(self.shared_like(param, 'step'))
+            self._vels.append(self.shared_like(param, 'vel'))
 
         # step 1. move to the position in parameter space where we want to
         # compute our gradient.
         prepare = []
-        for param, step, velocity in zip(self.params, self._steps, self._velocities):
-            prepare.append((step, self.momentum * velocity))
+        for param, step, vel in zip(self.params, self._steps, self._vels):
+            prepare.append((step, self.momentum * vel))
             prepare.append((param, param + step))
 
-        logging.info('compiling NAG adjustment function')
+        logging.info('compiling NAG pre-step function')
         self.f_prepare = theano.function([], [], updates=prepare)
 
         super(NAG, self).__init__(network, **kwargs)
 
     def learning_updates(self):
         # step 2. record the gradient here.
-        for param, step, velocity in zip(self.params, self._steps, self._velocities):
+        for param, step, vel in zip(self.params, self._steps, self._vels):
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
-            yield velocity, step - self.learning_rate * grad
+            yield vel, step - self.learning_rate * grad
 
         # step 3. update each of the parameters, removing the step that we took
         # to compute the gradient.
-        for param, step, velocity in zip(self.params, self._steps, self._velocities):
-            yield param, param + velocity - step
+        for param, step, vel in zip(self.params, self._steps, self._vels):
+            yield param, param + vel - step
 
     def train_minibatch(self, *x):
         self.f_prepare()
@@ -302,15 +305,9 @@ class Rprop(SGD):
         super(Rprop, self).__init__(network, **kwargs)
 
     def learning_updates(self):
-        step = self.learning_rate
-        self.grads = []
-        self.steps = []
         for param in self.params:
-            v = param.get_value()
-            n = param.name
-            self.grads.append(theano.shared(np.zeros_like(v), name=n + '_grad'))
-            self.steps.append(theano.shared(np.zeros_like(v) + step, name=n + '_step'))
-        for param, step_tm1, grad_tm1 in zip(self.params, self.steps, self.grads):
+            grad_tm1 = self.shared_like(param, 'grad')
+            step_tm1 = self.shared_like(param, 'step', self.learning_rate)
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             test = grad * grad_tm1
             same = TT.gt(test, 0)
@@ -356,19 +353,18 @@ class RmsProp(SGD):
 
     def learning_updates(self):
         for param in self.params:
-            z = lambda: np.zeros_like(param.get_value())
-            g1_ = theano.shared(z(), name=param.name + '_g1_ewma')
-            g2_ = theano.shared(z(), name=param.name + '_g2_ewma')
-            vel_ = theano.shared(z(), name=param.name + '_vel')
+            g1_tm1 = self.shared_like(param, 'g1_ewma')
+            g2_tm1 = self.shared_like(param, 'g2_ewma')
+            vel_tm1 = self.shared_like(param, 'vel')
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
-            g1 = self.ewma * g1_ + (1 - self.ewma) * grad
-            g2 = self.ewma * g2_ + (1 - self.ewma) * grad * grad
-            rms = TT.sqrt(g2 - g1 * g1 + 1e-4)
-            vel = self.momentum * vel_ - grad * self.learning_rate / rms
-            yield g1_, g1
-            yield g2_, g2
-            yield vel_, vel
-            yield param, param + vel
+            g1_t = self.ewma * g1_tm1 + (1 - self.ewma) * grad
+            g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
+            rms = TT.sqrt(g2_t - g1_t * g1_t + 1e-4)
+            vel_t = self.momentum * vel_tm1 - grad * self.learning_rate / rms
+            yield g1_tm1, g1_t
+            yield g2_tm1, g2_t
+            yield vel_tm1, vel_t
+            yield param, param + vel_t
 
 
 class ADADELTA(RmsProp):
@@ -396,14 +392,14 @@ class ADADELTA(RmsProp):
         def rms(x):
             return TT.sqrt(x + self.learning_rate)
         for param in self.params:
-            z = lambda: np.zeros_like(param.get_value())
-            x2_ = theano.shared(z(), name=param.name + '_x2_ewma')
-            g2_ = theano.shared(z(), name=param.name + '_g2_ewma')
+            x2_tm1 = self.shared_like(param, 'x2_ewma')
+            g2_tm1 = self.shared_like(param, 'g2_ewma')
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
-            g2 = self.ewma * g2_ + (1 - self.ewma) * grad * grad
-            delta = grad * rms(x2_) / rms(g2)
-            yield g2_, g2
-            yield x2_, self.ewma * x2_ + (1 - self.ewma) * delta * delta
+            g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
+            delta = grad * rms(x2_tm1) / rms(g2_t)
+            x2_t = self.ewma * x2_tm1 + (1 - self.ewma) * delta * delta
+            yield g2_tm1, g2_t
+            yield x2_tm1, x2_t
             yield param, param - delta
 
 

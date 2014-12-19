@@ -164,7 +164,13 @@ class Network(object):
         self.setup_layers(**kwargs)
 
     def setup_vars(self):
-        '''Setup Theano variables for our network.'''
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
         return [self.x]
@@ -776,6 +782,13 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Regressor, self).setup_vars()
 
         # the k variable holds the target output for input x.
@@ -797,6 +810,13 @@ class Classifier(Network):
         super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Classifier, self).setup_vars()
 
         # for a classifier, k specifies the correct labels for a given input.

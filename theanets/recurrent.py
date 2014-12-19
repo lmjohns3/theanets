@@ -132,6 +132,13 @@ class Network(ff.Network):
         return self.kwargs.get('recurrent_error_start', 3)
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
@@ -414,6 +421,13 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Regressor, self).setup_vars()
 
         # for a regressor, k specifies the correct outputs for a given input.
@@ -436,6 +450,13 @@ class Classifier(Network):
         super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Classifier, self).setup_vars()
 
         # for a classifier, k specifies the correct labels for a given input.

@@ -140,6 +140,8 @@ class Network(ff.Network):
         # variables indexed by this dictionary.
         self.h0 = {}
 
+        return [self.x]
+
     def setup_layers(self, **kwargs):
         '''
         '''
@@ -417,8 +419,6 @@ class Regressor(Network):
         # for a regressor, k specifies the correct outputs for a given input.
         self.k = TT.tensor3('k')
 
-    @property
-    def inputs(self):
         return [self.x, self.k]
 
     @property
@@ -441,8 +441,6 @@ class Classifier(Network):
         # for a classifier, k specifies the correct labels for a given input.
         self.k = TT.ivector('k')
 
-    @property
-    def inputs(self):
         return [self.x, self.k]
 
     @property

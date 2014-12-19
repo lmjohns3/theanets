@@ -136,6 +136,10 @@ class Network(ff.Network):
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
+        # we store the initial state of recurrent hidden units in shared
+        # variables indexed by this dictionary.
+        self.h0 = {}
+
     def setup_layers(self, **kwargs):
         '''
         '''
@@ -197,23 +201,24 @@ class Network(ff.Network):
         W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
         W_hh, _ = self.create_weights(nout, nout, 'hh_{}'.format(label), **kwargs)
 
-        def fn(x_t, _, h_tm1, W_xh, W_hh, b_h):
-            pre = TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h
-            return pre, self._hidden_func(pre)
+        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
+            return self._hidden_func(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
 
         batch_size = self.kwargs.get('batch_size', 64)
-        (pre, hid), updates = theano.scan(
+        self.h0[label] = theano.shared(
+            np.zeros((batch_size, nout), 'f'), name='h0_{}'.format(label))
+
+        hid, updates = theano.scan(
             name='rnn_{}'.format(label),
             fn=fn,
             sequences=[x],
             non_sequences=[W_xh, W_hh, b_h],
-            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
-                          TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
+            outputs_info=[self.h0[label]])
 
         self.updates.update(updates)
         self.weights.extend([W_xh, W_hh])
         self.biases.append(b_h)
-        self.preacts.append(pre)
+        self.preacts.append(None)
         self.hiddens.append(hid)
 
         return nout * (1 + nin + nout)
@@ -261,24 +266,25 @@ class MRNN(Network):
         W_fh, _ = self.create_weights(factors, nout, 'fh_{}'.format(label))
         W_xh, _ = self.create_weights(nin, nout, 'xh_{}'.format(label))
 
-        def fn(x_t, _, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
+        def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
             f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
-            pre = TT.dot(x_t, W_xh) + b_h + f_t
-            return pre, self._hidden_func(pre)
+            return self._hidden_func(TT.dot(x_t, W_xh) + b_h + f_t)
 
         batch_size = self.kwargs.get('batch_size', 64)
-        (pre, hid), self.updates = theano.scan(
+        self.h0[label] = theano.shared(
+            np.zeros((batch_size, nout), 'f'), name='h0_{}'.format(label))
+
+        hid, updates = theano.scan(
             name='mrnn_{}'.format(label),
             fn=fn,
             sequences=[x],
             non_sequences=[W_xh, W_xf, W_hf, W_fh, b_h],
-            outputs_info=[TT.zeros((batch_size, nout), dtype=ff.FLOAT),
-                          TT.zeros((batch_size, nout), dtype=ff.FLOAT)])
+            outputs_info=[self.h0[label]])
 
         self.updates.update(updates)
         self.weights.extend([W_xh, W_xf, W_hf, W_fh])
         self.biases.append(b_h)
-        self.preacts.append(pre)
+        self.preacts.append(None)
         self.hiddens.append(hid)
 
         return nout * (1 + nin) + factors * (2 * nout + nin)
@@ -406,7 +412,9 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
-        self.x = TT.tensor3('x')
+        super(Regressor, self).setup_vars()
+
+        # for a regressor, k specifies the correct outputs for a given input.
         self.k = TT.tensor3('k')
 
     @property
@@ -424,6 +432,7 @@ class Classifier(Network):
 
     def __init__(self, **kwargs):
         kwargs['output_activation'] = 'softmax'
+
         super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):

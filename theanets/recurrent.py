@@ -353,7 +353,7 @@ class LSTM(Network):
         self.updates.update(updates)
         self.weights.extend(W)
         self.biases.extend(B)
-        self.preacts.append(hid)  # consider lstm output as preactivation
+        self.preacts.append(None)
         self.hiddens.append(hid)
 
         return nout * (7 + 4 * nout + 4 * nin)

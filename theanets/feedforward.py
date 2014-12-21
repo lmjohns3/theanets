@@ -160,13 +160,20 @@ class Network(object):
         if hasattr(self._output_func, '__theanets_name__'):
             logging.info('output activation: %s', self._output_func.__theanets_name__)
 
-        self.setup_vars()
+        self.inputs = list(self.setup_vars())
         self.setup_layers(**kwargs)
 
     def setup_vars(self):
-        '''Setup Theano variables for our network.'''
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
+        return [self.x]
 
     def setup_layers(self, **kwargs):
         '''Set up a computation graph for our network.
@@ -291,11 +298,6 @@ class Network(object):
             A list of integers specifying sizes of the encoder network layers.
         '''
         return self.layers[:-1]
-
-    @property
-    def inputs(self):
-        '''Return a list of Theano input variables for this network.'''
-        return [self.x]
 
     @property
     def monitors(self):
@@ -780,13 +782,18 @@ class Regressor(Network):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Regressor, self).setup_vars()
 
         # the k variable holds the target output for input x.
         self.k = TT.matrix('k')
 
-    @property
-    def inputs(self):
         return [self.x, self.k]
 
     @property
@@ -803,13 +810,18 @@ class Classifier(Network):
         super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
         super(Classifier, self).setup_vars()
 
         # for a classifier, k specifies the correct labels for a given input.
         self.k = TT.ivector('k')
 
-    @property
-    def inputs(self):
         return [self.x, self.k]
 
     @property

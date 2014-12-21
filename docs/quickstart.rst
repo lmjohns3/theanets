@@ -338,14 +338,14 @@ is not provided, the training dataset will be used for validation.
 
 The ``optimize`` keyword argument specifies an algorithm to use for training.
 (If you do not provide a value for this argument, ``'rmsprop'`` is used by
-default, using the :class:`theanets.trainer.RmsProp` algorithm.) Any subsequent
-keyword arguments will be passed to the training algorithm implementation; these
-arguments typically specify hyperparameters of the training algorithm like the
-learning rate and so forth.
+default, using the :class:`RmsProp <theanets.trainer.RmsProp>` algorithm.) Any
+subsequent keyword arguments will be passed to the training algorithm
+implementation; these arguments typically specify hyperparameters of the
+training algorithm like the learning rate and so forth.
 
 The available training methods are described mathematically in :doc:`trainers`;
-here we've specified Nesterov's Accelerated Gradient [Sut13]_, a type of
-stochastic gradient descent with momentum.
+here we've specified :class:`Nesterov's Accelerated Gradient
+<theanets.trainer.NAG>`, a type of stochastic gradient descent with momentum.
 
 To train our model, we will use the MNIST digits dataset from above. Putting
 everything together yields code that looks like this::
@@ -462,7 +462,8 @@ containing 100 model neurons, and one softmax output layer with 10 units.
 You can set many more hyperparameters on the command line. Use the ``--help``
 flag from the command line to show the options that are currently available.
 
-More information
+================
+More Information
 ================
 
 This concludes the quick start guide! Please read more information about

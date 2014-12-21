@@ -1,11 +1,21 @@
-===================
-Hacking on Theanets
-===================
+=======================
+Hacking on ``theanets``
+=======================
 
 .. _hacking-extending:
 
-Defining Custom Models
-======================
+Creating New Models
+===================
+
+.. _hacking-regularizers:
+
+Defining Custom Regularizers
+----------------------------
+
+.. _hacking-costs:
+
+Defining Custom Cost Functions
+------------------------------
 
 .. _hacking-contributing:
 

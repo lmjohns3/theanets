@@ -7,15 +7,6 @@ getting you up and running with a few simple examples. Once you understand the
 basic workflow, you will be able to extend the examples to your own datasets and
 modeling problems.
 
-This document does not explain the theory behind most of the models or
-optimization algorithms that are implemented in the ``theanets`` package.
-Instead, it contains links to the reference documentation, which expands on the
-ideas presented here.
-
-If you find an error in any of the documentation, or just want to clarify
-something, please file an issue or send a pull request to
-https://github.com/lmjohns3/theano-nets.
-
 .. _qs-setup:
 
 Installation
@@ -79,7 +70,7 @@ them on your computer::
 
 .. _qs-overview:
 
-Package overview
+Package Overview
 ================
 
 At a high level, the ``theanets`` package is a tool for (a) defining and (b)
@@ -131,7 +122,6 @@ This quickstart document guides you through the three main stages below.
 
 .. _qs-creating:
 
-================
 Creating a Model
 ================
 
@@ -154,7 +144,7 @@ It's also pretty simple to create custom models using ``theanets``; see
 .. _qs-classifier:
 
 Classifiers
-===========
+-----------
 
 Suppose you're interested in learning a model that can classify an image of an
 MNIST digit as a 0, a 1, a 2, etc. For this task, you would normally use the
@@ -180,7 +170,7 @@ variety of difficult machine learning problems.
 .. _qs-autoencoder:
 
 Autoencoders
-============
+------------
 
 The ``theanets`` package also provides an :class:`Autoencoder
 <theanets.feedforward.Autoencoder>` class to construct models that can learn
@@ -225,10 +215,10 @@ with tied weights represent some very common machine learning algorithms; see
 :ref:`models-tied-weights` for more information.
 
 Defining the model
-==================
+------------------
 
 Having chosen a model class to use for your task, and a set of layer sizes that
-you want in your model, you will create a :class:`Experiment
+you want in your model, you will create an :class:`Experiment
 <theanets.main.Experiment>` to construct your model.
 
 There are two required arguments: the class of the model to create, and the
@@ -259,7 +249,6 @@ to the hidden unit activation.
 
 .. _qs-training:
 
-================
 Training a Model
 ================
 
@@ -274,7 +263,7 @@ case of training with fairly little work. Most of the effort required here is in
 processing your dataset so that you can use it to train a network.
 
 Preparing a dataset
-===================
+-------------------
 
 Before you can train your model, you'll need to write a little glue code to
 arrange for a training and a validation dataset. With the MNIST digits, this is
@@ -315,11 +304,12 @@ validation split (the remainder of the training data from ``skdata``, containing
 .. _Theano's "floatX" configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
 
 Choosing an optimizer
-=====================
+---------------------
 
 The next step is to specify the training algorithm to use, and any associated
 hyperparameter values. This is most naturally accomplished using the
-``train`` method of the experiment object::
+:func:`train() <theanets.main.Experiment.train>` method of the experiment
+object::
 
   exp.train(training_data,
             optimize='nag',
@@ -328,10 +318,10 @@ hyperparameter values. This is most naturally accomplished using the
 
 The first positional argument to this method is the training dataset, and the
 second (if provided) is a validation dataset. (These positional arguments can
-also be passed to the :func:`Experiment.train()
-<theanets.main.Experiment.train>` method using the keywords ``train_set`` and
-``valid_set``, respectively.) If a validation dataset is not provided, the
-training dataset will be used for validation.
+also be passed to :func:`Experiment.train() <theanets.main.Experiment.train>`
+using the keywords ``train_set`` and ``valid_set``, respectively.) If a
+validation dataset is not provided, the training dataset will be used for
+validation.
 
 The ``optimize`` keyword argument specifies an algorithm to use for training.
 (If you do not provide a value for this argument, ``'rmsprop'`` is used by
@@ -358,7 +348,7 @@ enable Python's ``logging`` module you'll also get updates on the console about
 the progress of the optimization procedure.
 
 Training as iteration
----------------------
+`````````````````````
 
 The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
 actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
@@ -377,7 +367,7 @@ also have an ``'acc'`` key, which gives the percent accuracy of the classifier
 model.
 
 Saving and loading
-==================
+------------------
 
 The :class:`Experiment <theanets.main.Experiment>` class can snapshot your model
 automatically during training. When you call :func:`Experiment.train()
@@ -403,7 +393,6 @@ You can also save and load models manually by calling :func:`Experiment.save()
 
 .. _qs-using:
 
-=============
 Using a Model
 =============
 
@@ -413,7 +402,7 @@ model to make predictions about incoming data; if you are doing research, you
 might want to examine the parameters that the model has learned.
 
 Computing feedforward activations
-=================================
+---------------------------------
 
 For all neural network models, you can compute the activation of the output
 layer by calling :func:`Network.predict()
@@ -442,7 +431,7 @@ This returns a vector of integers; each element in the vector gives the greedy
 (argmax) result across the categories for the corresponding row of input data.
 
 Visualizing learned features
-============================
+----------------------------
 
 Many times it is useful to create a plot of the features that the model learns;
 this can be useful for debugging model performance, but also for interpreting
@@ -474,11 +463,7 @@ That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around
 with.
 
-.. _qs-misc:
-
-=============
-Miscellaneous
-=============
+.. _qs-cli:
 
 Using the Command Line
 ======================
@@ -503,6 +488,8 @@ containing 100 model neurons, and one softmax output layer with 10 units.
 
 You can set many more hyperparameters on the command line. Use the ``--help``
 flag from the command line to show the options that are currently available.
+
+.. _qs-info:
 
 More Information
 ================

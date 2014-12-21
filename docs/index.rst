@@ -23,10 +23,10 @@ Theanets Documentation
 :doc:`Optimization Algorithms <trainers>`
 -----------------------------------------
 
-* :ref:`trainers-sgd`
-* :ref:`trainers-hf`
-* :ref:`trainers-scipy`
-* :ref:`trainers-misc`
+* :ref:`optimization-sgd`
+* :ref:`optimization-hf`
+* :ref:`optimization-scipy`
+* :ref:`optimization-misc`
 
 :doc:`Hacking on theanets <hacking>`
 ------------------------------------

@@ -148,10 +148,6 @@ Several broad classes of models are pre-defined in ``theanets``:
 
 .. _one-hot: http://en.wikipedia.org/wiki/One-hot
 
-:doc:`models` contains detailed documentation about each of the types of models
-implemented in ``theanets``, including mathematical background to help
-understand what each model tries to do.
-
 It's also pretty simple to create custom models using ``theanets``; see
 :ref:`hacking-extending` for more information.
 
@@ -162,7 +158,7 @@ Classifiers
 
 Suppose you're interested in learning a model that can classify an image of an
 MNIST digit as a 0, a 1, a 2, etc. For this task, you would normally use the
-:class:`theanets.feedforward.Classifier` feedforward network model.
+:class:`Classifier <theanets.feedforward.Classifier>` feedforward network model.
 
 Classifier networks map a layer of continuous-valued inputs through one or more
 hidden layers and finally to an output layer that is activated through the
@@ -186,12 +182,12 @@ variety of difficult machine learning problems.
 Autoencoders
 ============
 
-The ``theanets`` package also provides an
-:class:`theanets.feedforward.Autoencoder` class to construct models that can
-learn features from data without labels. An autoencoder for MNIST digits, for
-example, takes as input an unlabeled MNIST digit image and then attempts to
-produce this same digit image as output. The hidden layers in such a model are
-then called the "features" of the data that the model learns.
+The ``theanets`` package also provides an :class:`Autoencoder
+<theanets.feedforward.Autoencoder>` class to construct models that can learn
+features from data without labels. An autoencoder for MNIST digits, for example,
+takes as input an unlabeled MNIST digit image and then attempts to produce this
+same digit image as output. The hidden layers in such a model are then called
+the "features" of the data that the model learns.
 
 An autoencoder must always have the same number of inputs as outputs. The output
 layer typically has a linear activation, which treats the data as a weighted sum
@@ -232,8 +228,8 @@ Defining the model
 ==================
 
 Having chosen a model class to use for your task, and a set of layer sizes that
-you want in your model, you will create a :class:`theanets.main.Experiment` to
-construct your model.
+you want in your model, you will create a :class:`Experiment
+<theanets.main.Experiment>` to construct your model.
 
 There are two required arguments: the class of the model to create, and the
 ``layers`` keyword argument, which specifies the number and size of the layers
@@ -273,9 +269,9 @@ are unlikely to do anything useful with an MNIST digit as input! To improve the
 performance of a model, you'll need to *train* or *optimize* it by adjusting the
 model parameters.
 
-The :class:`theanets.main.Experiment` class handles the general case of training
-with fairly little work. Most of the effort required here is in processing your
-dataset so that you can use it to train a network.
+The :class:`Experiment <theanets.main.Experiment>` class handles the general
+case of training with fairly little work. Most of the effort required here is in
+processing your dataset so that you can use it to train a network.
 
 Preparing a dataset
 ===================
@@ -332,9 +328,10 @@ hyperparameter values. This is most naturally accomplished using the
 
 The first positional argument to this method is the training dataset, and the
 second (if provided) is a validation dataset. (These positional arguments can
-also be passed to the :func:`theanets.main.Experiment.train` method using the
-keywords ``train_set`` and ``valid_set``, respectively.) If a validation dataset
-is not provided, the training dataset will be used for validation.
+also be passed to the :func:`Experiment.train()
+<theanets.main.Experiment.train>` method using the keywords ``train_set`` and
+``valid_set``, respectively.) If a validation dataset is not provided, the
+training dataset will be used for validation.
 
 The ``optimize`` keyword argument specifies an algorithm to use for training.
 (If you do not provide a value for this argument, ``'rmsprop'`` is used by
@@ -363,9 +360,10 @@ the progress of the optimization procedure.
 Training as iteration
 ---------------------
 
-The :func:`theanets.main.Experiment.train` method is actually just a thin
-wrapper over the underlying :func:`theanets.main.Experiment.itertrain` method,
-which you can use directly if you want to do something special during training::
+The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
+actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
+<theanets.main.Experiment.itertrain>` method, which you can use directly if you
+want to do something special during training::
 
   for costs in exp.itertrain(train, valid, **kwargs):
       print(costs['J'])
@@ -381,9 +379,9 @@ model.
 Saving and loading
 ==================
 
-The :class:`theanets.main.Experiment` class can snapshot your model
-automatically during training. When you call
-:func:`theanets.main.Experiment.train`, you can provide the following keyword
+The :class:`Experiment <theanets.main.Experiment>` class can snapshot your model
+automatically during training. When you call :func:`Experiment.train()
+<theanets.main.Experiment.train>`, you can provide the following keyword
 arguments:
 
 - ``save_progress``: This should be a string containing a filename where the
@@ -399,9 +397,9 @@ If you provide a ``save_progress`` argument when you construct your experiment,
 and a model exists in the given snapshot file, then that model will be loaded
 from disk.
 
-You can also save and load models manually by calling
-:func:`theanets.main.Experiment.save` and :func:`theanets.main.Experiment.load`,
-respectively.
+You can also save and load models manually by calling :func:`Experiment.save()
+<theanets.main.Experiment.save>` and :func:`Experiment.load()
+<theanets.main.Experiment.load>`, respectively.
 
 .. _qs-using:
 
@@ -411,7 +409,8 @@ Using a Model
 
 Once you've trained a model, you will probably want to do something useful with
 it. For classifiers, you can obtain predictions on new data using the
-:func:`theanets.feedforward.Classifier.classify` method::
+:func:`Classifier.classify() <theanets.feedforward.Classifier.classify>`
+method::
 
   exp.network.classify(new_dataset)
 
@@ -425,11 +424,12 @@ You can also create a plot of the features that the model learns::
   plt.show()
 
 After the model has been trained, the weights connecting the input to the hidden
-layer are available using :func:`theanets.feedforward.Network.get_weights`. The
-weights in layer 0 connect the inputs to the first hidden layer; in this example
-these weights have one column of 784 values for each hidden node in the network,
-so we can iterate over the transpose and put each column -- properly reshaped
-into a 28×28 pixel array -- into a giant image.
+layer are available using :func:`Network.get_weights()
+<theanets.feedforward.Network.get_weights>`. The weights in layer 0 connect the
+inputs to the first hidden layer; in this example these weights have one column
+of 784 values for each hidden node in the network, so we can iterate over the
+transpose and put each column -- properly reshaped into a 28×28 pixel array --
+into a giant image.
 
 That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around
@@ -449,8 +449,8 @@ configuring most aspects of defining and training a model.
 
 If you work in a command-line environment, you can leave many of the
 hyperparameters for your model unspecified when constructing your
-:class:`theanets.main.Experiment`, and instead specify the configuration of your
-network using flags defined on the command line::
+:class:`Experiment <theanets.main.Experiment>`, and instead specify the
+configuration of your network using flags defined on the command line::
 
     exp = theanets.Experiment(theanets.Classifier)
 

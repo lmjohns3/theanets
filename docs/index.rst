@@ -9,7 +9,7 @@ Theanets Documentation
 * :ref:`qs-creating`
 * :ref:`qs-training`
 * :ref:`qs-using`
-* :ref:`qs-cli`
+* :ref:`qs-misc`
 
 :doc:`Network Models <models>`
 ------------------------------

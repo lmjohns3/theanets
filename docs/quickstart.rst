@@ -99,8 +99,8 @@ typically involves three basic steps:
 #. Finally, you use the trained model in some way, probably by predicting
    results on a test dataset, visualizing the learned features, and so on.
 
-The ``theanets`` package provides a helper class,
-:class:`theanets.main.Experiment`, that performs these tasks with relatively low
+The ``theanets`` package provides a helper class, :class:`Experiment
+<theanets.main.Experiment>`, that performs these tasks with relatively low
 effort on your part. You will typically define a model by creating an experiment
 with a number of *hyperparameters* that define the specific behavior of your
 model. The skeleton of your code will usually look something like this::
@@ -435,9 +435,12 @@ That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around
 with.
 
-.. _qs-cli:
+.. _qs-misc:
 
-======================
+=============
+Miscellaneous
+=============
+
 Using the Command Line
 ======================
 
@@ -445,14 +448,14 @@ The ``theanets`` package was designed from the start to use the command line for
 configuring most aspects of defining and training a model.
 
 If you work in a command-line environment, you can leave many of the
-hyperparameters for your model ``layers`` unspecified when constructing your
+hyperparameters for your model unspecified when constructing your
 :class:`theanets.main.Experiment`, and instead specify the configuration of your
 network using flags defined on the command line::
 
     exp = theanets.Experiment(theanets.Classifier)
 
-This will create the same network as the classification model above if you run
-your file as::
+This will create the same network as the classification model described above if
+you run your file as::
 
     (venv)~$ mnist-classifier.py --layers 784 100 10
 
@@ -462,7 +465,6 @@ containing 100 model neurons, and one softmax output layer with 10 units.
 You can set many more hyperparameters on the command line. Use the ``--help``
 flag from the command line to show the options that are currently available.
 
-================
 More Information
 ================
 
@@ -470,9 +472,8 @@ This concludes the quick start guide! Please read more information about
 ``theanets`` in the :doc:`models` and :doc:`trainers` sections of the
 documentation.
 
-References
-==========
+The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets.
+Please fork, explore, and send pull requests!
 
-.. [Sut13] I Sutskever, J Martens, G Dahl, GE Hinton. "On the importance of
-           initialization and momentum in deep learning." *Proc ICML*, 2013.
-           http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf
+Finally, there is also a mailing list for project discussion and announcements.
+Subscribe online at https://groups.google.com/forum/#!forum/theanets.

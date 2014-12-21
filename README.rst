@@ -49,8 +49,8 @@ Install the latest published code using pip::
 
 Or download the current source and run it from there::
 
-    git clone http://github.com/lmjohns3/theano-nets
-    cd theano-nets
+    git clone http://github.com/lmjohns3/theanets
+    cd theanets
     python setup.py develop
 
 Getting started

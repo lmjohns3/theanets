@@ -118,13 +118,12 @@ directly to ``predict()`` the outputs on a new dataset::
 Documentation and support
 -------------------------
 
-The `package documentation`_ lives at pythonhosted. The documentation is
+The `package documentation`_ lives at readthedocs. The documentation is
 relatively sparse, so please file bugs if you find that there's a particularly
 hard-to-understand area in the code.
 
 For project announcements and discussion, subscribe to the
 `project mailing list`_.
 
-.. _package documentation: http://pythonhosted.org/theanets
+.. _package documentation: http://theanets.rtfd.org
 .. _project mailing list: https://groups.google.com/forum/#!forum/theanets
-

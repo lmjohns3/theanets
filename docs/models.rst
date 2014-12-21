@@ -135,6 +135,74 @@ neural network models!
 Autoencoders
 ============
 
+
+
+Some types of neural network models have been shown to learn useful features
+from a set of data without requiring any label information. Often referred to as
+feature learning or manifold learning, this ability is useful because labeled
+data (e.g., images of handwritten digits annotated with the digit that each
+image represents) are often difficult to obtain, while unlabeled data (e.g.,
+just images of handwritten digits) are relatively easy to find.
+
+A class of neural network architectures known as autoencoders can perform such a
+learning task; an autoencoder takes as input a data sample and attempts to
+produce the same data sample as its output. Mathematically, an autoencoder with
+a single hidden layer can be expressed using this forward transform:
+
+.. math::
+   f(x) = g_o(W_o g_h(W_h x + b_h) + b_o)
+
+Here, :math:`g_i`, :math:`W_i`, and :math:`b_i` are the activation function,
+weights, and bias of layer :math:`i` in the network. The trainable parameters
+are :math:`\theta = (W_o, W_h, b_o, b_h)`.
+
+To train the weights and biases in the network, an autoencoder typically
+optimizes a squared-error reconstruction loss:
+
+.. math::
+   \ell(x) = \left\| f(x) - x \right\|_2^2 + \lambda R(\theta, x)
+
+Where :math:`R()` is some regularizer that helps prevent the model from
+overfitting.
+
+This optimization process could result in a trivial model, depending on the
+setup of the network; for example, with linear activations :math:`g_o(z) =
+g_h(z) = z`, identity weights :math:`W_o = W_h = I`, and zero bias :math:`b_o =
+b_h = 0`, an autoencoder implements the identity transform:
+
+.. math::
+   f(x) = x
+
+Similarly, even if the hidden unit activations are nonlinear, the network is
+capable of learning an identity transform. But things get much more interesting
+when the network is forced to reproduce the input under some constraint.
+
+One popular form of constraint is dimensionality reduction, which forces the
+network to project its input into a lower-dimensional space and then project it
+back to the original dimensionality. With linear hidden activations, tied
+weights, and no bias, this model will recover the same subspace as PCA:
+
+.. math::
+   \ell = \left\| WW^\top x - x \right\|_2^2
+
+After all, PCA is by definition the subspace that preserves the most variance in
+the data! This model limits us to at most :math:`d` features, however (where the
+elements of :math:`x` are :math:`d`-dimensional). Let's see what else is
+possible.
+
+If instead we wanted to learn an overcomplete feature set (i.e., more than
+:math:`d` features), we could encourage the model to learn a non-trivial
+representation of the data by adding a regularizer that specifies how the
+features should behave. For instance, if we require that the model reproduce the
+input data using as little feature representation as possible, we could add an
+:math:`\ell_1` penalty to the hidden representation:
+
+.. math::
+   \ell = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
+
+Le et al. showed that this model is actually equivalent to ICA.
+
+
 An autoencoder defines a mapping from a source space to itself.
 
 .. math::
@@ -212,6 +280,8 @@ only need to provide the following hyperparameters::
       hidden_activation='linear',
   )
 
+.. _models-sparse-autoencoder:
+
 Sparse autoencoders
 -------------------
 
@@ -244,6 +314,11 @@ while still using linear encoding and decoding with tied weights::
       hidden_activation='linear',
       hidden_l1=1,
   )
+
+.. _models-denoising-autoencoder:
+
+Denoising autoencoders
+----------------------
 
 .. _models-regression:
 
@@ -299,31 +374,36 @@ Sparsity
 --------
 
 Sparse models have been shown to capture regularities seen in the mammalian
-visual cortex [3]_. In addition, sparse models in machine learning are often
-more performant than "dense" models without restriction on the hidden
-representation [1]_. Furthermore, sparse models tend to yield latent
-representations that are more interpretable to humans than dense models [2]_.
+visual cortex [Ols94]_. In addition, sparse models in machine learning are often
+more performant than "dense" models (i.e., models without restriction on the
+hidden representation) [Lee08]_. Furthermore, sparse models tend to yield latent
+representations that are more interpretable to humans than dense models
+[Tib96]_.
 
 References
 ==========
 
-.. [Lee08] H Lee, C Ekanadham, AY Ng. "Sparse deep belief net model for visual
-           area V2." *Proc. NIPS*, 2008.
-
-.. [Tib96] R Tibshirani. "Regression shrinkage and selection via the lasso."
-           *Journal of the Royal Statistical Society: Series B (Methodological)*
-           267-288, 1996.
-
-.. [Ols94] B Olshausen, DJ Field. "Emergence of simple-cell receptive fields
-           properties by learning a sparse code for natural images." *Nature*
-           **381** 6583:607-609, 1994.
-
-.. [Le11] QV Le, A Karpenko, J Ngiam, AY Ng. "ICA with reconstruction cost for
-          efficient overcomplete feature learning." *Proc NIPS*, 2011.
+.. [Hyv97] A Hyvärinen, "Independent Component Analysis by Minimization of
+           Mutual Information." University of Helsinki Tech Report, 1997.
 
 .. [Jut91] C Jutten, J Herault. "Blind separation of sources, part I: An
            adaptive algorithm based on neuromimetic architecture." *Signal
            Processing* 24:1-10, 1991.
 
-.. [Hyv97] A Hyvärinen, "Independent Component Analysis by Minimization of
-           Mutual Information." University of Helsinki Tech Report, 1997.
+.. [Le11] QV Le, A Karpenko, J Ngiam, AY Ng. "ICA with reconstruction cost for
+          efficient overcomplete feature learning." *Proc NIPS*, 2011.
+
+.. [Lee08] H Lee, C Ekanadham, AY Ng. "Sparse deep belief net model for visual
+           area V2." *Proc. NIPS*, 2008.
+
+.. [Ols94] B Olshausen, DJ Field. "Emergence of simple-cell receptive fields
+           properties by learning a sparse code for natural images." *Nature*
+           **381** 6583:607-609, 1994.
+
+.. [Sut13] I Sutskever, J Martens, G Dahl, GE Hinton. "On the importance of
+           initialization and momentum in deep learning." *Proc ICML*, 2013.
+           http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf
+
+.. [Tib96] R Tibshirani. "Regression shrinkage and selection via the lasso."
+           *Journal of the Royal Statistical Society: Series B (Methodological)*
+           267-288, 1996.

@@ -203,7 +203,7 @@ Before you can train your model, you'll need to write a little glue code to
 arrange for a training and a validation dataset. With the MNIST digits, this is
 pretty straightforward::
 
-  def load_mnist():
+  def load_mnist_labeled():
       mnist = skdata.mnist.dataset.MNIST()
       mnist.meta  # trigger download if needed.
       def arr(n, dtype):
@@ -243,10 +243,10 @@ The next step is to specify the training algorithm to use, and any associated
 hyperparameter values. This is most naturally accomplished using the
 ``train`` method of the experiment object::
 
-    exp.train(training_data,
-              optimize='nag',
-              learning_rate=1e-3,
-              momentum=0.9)
+  exp.train(training_data,
+            optimize='nag',
+            learning_rate=1e-3,
+            momentum=0.9)
 
 The first positional argument to this method is the training dataset, and the
 second (if provided) is a validation dataset. (These positional arguments can
@@ -267,7 +267,7 @@ with momentum.
 To train our model, we will use the MNIST digits dataset from above. Putting
 everything together yields code that looks like this::
 
-  train, valid, _ = load_mnist()
+  train, valid, _ = load_mnist_labeled()
   exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
   exp.train(train, valid, optimize='nag', learning_rate=1e-3, momentum=0.9)
 
@@ -276,6 +276,20 @@ like ``mnist-classifier.py``, and then run it on the command-line, your computer
 will do a bunch of work to learn good parameter values for your model! If you
 enable Python's ``logging`` module you'll also get updates on the console about
 the progress of the optimization procedure.
+
+The ``train()`` method is a thin wrapper over the underlying
+:method:`theanets.main.Experiment.itertrain` method, which you can use directly
+if you want to do something special during training::
+
+  for costs in exp.itertrain(train, valid, **kwargs):
+      print(costs['J'])
+
+Trainers generate a series of dictionaries, one for each training iteration. The
+keys and values in each dictionary give the costs and monitors that are computed
+during training. There will always be a ``'J'`` key that gives the value of the
+loss function that is being optimized, but some models also have keys like
+``'err'`` (usually the mean-squared output error) or ``'acc'`` (the accuracy of
+a classifier model).
 
 Displaying learned features
 ---------------------------

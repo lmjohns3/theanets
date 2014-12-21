@@ -22,7 +22,6 @@ autosummary_generate = True
 autodoc_default_flags = ['members']
 numpydoc_show_class_members = False
 numpydoc_show_inherited_class_members = False
-templates_path = ['_templates']
 source_suffix = '.rst'
 source_encoding = 'utf-8-sig'
 master_doc = 'index'
@@ -35,7 +34,6 @@ pygments_style = 'tango'
 
 html_theme = 'readable'
 html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
-html_context = dict(google_analytics_id='UA-57658-10')
 htmlhelp_basename = 'theanetsdoc'
 
 latex_elements = {

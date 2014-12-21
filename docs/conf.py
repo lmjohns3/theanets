@@ -44,24 +44,9 @@ latex_elements = {
 \usepackage{pgfplots}
 \usetikzlibrary{arrows}''',
 }
-latex_documents = [
-  ('index', 'theanets.tex', u'theanets Documentation',
-   u'Leif Johnson', 'manual'),
-]
 
-man_pages = [
-    ('index', 'theanets', u'theanets Documentation',
-     [u'Leif Johnson'], 1)
-]
-
-texinfo_documents = [
-  ('index',
-   'theanets',
-   u'theanets Documentation',
-   u'Leif Johnson',
-   'theanets',
-   'One line description of project.',
-   'Miscellaneous'),
-]
-
-intersphinx_mapping = {'http://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/', None),
+    'numpy': ('http://docs.scipy.org/doc/numpy/', None),
+    'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
+}

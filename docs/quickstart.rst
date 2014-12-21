@@ -84,7 +84,7 @@ Package overview
 
 At a high level, the ``theanets`` package is a tool for (a) defining and (b)
 optimizing cost functions over a set of data. The workflow in ``theanets``
-typically involves two basic steps:
+typically involves three basic steps:
 
 #. First, you define the structure of the model that you'll use for your task.
    For instance, if you're trying to classify MNIST digits, then you'll want
@@ -96,13 +96,14 @@ typically involves two basic steps:
    might want to adjust your model parameters to minimize the negative
    log-likelihood of the correct image class given the pixels, and for
    autoencoders you might want to minimize the reconstruction error.
+#. Finally, you use the trained model in some way, probably by predicting
+   results on a test dataset, visualizing the learned features, and so on.
 
 The ``theanets`` package provides a helper class,
-:class:`theanets.main.Experiment`, that performs both of these tasks with
-relatively low effort on your part. You will typically define a model by
-creating an experiment with a number of *hyperparameters* that define the
-specific behavior of your model. The skeleton of your code will usually look
-something like this::
+:class:`theanets.main.Experiment`, that performs these tasks with relatively low
+effort on your part. You will typically define a model by creating an experiment
+with a number of *hyperparameters* that define the specific behavior of your
+model. The skeleton of your code will usually look something like this::
 
   import matplotlib.pyplot as plt
   import skdata.mnist

@@ -331,7 +331,7 @@ hyperparameter values. This is most naturally accomplished using the
 
 The first positional argument to this method is the training dataset, and the
 second (if provided) is a validation dataset. (These positional arguments can
-also be passed to the :method:`theanets.main.Experiment.train` method using the
+also be passed to the :func:`theanets.main.Experiment.train` method using the
 keywords ``train_set`` and ``valid_set``, respectively.) If a validation dataset
 is not provided, the training dataset will be used for validation.
 
@@ -362,8 +362,8 @@ the progress of the optimization procedure.
 Training as iteration
 ---------------------
 
-The :method:`theanets.main.Experiment.train` method is actually just a thin
-wrapper over the underlying :method:`theanets.main.Experiment.itertrain` method,
+The :func:`theanets.main.Experiment.train` method is actually just a thin
+wrapper over the underlying :func:`theanets.main.Experiment.itertrain` method,
 which you can use directly if you want to do something special during training::
 
   for costs in exp.itertrain(train, valid, **kwargs):
@@ -382,7 +382,7 @@ Saving and loading
 
 The :class:`theanets.main.Experiment` class can snapshot your model
 automatically during training. When you call
-:method:`theanets.main.Experiment.train`, you can provide the following keyword
+:func:`theanets.main.Experiment.train`, you can provide the following keyword
 arguments:
 
 - ``save_progress``: This should be a string containing a filename where the
@@ -399,8 +399,8 @@ and a model exists in the given snapshot file, then that model will be loaded
 from disk.
 
 You can also save and load models manually by calling
-:method:`theanets.main.Experiment.save` and
-:method:`theanets.main.Experiment.load`, respectively.
+:func:`theanets.main.Experiment.save` and :func:`theanets.main.Experiment.load`,
+respectively.
 
 .. _qs-using:
 
@@ -410,7 +410,7 @@ Using a Model
 
 Once you've trained a model, you will probably want to do something useful with
 it. For classifiers, you can obtain predictions on new data using the
-:method:`theanets.feedforward.Classifier.classify` method::
+:func:`theanets.feedforward.Classifier.classify` method::
 
   exp.network.classify(new_dataset)
 
@@ -424,11 +424,11 @@ You can also create a plot of the features that the model learns::
   plt.show()
 
 After the model has been trained, the weights connecting the input to the hidden
-layer are available using :method:`theanets.feedforward.Network.get_weights`.
-The weights in layer 0 connect the inputs to the first hidden layer; in this
-example these weights have one column of 784 values for each hidden node in the
-network, so we can iterate over the transpose and put each column -- properly
-reshaped into a 28×28 pixel array -- into a giant image.
+layer are available using :func:`theanets.feedforward.Network.get_weights`. The
+weights in layer 0 connect the inputs to the first hidden layer; in this example
+these weights have one column of 784 values for each hidden node in the network,
+so we can iterate over the transpose and put each column -- properly reshaped
+into a 28×28 pixel array -- into a giant image.
 
 That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around

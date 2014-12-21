@@ -377,6 +377,31 @@ function that is being optimized. For classifier models, the dictionary will
 also have an ``'acc'`` key, which gives the percent accuracy of the classifier
 model.
 
+Saving and loading
+==================
+
+The :class:`theanets.main.Experiment` class can snapshot your model
+automatically during training. When you call
+:method:`theanets.main.Experiment.train`, you can provide the following keyword
+arguments:
+
+- ``save_progress``: This should be a string containing a filename where the
+  model should be saved.
+
+- ``save_every``: This should be a numeric value specifying how often the model
+  should be saved during training. If this value is positive, it specifies the
+  number of training iterations between checkpoints; if it is negative, it
+  specifies the number of minutes that are allowed to elapse between
+  checkpoints.
+
+If you provide a ``save_progress`` argument when you construct your experiment,
+and a model exists in the given snapshot file, then that model will be loaded
+from disk.
+
+You can also save and load models manually by calling
+:method:`theanets.main.Experiment.save` and
+:method:`theanets.main.Experiment.load`, respectively.
+
 .. _qs-using:
 
 =============

@@ -486,6 +486,10 @@ you run your file as::
 In both cases, the model has one input layer with 784 units, one hidden layer
 containing 100 model neurons, and one softmax output layer with 10 units.
 
+.. note::
+   Command-line arguments do not work when running ``theanets`` code in IPython;
+   within IPython, all parameters must be specified as keyword arguments.
+
 You can set many more hyperparameters on the command line. Use the ``--help``
 flag from the command line to show the options that are currently available.
 

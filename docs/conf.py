@@ -20,8 +20,8 @@ extensions = [
     ]
 autosummary_generate = True
 autodoc_default_flags = ['members']
-numpydoc_show_class_members = False
-numpydoc_show_inherited_class_members = False
+numpydoc_show_class_members = True
+numpydoc_show_inherited_class_members = True
 source_suffix = '.rst'
 source_encoding = 'utf-8-sig'
 master_doc = 'index'

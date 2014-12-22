@@ -346,11 +346,6 @@ class Network(object):
         '''A tuple containing the layer configuration for this network.'''
         return self.kwargs['layers']
 
-    @property
-    def tied_weights(self):
-        '''A boolean indicating whether this network uses tied weights.'''
-        return self.kwargs.get('tied_weights', False)
-
     @staticmethod
     def create_weights(a, b, suffix, **kwargs):
         '''Create a layer of randomly-initialized weights.

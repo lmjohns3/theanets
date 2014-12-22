@@ -632,11 +632,12 @@ class Layerwise(Trainer):
         weights = list(net.weights)
         biases = list(net.biases)
 
+        tied = getattr(net, 'tied_weights', False)
         nout = len(biases[-1].get_value(borrow=True))
         nhids = [len(b.get_value(borrow=True)) for b in biases]
-        for i in range(1, len(weights) + 1 if net.tied_weights else len(nhids)):
+        for i in range(1, len(weights) + 1 if tied else len(nhids)):
             net.hiddens = hiddens[:i]
-            if net.tied_weights:
+            if tied:
                 net.weights = [weights[i-1]]
                 net.biases = [biases[i-1]]
                 for j in range(i - 1, -1, -1):

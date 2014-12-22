@@ -34,14 +34,14 @@ example we could think of :math:`\mathcal{S} = \mathbb{R}^{28 \times 28} =
 MNIST digits we could think of :math:`\mathcal{T} = \mathbb{R}^{10}`.
 
 This mapping is assumed to be fairly complex. If it were not -- if you could
-capture the mapping using a simple expression like :math:`F_{\{a\}}(x) = ax^2`
--- then we would just use the expression directly and not need to deal with an
-entire network. So if the mapping is complex, we will do a couple of things to
-make our problem tractable. First, we will assume some structure for
-:math:`F_\theta`. Second, we will fit our model to some set of data that we have
-obtained.
+capture the mapping using a simple expression like :math:`F_a(x) = ax^2` -- then
+we would just use the expression directly and not need to deal with an entire
+network. So if the mapping is complex, we will do a couple of things to make our
+problem tractable. First, we will assume some structure for :math:`F_\theta`.
+Second, we will fit our model to some set of data that we have obtained, so that
+our parameters :math:`\theta` are tuned to the problem at hand.
 
-Model structure
+Graph structure
 ---------------
 
 .. tikz::
@@ -51,164 +51,154 @@ Model structure
    \node (dots) at (0, 0) {$\dots$};
    \node[draw] (h1) [left of=dots] {Layer 1} edge (dots);
    \node[draw] (input) [left of=h1] {Input} edge (h1);
-   \node[draw] (hkm1) [right of=dots] {Layer $k-2$} edge[<-] (dots);
+   \node[draw] (hkm1) [right of=dots] {Layer $k-1$} edge[<-] (dots);
    \node[draw] (output) [right of=hkm1] {Output} edge[<-] (hkm1);
 
 The mapping :math:`F_\theta` is implemented in neural networks by assuming a
 specific, layered form. Computation nodes -- also called units or (sometimes)
-neurons -- are arranged in a :math:`k` partite graph, with layer :math:`k`
-containing :math:`n_k` nodes. A **weight matrix** :math:`W^k \in \mathbb{R}^{n_k
-\times n_{k+1}}` specifies the strength of the connection between nodes in layer
-:math:`k` and those in layer :math:`k+1` -- all other pairs of nodes are not
-connected. Each layer of nodes typically also has a **bias vector** that
-determines the offset of each node from the origin. Together, the parameters
-:math:`\theta` of the model are these :math:`k-1` weight matrices (weights only
-exist between layers of computation nodes) and :math:`k-1` bias vectors (there
-are no biases for the input nodes in the graph).
+neurons -- are arranged in a :math:`k+1` partite graph, with layer :math:`k`
+containing :math:`n_k` nodes. The number of input nodes in the graph is referred
+to below as :math:`n_0`.
+
+A **weight matrix** :math:`W^k \in \mathbb{R}^{n_{k-1} \times n_k}` specifies
+the strength of the connection between nodes in layer :math:`k` and those in
+layer :math:`k-1` -- all other pairs of nodes are typically not connected. Each
+layer of nodes also has a **bias vector** that determines the offset of each
+node from the origin. Together, the parameters :math:`\theta` of the model are
+these :math:`k` weight matrices and :math:`k` bias vectors (there are no weights
+or biases for the input nodes in the graph).
+
+Local computation
+-----------------
 
 .. tikz::
    :libs: arrows
 
    [thick,->,>=stealth',circle,minimum size=10mm,node distance=10mm,below,near start]
    \node[draw] (z) at (0, 0) {$\sum$};
-   \node[draw] (x) at (20mm, 1.5mm) {$a_i^{k+1}$} edge[<-] (z);
-   \node[draw] (b) at (-30mm, 0) {$a_j^k$} edge node {$w^k_{ji}$} (z);
+   \node[draw] (x) at (20mm, 1.5mm) {$z_i^k$} edge[<-] (z);
+   \node[draw] (b) at (-30mm, 0) {$z_j^{k-1}$} edge node {$w^k_{ji}$} (z);
    \node (adots) [above of=b] {$\vdots$};
-   \node[draw] (a) [above of=adots] {$a_1^k$} edge node {$w^k_{1i}$} (z);
+   \node[draw] (a) [above of=adots] {$z_1^{k-1}$} edge node {$w^k_{1i}$} (z);
    \node (cdots) [below of=b] {$\vdots$};
-   \node[draw] (c) [below of=cdots] {$a_{n_k}^k$} edge node {$w^k_{n_ki}$} (z);
-   \node[draw] (bias) at (0, -20mm) {$b^{k+1}_i$} edge (z);
+   \node[draw] (c) [below of=cdots] {$z_{n_{k-1}}^{k-1}$} edge node [midway] {$w^k_{n_{k-1}i}$} (z);
+   \node[draw] (bias) at (0, -20mm) {$b^k_i$} edge (z);
 
-In a standard feedforward network, each node :math:`i` in layer :math:`k+1`
-receives inputs from all nodes in layer :math:`k`, then transforms the weighted
-sum of these inputs:
+In a standard feedforward network, each node :math:`i` in layer :math:`k`
+receives inputs from all nodes in layer :math:`k-1`, then transforms the
+weighted sum of these inputs:
 
 .. math::
-   a_i^{k+1} = \sigma\left( b_i^{k+1} + \sum_{j=1}^{n_k} w^k_{ij} a_j^k \right)
+   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
 
 where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function."
 Although many functions will work, typical choices of the activation function
 are:
 
-- **linear** :math:`\sigma(z) = z`,
-- **rectified/rectified linear/relu** :math:`\sigma(z) = \max(0, z)`, or
-- **logistic sigmoid** :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
+:linear: :math:`\sigma(z) = z`
+:rectified linear: :math:`\sigma(z) = \max(0, z)`
+:logistic sigmoid: :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
 
-Usually all hidden nodes in a network share the same activation function. Nodes
+Most activation functions are chosen to incorporate a nonlinearity, since a
+model with even multiple linear layers cannot capture nonlinear phenomena. Nodes
 in the input layer are assumed to have linear activation (i.e., the input nodes
 simply represent the state of the input data), and nodes in the output layer
 might have linear or nonlinear activations depending on the modeling task.
 
-Data
-----
+Usually all hidden nodes in a network share the same activation function, but
+this is not required.
+
+Datasets
+--------
 
 Now that we have defined some structure for the model, we will probably need to
-fit the model to some empirical data. We assume that we have obtained a set of
-samples from a distribution :math:`p(\mathcal{S}, \mathcal{T})` over the two
-spaces of our model or problem.
+fit the parameters of the model to some empirical data. We assume that we have
+obtained a set of :math:`M` samples from a distribution :math:`p(\mathcal{S},
+\mathcal{T})` over the two spaces that are relevant for our problem.
 
 The data that we need will depend on the task at hand. For a classification task
-using the MNIST digits, for example, we will need some samples from
+using the MNIST digits, for example, we will need some samples of
 :math:`\mathcal{S} = \mathbb{R}^{28\times 28}` (e.g., pixel arrays of MNIST
-digits) as well as the accompanying **labels** from :math:`\mathcal{T} = \{0,
-1\}^{10}` digit labels (e.g., vectors with ten entries containing a 1 in the
-slot representing the correct digit class). For an autoencoder or density
+digits) as well as the accompanying **labels** from :math:`\mathcal{T} =
+\mathbb{R}^{10}` (e.g., vectors with ten entries, each representing the
+probability of the corresponding digit class). For an autoencoder or density
 estimation task, we only need the **unlabeled** samples from
 :math:`\mathcal{S}`.
 
 The samples from :math:`\mathcal{S}` will be referred to below as :math:`x`,
 while the samples (labels) from :math:`\mathcal{T}` will be referred to below as
-:math:`y`. If many samples are grouped together, we'll assume they are rows in a
-matrix :math:`X` or :math:`Y`.
+:math:`k`. If many samples are grouped together, we'll assume they are rows in a
+matrix :math:`X` or :math:`K`.
 
 .. note::
-   Typically in mathematics samples are treated as columns, but the ``theanets``
-   library, as well as many other Python-based machine learning libraries,
-   treats these quantities as rows. To avoid confusion with the coding world,
-   the math on this page assumes row vectors and row-oriented matrices.
 
-With the mathematics notation out of the way, it's time to look at different
-neural network models!
+    In most mathematics treatments, samples are usually treated as column
+    vectors. However, in the ``theanets`` library, as well as many other
+    Python-based machine learning libraries, these quantities are treated as
+    rows. To avoid confusion with the coding world, the math on this page
+    assumes row vectors and row-oriented matrices.
+
+A final note about datasets: We will assume that all data have been
+mean-centered; that is, we compute the mean for each column (variable) of
+:math:`X` and subtract that value from the column. Mean-centering is an easy and
+important preprocessing step for almost any dataset, so we assume it implicitly
+in everything below.
+
+Loss function
+-------------
+
+Having created a model and collected some data, we must close by defining a
+*loss* that our model is expected to minimize in order to perform well on a
+task. Many types of models use a *squared-error loss*, but other losses such as
+*cross-entropy* are also useful.
+
+For an autoencoder, which only receives an "input" dataset :math:`X` (remember
+it has :math:`M` rows), the squared-error loss encourages the model to
+reconstruct its input:
+
+.. math::
+   J(X, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
+
+For a regression model, which also receives a target output dataset :math:`K`,
+the squared-error loss encourages the model to match the target:
+
+.. math::
+   J(X, K, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| F_\theta(x_i) - k_i \right\|_2^2 + R(X, \theta)
+
+In both of these examples, an additional *regularization* term :math:`R(\cdot)`
+is added to the loss; it is typically some function of the dataset and the
+parameters. This regularizer can be chosen to encourage different types of model
+behavior, often to reflect different types of prior assumptions that the modeler
+has about the problem at hand.
+
+Having defined a loss for a model, the best parameters are those that minimize
+the loss on the data that we have:
+
+.. math::
+   \theta = \arg\min_\Omega J(\cdot, \Omega)
+
+For some classes of models, this optimization procedure is quite straightforward
+and even has close-form solutions. For many classes of neural network models,
+however, this optimization procedure is quite tricky. See :doc:`trainers` for
+more information about optimization.
 
 .. _models-autoencoders:
 
 Autoencoders
 ============
 
-
-
 Some types of neural network models have been shown to learn useful features
-from a set of data without requiring any label information. Often referred to as
-feature learning or manifold learning, this ability is useful because labeled
-data (e.g., images of handwritten digits annotated with the digit that each
-image represents) are often difficult to obtain, while unlabeled data (e.g.,
-just images of handwritten digits) are relatively easy to find.
-
-A class of neural network architectures known as autoencoders can perform such a
-learning task; an autoencoder takes as input a data sample and attempts to
-produce the same data sample as its output. Mathematically, an autoencoder with
-a single hidden layer can be expressed using this forward transform:
-
-.. math::
-   f(x) = g_o(W_o g_h(W_h x + b_h) + b_o)
-
-Here, :math:`g_i`, :math:`W_i`, and :math:`b_i` are the activation function,
-weights, and bias of layer :math:`i` in the network. The trainable parameters
-are :math:`\theta = (W_o, W_h, b_o, b_h)`.
-
-To train the weights and biases in the network, an autoencoder typically
-optimizes a squared-error reconstruction loss:
-
-.. math::
-   \ell(x) = \left\| f(x) - x \right\|_2^2 + \lambda R(\theta, x)
-
-Where :math:`R()` is some regularizer that helps prevent the model from
-overfitting.
-
-This optimization process could result in a trivial model, depending on the
-setup of the network; for example, with linear activations :math:`g_o(z) =
-g_h(z) = z`, identity weights :math:`W_o = W_h = I`, and zero bias :math:`b_o =
-b_h = 0`, an autoencoder implements the identity transform:
-
-.. math::
-   f(x) = x
-
-Similarly, even if the hidden unit activations are nonlinear, the network is
-capable of learning an identity transform. But things get much more interesting
-when the network is forced to reproduce the input under some constraint.
-
-One popular form of constraint is dimensionality reduction, which forces the
-network to project its input into a lower-dimensional space and then project it
-back to the original dimensionality. With linear hidden activations, tied
-weights, and no bias, this model will recover the same subspace as PCA:
-
-.. math::
-   \ell = \left\| WW^\top x - x \right\|_2^2
-
-After all, PCA is by definition the subspace that preserves the most variance in
-the data! This model limits us to at most :math:`d` features, however (where the
-elements of :math:`x` are :math:`d`-dimensional). Let's see what else is
-possible.
-
-If instead we wanted to learn an overcomplete feature set (i.e., more than
-:math:`d` features), we could encourage the model to learn a non-trivial
-representation of the data by adding a regularizer that specifies how the
-features should behave. For instance, if we require that the model reproduce the
-input data using as little feature representation as possible, we could add an
-:math:`\ell_1` penalty to the hidden representation:
-
-.. math::
-   \ell = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
-
-Le et al. showed that this model is actually equivalent to ICA.
-
-
-An autoencoder defines a mapping from a source space to itself.
+from a set of data without requiring any label information. This learning task
+is often referred to as feature learning or manifold learning. A class of neural
+network architectures known as autoencoders are ideally suited for this task. An
+autoencoder takes as input a data sample and attempts to produce the same data
+sample as its output. Formally, an autoencoder defines a mapping from a source
+space to itself:
 
 .. math::
    F_\theta: \mathcal{S} \to \mathcal{S}
 
-Typically, this mapping is decomposed into an "encoding" stage
+Often, this mapping can be decomposed into an "encoding" stage
 :math:`f_\alpha(\cdot)` and a corresponding "decoding" stage
 :math:`g_\beta(\cdot)` to and from some latent space :math:`\mathcal{Z} =
 \mathbb{R}^{n_z}`:
@@ -224,7 +214,7 @@ Autoencoders form an interesting class of models for several reasons. They:
 - can be used to model the "manifold" or density of a dataset.
 
 A generic autoencoder can be defined in ``theanets`` by using the
-:class:`theanets.Autoencoder` class::
+:class:`Autoencoder <theanets.feedforward.Autoencoder>` class::
 
   exp = theanets.Experiment(theanets.Autoencoder)
 
@@ -239,81 +229,203 @@ on the command-line by using ``--layers A B C ... A``, or in your code::
    Command-line arguments do not work when running ``theanets`` code in IPython;
    within IPython, all parameters must be specified as keyword arguments.
 
-A subset of autoencoders with an odd-length, palindromic number of layers can be
-defined as having **tied weights** whenever the parameters from the decoder are
-the transpose of the parameters from the encoder. Tied-weights autoencoders form
-an interesting subset of autoencoder models.
+Finally, a subset of autoencoders with an odd-length, palindromic number of
+layers can be defined as having **tied weights** whenever the parameters from
+the decoder are the transpose of the parameters from the encoder. Tied-weights
+autoencoders form an interesting subset of autoencoder models.
 
 Let's look at a few example models that fall into the autoencoder class.
 
-Principal Component Analysis (PCA)
-----------------------------------
+Single-layer autoencoders
+-------------------------
 
-The most popular density estimation technique out there is Principal Component
-Analysis (PCA). Principal components are a set of orthogonal directions of
-maximal variance in a dataset; that is, PCA computes a rotation of the dataset
-such that the axes of the rotated system capture as much variance as possible.
-
-In PCA, a modeler assumes that the data come from a single
-ellipsoidal blob in :math:`\mathcal{S}`; that is, PCA assumes the data are drawn
-from a multivariate Gaussian distribution :math:`p(X) = \mathcal{N}(\mu,
-\Sigma)` and then automatically identifies the subspace :math:`\mathcal{Z} =
-\mathbb{R}^{n_z}` such that a linear projection to :math:`\mathcal{Z}` and back
-to :math:`\mathcal{S}` preserves the maximum variance in the data.
-
-Let's look at this mathematically for a minute.
+Although the class of autoencoder models is quite large (any :math:`k` partite
+graph like the one described above, having the same number of input and output
+nodes would count). However, a very interesting class of these models has just
+one hidden layer, and uses a linear activation on its output nodes:
 
 .. math::
-   x = Wz + \epsilon = WW^\top x + \epsilon
+   F_\theta(x) = \sigma(x W_e + b_e) W_d + b_d
 
-   0 = WW^\top x - x + \epsilon
+Here, :math:`\sigma` is the activation of the nodes in the hidden layer, and
+:math:`W_e`, :math:`W_d`, :math:`b_e`, and :math:`b_d` are the weights and bias
+of the "encoding" and "decoding" layers of the network. The trainable parameters
+are :math:`\theta = (W_e, W_d, b_e, b_d)`.
 
-   -\log p(X) \propto \|WW^\top x - x\|_2^2
+To train the weights and biases in the network, an autoencoder typically
+optimizes a squared-error reconstruction loss:
+
+.. math::
+   J(X, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d + b_d - x_i \right\|_2^2 + \lambda R(X, \theta)
+
+This optimization process could result in a trivial model, depending on the
+setup of the network. In particular, if the number of hidden features
+:math:`n_z` is not less than the number of input variables :math:`n_0`, then
+with linear hidden activations :math:`\sigma(z) = z`, identity weights
+:math:`W_e = W_d = I`, and zero bias :math:`b_e = b_d = 0`, an autoencoder as
+defined above implements the identity transform:
+
+.. math::
+   F_\theta(x) = x
+
+Even if the hidden unit activations are nonlinear, the network is capable of
+learning an identity transform as long as :math:`n_z \ge n_0`. But things get
+much more interesting when an autoencoder network is forced to reproduce the
+input under some constraint. These constraints can be implemented either through
+the structure of the network, or by adding a regularizer. Both of these
+approaches will be discussed below.
+
+PCA
+```
+
+One way to prevent a model from learning trivial latent representations is to
+force the latent space to be smaller than the space where the data live. One of
+the most popular techniques for doing this is Principal Component Analysis (PCA)
+[Hot33]_. The principal components (PCs) of a dataset are the set of orthogonal
+directions :math:`U` (i.e., a rotation) that capture the maximal variance in a
+dataset. Each PC :math:`u_i` is scaled by the amount of variance :math:`s_i` in
+the corresponding direction of the data, so the first PC captures the most
+variance, the second PC the second-most variance, and so forth.
+
+Let's assume we have computed a PCA transform :math:`W = U\diag(S)` for a
+dataset :math:`X`. Then we can "encode" the dataset by projecting it into the PC
+space using matrix multiplication to rotate and then scale the data:
+
+.. math:: Z = XU\diag(S)
+
+If we wish to "decode" this representation of the data, we can project it back
+into the data space by doing another matrix multiplication to un-scale the data
+and rotate it back:
+
+.. math::
+   \hat{X} = Z\diag(\frac{1}{S})U^\top = X U \diag(S) \diag(1/S) U^\top = X U U^\top
+
+If we have the same number of principal components as variables in our dataset,
+then :math:`UU^\top = I` and :math:`\hat{X} = X`. However, if we restrict our PC
+representation to a smaller number of dimensions than we have in our data, we
+are performing *dimensionality reduction* in a way that is guaranteed to
+preserve the most variance in the data. In other words, our transform
+:math:`U\diag(S)` minimizes the squared-error loss:
+
+.. math::
+   J(X) = \frac{1}{M} \sum_{i=1}^M \left\| \hat{x}_i - x_i \right\|_2^2
+
+.. math::
+   J(X) = \frac{1}{M} \sum_{i=1}^M \left\| x_i U U^\top - x_i \right\|_2^2
 
 Given this way of looking at PCA, we can see that it is really a sort of linear
-autoencoder with tied weights. To implement such a model in ``theanets``, we
-only need to provide the following hyperparameters::
+autoencoder with tied weights! To be more precise, optimizing the loss
+formulation immediately above is guaranteed to recover the same *subspace* as
+the PCA transform, even though the individual features are not necessarily
+guaranteed to be the same.
+
+To implement such a model in ``theanets``, we only need to provide the following
+hyperparameters::
 
   pca = theanets.Experiment(
       theanets.Autoencoder,
       tied_weights=True,
       hidden_activation='linear',
+      layers=(n_0, n_z, n_0),
   )
+
+This type of model has the additional advantage that it is relatively easy to
+train, because the entire model is linear!
+
+In actuality, if your dataset is not too large, it's even easier to use a
+closed-form solution to compute the PCA transform; however, looking at PCA in
+this way, using a neural network framework, will serve as a good mental bridge
+to the sorts of models that will be introduced later on.
+
+ICA
+```
+
+For PCA, we had to use an *undercomplete* hidden representation to prevent the
+model from learning a trivial identity transform. This is problematic for a
+couple of reasons, but from a modeling perspective one of the worst is that the
+features computed by PCA are often "tangled together" to represent each of the
+points in our dataset. That is, a single PCA feature is often difficult to
+interpret by itself; instead, the entire set of PCs is required to yield a
+reasonable representation of a data point.
+
+For example, if PCA is performed on a set of image data, the PCs are typically
+close to a Fourier basis for the space of images being processed; this
+representation does in fact capture the most variance in the data, but any
+individual PC only captures one of the spatial frequencies in an image---a
+relatively large part of the entire set of PCs must be used to reconstruct an
+image with good fidelity.
+
+If instead we wanted to learn an *overcomplete* feature set (i.e., with
+:math:`n_z > n_0`), or if we wanted to learn some features of our data that were
+not dependent on the others, we could encourage the model to learn a non-trivial
+representation of the data by adding a regularizer that specifies how the
+features should behave.
+
+One good intuition for introducing a regularizer at this point is to assume that
+latent features should be used independently. We can translate that into
+mathematics by requiring that the model reproduce the input data using "as
+little" feature representation as possible and add an :math:`\ell_1` penalty to
+the hidden representation:
+
+.. math::
+   \ell = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
+
+This model, called RICA [Le11]_ ("ICA with a reconstruction cost"), is actually
+equivalent to an existing statistical model called Independent Component
+Analysis [Jut91]_ [Hyv97]_, which can be trained by maximizing the
+non-gaussian-ness (e.g., the kurtosis) of the features. Here, we force the model
+to use a sparse representation while still using linear encoding and decoding
+with tied weights.
+
+In ``theanets``, we can create such a model by including a sparsity penalty on
+the hidden layer::
+
+  rica = theanets.Experiment(
+      theanets.Autoencoder,
+      tied_weights=True,
+      hidden_activation='linear',
+      hidden_l1=1,
+      layers=(n_0, n_z, n_0),
+  )
+
+This model does not have a simple closed-form solution, so an iterative
+optimization procedure is just what we need to learn good parameters for the
+model.
 
 .. _models-sparse-autoencoder:
 
 Sparse autoencoders
 -------------------
 
-A sparse autoencoder assigns a regularization penalty to the hidden activation
-of the model.
+RICA models (and ICA generally) are a subset of a more general class of
+autoencoder called a *sparse autoencoder* [Glo11]_. Sparse autoencoders
+generalize the RICA formulation by adding:
+
+- different encoding and decoding weights,
+- bias terms, and
+- a nonlinearity at the hidden layer.
+
+Like RICA, however, sparse autoencoders assign a regularization penalty to the
+hidden activation of the model:
 
 .. math::
-   \ell = \frac{1}{M} \sum_{i=1}^M \left\| g_\beta\left(f_\alpha(x_i)\right) - x_i \right\|_2^2 + \lambda\left\| f_\alpha(x_i) \right\|_1
+   \ell = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d + b_d - x_i
+   \right\|_2^2 + \lambda\left\| \sigma(x_i W_e + b_e) \right\|_1
 
-This penalty forces the encoder and decoder of the autoencoder model to
+The sparsity penalty forces the encoder and decoder of the autoencoder model to
 cooperate together to represent the input using as little of the latent space as
 possible.
 
-Independent Component Analysis (ICA)
-------------------------------------
+To create a sparse autoencoder in ``theanets``, just use the RICA formulation
+but omit the tied weights and linear activation::
 
-While PCA assumes that the underlying data distribution is Gaussian, this
-assumption is not necessarily true for many datasets. A better model for some
-datasets like photographs of the natural world turns out to assume that the
-underlying data distribution is *not* Gaussian, by maximizing the independence
-of the latent components of the model.
-
-One way to accomplish this maximization is to maximize the kurtosis of the model
-distribution, but another is to force the model to use a sparse representation
-while still using linear encoding and decoding with tied weights::
-
-  ica = theanets.Experiment(
+  sparse = theanets.Experiment(
       theanets.Autoencoder,
-      tied_weights=True,
-      hidden_activation='linear',
       hidden_l1=1,
+      layers=(n_0, n_z, n_0),
   )
+
+Sparse autoencoders can also be created with more than one hidden layer.
 
 .. _models-denoising-autoencoder:
 
@@ -383,25 +495,32 @@ representations that are more interpretable to humans than dense models
 References
 ==========
 
+.. [Glo11] X Glorot, A Bordes, Y Bengio. "Deep sparse rectifier neural
+           networks." In *Proc AISTATS*, 2011.
+
+.. [Hot33] H Hotelling. "Analysis of a Complex of Statistical Variables Into
+           Principal Components." *Journal of Educational Psychology*
+           **24**:417-441 & 498-520, 1933.
+
 .. [Hyv97] A Hyvärinen, "Independent Component Analysis by Minimization of
            Mutual Information." University of Helsinki Tech Report, 1997.
 
 .. [Jut91] C Jutten, J Herault. "Blind separation of sources, part I: An
            adaptive algorithm based on neuromimetic architecture." *Signal
-           Processing* 24:1-10, 1991.
+           Processing* **24**:1-10, 1991.
 
 .. [Le11] QV Le, A Karpenko, J Ngiam, AY Ng. "ICA with reconstruction cost for
-          efficient overcomplete feature learning." *Proc NIPS*, 2011.
+          efficient overcomplete feature learning." In *Proc NIPS*, 2011.
 
 .. [Lee08] H Lee, C Ekanadham, AY Ng. "Sparse deep belief net model for visual
-           area V2." *Proc. NIPS*, 2008.
+           area V2." In *Proc. NIPS*, 2008.
 
 .. [Ols94] B Olshausen, DJ Field. "Emergence of simple-cell receptive fields
            properties by learning a sparse code for natural images." *Nature*
            **381** 6583:607-609, 1994.
 
 .. [Sut13] I Sutskever, J Martens, G Dahl, GE Hinton. "On the importance of
-           initialization and momentum in deep learning." *Proc ICML*, 2013.
+           initialization and momentum in deep learning." In *Proc ICML*, 2013.
            http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf
 
 .. [Tib96] R Tibshirani. "Regression shrinkage and selection via the lasso."

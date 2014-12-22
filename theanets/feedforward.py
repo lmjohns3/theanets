@@ -50,7 +50,7 @@ def load(filename, **kwargs):
 
     Returns
     -------
-    Network :
+    network : :class:`Network`
         A newly-constructed network, with topology and parameters loaded from
         the given pickle file.
     '''
@@ -116,11 +116,6 @@ class Network(object):
         value greater than 1 to tap the last N hidden layers. The default is 1,
         which decodes from just the last layer.
 
-    tied_weights : bool, optional
-        Construct decoding weights using the transpose of the encoding weights
-        on corresponding layers. Defaults to False, which means decoding weights
-        will be constructed using a separate weight matrix.
-
     Attributes
     ----------
     weights : list of Theano shared variables
@@ -164,7 +159,14 @@ class Network(object):
         self.setup_layers(**kwargs)
 
     def setup_vars(self):
-        '''Setup Theano variables for our network.
+        '''Setup Theano variables required by our network.
+
+        The default variable for a network is simply `x`, which represents the
+        input to the network.
+
+        Subclasses may override this method to specify additional variables. For
+        example, a supervised model might specify an additional variable that
+        represents the target output for a particular input.
 
         Returns
         -------
@@ -177,6 +179,14 @@ class Network(object):
 
     def setup_layers(self, **kwargs):
         '''Set up a computation graph for our network.
+
+        The default implementation constructs a series of feedforward
+        layers---called the "encoder" layers---and then calls
+        :func:`setup_decoder` to construct the decoding apparatus in the
+        network.
+
+        Subclasses may override this method to construct alternative network
+        topologies.
 
         Parameters
         ----------
@@ -225,7 +235,7 @@ class Network(object):
             The theano variable that represents the inputs to this layer.
         nin : int
             The number of input units to this layer.
-        nout : out
+        nout : int
             The number of output units from this layer.
         label : any, optional
             The name of this layer, used for logging and as the theano variable
@@ -257,6 +267,13 @@ class Network(object):
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.
+
+        The default decoder constructs a single weight matrix for each of the
+        hidden layers in the network that should be used for decoding (see the
+        `decode_from` parameter) and outputs the sum of the decoders.
+
+        This method can be overridden by subclasses to implement alternative
+        decoding strategies.
 
         Parameters
         ----------
@@ -290,7 +307,12 @@ class Network(object):
         return count
 
     def get_encoder_layers(self):
-        '''Compute the layers that will be part of the network encoder.
+        '''Determine the layers that will be part of the network encoder.
+
+        This method is used by the default implementation of
+        :func:`setup_layers` to determine which layers in the network will be
+        treated as "encoding" layers. The default is to treat all but the last
+        layer as encoders.
 
         Returns
         -------
@@ -301,7 +323,18 @@ class Network(object):
 
     @property
     def monitors(self):
-        '''Generate a sequence of name-value pairs for monitoring the network.
+        '''A sequence of name-value pairs for monitoring the network.
+
+        Names in this sequence are strings, and values are theano variables
+        describing how to compute the relevant quantity.
+
+        These monitor expressions are used by network trainers to compute
+        quantities of interest during training. The default set of monitors
+        consists of:
+
+        - err: the unregularized cost of the network
+        - hK<0.1: percent of hidden units in layer K such that :math:`|h_i| < 0.1`
+        - hK<0.9: percent of hidden units in layer K such that :math:`|h_i| < 0.9`
         '''
         yield 'err', self.cost
         for i, h in enumerate(self.hiddens):
@@ -315,7 +348,7 @@ class Network(object):
 
     @property
     def tied_weights(self):
-        '''A boolean indicating this network uses tied weights.'''
+        '''A boolean indicating whether this network uses tied weights.'''
         return self.kwargs.get('tied_weights', False)
 
     @staticmethod
@@ -332,8 +365,8 @@ class Network(object):
             of "output" units that the weight matrix connects.
         suffix : str
             A string suffix to use in the Theano name for the created variables.
-            This string will be appended to 'W_' to name the parameters that are
-            created and returned.
+            This string will be appended to 'W\_' to name the parameters that
+            are created and returned.
         sparse : float in (0, 1), optional
             If given, ensure that the given fraction of the weight matrix is
             set to zero. Defaults to 0, meaning all weights are nonzero.
@@ -376,8 +409,8 @@ class Network(object):
             Number of units of bias to create.
         suffix : str
             A string suffix to use in the Theano name for the created variables.
-            This string will be appended to 'b_' to name the parameters that are
-            created and returned.
+            This string will be appended to 'b\_' to name the parameters that
+            are created and returned.
 
         Returns
         -------
@@ -480,7 +513,17 @@ class Network(object):
             raise KeyError('unknown activation %r' % act)
 
     def params(self, **kwargs):
-        '''Return a list of the Theano parameters for this network.'''
+        '''Get a list of the learnable theano parameters for this network.
+
+        This method is used internally by :class:`theanets.trainer.Trainer`
+        implementations to compute the set of parameters that are tunable in a
+        network.
+
+        Returns
+        -------
+        params : list of theano variables
+            A list of parameters that can be learned in this model.
+        '''
         params = []
         params.extend(self.weights)
         if not kwargs.get('no_learn_biases'):
@@ -501,7 +544,7 @@ class Network(object):
 
         Returns
         -------
-        ndarray :
+        weights : ndarray
             The weight values, as a numpy array.
         '''
         return self.weights[layer].get_value(borrow=borrow)
@@ -520,7 +563,7 @@ class Network(object):
 
         Returns
         -------
-        ndarray :
+        bias : ndarray
             The bias values, as a numpy vector.
         '''
         return self.biases[layer].get_value(borrow=borrow)
@@ -530,30 +573,39 @@ class Network(object):
 
         Parameters
         ----------
-        x : ndarray
-            An array containing data to be fed into the network.
+        x : ndarray (num-examples, num-variables)
+            An array containing data to be fed into the network. Multiple
+            examples are arranged as rows in this array, with columns containing
+            the variables for each example.
 
         Returns
         -------
-        list of ndarray
-            Returns the activation values of each layer in the the network when
-            given input `x`.
+        layers : list of ndarray (num-examples, num-units)
+            The activation values of each layer in the the network when given
+            input `x`. For each of the hidden layers, an array is returned
+            containing one row per input example; the columns of each array
+            correspond to units in the respective layer. The output of the
+            network is the last element of this list.
         '''
         self._compile()
         return self._compute(x)
 
     def predict(self, x):
-        '''Compute a forward pass of the inputs, returning the net output.
+        '''Compute a forward pass of the inputs, returning the network output.
 
         Parameters
         ----------
-        x : ndarray
-            An array containing data to be fed into the network.
+        x : ndarray (num-examples, num-variables)
+            An array containing data to be fed into the network. Multiple
+            examples are arranged as rows in this array, with columns containing
+            the variables for each example.
 
         Returns
         -------
-        ndarray
+        y : ndarray (num-examples, num-variables
             Returns the values of the network output units when given input `x`.
+            Rows in this array correspond to examples, and columns to output
+            variables.
         '''
         return self.feed_forward(x)[-1]
 
@@ -607,7 +659,7 @@ class Network(object):
         return self.load_params(filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
-        '''Return a variable representing the cost or loss for this network.
+        '''Return a variable representing the regularized cost for this network.
 
         Parameters
         ----------
@@ -624,8 +676,8 @@ class Network(object):
 
         Returns
         -------
-        Theano variable
-            A variable representing the overall cost value of this network.
+        J : theano variable
+            A variable representing the regularized cost of this network.
         '''
         cost = self.cost
         if weight_l1 > 0:
@@ -643,12 +695,26 @@ class Network(object):
 
 
 class Autoencoder(Network):
-    '''An autoencoder attempts to reproduce its input.'''
+    '''An autoencoder attempts to reproduce its input.
+
+    Autoencoders retain all attributes of the parent class (:class:`Network`),
+    but additionally can have "tied weights".
+
+    Attributes
+    ----------
+    tied_weights : bool, optional
+        Construct decoding weights using the transpose of the encoding weights
+        on corresponding layers. Defaults to False, which means decoding weights
+        will be constructed using a separate weight matrix.
+    '''
 
     def setup_decoder(self, **kwargs):
         '''Set up weights for the decoder layers of an autoencoder.
 
-        This implementation allows for weights to be tied to encoder weights.
+        This implementation allows for decoding weights to be tied to encoding
+        weights. If `tied_weights` is False, the decoder is set up using
+        :func:`Network.setup_decoder`; if True, then the decoder is set up to be
+        a mirror of the encoding layers, using transposed weights.
 
         Parameters
         ----------
@@ -700,7 +766,10 @@ class Autoencoder(Network):
         '''Compute the layers that will be part of the network encoder.
 
         This implementation ensures that --layers is compatible with
-        --tied-weights.
+        --tied-weights; if so, and if the weights are tied, then the encoding
+        layers are the first half of the layers in the network. If not, or if
+        the weights are not to be tied, then all but the final layer is
+        considered an encoding layer.
 
         Returns
         -------
@@ -719,7 +788,13 @@ class Autoencoder(Network):
         return sizes
 
     @property
+    def tied_weights(self):
+        '''A boolean indicating whether this network uses tied weights.'''
+        return self.kwargs.get('tied_weights', False)
+
+    @property
     def cost(self):
+        '''Returns a theano expression for computing the mean squared error.'''
         err = self.y - self.x
         return TT.mean((err * err).sum(axis=1))
 
@@ -798,6 +873,7 @@ class Regressor(Network):
 
     @property
     def cost(self):
+        '''Returns a theano expression for computing the mean squared error.'''
         err = self.y - self.k
         return TT.mean((err * err).sum(axis=1))
 
@@ -826,19 +902,46 @@ class Classifier(Network):
 
     @property
     def cost(self):
+        '''Returns a theano computation of cross entropy.'''
         return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
 
     @property
     def accuracy(self):
-        '''Compute the percent correct classifications.'''
+        '''Returns a theano computation of percent correct classifications.'''
         return 100 * TT.mean(TT.eq(TT.argmax(self.y, axis=1), self.k))
 
     @property
     def monitors(self):
+        '''A sequence of name-value pairs for monitoring the network.
+
+        Names in this sequence are strings, and values are theano variables
+        describing how to compute the relevant quantity.
+
+        These monitor expressions are used by network trainers to compute
+        quantities of interest during training. The default set of monitors
+        consists of:
+
+        - acc: the classification `accuracy` of the network
+        - hK<0.1: percent of hidden units in layer K such that :math:`|h_i| < 0.1`
+        - hK<0.9: percent of hidden units in layer K such that :math:`|h_i| < 0.9`
+        '''
         yield 'acc', self.accuracy
         for i, h in enumerate(self.hiddens):
             yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
             yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
 
     def classify(self, x):
+        '''Compute a greedy classification for the given set of data.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-variables)
+            An array containing examples to classify. Examples are given as the
+            rows in this array.
+
+        Returns
+        -------
+        k : ndarray (num-examples, )
+            A vector of class index values, one per row of input data.
+        '''
         return self.predict(x).argmax(axis=1)

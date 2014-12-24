@@ -368,7 +368,7 @@ little" feature representation as possible and add an :math:`\ell_1` penalty to
 the hidden representation:
 
 .. math::
-   \ell = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
+   J(X, W) = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
 
 This model, called RICA [Le11]_ ("ICA with a reconstruction cost"), is actually
 equivalent to an existing statistical model called Independent Component
@@ -409,8 +409,8 @@ Like RICA, however, sparse autoencoders assign a regularization penalty to the
 hidden activation of the model:
 
 .. math::
-   \ell = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d + b_d - x_i
-   \right\|_2^2 + \lambda\left\| \sigma(x_i W_e + b_e) \right\|_1
+   J(X, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d +
+   b_d - x_i \right\|_2^2 + \lambda\left\| \sigma(x_i W_e + b_e) \right\|_1
 
 The sparsity penalty forces the encoder and decoder of the autoencoder model to
 cooperate together to represent the input using as little of the latent space as
@@ -438,7 +438,7 @@ Regression
 ==========
 
 .. math::
-   \ell = \frac{1}{M} \sum_{i=1}^M \| F_\theta(x_i) - y_i \|_2^2 + R(\theta)
+   J(X, K, \theta) = \frac{1}{M} \sum_{i=1}^M \| F_\theta(x_i) - k_i \|_2^2 + R(\theta)
 
 .. _models-classification:
 
@@ -446,7 +446,7 @@ Classification
 ==============
 
 .. math::
-   \ell = \frac{1}{M} \sum_{i=1}^M \| F_\theta(x_i) - y_i \|_2^2 + R(\theta)
+   J(X, K, \theta) = \frac{1}{M} \sum_{i=1}^M \| F_\theta(x_i) - k_i \|_2^2 + R(\theta)
 
 .. _models-regularization:
 
@@ -471,13 +471,13 @@ of loss functions, this equates to adding a term to the loss function that
 computes the :math:`L_2` norm of the parameter values in the model:
 
 .. math::
-   \ell = \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   J(\cdot) = \dots + \frac{\lambda}{2} \| \theta \|_2^2
 
-If the loss :math:`\ell` represents some approximation to the log-posterior
+If the loss :math:`J(\cdot)` represents some approximation to the log-posterior
 distribution of the model parameters given the data
 
 .. math::
-   \ell = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   J(\cdot) = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
 
 then the term with the :math:`L_2` norm on the parameters is like an unscaled
 Gaussian distribution.

@@ -287,25 +287,26 @@ dataset. Each PC :math:`u_i` is scaled by the amount of variance :math:`s_i` in
 the corresponding direction of the data, so the first PC captures the most
 variance, the second PC the second-most variance, and so forth.
 
-Let's assume we have computed a PCA transform :math:`W = U\diag(S)` for a
-dataset :math:`X`. Then we can "encode" the dataset by projecting it into the PC
-space using matrix multiplication to rotate and then scale the data:
+Let's assume we have computed a PCA transform :math:`W = UD_s` for a dataset
+:math:`X` (here, :math:`D_s` is a diagonal matrix with the :math:`s_i` along the
+diagonal). Then we can "encode" the dataset by projecting it into the PC space
+using matrix multiplication to rotate and then scale the data:
 
-.. math:: Z = XU\diag(S)
+.. math:: Z = XUD_s
 
 If we wish to "decode" this representation of the data, we can project it back
 into the data space by doing another matrix multiplication to un-scale the data
 and rotate it back:
 
 .. math::
-   \hat{X} = Z\diag(\frac{1}{S})U^\top = X U \diag(S) \diag(1/S) U^\top = X U U^\top
+   \hat{X} = ZD_{\frac{1}{S}}U^\top = X U D_s D_{\frac{1}{S}} U^\top = X U U^\top
 
 If we have the same number of principal components as variables in our dataset,
 then :math:`UU^\top = I` and :math:`\hat{X} = X`. However, if we restrict our PC
 representation to a smaller number of dimensions than we have in our data, we
 are performing *dimensionality reduction* in a way that is guaranteed to
 preserve the most variance in the data. In other words, our transform
-:math:`U\diag(S)` minimizes the squared-error loss:
+:math:`UD_s` minimizes the squared-error loss:
 
 .. math::
    J(X) = \frac{1}{M} \sum_{i=1}^M \left\| \hat{x}_i - x_i \right\|_2^2

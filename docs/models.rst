@@ -299,7 +299,7 @@ into the data space by doing another matrix multiplication to un-scale the data
 and rotate it back:
 
 .. math::
-   \hat{X} = ZD_{\frac{1}{S}}U^\top = X U D_s D_{\frac{1}{S}} U^\top = X U U^\top
+   \hat{X} = ZD_{1/S}U^\top = X U D_s D_{1/S} U^\top = X U U^\top
 
 If we have the same number of principal components as variables in our dataset,
 then :math:`UU^\top = I` and :math:`\hat{X} = X`. However, if we restrict our PC

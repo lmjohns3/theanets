@@ -364,8 +364,8 @@ features should behave.
 One good intuition for introducing a regularizer at this point is to assume that
 latent features should be used independently. We can translate that into
 mathematics by requiring that the model reproduce the input data using "as
-little" feature representation as possible and add an :math:`\ell_1` penalty to
-the hidden representation:
+little" feature representation as possible and add an :math:`L_1` penalty to the
+hidden representation:
 
 .. math::
    J(X, W) = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1

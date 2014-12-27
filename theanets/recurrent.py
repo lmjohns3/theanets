@@ -375,7 +375,7 @@ class LSTM(Network):
 
 
 class Autoencoder(Network):
-    '''An autoencoder attempts to reproduce its input.
+    '''An autoencoder network attempts to reproduce its input.
     '''
 
     @property

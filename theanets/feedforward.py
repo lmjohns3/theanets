@@ -40,6 +40,16 @@ FLOAT = theano.config.floatX
 def load(filename, **kwargs):
     '''Load an entire network from a pickle file on disk.
 
+    If this function is called without extra keyword arguments, a new network
+    will be created using the keyword arguments that were originally used to
+    create the pickled network. If this helper function is called with extra
+    keyword arguments, they will override arguments that were originally used to
+    create the pickled network. This override allows one to, for example, load a
+    network that was created with one activation function, and apply a different
+    activation function to the existing weights. Some options will cause errors
+    if overridden, such as `layers` or `tied_weights`, since they change the
+    number of parameters in the model.
+
     Parameters
     ----------
     filename : str

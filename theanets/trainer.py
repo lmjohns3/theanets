@@ -166,7 +166,9 @@ class Trainer(object):
 
 
 class SGD(Trainer):
-    '''Stochastic gradient descent network trainer.'''
+    '''Stochastic gradient descent network trainer.
+
+    '''
 
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
@@ -195,7 +197,24 @@ class SGD(Trainer):
                              name='{}_{}'.format(param.name, name))
 
     def train(self, train_set, valid_set=None, **kwargs):
-        '''We train over mini-batches and evaluate periodically.'''
+        '''We compute gradients using mini-batches and evaluate periodically.
+
+        This trainer encompasses an important subset of optimization algorithms
+        that use local gradient information to make iterative adjustments to
+        minimize a loss function.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.dataset.Dataset`
+            A training set to use while training the weights in our network.
+        valid_set : :class:`theanets.dataset.Dataset`
+            A validation set to use while training the weights in our network.
+
+        Returns
+        -------
+        Generates a series of cost values as the network weights are tuned.
+
+        '''
         iteration = 0
         while True:
             if not iteration % self.validation_frequency:
@@ -440,7 +459,21 @@ class ADADELTA(RmsProp):
 
 
 class Scipy(Trainer):
-    '''General trainer for neural nets using `scipy.optimize.minimize`.'''
+    '''General trainer for neural nets using ``scipy``.
+
+    This trainer class shells out to :func:`scipy.optimize.minimize` to minize
+    the network loss. All network operations are carried out using the
+    computation graph implemented in Theano, while all optimization procedures
+    are carried out using Scipy's code.
+
+    This separation can limit the speedup you might experience while optimizing
+    your network's loss, because computations are only carried out on the GPU
+    within the Theano graph; any results are passed across the PCI bus back into
+    main memory so that the Scipy code can process them.
+
+    The specific algorithms available in this trainer are given in the `METHODS`
+    list.
+    '''
 
     METHODS = ('bfgs', 'cg', 'dogleg', 'newton-cg', 'trust-ncg')
 
@@ -652,9 +685,9 @@ class Layerwise(Trainer):
 
         Parameters
         ----------
-        train_set : :class:`theanets.Dataset`
+        train_set : :class:`theanets.dataset.Dataset`
             A training set to use while training the weights in our network.
-        valid_set : :class:`theanets.Dataset`
+        valid_set : :class:`theanets.dataset.Dataset`
             A validation set to use while training the weights in our network.
 
         Returns

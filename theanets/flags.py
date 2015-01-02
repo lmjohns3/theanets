@@ -122,4 +122,6 @@ g.add_argument('--recurrent-error-start', type=int, default=3, metavar='T',
 g.add_argument('--recurrent-radius', type=float, default=1.1, metavar='R',
                help='create recurrent weights with spectral radius R')
 g.add_argument('--recurrent-sparsity', type=float, default=0, metavar='R',
-               help='create recurrent weights with fraction R as 0')
+               help='create recurrent weights with fraction R 0s')
+g.add_argument('--mrnn-factors', type=int, default=0, metavar='N',
+               help='use N factors for hidden connection tensor')

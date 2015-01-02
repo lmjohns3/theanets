@@ -253,7 +253,7 @@ class Experiment:
     def train(self, *args, **kwargs):
         '''Train the network until the trainer converges.
 
-        All arguments are passed to `itertrain`.
+        All arguments are passed to :func:`itertrain`.
         '''
         for _ in self.itertrain(*args, **kwargs):
             pass

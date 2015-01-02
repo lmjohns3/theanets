@@ -416,26 +416,27 @@ class ADADELTA(RmsProp):
     Like Rprop and RmsProp, this learning method effectively maintains a sort of
     parameter-specific momentum value. The primary difference between this
     method and RmsProp is that ADADELTA additionally incorporates a sliding
-    window of RMS parameter steps, obviating the need for learning rate or
-    momentum parameters.
+    window of RMS parameter steps.
 
-    The implementation here is modeled after Zeiler (2013), "ADADELTA: An
+    The implementation here is modeled after Zeiler (2012), "ADADELTA: An
     adaptive learning rate method," available at http://arxiv.org/abs/1212.5701.
     '''
 
     def learning_updates(self):
-        def rms(x):
-            return TT.sqrt(x + self.learning_rate)
+        eps = self.learning_rate
         for param in self.params:
             x2_tm1 = self.shared_like(param, 'x2_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
+            vel_tm1 = self.shared_like(param, 'vel')
             grad = TT.grad(self.J, param).clip(-self.clip, self.clip)
             g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
-            delta = grad * rms(x2_tm1) / rms(g2_t)
+            delta = grad * TT.sqrt(x2_tm1 + eps) / TT.sqrt(g2_t + eps)
             x2_t = self.ewma * x2_tm1 + (1 - self.ewma) * delta * delta
+            vel_t = self.momentum * vel_tm1 - delta
             yield g2_tm1, g2_t
             yield x2_tm1, x2_t
-            yield param, param - delta
+            yield vel_tm1, vel_t
+            yield param, param + vel_t
 
 
 class Scipy(Trainer):

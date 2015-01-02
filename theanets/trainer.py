@@ -18,7 +18,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-'''This file contains optimization methods for neural networks.'''
+'''This module contains optimization methods for neural networks.
+
+Several of the optimization methods --- namely, :class:`SGD`, :class:`Rprop`,
+:class:`RmsProp`, :class:`ADADELTA`, :class:`HF`, and :class:`Scipy` --- are
+general-purpose optimization routines that happen to be pretty good for training
+neural networks. Other methods --- :class:`Sample`,
+:class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are
+specific to neural networks. Despite the difference in generality, all of the
+training routines implemented here assume that a :class:`Network
+<theanets.feedforward.Network>` is being optimized.
+
+Most of the general-purpose optimization routines in this module are based on
+the :class:`SGD` parent and optimize the cost function at hand by taking small
+steps in the general direction of the local gradient of the cost function. Such
+stochastic gradient optimization techniques are not bad, in the sense that they
+will generally always take steps that lower the cost function, but because they
+use local gradient information, they are not guaranteed to find a global optimum
+for nonlinear cost functions. Whether this is a problem or not depends on your
+task, but these approaches have been shown to be quite useful in the past couple
+decades of machine learning research.
+'''
 
 import climate
 import itertools
@@ -36,12 +56,27 @@ logging = climate.get_logger(__name__)
 
 
 def default_mapper(f, dataset, *args, **kwargs):
-    '''Apply a function to each element of a dataset.'''
+    '''Apply (map) a function to each element of a dataset.'''
     return [f(x, *args, **kwargs) for x in dataset]
 
 
 def ipcluster_mapper(client):
-    '''Get a mapper from an IPython.parallel cluster client.'''
+    '''Get a mapper from an IPython.parallel cluster client.
+
+    This helper is experimental and not currently used.
+
+    Parameters
+    ----------
+    client : :ipy:`IPython.parallel.Client`
+        A client for an IPython cluster. The dataset will be processed by
+        distributing it across the cluster.
+
+    Returns
+    -------
+    mapper : callable
+        A callable that can be used to map a dataset to a function across an
+        IPython cluster.
+    '''
     view = client.load_balanced_view()
     def mapper(f, dataset, *args, **kwargs):
         def ff(x):
@@ -51,7 +86,7 @@ def ipcluster_mapper(client):
 
 
 class Trainer(object):
-    '''This is a base class for all trainers.'''
+    '''All trainers derive from this base class.'''
 
     def __init__(self, network, **kwargs):
         super(Trainer, self).__init__()

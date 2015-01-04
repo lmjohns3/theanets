@@ -430,7 +430,18 @@ class Classifier(Feedforward):
 
 
 class Recurrent(Layer):
-    '''
+    '''A recurrent network layer incorporates some dependency on past values.
+
+    In many respects, a recurrent network layer is much like a basic feedforward
+    layer: both layers take an input signal, apply some transformation to it,
+    and produce an output signal. Recurrent layers, however, additionally
+    preserve the previous state(s) of the layer's output and incorporate them
+    into the transformation of the current input.
+
+    There are many different styles of recurrent network layers, but the one
+    implemented here is known as an Elman layer or an SRN (Simple Recurrent
+    Network) -- the output from the layer at the previous time step is
+    incorporated into the input of the layer at the current time step.
     '''
 
     def __init__(self, batch_size=64, **kwargs):

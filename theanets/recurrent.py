@@ -143,50 +143,12 @@ class Network(ff.Network):
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
-        # we store the initial state of recurrent hidden units in shared
-        # variables indexed by this dictionary.
-        self.h0 = {}
-
         return [self.x]
 
-    def setup_layers(self, **kwargs):
-        '''
-        '''
-        count = 0
 
-        noise = kwargs.get('input_noise', 0)
-        dropout = kwargs.get('input_dropouts', 0)
-        x = self._add_noise(self.x, noise, dropout)
-
-        kw = dict(
-            sparse=kwargs.get('recurrent_sparsity', 0),
-            radius=kwargs.get('recurrent_radius', 0),
-            noise=kwargs.get('hidden_noise', 0),
-            dropout=kwargs.get('hidden_dropouts', 0),
-            factors=kwargs.get('mrnn_factors', 0),
-        )
-        layers = kwargs.get('layers')
-        recurrent = set(kwargs.get('recurrent_layers', [len(layers) // 2 - 1]))
-        for i, (nin, nout) in enumerate(zip(layers[:-1], layers[1:])):
-            z = self.hiddens and self.hiddens[-1] or x
-            add = self.add_feedforward_layer
-            if i in recurrent:
-                add = self.add_recurrent_layer
-            count += add(z, nin, nout, label=i, **kw)
-
-        self.hiddens.pop()
-        self.y = self._output_func(self.preacts[-1])
-        logging.info('%d total network parameters', count)
-
-
-class Autoencoder(Network):
+class Autoencoder(Network, ff.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
-
-    @property
-    def cost(self):
-        err = self.y - self.x
-        return TT.mean((err * err).sum(axis=2)[self.error_start:])
 
 
 class Predictor(Autoencoder):
@@ -223,7 +185,7 @@ class Predictor(Autoencoder):
         return y
 
 
-class Regressor(Network):
+class Regressor(Network, ff.Regressor):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
@@ -241,19 +203,9 @@ class Regressor(Network):
 
         return [self.x, self.k]
 
-    @property
-    def cost(self):
-        err = self.y - self.k
-        return TT.mean((err * err).sum(axis=2)[self.error_start:])
 
-
-class Classifier(Network):
+class Classifier(Network, ff.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
-
-    def __init__(self, **kwargs):
-        kwargs['output_activation'] = 'softmax'
-
-        super(Classifier, self).__init__(**kwargs)
 
     def setup_vars(self):
         '''Setup Theano variables for our network.
@@ -269,22 +221,3 @@ class Classifier(Network):
         self.k = TT.ivector('k')
 
         return [self.x, self.k]
-
-    @property
-    def cost(self):
-        return -TT.mean(TT.log(self.y)[TT.arange(self.k.shape[0]), self.k])
-
-    @property
-    def accuracy(self):
-        '''Compute the percent correct classifications.'''
-        return 100 * TT.mean(TT.eq(TT.argmax(self.y, axis=1), self.k))
-
-    @property
-    def monitors(self):
-        yield 'acc', self.accuracy
-        for i, h in enumerate(self.hiddens):
-            yield 'h{}<0.1'.format(i+1), 100 * (abs(h) < 0.1).mean()
-            yield 'h{}<0.9'.format(i+1), 100 * (abs(h) < 0.9).mean()
-
-    def classify(self, x):
-        return self.predict(x).argmax(axis=1)

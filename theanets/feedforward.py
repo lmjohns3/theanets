@@ -271,13 +271,13 @@ class Network(object):
         consists of:
 
         - err: the unregularized cost of the network
-        - hK<0.1: percent of hidden units in layer K such that :math:`|h_i| < 0.1`
-        - hK<0.9: percent of hidden units in layer K such that :math:`|h_i| < 0.9`
+        - X<0.1: percent of hidden units in layer X such that :math:`|a_i| < 0.1`
+        - X<0.9: percent of hidden units in layer X such that :math:`|a_i| < 0.9`
         '''
         yield 'err', self.cost
-        for i, output in enumerate(self.outputs):
-            yield 'l{}<0.1'.format(i), 100 * (abs(output) < 0.1).mean()
-            yield 'l{}<0.9'.format(i), 100 * (abs(output) < 0.9).mean()
+        for i, (layer, output) in enumerate(zip(self.layers, self.outputs)):
+            yield '{}<0.1'.format(layer.name), 100 * (abs(output) < 0.1).mean()
+            yield '{}<0.9'.format(layer.name), 100 * (abs(output) < 0.9).mean()
 
     def _add_noise(self, x, sigma, rho):
         if sigma > 0 and rho > 0:

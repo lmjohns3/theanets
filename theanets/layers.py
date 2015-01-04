@@ -236,8 +236,8 @@ class Registrar(type):
             cls._registry[name.lower()] = cls
         super(Registrar, cls).__init__(name, bases, dct)
 
-    def build(cls, name, *args, **kwargs):
-        return cls._registry[name.lower()](*args, **kwargs)
+    def build(cls, key, *args, **kwargs):
+        return cls._registry[key.lower()](*args, **kwargs)
 
 # py2k and py3k have different metaclass syntax. :-/
 if sys.version_info.major <= 2:
@@ -361,7 +361,7 @@ class Input(Layer):
         kwargs['nin'] = 0
         kwargs['nout'] = size
         kwargs['activation'] = 'linear'
-        super(Layer, self).__init__(**kwargs)
+        super(Input, self).__init__(**kwargs)
 
 
 class Feedforward(Layer):
@@ -443,8 +443,8 @@ class Recurrent(Layer):
         logging.info('initializing recurrent layer %s: %s x %s',
                      self.name, self.nin, self.nout)
         self.weights = [
-            create_matrix(nin, nout, self._fmt('xh_{}')),
-            create_matrix(nout, nout, self._fmt('hh_{}'), **kwargs),
+            create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('hh_{}'), **kwargs),
         ]
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout * (1 + self.nin + self.nout)
@@ -540,10 +540,10 @@ class MRNN(Recurrent):
         logging.info('initializing mrnn layer %s: %s x %s [%s]',
                      self.name, self.nin, self.nout, self.factors)
         self.weights = [
-            create_matrix(nin, nout, self._fmt('xh_{}')),
-            create_matrix(nin, factors, self._fmt('xf_{}')),
-            create_matrix(nout, factors, self._fmt('hf_{}')),
-            create_matrix(factors, nout, self._fmt('fh_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
+            create_matrix(self.nin, self.factors, self._fmt('xf_{}')),
+            create_matrix(self.nout, self.factors, self._fmt('hf_{}')),
+            create_matrix(self.factors, self.nout, self._fmt('fh_{}')),
         ]
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
@@ -579,15 +579,15 @@ class LSTM(Recurrent):
             create_vector(self.nout, self._fmt('cf_{}')),
             create_vector(self.nout, self._fmt('co_{}')),
 
-            create_weights(self.nin, self.nout, self._fmt('xi_{}')),
-            create_weights(self.nin, self.nout, self._fmt('xf_{}')),
-            create_weights(self.nin, self.nout, self._fmt('xo_{}')),
-            create_weights(self.nin, self.nout, self._fmt('xc_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xi_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xf_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xo_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xc_{}')),
 
-            create_weights(self.nout, self.nout, self._fmt('hi_{}')),
-            create_weights(self.nout, self.nout, self._fmt('hf_{}')),
-            create_weights(self.nout, self.nout, self._fmt('ho_{}')),
-            create_weights(self.nout, self.nout, self._fmt('hc_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('hi_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('hf_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('ho_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('hc_{}')),
         ]
         self.biases = [
             create_vector(self.nout, self._fmt('bi_{}')),

@@ -128,18 +128,7 @@ class Network(object):
 
     Attributes
     ----------
-    weights : list of Theano shared variables
-        Theano shared variables containing network connection weights.
-
-    biases : list of Theano shared variables
-        Theano shared variables containing biases for hidden and output units.
-
-    hiddens : list of Theano variables
-        Computed Theano variables for the state of hidden units in the network.
-
-    preacts : list of Theano variables
-        Computed Theano variables representing the pre-activation inputs for
-        network units.
+    layers : list of :class:`theanets.Layer`
 
     kwargs : dict
         A dictionary containing the keyword arguments used to construct the
@@ -147,24 +136,10 @@ class Network(object):
     '''
 
     def __init__(self, **kwargs):
-        self.preacts = []
-        self.hiddens = []
-        self.weights = []
-        self.biases = []
+        self.layers = []
         self.updates = {}
         self.kwargs = kwargs
         self.rng = kwargs.get('rng') or RandomStreams()
-
-        self.hidden_activation = kwargs.get('hidden_activation', 'logistic')
-        self._hidden_func = self._build_activation(self.hidden_activation)
-        if hasattr(self._hidden_func, '__theanets_name__'):
-            logging.info('hidden activation: %s', self._hidden_func.__theanets_name__)
-
-        self.output_activation = kwargs.get('output_activation', 'linear')
-        self._output_func = self._build_activation(self.output_activation)
-        if hasattr(self._output_func, '__theanets_name__'):
-            logging.info('output activation: %s', self._output_func.__theanets_name__)
-
         self.inputs = list(self.setup_vars())
         self.setup_layers(**kwargs)
 
@@ -235,45 +210,6 @@ class Network(object):
         count += self.setup_decoder(**kwargs)
 
         logging.info('%d total network parameters', count)
-
-    def add_feedforward_layer(self, input, nin, nout, **kwargs):
-        '''Add a new feedforward layer to the network.
-
-        Parameters
-        ----------
-        input : theano variable
-            The theano variable that represents the inputs to this layer.
-        nin : int
-            The number of input units to this layer.
-        nout : int
-            The number of output units from this layer.
-        label : any, optional
-            The name of this layer, used for logging and as the theano variable
-            name suffix. Defaults to the index of this layer in the network.
-        noise : float, optional
-            Add zero-mean gaussian noise to the output activation of hidden
-            units. Defaults to 0 (no noise).
-        dropout : float, optional
-            Simulate "dropout" in this layer by setting the given fraction of
-            output activations randomly to zero. Defaults to 0 (no dropout).
-
-        Returns
-        -------
-        count : int
-            A count of the number of learnable parameters in this layer.
-        '''
-        label = kwargs.get('label') or len(self.hiddens)
-        W, nw = self.create_weights(nin, nout, label)
-        b, nb = self.create_bias(nout, label)
-        pre = TT.dot(input, W) + b
-        out = self._add_noise(self._hidden_func(pre),
-                              kwargs.get('noise', 0),
-                              kwargs.get('dropout', 0))
-        self.weights.append(W)
-        self.biases.append(b)
-        self.preacts.append(pre)
-        self.hiddens.append(out)
-        return nw + nb
 
     def setup_decoder(self, **kwargs):
         '''Set up the "decoding" computations from layer activations to output.
@@ -356,100 +292,7 @@ class Network(object):
         '''A tuple containing the layer configuration for this network.'''
         return self.kwargs['layers']
 
-    @staticmethod
-    def create_weights(a, b, suffix, **kwargs):
-        '''Create a layer of randomly-initialized weights.
-
-        Parameters
-        ----------
-        a : int
-            Number of rows of the weight matrix -- equivalently, the number of
-            "input" units that the weight matrix connects.
-        b : int
-            Number of columns of the weight matrix -- equivalently, the number
-            of "output" units that the weight matrix connects.
-        suffix : str
-            A string suffix to use in the Theano name for the created variables.
-            This string will be appended to 'W\_' to name the parameters that
-            are created and returned.
-        sparse : float in (0, 1), optional
-            If given, ensure that the given fraction of the weight matrix is
-            set to zero. Defaults to 0, meaning all weights are nonzero.
-        radius : float, optional
-            If given, rescale the initial weights to have this spectral radius.
-            No scaling is performed by default.
-
-        Returns
-        -------
-        weight : Theano shared array
-            A shared array containing Theano values representing the weights
-            connecting each "input" unit to each "output" unit.
-        count : int
-            The number of parameters that are included in the returned
-            variables.
-        '''
-        arr = np.random.randn(a, b) / np.sqrt(a + b)
-        sparse = kwargs.get('sparse')
-        if sparse and 0 < sparse < 1:
-            k = min(a, b)
-            mask = np.random.binomial(n=1, p=1 - sparse, size=(a, b)).astype(bool)
-            mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
-            arr *= mask
-        radius = kwargs.get('radius')
-        if radius:
-            # rescale weights to have the appropriate spectral radius.
-            u, s, vT = np.linalg.svd(arr)
-            arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)
-        weight = theano.shared(arr.astype(FLOAT), name='W_{}'.format(suffix))
-        logging.info('weights for layer %s: %s x %s', suffix, a, b)
-        return weight, a * b
-
-    @staticmethod
-    def create_bias(b, suffix):
-        '''Create a vector of bias values.
-
-        Parameters
-        ----------
-        b : int
-            Number of units of bias to create.
-        suffix : str
-            A string suffix to use in the Theano name for the created variables.
-            This string will be appended to 'b\_' to name the parameters that
-            are created and returned.
-
-        Returns
-        -------
-        bias : Theano shared array
-            A shared array containing Theano values representing the bias for a
-            set of computation units.
-        count : int
-            The number of parameters that are included in the returned
-            variables.
-        '''
-        arr = 1e-6 * np.random.randn(b)
-        bias = theano.shared(arr.astype(FLOAT), name='b_{}'.format(suffix))
-        return bias, b
-
     def _add_noise(self, x, sigma, rho):
-        '''Add noise and dropouts to elements of x as needed.
-
-        Parameters
-        ----------
-        x : Theano array
-            Input array to add noise and dropouts to.
-        sigma : float
-            Standard deviation of gaussian noise to add to x. If this is 0, then
-            no gaussian noise is added to the values of x.
-        rho : float, in [0, 1]
-            Fraction of elements of x to set randomly to 0. If this is 0, then
-            no elements of x are set randomly to 0. (This is also called
-            "masking noise" (for inputs) or "dropouts" (for hidden units).)
-
-        Returns
-        -------
-        Theano array
-            The parameter x, plus additional noise as specified.
-        '''
         if sigma > 0 and rho > 0:
             noise = self.rng.normal(size=x.shape, std=sigma, dtype=FLOAT)
             mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
@@ -466,56 +309,6 @@ class Network(object):
         if getattr(self, '_compute', None) is None:
             self._compute = theano.function(
                 [self.x], self.hiddens + [self.y], updates=self.updates)
-
-    def _build_activation(self, act=None):
-        '''Given an activation description, return a callable that implements it.
-
-        Parameters
-        ----------
-        activation : string
-            A string description of an activation function to use.
-
-        Returns
-        -------
-        callable(float) -> float :
-            A callable activation function.
-        '''
-        def compose(a, b):
-            c = lambda z: b(a(z))
-            c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
-            return c
-        if '+' in act:
-            return functools.reduce(
-                compose, (self._build_activation(a) for a in act.split('+')))
-        options = {
-            'tanh': TT.tanh,
-            'linear': lambda z: z,
-            'logistic': TT.nnet.sigmoid,
-            'sigmoid': TT.nnet.sigmoid,
-            'softplus': TT.nnet.softplus,
-            'softmax': softmax,
-
-            # shorthands
-            'relu': lambda z: z * (z > 0),
-            'trel': lambda z: z * (z > 0) * (z < 1),
-            'trec': lambda z: z * (z > 1),
-            'tlin': lambda z: z * (abs(z) > 1),
-
-            # modifiers
-            'rect:max': lambda z: TT.minimum(1, z),
-            'rect:min': lambda z: TT.maximum(0, z),
-
-            # normalization
-            'norm:dc': lambda z: (z.T - z.mean(axis=1)).T,
-            'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
-            'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
-            }
-        for k, v in options.items():
-            v.__theanets_name__ = k
-        try:
-            return options[act]
-        except KeyError:
-            raise KeyError('unknown activation %r' % act)
 
     def params(self, **kwargs):
         '''Get a list of the learnable theano parameters for this network.

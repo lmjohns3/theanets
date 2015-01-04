@@ -371,8 +371,8 @@ class Feedforward(Layer):
     def transform(self, *inputs):
         '''
         '''
-        assert len(inputs) == 1
-        return TT.dot(inputs[0], self.weights[0]) + self.biases[0]
+        assert len(inputs) == len(self.weights)
+        return sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0]
 
     def reset(self, **kwargs):
         '''Reset the state of this layer to a new initial condition.
@@ -383,10 +383,15 @@ class Feedforward(Layer):
             A count of the number of parameters in this layer.
         '''
         logging.info('initializing layer %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [create_matrix(
-            self.nin, self.nout, self._fmt('weights_{}'), **kwargs)]
+        nins = self.nin
+        if isinstance(nins, int):
+            nins = (nins, )
+        self.weights = [
+            create_matrix(
+                nin, self.nout, self._fmt('weights_{}{{}}'.format(nin)), **kwargs)
+            for nin in nins]
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
-        return self.nout * (self.nin + 1)
+        return self.nout * (sum(nins) + 1)
 
 
 class Tied(Feedforward):

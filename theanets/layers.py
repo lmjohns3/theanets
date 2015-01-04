@@ -420,7 +420,7 @@ class Recurrent(Layer):
         '''
         super(Recurrent).__init__(**kwargs)
         zeros = np.zeros((batch_size, self.nout), FLOAT)
-        self.h_0 = theano.shared(zeros, name=self._fmt('0_{}'))
+        self.h_0 = lambda: theano.shared(zeros, name=self._fmt('0_{}'))
 
     def reset(self, **kwargs):
         '''Add a new recurrent layer to the network.
@@ -450,31 +450,74 @@ class Recurrent(Layer):
         return self.nout * (1 + self.nin + self.nout)
 
     def transform(self, *inputs):
-        '''
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        output(s) : theano variable(s)
+            Theano variable(s) representing the output(s) from the scan.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-        return self.scan(self._fmt('rnn_{}'), fn, inputs[0])
+        return self._scan(self._fmt('rnn_{}'), fn, inputs[0])
 
     def output(self, *inputs):
-        '''
-        '''
-        clean, updates = self.transform(*inputs)
-        noisy = add_noise(clean, self.noise, self._rng)
-        return add_dropout(noisy, self.dropout, self._rng), updates
+        '''Create a theano variable representing the output of this layer.
 
-    def scan(self, name, fn, *inputs):
+        Parameters
+        ----------
+        inputs : theano variables
+            Inputs to transform.
+
+        Returns
+        -------
+        output : theano variable
+            Theano variable representing the output values from this layer.
+        updates : list of theano variables
+            A sequence of updates to apply inside a theano function.
         '''
+        rng = self.kwargs.get('rng') or RandomStreams()
+        noise = self.kwargs.get('noise', 0)
+        dropout = self.kwargs.get('dropout', 0)
+        clean, updates = self.transform(*inputs)
+        noisy = add_noise(clean, noise, rng)
+        return add_dropout(noisy, dropout, rng), updates
+
+    def _scan(self, name, fn, *inputs):
+        '''Helper method for defining a basic loop in theano.
+
+        Parameters
+        ----------
+        name : str
+            Name of the scan variable to create.
+        fn : callable
+            The callable to apply in the loop.
+        inputs : theano variables
+            Inputs to the scan operation.
+
+        Returns
+        -------
+        outputs : theano variables
+            Theano variables representing the outputs from the scan.
+        updates : list of theano variables
+            A sequence of updates to apply inside a theano function.
         '''
         return theano.scan(
             name=name, fn=fn, sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.h_0])
+            outputs_info=[self.h_0()])
 
 
 class MRNN(Recurrent):
-    '''Define recurrent network layers using multiplicative dynamics.
+    '''Define a recurrent network layer using multiplicative dynamics.
 
     The formulation of MRNN implemented here uses a factored dynamics matrix as
     described in Sutskever, Martens & Hinton, ICML 2011, "Generating text with
@@ -554,9 +597,10 @@ class LSTM(Recurrent):
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 
-    def transform(self, input):
+    def transform(self, *inputs):
         '''
         '''
+        assert len(inputs) == 1
         def fn(x_t, h_tm1, c_tm1,
                W_ci, W_cf, W_co,
                W_xi, W_xf, W_xo, W_xc,
@@ -571,7 +615,7 @@ class LSTM(Recurrent):
         (hid, _), updates = theano.scan(
             name=self._fmt('lstm_{}'),
             fn=fn,
-            sequences=[input],
+            sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.h_0, self.h_0])
+            outputs_info=[self.h_0(), self.h_0()])
         return hid, updates

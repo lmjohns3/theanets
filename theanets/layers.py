@@ -93,7 +93,27 @@ def create_vector(size, name):
     return theano.shared((1e-6 * np.random.randn(size)).astype(FLOAT), name=name)
 
 
+def softmax(x):
+    '''Compute the softmax of the rows of a matrix x.
+
+    Parameters
+    ----------
+    x : theano variable
+        A theano matrix. Each row represents one data point, and each column
+        represents one of the possible classes for the data points.
+
+    Returns
+    -------
+    y : theano variable
+        A theano expression computing the softmax of each row of `x`.
+    '''
+    # TT.nnet.softmax doesn't work with the HF trainer.
+    z = TT.exp(x.T - x.T.max(axis=0))
+    return (z / z.sum(axis=0)).T
+
+
 def create_activation(activation):
+
     '''Given an activation description, return a callable that implements it.
 
     Parameters

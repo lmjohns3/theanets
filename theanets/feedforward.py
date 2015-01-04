@@ -75,12 +75,6 @@ def load(filename, **kwargs):
     return net
 
 
-def softmax(x):
-    # TT.nnet.softmax doesn't work with the HF trainer.
-    z = TT.exp(x.T - x.T.max(axis=0))
-    return (z / z.sum(axis=0)).T
-
-
 class Network(object):
     '''The network class encapsulates a fully-connected feedforward net.
 

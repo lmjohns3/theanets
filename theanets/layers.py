@@ -322,26 +322,15 @@ class Layer(Base):
         '''
         return self.weights if exclude_bias else self.weights + self.biases
 
+    def get_weights(self):
+        '''
+        '''
+        return self.weights[0].get_value()
+
     def get_regularizers(self, **kwargs):
         '''
         '''
         return None
-
-    def get_monitors(self):
-        '''Get monitors for this layer.
-
-        Returns
-        -------
-        monitors : list of (name, theano expression) pairs
-            A list of pairs that represent quantities to monitor during
-            training. The first item in the pair is the name of the expression,
-            and the second is a theano expression for computing the monitor
-            value.
-        '''
-        return [
-            (self._fmt('{}<0.1'), 100 * (abs(self.output) < 0.1).mean()),
-            (self._fmt('{}<0.9'), 100 * (abs(self.output) < 0.9).mean()),
-        ]
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''

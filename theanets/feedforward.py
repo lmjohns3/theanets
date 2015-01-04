@@ -28,7 +28,6 @@ import numpy as np
 import pickle
 import theano
 import theano.tensor as TT
-import warnings
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
@@ -454,12 +453,6 @@ class Network(object):
             target.set_value(source)
         handle.close()
         logging.info('%s: loaded model parameters', filename)
-
-    def load(self, filename):
-        warnings.warn(
-            'please use Network.load_params instead of Network.load',
-            DeprecationWarning)
-        return self.load_params(filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
         '''Return a variable representing the regularized cost for this network.

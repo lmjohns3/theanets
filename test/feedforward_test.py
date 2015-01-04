@@ -19,9 +19,10 @@ class TestNetwork(util.MNIST):
     def test_feed_forward(self):
         net = self._build(15, 13)
         hs = net.feed_forward(self.images)
-        assert len(hs) == 2
-        assert hs[0].shape == (self.NUM_DIGITS, 15)
-        assert hs[1].shape == (self.NUM_DIGITS, 13)
+        assert len(hs) == 3
+        assert hs[0].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+        assert hs[1].shape == (self.NUM_DIGITS, 15)
+        assert hs[2].shape == (self.NUM_DIGITS, 13)
 
 
 class TestClassifier(util.MNIST):

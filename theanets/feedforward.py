@@ -134,7 +134,7 @@ class Network(object):
         self.layers = []
         self.kwargs = kwargs
         self.inputs = list(self.setup_vars())
-        self.setup_layers(**kwargs)
+        self.setup_layers()
 
     def setup_vars(self):
         '''Setup Theano variables required by our network.
@@ -155,7 +155,7 @@ class Network(object):
         self.x = TT.matrix('x')
         return [self.x]
 
-    def setup_layers(self, **kwargs):
+    def setup_layers(self):
         '''Set up a computation graph for our network.
 
         The default implementation constructs a series of feedforward
@@ -165,23 +165,6 @@ class Network(object):
 
         Subclasses may override this method to construct alternative network
         topologies.
-
-        Parameters
-        ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
-        decode_from : int, optional
-            Compute the activation of the output vector using the activations of
-            the last N hidden layers in the network. Defaults to 1, which
-            results in a traditional setup that decodes only from the
-            penultimate layer in the network.
         '''
         sizes = list(self.get_encoder_layers())
         rng = self.kwargs.get('rng') or RandomStreams()
@@ -189,9 +172,9 @@ class Network(object):
         # setup input layer.
         self.layers.append(layers.build('input', sizes.pop(0),
             rng=rng,
-            name='input',
-            dropout=kwargs.get('input_dropouts', 0),
-            noise=kwargs.get('input_noise', 0)))
+            name='in',
+            dropout=self.kwargs.get('input_dropouts', 0),
+            noise=self.kwargs.get('input_noise', 0)))
 
         # setup "encoder" layers.
         for nout in sizes:
@@ -199,17 +182,17 @@ class Network(object):
                 nin=self.layers[-1].nout,
                 nout=nout,
                 rng=rng,
-                name=len(self.layers),
-                noise=kwargs.get('hidden_noise', 0),
-                dropout=kwargs.get('hidden_dropouts', 0)))
+                name='hid{}'.format(len(self.layers)),
+                noise=self.kwargs.get('hidden_noise', 0),
+                dropout=self.kwargs.get('hidden_dropouts', 0)))
 
         # setup output layer.
-        self.setup_decoder(**kwargs)
+        self.setup_decoder()
 
         logging.info('%d total network parameters',
                      sum(l.reset() for l in self.layers))
 
-    def setup_decoder(self, **kwargs):
+    def setup_decoder(self):
         '''Set up the "decoding" computations from layer activations to output.
 
         The default decoder constructs a single weight matrix for each of the
@@ -227,18 +210,18 @@ class Network(object):
             results in a traditional setup that decodes only from the
             penultimate layer in the network.
         '''
-        sizes = kwargs['layers']
-        back = kwargs.get('decode_from', 1)
+        sizes = self.kwargs['layers']
+        back = self.kwargs.get('decode_from', 1)
         L = len(sizes) - 1
         ins = sizes[L - back:L]
         if back == 1:
             ins = ins[0]
-        act = self.get_output_activation(**kwargs)
-        kw = dict(nin=ins, nout=sizes[L], name='output', activation=act)
+        kw = dict(nin=ins, nout=sizes[L], name='out', activation=self.output_activation)
         self.layers.append(layers.build('feedforward', **kw))
 
-    def get_output_activation(self, **kwargs):
-        return kwargs.get('output_activation', 'linear')
+    @property
+    def output_activation(self):
+        return self.kwargs.get('output_activation', 'linear')
 
     def get_encoder_layers(self):
         '''Determine the layers that will be part of the network encoder.
@@ -504,7 +487,7 @@ class Autoencoder(Network):
         will be constructed using a separate weight matrix.
     '''
 
-    def setup_decoder(self, **kwargs):
+    def setup_decoder(self):
         '''Set up weights for the decoder layers of an autoencoder.
 
         This implementation allows for decoding weights to be tied to encoding
@@ -539,16 +522,16 @@ class Autoencoder(Network):
             A count of the number of tunable decoder parameters.
         '''
         if not self.tied_weights:
-            return super(Autoencoder, self).setup_decoder(**kwargs)
+            return super(Autoencoder, self).setup_decoder()
         kw = {}
-        kw.update(kwargs)
-        kw.update(noise=kwargs.get('hidden_noise', 0),
-                  dropout=kwargs.get('hidden_dropouts', 0))
+        kw.update(self.kwargs)
+        kw.update(noise=self.kwargs.get('hidden_noise', 0),
+                  dropout=self.kwargs.get('hidden_dropouts', 0))
         for i in range(len(self.layers) - 1, 0, -1):
             self.layers.append(layers.build('tied', self.layers[i], **kw))
         kw = {}
-        kw.update(kwargs)
-        kw.update(activation=kwargs.get('output_activation', 'linear'))
+        kw.update(self.kwargs)
+        kw.update(activation=self.output_activation)
         self.layers.append(layers.build('tied', self.layers[0], **kw))
 
     def get_encoder_layers(self):
@@ -686,7 +669,8 @@ class Classifier(Network):
 
         return [self.x, self.k]
 
-    def get_output_activation(self, **kwargs):
+    @property
+    def output_activation(self):
         return 'softmax'
 
     @property

@@ -421,6 +421,8 @@ class Recurrent(Layer):
         count : int
             The number of learnable parameters in this layer.
         '''
+        logging.info('initializing recurrent layer %s: %s x %s',
+                     self.name, self.nin, self.nout)
         self.weights = [
             create_matrix(nin, nout, self._fmt('xh_{}')),
             create_matrix(nout, nout, self._fmt('hh_{}'), **kwargs),
@@ -466,23 +468,15 @@ class MRNN(Recurrent):
         super(MRNN, self).__init__(**kwargs)
 
     def reset(self, **kwargs):
-        '''Add a new recurrent layer to the network.
-
-        Parameters
-        ----------
-        sparse : float in (0, 1), optional
-            If given, create sparse connections in the recurrent weight matrix,
-            such that this fraction of the weights is set to zero. By default,
-            this parameter is 0, meaning all recurrent  weights are nonzero.
-        radius : float, optional
-            If given, rescale the initial weights to have this spectral radius.
-            No scaling is performed by default.
+        '''Reset the weights and biases for this layer to random values.
 
         Returns
         -------
         count : int
             The number of learnable parameters in this layer.
         '''
+        logging.info('initializing mrnn layer %s: %s x %s [%s]',
+                     self.name, self.nin, self.nout, self.factors)
         self.weights = [
             create_matrix(nin, nout, self._fmt('xh_{}')),
             create_matrix(nin, factors, self._fmt('xf_{}')),
@@ -508,8 +502,15 @@ class LSTM(Recurrent):
     '''
 
     def reset(self, **kwargs):
+        '''Reset the weights and biases for this layer to random values.
+
+        Returns
+        -------
+        count : int
+            The number of learnable parameters in this layer.
         '''
-        '''
+        logging.info('initializing lstm layer %s: %s x %s',
+                     self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.
             create_vector(self.nout, self._fmt('ci_{}')),

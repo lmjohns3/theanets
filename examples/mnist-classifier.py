@@ -17,6 +17,6 @@ e = theanets.Experiment(
 )
 e.train(train, valid)
 
-plot_layers(e.network.weights[:-1])
+plot_layers([e.network.get_weights(1)])
 plt.tight_layout()
 plt.show()

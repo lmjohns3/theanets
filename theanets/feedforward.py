@@ -315,46 +315,101 @@ class Network(object):
             params.extend(layer.get_params(exclude_bias=exclude_bias))
         return params
 
-    def get_weights(self, layer, borrow=False):
+    def get_layer(self, which):
         '''Return the current weights for a given layer.
 
         Parameters
         ----------
-        layer : int
-            The layer of weights to return.
+        which : int or str
+            The layer of weights to return. If this is an integer, then 1 refers
+            to the "first" hidden layer, 2 to the "second", and so on. If it is
+            a string, the layer with the corresponding name, if any, will be
+            used.
+
+        Raises
+        ------
+        IndexError
+            If there is no such layer.
+
+        Returns
+        -------
+        layer : :class:`layers.Layer`
+            The layer in the network with this name or index.
+        '''
+        if isinstance(which, int):
+            return self.layers[which]
+        try:
+            return [l for l in self.layers if l.name == which][0]
+        except:
+            raise IndexError()
+
+    def get_weights(self, which, index=0, borrow=False):
+        '''Return the current weights for a given layer.
+
+        Parameters
+        ----------
+        which : int or str
+            The layer of weights to return. If this is an integer, then 1 refers
+            to the "first" hidden layer, 2 to the "second", and so on. If it is
+            a string, the layer with the corresponding name, if any, will be
+            used.
+        index : int, optional
+            Index of the weights to get from this layer. Most layers just have
+            one set of weights, so this defaults to 0. Recurrent layers might
+            have many sets, however, and the index will depend on the
+            implementation.
         borrow : bool, optional
             Whether to "borrow" the reference to the weights. If True, this
             returns a view onto the current weight array; if False (default), it
             returns a copy of the weight array.
 
+        Raises
+        ------
+        IndexError
+            If there is no such layer.
+
         Returns
         -------
         weights : ndarray
             The weight values, as a numpy array.
-        '''
-        return self.weights[layer].get_value(borrow=borrow)
 
-    def get_biases(self, layer, borrow=False):
+        '''
+        return self.get_layer(which).weights[index].get_value(borrow=borrow)
+
+    def get_bias(self, layer, index=0, borrow=False):
         '''Return the current bias vector for a given layer.
 
         Parameters
         ----------
-        layer : int
-            The layer of bias values to return.
+        which : int or str
+            The layer of weights to return. If this is an integer, then 1 refers
+            to the "first" hidden layer, 2 to the "second", and so on. If it is
+            a string, the layer with the corresponding name, if any, will be
+            used.
+        index : int, optional
+            Index of the bias values to get from this layer. Most layers just
+            have one set of bias values, so this defaults to 0. Recurrent layers
+            might have many sets, however, and the index will depend on the
+            implementation.
         borrow : bool, optional
             Whether to "borrow" the reference to the biases. If True, this
             returns a view onto the current bias vector; if False (default), it
             returns a copy of the biases.
+
+        Raises
+        ------
+        IndexError
+            If there is no such layer.
 
         Returns
         -------
         bias : ndarray
             The bias values, as a numpy vector.
         '''
-        return self.biases[layer].get_value(borrow=borrow)
+        return self.get_layer(which).biases[index].get_value(borrow=borrow)
 
     def feed_forward(self, x):
-        '''Compute a forward pass of all activations from the given input.
+        '''Compute a forward pass of all layers from the given input.
 
         Parameters
         ----------
@@ -369,7 +424,7 @@ class Network(object):
             The activation values of each layer in the the network when given
             input `x`. For each of the hidden layers, an array is returned
             containing one row per input example; the columns of each array
-            correspond to units in the respective layer. The output of the
+            correspond to units in the respective layer. The "output" of the
             network is the last element of this list.
         '''
         self._compile()
@@ -527,12 +582,12 @@ class Autoencoder(Network):
         kw.update(self.kwargs)
         kw.update(noise=self.kwargs.get('hidden_noise', 0),
                   dropout=self.kwargs.get('hidden_dropouts', 0))
-        for i in range(len(self.layers) - 1, 0, -1):
+        for i in range(len(self.layers) - 1, 1, -1):
             self.layers.append(layers.build('tied', self.layers[i], **kw))
         kw = {}
         kw.update(self.kwargs)
         kw.update(activation=self.output_activation)
-        self.layers.append(layers.build('tied', self.layers[0], **kw))
+        self.layers.append(layers.build('tied', self.layers[1], **kw))
 
     def get_encoder_layers(self):
         '''Compute the layers that will be part of the network encoder.

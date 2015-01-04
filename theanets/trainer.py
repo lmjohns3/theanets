@@ -50,7 +50,7 @@ import theano.tensor as TT
 import sys
 
 from . import feedforward
-from . import recurrent
+from . import layers
 
 logging = climate.get_logger(__name__)
 
@@ -582,9 +582,9 @@ class HF(Trainer):
         self.opt = hf.hf_optimizer(
             self.params,
             network.inputs,
-            network.y,
+            network.outputs[0],
             [network.J(**kwargs)] + [mon for _, mon in network.monitors],
-            network.hiddens[-1] if isinstance(network, recurrent.Network) else None)
+            None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
         kwargs['validation_frequency'] = kwargs.pop('validate', 1 << 60)
@@ -695,38 +695,32 @@ class Layerwise(Trainer):
         Generates a series of cost values as the network weights are tuned.
         '''
         net = self.network
-
-        y = net.y
-        hiddens = list(net.hiddens)
-        weights = list(net.weights)
-        biases = list(net.biases)
-
+        outact = net.output_activation
         tied = getattr(net, 'tied_weights', False)
-        nout = len(biases[-1].get_value(borrow=True))
-        nhids = [len(b.get_value(borrow=True)) for b in biases]
-        for i in range(1, len(weights) + 1 if tied else len(nhids)):
-            net.hiddens = hiddens[:i]
+        original = list(net.layers)
+        L = len(original)
+        if tied:
+            L //= 2
+        def addl(*args, **kwargs):
+            l = layers.build(*args, **kwargs)
+            l.reset()
+            net.layers.append(l)
+        for i in range(1, L):
+            logging.info('layerwise: training weights %s', net.layers[i].name)
+            net.layers = original[:i+1]
             if tied:
-                net.weights = [weights[i-1]]
-                net.biases = [biases[i-1]]
-                for j in range(i - 1, -1, -1):
-                    net.hiddens.append(TT.dot(net.hiddens[-1], weights[j].T))
-                net.y = net._output_func(net.hiddens.pop())
+                for j in range(i, 1, -1):
+                    addl('tied', partner=original[j], name='lw{}'.format(j))
+                addl('tied', partner=original[1], name='out', activation=outact)
             else:
-                W, _ = net.create_weights(nhids[i-1], nout, 'layerwise')
-                b, _ = net.create_bias(nout, 'layerwise')
-                net.weights = [weights[i-1], W]
-                net.biases = [biases[i-1], b]
-                net.y = net._output_func(TT.dot(hiddens[i-1], W) + b)
-            logging.info('layerwise: training weights %s', net.weights[0].name)
+                addl('feedforward',
+                     nin=original[i].nout,
+                     nout=original[-1].nout,
+                     activation=outact)
             trainer = self.factory(net, *self.args, **self.kwargs)
             for costs in trainer.train(train_set, valid_set):
                 yield costs
-
-        net.y = y
-        net.hiddens = hiddens
-        net.weights = weights
-        net.biases = biases
+        net.layers = original
 
 
 class UnsupervisedPretrainer(Trainer):

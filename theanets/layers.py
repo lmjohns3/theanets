@@ -280,6 +280,7 @@ class Layer(Base):
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
         self.weights = []
         self.biases = []
+        super(Layer, self).__init__()
 
     def output(self, *inputs):
         '''

@@ -23,13 +23,12 @@
 import climate
 import numpy as np
 import numpy.random as rng
-import theano
 import theano.tensor as TT
 
-#from theano.tensor.shared_randomstreams import RandomStreams
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import feedforward as ff
+from . import layers
 
 logging = climate.get_logger(__name__)
 
@@ -144,6 +143,41 @@ class Network(ff.Network):
         self.x = TT.tensor3('x')
 
         return [self.x]
+
+    def setup_layers(self):
+        sizes = list(self.get_encoder_layers())
+        rng = self.kwargs.get('rng') or RandomStreams()
+
+        # setup input layer.
+        self.layers.append(layers.build('input', sizes.pop(0),
+            rng=rng,
+            name='in',
+            dropout=self.kwargs.get('input_dropouts', 0),
+            noise=self.kwargs.get('input_noise', 0)))
+
+        # setup "encoder" layers.
+        kw = dict(
+        )
+        recurrent = set(self.kwargs.get('recurrent_layers', [len(sizes) // 2]))
+        for i, nout in enumerate(sizes):
+            self.layers.append(layers.build(
+                'recurrent' if i in recurrent else 'feedforward',
+                nin=self.layers[-1].nout,
+                nout=nout,
+                rng=rng,
+                name='rec{}'.format(len(self.layers)),
+                batch_size=self.kwargs.get('batch_size', 64),
+                sparse=self.kwargs.get('recurrent_sparsity', 0),
+                radius=self.kwargs.get('recurrent_radius', 0),
+                noise=self.kwargs.get('hidden_noise', 0),
+                dropout=self.kwargs.get('hidden_dropouts', 0),
+                factors=self.kwargs.get('mrnn_factors', 0)))
+
+        # setup output layer.
+        self.setup_decoder()
+
+        logging.info('%d total network parameters',
+                     sum(l.reset() for l in self.layers))
 
 
 class Autoencoder(Network, ff.Autoencoder):

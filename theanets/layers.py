@@ -253,23 +253,23 @@ class Layer(Base):
         '''
         '''
         Layer.count += 1
-        self._rng = kwargs.get('rng', RandomStreams())
+        self.kwargs = kwargs
         self.name = kwargs.get('name', 'l{}'.format(Layer.count))
         self.nin = kwargs['nin']
         self.nout = kwargs['nout']
-        self.noise = kwargs.get('noise', 0)
-        self.dropout = kwargs.get('dropout', 0)
-        self.activation = kwargs.get('activation', 'logistic')
-        self.activate = create_activation(self.activation)
+        self.activate = create_activation(kwargs.get('activation', 'logistic'))
         self.weights = []
         self.biases = []
 
     def output(self, *inputs):
         '''
         '''
+        rng = self.kwargs.get('rng') or RandomStreams()
+        noise = self.kwargs.get('noise', 0)
+        dropout = self.kwargs.get('dropout', 0)
         clean = self.activate(self.transform(*inputs))
-        noisy = add_noise(clean, self.noise, self._rng)
-        return add_dropout(noisy, self.dropout, self._rng)
+        noisy = add_noise(clean, noise, rng)
+        return add_dropout(noisy, dropout, rng)
 
     def transform(self, *inputs):
         '''
@@ -338,10 +338,10 @@ class Input(Layer):
     def __init__(self, size, **kwargs):
         '''
         '''
-        kw = {}
-        kw.update(**kwargs)
-        kw.update(dict(nin=0, nout=size, activation='linear'))
-        super(Layer, self).__init__(**kw)
+        kwargs['nin'] = 0
+        kwargs['nout'] = size
+        kwargs['activation'] = 'linear'
+        super(Layer, self).__init__(**kwargs)
 
 
 class Feedforward(Layer):
@@ -377,10 +377,9 @@ class Tied(Feedforward):
         '''
         '''
         self.partner = partner
-        kw = {}
-        kw.update(**kwargs)
-        kw.update(nin=partner.nout, nout=partner.nin)
-        super(Tied, self).__init__(**kw)
+        kwargs['nin'] = partner.nout
+        kwargs['nout'] = partner.nin
+        super(Tied, self).__init__(**kwargs)
 
     def transform(self, *inputs):
         assert len(inputs) == 1

@@ -416,6 +416,19 @@ class Tied(Feedforward):
         return self.nout
 
 
+class Classifier(Feedforward):
+    '''A classifier layer performs a softmax over a linear input transform.
+
+    Classifier layers are typically the "output" layer of a classifier network.
+    '''
+
+    def __init__(self, **kwargs):
+        '''
+        '''
+        kwargs['activation'] = 'softmax'
+        super(Classifier, self).__init__(**kwargs)
+
+
 class Recurrent(Layer):
     '''
     '''

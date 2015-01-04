@@ -423,7 +423,7 @@ class Recurrent(Layer):
     def __init__(self, batch_size=64, **kwargs):
         '''
         '''
-        super(Recurrent).__init__(**kwargs)
+        super(Recurrent, self).__init__(**kwargs)
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.h_0 = lambda: theano.shared(zeros, name=self._fmt('0_{}'))
 

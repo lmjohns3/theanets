@@ -371,7 +371,7 @@ class Feedforward(Layer):
         count : int
             A count of the number of parameters in this layer.
         '''
-        logging.info('initializing layer %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
@@ -458,8 +458,7 @@ class Recurrent(Layer):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing recurrent layer %s: %s x %s',
-                     self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
             create_matrix(self.nout, self.nout, self._fmt('hh_{}'), **kwargs),
@@ -555,7 +554,7 @@ class MRNN(Recurrent):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing mrnn layer %s: %s x %s [%s]',
+        logging.info('initializing mrnn %s: %s x %s [%s]',
                      self.name, self.nin, self.nout, self.factors)
         self.weights = [
             create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
@@ -589,7 +588,7 @@ class LSTM(Recurrent):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing lstm layer %s: %s x %s',
+        logging.info('initializing lstm %s: %s x %s',
                      self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.

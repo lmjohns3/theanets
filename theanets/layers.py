@@ -411,7 +411,7 @@ class Tied(Feedforward):
         return TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0]
 
     def reset(self, **kwargs):
-        logging.info('initializing layer %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('tied weights from %s: %s x %s', self.partner.name, self.nin, self.nout)
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout
 

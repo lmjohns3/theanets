@@ -206,6 +206,26 @@ def add_dropout(input, probability, rng):
     return input * rng.binomial(size=input.shape, n=1, p=1-probability, dtype=FLOAT)
 
 
+def build(layer, *args, **kwargs):
+    '''Construct a layer by name.
+
+    Parameters
+    ----------
+    layer : str
+        The name of the type of layer to build.
+    args : tuple
+        Positional arguments to pass to the layer constructor.
+    kwargs : dict
+        Named arguments to pass to the layer constructor.
+
+    Returns
+    -------
+    layer : :class:`Layer`
+        A neural network layer instance.
+    '''
+    return Layer.build(layer, *args, **kwargs)
+
+
 class Registrar(type):
     '''A metaclass that builds a registry of its subclasses.'''
 

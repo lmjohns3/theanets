@@ -24,9 +24,9 @@ class TestClassifier:
         l = theanets.layers.Classifier(nin=2, nout=4)
         assert l.reset() == 12
 
-class TestRecurrent:
+class TestRNN:
     def test_create(self):
-        l = theanets.layers.Recurrent(nin=2, nout=4)
+        l = theanets.layers.RNN(nin=2, nout=4)
         assert l.reset() == 28
 
 class TestMRNN:

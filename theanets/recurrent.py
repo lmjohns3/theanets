@@ -156,12 +156,11 @@ class Network(ff.Network):
             noise=self.kwargs.get('input_noise', 0)))
 
         # setup "encoder" layers.
-        kw = dict(
-        )
-        recurrent = set(self.kwargs.get('recurrent_layers', [len(sizes) // 2]))
+        rnn_layers = set(self.kwargs.get('recurrent_layers', [len(sizes) // 2]))
+        rnn_form = self.kwargs.get('recurrent_form', 'rnn')
         for i, nout in enumerate(sizes):
             self.layers.append(layers.build(
-                'recurrent' if i in recurrent else 'feedforward',
+                rnn_form if i in rnn_layers else 'feedforward',
                 nin=self.layers[-1].nout,
                 nout=nout,
                 rng=rng,

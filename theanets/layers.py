@@ -419,7 +419,7 @@ class Classifier(Feedforward):
         super(Classifier, self).__init__(**kwargs)
 
 
-class Recurrent(Layer):
+class RNN(Layer):
     '''A recurrent network layer incorporates some dependency on past values.
 
     In many respects, a recurrent network layer is much like a basic feedforward
@@ -437,7 +437,7 @@ class Recurrent(Layer):
     def __init__(self, batch_size=64, **kwargs):
         '''
         '''
-        super(Recurrent, self).__init__(**kwargs)
+        super(RNN, self).__init__(**kwargs)
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.h_0 = lambda: theano.shared(zeros, name=self._fmt('0_{}'))
 
@@ -534,7 +534,7 @@ class Recurrent(Layer):
             outputs_info=[self.h_0()])
 
 
-class MRNN(Recurrent):
+class MRNN(RNN):
     '''Define a recurrent network layer using multiplicative dynamics.
 
     The formulation of MRNN implemented here uses a factored dynamics matrix as
@@ -577,7 +577,7 @@ class MRNN(Recurrent):
 
 
 
-class LSTM(Recurrent):
+class LSTM(RNN):
     '''
     '''
 

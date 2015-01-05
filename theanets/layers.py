@@ -494,8 +494,8 @@ class Tied(Feedforward):
 
         Returns
         -------
-        outputs : theano variable(s)
-            Theano variable(s) representing the output(s) from the scan.
+        outputs : theano variable
+            Theano variable representing the output from this layer.
         updates : theano variables
             A sequence of updates to apply inside a theano function.
         '''

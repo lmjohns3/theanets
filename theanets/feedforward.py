@@ -279,24 +279,6 @@ class Network(object):
             yield '{}<0.1'.format(layer.name), 100 * (abs(output) < 0.1).mean()
             yield '{}<0.9'.format(layer.name), 100 * (abs(output) < 0.9).mean()
 
-    def _add_noise(self, x, sigma, rho):
-        if sigma > 0 and rho > 0:
-            noise = self.rng.normal(size=x.shape, std=sigma, dtype=FLOAT)
-            mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
-            return mask * (x + noise)
-        if sigma > 0:
-            return x + self.rng.normal(size=x.shape, std=sigma, dtype=FLOAT)
-        if rho > 0:
-            mask = self.rng.binomial(size=x.shape, n=1, p=1-rho, dtype=FLOAT)
-            return mask * x
-        return x
-
-    def _compile(self):
-        '''If needed, compile the Theano function for this network.'''
-        if getattr(self, '_compute', None) is None:
-            outputs, updates = self._connect()
-            self._compute = theano.function([self.x], outputs, updates=updates)
-
     def params(self, **kwargs):
         '''Get a list of the learnable theano parameters for this network.
 
@@ -427,7 +409,9 @@ class Network(object):
             correspond to units in the respective layer. The "output" of the
             network is the last element of this list.
         '''
-        self._compile()
+        if not hasattr(self, '_compute'):
+            outputs, updates = self._connect()
+            self._compute = theano.function([self.x], outputs, updates=updates)
         return self._compute(x)
 
     def predict(self, x):

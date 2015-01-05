@@ -310,7 +310,7 @@ class Network(object):
 
         Raises
         ------
-        IndexError
+        KeyError
             If there is no such layer.
 
         Returns
@@ -318,12 +318,12 @@ class Network(object):
         layer : :class:`layers.Layer`
             The layer in the network with this name or index.
         '''
-        if isinstance(which, int):
-            return self.layers[which]
         try:
+            if isinstance(which, int):
+                return self.layers[which]
             return [l for l in self.layers if l.name == which][0]
         except:
-            raise IndexError()
+            raise KeyError(which)
 
     def get_weights(self, which, index=0, borrow=False):
         '''Return the current weights for a given layer.
@@ -347,8 +347,10 @@ class Network(object):
 
         Raises
         ------
-        IndexError
+        KeyError
             If there is no such layer.
+        IndexError
+            If there is no such weight array in the given layer.
 
         Returns
         -------
@@ -380,8 +382,10 @@ class Network(object):
 
         Raises
         ------
-        IndexError
+        KeyError
             If there is no such layer.
+        IndexError
+            If there is no such bias vector in the given layer.
 
         Returns
         -------

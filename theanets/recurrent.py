@@ -164,7 +164,7 @@ class Network(ff.Network):
                 nin=self.layers[-1].nout,
                 nout=nout,
                 rng=rng,
-                name='rec{}'.format(len(self.layers)),
+                name='{}{}'.format(rnn_form, len(self.layers)),
                 batch_size=self.kwargs.get('batch_size', 64),
                 sparse=self.kwargs.get('recurrent_sparsity', 0),
                 radius=self.kwargs.get('recurrent_radius', 0),

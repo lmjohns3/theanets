@@ -638,8 +638,7 @@ class MRNN(RNN):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing mrnn %s: %s x %s [%s]',
-                     self.name, self.nin, self.nout, self.factors)
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
             create_matrix(self.nin, self.factors, self._fmt('xf_{}')),
@@ -684,8 +683,7 @@ class LSTM(RNN):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing lstm %s: %s x %s',
-                     self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.
             create_vector(self.nout, self._fmt('ci_{}')),

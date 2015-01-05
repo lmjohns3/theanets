@@ -16,7 +16,8 @@ class RICA(theanets.Autoencoder):
     def J(self, weight_inverse=0, **kwargs):
         cost = super(RICA, self).J(**kwargs)
         if weight_inverse > 0:
-            cost += sum((weight_inverse / (w * w).sum(axis=0)).sum() for w in self.weights)
+            cost += sum((weight_inverse / (w * w).sum(axis=0)).sum()
+                        for l in self.layers for w in l.weights)
         return cost
 
 
@@ -60,7 +61,7 @@ e.train(whiten(train), whiten(valid))
 
 # color the network weights so they are viewable as digits.
 plot_layers(
-    [color(e.network.weights[0].get_value().T).T],
+    [color(e.network.get_weights('hid1').T).T],
     tied_weights=True)
 plt.tight_layout()
 plt.show()

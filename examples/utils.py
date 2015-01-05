@@ -72,6 +72,9 @@ def plot_images(imgs, loc, title=None, channels=1):
         r, c = divmod(i, n)
         img[r * s:(r+1) * s, c * s:(c+1) * s] = pix.reshape((s, s, channels))
 
+    img -= img.min()
+    img /= img.max()
+
     ax = plt.gcf().add_subplot(loc)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)

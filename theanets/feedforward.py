@@ -504,18 +504,20 @@ class Network(object):
         J : theano variable
             A variable representing the regularized cost of this network.
         '''
+        outputs, _ = self._connect()
+        hiddens = outputs[1:-1]
         cost = self.cost
         if weight_l1 > 0:
-            cost += weight_l1 * sum(abs(w).sum() for w in self.weights)
+            cost += weight_l1 * sum(abs(w).sum() for l in self.layers for w in l.weights)
         if weight_l2 > 0:
-            cost += weight_l2 * sum((w * w).sum() for w in self.weights)
+            cost += weight_l2 * sum((w * w).sum() for l in self.layers for w in l.weights)
         if hidden_l1 > 0:
-            cost += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in self.hiddens)
+            cost += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in hiddens)
         if hidden_l2 > 0:
-            cost += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in self.hiddens)
+            cost += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in hiddens)
         if contractive_l2 > 0:
             cost += contractive_l2 * sum(
-                TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in self.hiddens)
+                TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in hiddens)
         return cost
 
 

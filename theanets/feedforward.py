@@ -445,12 +445,12 @@ class Network(object):
             path. If this name ends in ".gz" then the output will automatically
             be gzipped; otherwise the output will be a "raw" pickle.
         '''
+        state = dict(klass=self.__class__, kwargs=self.kwargs)
+        for layer in self.layers:
+            state['{}-values'.format(layer.name)] = layer.get_values()
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
-        pickle.dump(dict(
-            weights=[p.get_value().copy() for p in self.weights],
-            biases=[p.get_value().copy() for p in self.biases],
-            klass=self.__class__, kwargs=self.kwargs), handle, -1)
+        pickle.dump(state, handle, -1)
         handle.close()
         logging.info('%s: saved model parameters', filename)
 
@@ -467,13 +467,9 @@ class Network(object):
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
         saved = pickle.load(handle)
-        for target, source in zip(self.weights, saved['weights']):
-            logging.info('%s: setting value %s', target.name, source.shape)
-            target.set_value(source)
-        for target, source in zip(self.biases, saved['biases']):
-            logging.info('%s: setting value %s', target.name, source.shape)
-            target.set_value(source)
         handle.close()
+        for layer in self.layers:
+            layer.set_values(saved['{}-values'.format(layer.name)])
         logging.info('%s: loaded model parameters', filename)
 
     def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):

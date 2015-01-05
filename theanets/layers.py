@@ -323,15 +323,27 @@ class Layer(Base):
         '''
         return self.weights if exclude_bias else self.weights + self.biases
 
-    def get_weights(self):
-        '''
-        '''
-        return self.weights[0].get_value()
+    def get_values(self):
+        '''Get the values of the parameters in this layer.
 
-    def get_regularizers(self, **kwargs):
+        Returns
+        -------
+        values : list of ndarray
+            A list of numpy arrays, one for each parameter in the layer.
         '''
+        return [p.get_value() for p in self.get_params()]
+
+    def set_values(self, values):
+        '''Set the parameters in this layer to a set of values.
+
+        Parameters
+        ----------
+        values : list of ndarray
+            A list of numpy arrays to set each parameter to. This must contain
+            the same number of elements as the layer has parameters to set.
         '''
-        return None
+        for v, p in zip(values, self.get_params()):
+            p.set_value(v)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''

@@ -24,8 +24,7 @@ class TestExperiment(util.MNIST):
         assert isinstance(exp.network, theanets.Regressor)
 
     def test_save_load(self):
-        exp = theanets.Experiment(
-            theanets.Autoencoder, layers=(10, 3, 4, 10))
+        exp = theanets.Experiment(theanets.Autoencoder, layers=(10, 3, 4, 10))
         net = exp.network
         f, p = tempfile.mkstemp(suffix='pkl')
         os.close(f)
@@ -35,7 +34,11 @@ class TestExperiment(util.MNIST):
             assert os.path.isfile(p)
             exp.load(p)
             assert exp.network is not net
-            assert exp.network.layers == (10, 3, 4, 10)
+            assert exp.network.kwargs['layers'] == (10, 3, 4, 10)
+            for lo, ln in zip(net.layers, exp.network.layers):
+                assert lo.name == ln.name
+                assert lo.nin == ln.nin
+                assert lo.nout == ln.nout
         finally:
             if os.path.exists(p):
                 os.unlink(p)

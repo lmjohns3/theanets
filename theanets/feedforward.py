@@ -239,16 +239,23 @@ class Network(object):
         return self.kwargs['layers'][:-1]
 
     def _connect(self):
-        '''
+        '''Connect the layers in this network to form a computation graph.
+
+        Returns
+        -------
+        outputs : list of theano variables
+            A list of expressions giving the output of each layer in the graph.
+        updates : list of update tuples
+            A list of updates that should be performed by a theano function that
+            computes something using this graph.
         '''
         outputs = []
         updates = []
         for layer in self.layers:
-            out = layer.output(outputs[-1] if outputs else self.x)
-            if isinstance(out, tuple):
-                out, upd = out
-                updates.extend(upd)
+            inputs = outputs[-1] if outputs else self.x
+            out, upd = layer.output(inputs)
             outputs.append(out)
+            updates.extend(upd)
         return outputs, updates
 
     @property

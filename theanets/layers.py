@@ -258,23 +258,46 @@ class Layer(Base):
 
     Parameters
     ----------
-    nin : int
+    nin : int or tuple of int
+        Size of input vector(s) to this layer.
     nout : int
+        Size of output vector produced by this layer.
     name : str, optional
+        The name of this layer. If not given, layers will be numbered
+        sequentially based on the order in which they are created.
     rng : random number generator, optional
+        A theano random number generator to use for creating noise and dropout
+        values. If not provided, a new generator will be produced for this
+        layer.
     noise : positive float, optional
+        Add isotropic gaussian noise with the given standard deviation to the
+        output of this layer. Defaults to 0, which does not add any noise to the
+        output.
     dropout : float in (0, 1), optional
+        Set the given fraction of outputs in this layer randomly to zero.
+        Defaults to 0, which does not drop out any units.
     activation : str, optional
+        The name of an activation function to use for units in this layer. See
+        :func:`build_activation`.
+
+    Attributes
+    ----------
+    kwargs : dict
+        Keyword arguments that were used when constructing this layer.
+    activate : callable
+        The activation function to use on this layer's output units.
+    weights : list of theano shared variables
+        A list of weight matrix(ces) for this layer.
+    biases : list of theano shared variables
+        A list of bias vector(s) for this layer.
     '''
 
     count = 0
 
     def __init__(self, **kwargs):
-        '''
-        '''
         Layer.count += 1
         self.kwargs = kwargs
-        self.name = kwargs.get('name', 'l{}'.format(Layer.count))
+        self.name = kwargs.get('name', 'layer{}'.format(Layer.count))
         self.nin = kwargs['nin']
         self.nout = kwargs['nout']
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
@@ -283,19 +306,45 @@ class Layer(Base):
         super(Layer, self).__init__()
 
     def output(self, *inputs):
-        '''
+        '''Create theano variables representing the output of this layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            Symbolic inputs to this layer. Usually layers have only one input,
+            but layers in general are allowed to have many inputs.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano expression giving the output of this layer.
+        updates : sequence of update tuples
+            Updates that should be performed by a theano function that computes
+            something using this layer.
         '''
         rng = self.kwargs.get('rng') or RandomStreams()
         noise = self.kwargs.get('noise', 0)
         dropout = self.kwargs.get('dropout', 0)
-        clean = self.activate(self.transform(*inputs))
-        noisy = add_noise(clean, noise, rng)
-        return add_dropout(noisy, dropout, rng)
+        clean, updates = self.transform(*inputs)
+        noisy = add_noise(self.activate(clean), noise, rng)
+        return add_dropout(noisy, dropout, rng), updates
 
     def transform(self, *inputs):
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from this layer's transform.
+        updates : sequence of update tuples
+            A sequence of updates to apply inside a theano function.
         '''
-        '''
-        return inputs[0]
+        return inputs[0], ()
 
     def reset(self, **kwargs):
         '''Reset the state of this layer to a new initial condition.
@@ -358,8 +407,6 @@ class Input(Layer):
     '''
 
     def __init__(self, size, **kwargs):
-        '''
-        '''
         kwargs['nin'] = 0
         kwargs['nout'] = size
         kwargs['activation'] = 'linear'
@@ -367,14 +414,32 @@ class Input(Layer):
 
 
 class Feedforward(Layer):
-    '''
+    '''A feedforward neural network layer performs a transform of its input.
+
+    More precisely, feedforward layers as implemented here perform a weighted
+    (affine) transformation of their input, followed by a potentially nonlinear
+    "activation" function performed on the transformed input. Feedforward layers
+    are the fundamental building block on which most neural network models are
+    built.
     '''
 
     def transform(self, *inputs):
-        '''
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from this layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == len(self.weights)
-        return sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0]
+        return sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0], ()
 
     def reset(self, **kwargs):
         '''Reset the state of this layer to a new initial condition.
@@ -397,22 +462,54 @@ class Feedforward(Layer):
 
 
 class Tied(Feedforward):
-    '''
+    '''A tied-weights feedforward layer shadows weights from another layer.
+
+    Tied weights are typically featured in some types of autoencoder models
+    (e.g., PCA). A layer with tied weights requires a "partner" layer -- the
+    tied layer borrows the weights from its partner and uses the transpose of
+    them to perform its feedforward mapping. Thus, tied layers do not have their
+    own weights. On the other hand, tied layers do have their own bias values,
+    but these can be fixed to zero during learning to simulate networks with no
+    bias (e.g., PCA on mean-centered data).
+
+    Attributes
+    ----------
+    partner : :class:`Layer`
+        The "partner" layer to which this layer is tied.
     '''
 
     def __init__(self, partner, **kwargs):
-        '''
-        '''
         self.partner = partner
         kwargs['nin'] = partner.nout
         kwargs['nout'] = partner.nin
         super(Tied, self).__init__(**kwargs)
 
     def transform(self, *inputs):
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable(s)
+            Theano variable(s) representing the output(s) from the scan.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
+        '''
         assert len(inputs) == 1
-        return TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0]
+        return TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0], ()
 
     def reset(self, **kwargs):
+        '''Reset the state of this layer to a new initial condition.
+
+        Returns
+        -------
+        count : int
+            A count of the number of parameters in this layer.
+        '''
         logging.info('tied weights from %s: %s x %s', self.partner.name, self.nin, self.nout)
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout
@@ -425,8 +522,6 @@ class Classifier(Feedforward):
     '''
 
     def __init__(self, **kwargs):
-        '''
-        '''
         kwargs['activation'] = 'softmax'
         super(Classifier, self).__init__(**kwargs)
 
@@ -447,14 +542,12 @@ class RNN(Layer):
     '''
 
     def __init__(self, batch_size=64, **kwargs):
-        '''
-        '''
         super(RNN, self).__init__(**kwargs)
         zeros = np.zeros((batch_size, self.nout), FLOAT)
-        self.h_0 = lambda: theano.shared(zeros, name=self._fmt('0_{}'))
+        self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0_{{}}'.format(s)))
 
     def reset(self, **kwargs):
-        '''Add a new recurrent layer to the network.
+        '''Reset the state of this layer to a new initial condition.
 
         Parameters
         ----------
@@ -489,8 +582,8 @@ class RNN(Layer):
 
         Returns
         -------
-        output(s) : theano variable(s)
-            Theano variable(s) representing the output(s) from the scan.
+        outputs : theano variable
+            Theano variable representing the output from the layer.
         updates : theano variables
             A sequence of updates to apply inside a theano function.
         '''
@@ -498,28 +591,6 @@ class RNN(Layer):
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
         return self._scan(self._fmt('rnn_{}'), fn, inputs[0])
-
-    def output(self, *inputs):
-        '''Create a theano variable representing the output of this layer.
-
-        Parameters
-        ----------
-        inputs : theano variables
-            Inputs to transform.
-
-        Returns
-        -------
-        output : theano variable
-            Theano variable representing the output values from this layer.
-        updates : list of theano variables
-            A sequence of updates to apply inside a theano function.
-        '''
-        rng = self.kwargs.get('rng') or RandomStreams()
-        noise = self.kwargs.get('noise', 0)
-        dropout = self.kwargs.get('dropout', 0)
-        clean, updates = self.transform(*inputs)
-        noisy = add_noise(clean, noise, rng)
-        return add_dropout(noisy, dropout, rng), updates
 
     def _scan(self, name, fn, *inputs):
         '''Helper method for defining a basic loop in theano.
@@ -543,7 +614,7 @@ class RNN(Layer):
         return theano.scan(
             name=name, fn=fn, sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.h_0()])
+            outputs_info=[self.zeros()])
 
 
 class MRNN(RNN):
@@ -579,13 +650,25 @@ class MRNN(RNN):
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
 
     def transform(self, *inputs):
-        '''
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from the layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
         def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
             f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
             return self.activate(TT.dot(x_t, W_xh) + b_h + f_t)
-        return self.scan(self._fmt('mrnn_{}'), fn, inputs[0])
+        return self._scan(self._fmt('mrnn_{}'), fn, inputs[0])
 
 
 
@@ -628,7 +711,19 @@ class LSTM(RNN):
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 
     def transform(self, *inputs):
-        '''
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from the layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
         def fn(x_t, h_tm1, c_tm1,
@@ -642,10 +737,10 @@ class LSTM(RNN):
             o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) + TT.dot(h_tm1, W_ho) + c_t * W_co + b_o)
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
-        (hid, _), updates = theano.scan(
+        outputs, updates = theano.scan(
             name=self._fmt('lstm_{}'),
             fn=fn,
             sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.h_0(), self.h_0()])
-        return hid, updates
+            outputs_info=[self.zeros(), self.zeros('c')])
+        return outputs[0], updates

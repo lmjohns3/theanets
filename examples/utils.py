@@ -30,9 +30,9 @@ def load_mnist(labels=False):
     def arr(n, dtype):
         arr = mnist.arrays[n]
         return arr.reshape((len(arr), -1)).astype(dtype)
-    train_images = arr('train_images', np.float32) / 255
+    train_images = arr('train_images', np.float32) / 128 - 1
     train_labels = arr('train_labels', np.uint8)
-    test_images = arr('test_images', np.float32) / 255
+    test_images = arr('test_images', np.float32) / 128 - 1
     test_labels = arr('test_labels', np.uint8)
     if labels:
         return ((train_images[:50000], train_labels[:50000, 0]),
@@ -44,7 +44,7 @@ def load_mnist(labels=False):
 def load_cifar(labels=False):
     cifar = skdata.cifar10.dataset.CIFAR10()
     cifar.meta  # trigger download if needed.
-    pixels = cifar._pixels.astype(np.float32).reshape((len(cifar._pixels), -1)) / 255
+    pixels = cifar._pixels.astype(np.float32).reshape((len(cifar._pixels), -1)) / 128 - 1
     if labels:
         labels = cifar._labels.astype(np.uint8)
         return ((pixels[:40000], labels[:40000, 0]),

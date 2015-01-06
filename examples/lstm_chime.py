@@ -70,7 +70,7 @@ e = theanets.Experiment(
     hidden_activation='tanh',
     input_noise=0.5,
     batch_size=BATCH_SIZE,
-    train_batches=BATCH_SIZE)
+    train_batches=nbatch_train)
 
 def get_batch(V, variable, batch, dim, seqlen=SEQLEN, batch_size=BATCH_SIZE):
     '''

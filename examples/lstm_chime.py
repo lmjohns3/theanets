@@ -55,15 +55,15 @@ def get_batch(V, variable, batch, dim, seqlen=SEQLEN, batch_size=BATCH_SIZE):
         
         :parameters:
         - V : scipy.io.netcdf_file.variables object
-		netcdf file variables
-	    - variable : string
-		variable name in the netcdf file
+        netcdf file variables
+        - variable : string
+        variable name in the netcdf file
         - batch : int
-		which batch to use 
-	    - dim : int
-		feature dimension
-	    - seqlen : int
-		sequence length
+        which batch to use 
+        - dim : int
+        feature dimension
+        - seqlen : int
+        sequence length
         - batch_size : int
         Mini-batch size
         

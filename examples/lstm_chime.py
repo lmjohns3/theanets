@@ -9,19 +9,21 @@ import scipy.io
 climate.enable_default_logging()
 logging = climate.get_logger(__name__)
 
+# do fixed segments for now (warning: not corresponding to real utterances!)
 SEQLEN = 100
 BATCH_SIZE = 50
 
 BATCH_STEP = BATCH_SIZE * SEQLEN
 
+# get these files from the repository at https://github.com/craffel/lstm_benchmarks
 TRAIN_NC = '../data/train_1_speaker.nc'
 VAL_NC = '../data/val_1_speaker.nc'
 
 
-with open(TRAIN_NC, 'r') as ftr:
-    train_data = scipy.io.netcdf_file(ftr)
-with open(VAL_NC, 'r') as fvl:
-    val_data = scipy.io.netcdf_file(fvl)
+with open(TRAIN_NC, 'r') as f:
+    train_data = scipy.io.netcdf_file(f)
+with open(VAL_NC, 'r') as f:
+    val_data = scipy.io.netcdf_file(f)
 
 trainV = train_data.variables
 trainD = train_data.dimensions
@@ -33,9 +35,9 @@ nbatch_train = np.int_(np.floor(trainD['numTimesteps']/BATCH_STEP))
 nbatch_val = np.int_(np.floor(valD['numTimesteps']/BATCH_STEP))
 
 XDIM = trainD['inputPattSize']
-numClasses = trainD['numLabels']
+NCLASS = trainD['numLabels']
 
-
+# simple lstm with one hidden layer (for now)
 e = theanets.Experiment(
     theanets.recurrent.Classifier,
     layers=(39, 78, 51),
@@ -92,7 +94,6 @@ def generate():
     t = get_batch(trainV,'targetClasses',i,1)
     return [s, t]
 
-# take only first batch from validation data
 X_vals=np.zeros((nbatch_val, SEQLEN, BATCH_SIZE, XDIM), dtype='f')
 y_vals=np.zeros((nbatch_val, SEQLEN, BATCH_SIZE ), dtype='int32')
 
@@ -105,8 +106,9 @@ for i in range(nbatch_val):
 [tr_x,tr_y]= generate()
 
 logging.info('train data each batch: %s -> %s', tr_x.shape, tr_y.shape)
-logging.info('validation data batches: %s -> %s', X_vals.shape, y_vals.shape)
+logging.info('validation data all batches: %s -> %s', X_vals.shape, y_vals.shape)
 
+# evaluate on the first batch of validation data only (for now)
 e.train(generate, (X_vals[0], y_vals[0]), momentum=0.99)
 #e.train(generate, momentum=0.99)
 

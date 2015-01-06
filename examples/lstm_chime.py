@@ -19,7 +19,6 @@ BATCH_STEP = BATCH_SIZE * SEQLEN
 TRAIN_NC = '../data/train_1_speaker.nc'
 VAL_NC = '../data/val_1_speaker.nc'
 
-
 with open(TRAIN_NC, 'r') as f:
     train_data = scipy.io.netcdf_file(f)
 with open(VAL_NC, 'r') as f:
@@ -47,7 +46,6 @@ e = theanets.Experiment(
     hidden_activation='tanh',
     input_noise=0.5,
     batch_size=BATCH_SIZE)
-
 
 def get_batch(V, variable, batch, dim, seqlen=SEQLEN, batch_size=BATCH_SIZE):
     '''
@@ -88,6 +86,8 @@ def get_batch(V, variable, batch, dim, seqlen=SEQLEN, batch_size=BATCH_SIZE):
                     X_batch[t, n] = V[variable].data[batch*(batch_size*seqlen)+n*seqlen+t].astype('int32')
     return X_batch
 
+# each time, we go to the file and read it from there. I want this to be generalizable to larger size files
+# which may not fit in the memory, so I avoid reading the whole file at once
 def generate():
     i = np.random.choice(nbatch_train)
     s = get_batch(trainV,'inputs',i,XDIM)

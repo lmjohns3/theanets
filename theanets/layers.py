@@ -240,12 +240,7 @@ class Registrar(type):
         return cls._registry[key.lower()](*args, **kwargs)
 
 # py2k and py3k have different metaclass syntax. :-/
-#if sys.version_info.major <= 2:
-class Base(object):
-    __metaclass__ = Registrar
-#else:
-#    class Base(metaclass=Registrar):
-#        pass
+Base = Registrar(str('Base'), (), {})
 
 
 class Layer(Base):

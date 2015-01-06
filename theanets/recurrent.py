@@ -251,6 +251,6 @@ class Classifier(Network, ff.Classifier):
         super(Classifier, self).setup_vars()
 
         # for a classifier, k specifies the correct labels for a given input.
-        self.k = TT.ivector('k')
+        self.k = TT.imatrix('k')
 
         return [self.x, self.k]

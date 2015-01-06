@@ -724,13 +724,15 @@ class Classifier(Network):
     @property
     def cost(self):
         '''Returns a theano computation of cross entropy.'''
-        idx = TT.arange(self.k.shape[0])
-        return -TT.mean(TT.log(self.outputs[-1])[idx, self.k])
+        idx = TT.arange(TT.prod(self.k.shape))
+        out=self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
+        return -TT.mean(TT.log(TT.reshape(out,(TT.prod(out.shape[:-1]),-1))[idx, self.k.flatten(1)]))
 
     @property
     def accuracy(self):
         '''Returns a theano computation of percent correct classifications.'''
-        return 100 * TT.mean(TT.eq(TT.argmax(self.outputs[-1], axis=1), self.k))
+        out=self.outputs[-1]
+        return 100 * TT.mean(TT.eq(TT.argmax(TT.reshape(out,(TT.prod(out.shape[:-1]),-1)),axis=-1), self.k.flatten(1)))
 
     @property
     def monitors(self):

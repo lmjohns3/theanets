@@ -23,14 +23,17 @@
 import climate
 import numpy as np
 import numpy.random as rng
+import theano
 import theano.tensor as TT
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-from . import feedforward as ff
+from . import feedforward
 from . import layers
 
 logging = climate.get_logger(__name__)
+
+FLOAT = theano.config.floatX
 
 
 def batches(samples, labels=None, steps=100, batch_size=64):
@@ -58,14 +61,14 @@ def batches(samples, labels=None, steps=100, batch_size=64):
         network.
     '''
     def unlabeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), ff.FLOAT)
+        xs = np.zeros((steps, batch_size, samples.shape[1]), FLOAT)
         for i in range(batch_size):
             j = rng.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
         return [xs]
     def labeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), ff.FLOAT)
-        ys = np.zeros((steps, batch_size, labels.shape[1]), ff.FLOAT)
+        xs = np.zeros((steps, batch_size, samples.shape[1]), FLOAT)
+        ys = np.zeros((steps, batch_size, labels.shape[1]), FLOAT)
         for i in range(batch_size):
             j = rng.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
@@ -74,7 +77,7 @@ def batches(samples, labels=None, steps=100, batch_size=64):
     return unlabeled_sample if labels is None else labeled_sample
 
 
-class Network(ff.Network):
+class Network(feedforward.Network):
     '''A fully connected recurrent network with one input and one output layer.
 
     Parameters
@@ -179,7 +182,7 @@ class Network(ff.Network):
                      sum(l.reset() for l in self.layers))
 
 
-class Autoencoder(Network, ff.Autoencoder):
+class Autoencoder(Network, feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
 
@@ -218,7 +221,7 @@ class Predictor(Autoencoder):
         return y
 
 
-class Regressor(Network, ff.Regressor):
+class Regressor(Network, feedforward.Regressor):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
@@ -237,7 +240,7 @@ class Regressor(Network, ff.Regressor):
         return [self.x, self.targets]
 
 
-class Classifier(Network, ff.Classifier):
+class Classifier(Network, feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
 
     def setup_vars(self):

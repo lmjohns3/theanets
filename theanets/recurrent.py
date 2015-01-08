@@ -231,10 +231,10 @@ class Regressor(Network, ff.Regressor):
         '''
         super(Regressor, self).setup_vars()
 
-        # for a regressor, k specifies the correct outputs for a given input.
-        self.k = TT.tensor3('k')
+        # for a regressor, this specifies the correct outputs for a given input.
+        self.targets = TT.tensor3('targets')
 
-        return [self.x, self.k]
+        return [self.x, self.targets]
 
 
 class Classifier(Network, ff.Classifier):
@@ -250,7 +250,7 @@ class Classifier(Network, ff.Classifier):
         '''
         super(Classifier, self).setup_vars()
 
-        # for a classifier, k specifies the correct labels for a given input.
-        self.k = TT.imatrix('k')
+        # for a classifier, this specifies the correct labels for a given input.
+        self.labels = TT.imatrix('labels')
 
-        return [self.x, self.k]
+        return [self.x, self.labels]

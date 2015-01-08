@@ -687,15 +687,15 @@ class Regressor(Network):
         '''
         super(Regressor, self).setup_vars()
 
-        # the k variable holds the target output for input x.
-        self.k = TT.matrix('k')
+        # this variable holds the target outputs for input x.
+        self.targets = TT.matrix('targets')
 
-        return [self.x, self.k]
+        return [self.x, self.targets]
 
     @property
     def cost(self):
         '''Returns a theano expression for computing the mean squared error.'''
-        err = self.outputs[-1] - self.k
+        err = self.outputs[-1] - self.targets
         return TT.mean((err * err).sum(axis=1))
 
 
@@ -712,10 +712,10 @@ class Classifier(Network):
         '''
         super(Classifier, self).setup_vars()
 
-        # for a classifier, k specifies the correct labels for a given input.
-        self.k = TT.ivector('k')
+        # for a classifier, this specifies the correct labels for a given input.
+        self.labels = TT.ivector('labels')
 
-        return [self.x, self.k]
+        return [self.x, self.labels]
 
     @property
     def output_activation(self):
@@ -724,15 +724,17 @@ class Classifier(Network):
     @property
     def cost(self):
         '''Returns a theano computation of cross entropy.'''
-        idx = TT.arange(TT.prod(self.k.shape))
-        out=self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
-        return -TT.mean(TT.log(TT.reshape(out,(TT.prod(out.shape[:-1]),-1))[idx, self.k.flatten(1)]))
+        out = self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
+        idx = TT.arange(TT.prod(self.labels.shape))
+        probs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
+        return -TT.mean(TT.log(probs[idx, self.labels.flatten(1)]))
 
     @property
     def accuracy(self):
         '''Returns a theano computation of percent correct classifications.'''
-        out=self.outputs[-1]
-        return 100 * TT.mean(TT.eq(TT.argmax(TT.reshape(out,(TT.prod(out.shape[:-1]),-1)),axis=-1), self.k.flatten(1)))
+        out = self.outputs[-1]
+        probs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
+        return 100 * TT.mean(TT.eq(TT.argmax(probs, axis=-1), self.labels.flatten(1)))
 
     @property
     def monitors(self):

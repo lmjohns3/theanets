@@ -118,12 +118,14 @@ g.add_argument('--preconditioner', action='store_true',
 
 g = climate.add_arg_group('Recurrent Nets')
 g.add_argument('--recurrent-error-start', type=int, default=3, metavar='T',
-               help='compute network error starting at time T')
+               help='compute recurrent network error starting at time T')
 g.add_argument('--recurrent-form', default='rnn', metavar='[rnn|mrnn|lstm]',
                help='create recurrent layers with this form')
-g.add_argument('--recurrent-radius', type=float, default=1.1, metavar='R',
-               help='create recurrent weights with spectral radius R')
-g.add_argument('--recurrent-sparsity', type=float, default=0, metavar='R',
-               help='create recurrent weights with fraction R 0s')
+g.add_argument('--recurrent-layers', type=int, nargs='+', default=(), metavar='I',
+               help='make layer #I a recurrent layer')
+g.add_argument('--rnn-radius', type=float, default=1.1, metavar='R',
+               help='create rnn layer weights with spectral radius R')
+g.add_argument('--rnn-sparsity', type=float, default=0, metavar='R',
+               help='create rnn layer weights with R fraction of zeros')
 g.add_argument('--mrnn-factors', type=int, default=0, metavar='N',
                help='use N factors for hidden connection tensor')

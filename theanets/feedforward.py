@@ -202,8 +202,8 @@ class Network(object):
                 dropout=self.kwargs.get('hidden_dropouts', 0),
                 batch_size=self.kwargs.get('batch_size', 64),
                 factors=self.kwargs.get('mrnn_factors', 0),
-                radius=self.kwargs.get('recurrent_radius', 0),
-                sparse=self.kwargs.get('recurrent_sparsity', 0),
+                radius=self.kwargs.get('rnn_radius', 0),
+                sparse=self.kwargs.get('rnn_sparsity', 0),
             )
 
             # if size is a tuple, assume that it's the name of a class for the

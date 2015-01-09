@@ -32,9 +32,6 @@ class TestTrainer(util.MNIST):
     def test_adadelta(self):
         self.assert_progress('adadelta', learning_rate=1e-4)
 
-    def test_hf(self):
-        self.assert_progress('hf', num_updates=3)
-
     def test_cg(self):
         self.assert_progress('cg')
 

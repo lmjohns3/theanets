@@ -147,40 +147,6 @@ class Network(feedforward.Network):
 
         return [self.x]
 
-    def setup_layers(self):
-        sizes = list(self.encode_layers)
-        rng = self.kwargs.get('rng') or RandomStreams()
-
-        # setup input layer.
-        self.layers.append(layers.build('input', sizes.pop(0),
-            rng=rng,
-            name='in',
-            dropout=self.kwargs.get('input_dropouts', 0),
-            noise=self.kwargs.get('input_noise', 0)))
-
-        # setup "encoder" layers.
-        rnn_layers = set(self.kwargs.get('recurrent_layers', [len(sizes) // 2]))
-        rnn_form = self.kwargs.get('recurrent_form', 'rnn')
-        for i, nout in enumerate(sizes):
-            self.layers.append(layers.build(
-                rnn_form if i in rnn_layers else 'feedforward',
-                nin=self.layers[-1].nout,
-                nout=nout,
-                rng=rng,
-                name='{}{}'.format(rnn_form, len(self.layers)),
-                batch_size=self.kwargs.get('batch_size', 64),
-                sparse=self.kwargs.get('recurrent_sparsity', 0),
-                radius=self.kwargs.get('recurrent_radius', 0),
-                noise=self.kwargs.get('hidden_noise', 0),
-                dropout=self.kwargs.get('hidden_dropouts', 0),
-                factors=self.kwargs.get('mrnn_factors', 0)))
-
-        # setup output layer.
-        self.setup_decoder()
-
-        logging.info('%d total network parameters',
-                     sum(l.reset() for l in self.layers))
-
 
 class Autoencoder(Network, feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.

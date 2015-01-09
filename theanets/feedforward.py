@@ -166,8 +166,13 @@ class Network(object):
         Subclasses may override this method to construct alternative network
         topologies.
         '''
+        if 'layers' not in self.kwargs:
+            return
+
         sizes = list(self.encode_layers)
         rng = self.kwargs.get('rng') or RandomStreams()
+        rnn_layers = set(self.kwargs.get('recurrent_layers', ()))
+        rnn_form = self.kwargs.get('recurrent_form', 'rnn').lower()
 
         # setup input layer.
         self.layers.append(layers.build('input', sizes.pop(0),
@@ -177,14 +182,46 @@ class Network(object):
             noise=self.kwargs.get('input_noise', 0)))
 
         # setup "encoder" layers.
-        for nout in sizes:
-            self.layers.append(layers.build('feedforward',
+        for i, size in enumerate(sizes):
+            # if size is a Layer instance, just add it and move on.
+            if isinstance(size, layers.Layer):
+                self.layers.append(size)
+                continue
+
+            # by default, size is assumed to be a lowly integer, giving the
+            # number of units in the layer. here we construct a suitable layer
+            # by building up keyword arguments.
+            klass = rnn_form if i in rnn_layers else 'feedforward'
+            name = rnn_form if i in rnn_layers else 'hid'
+            kwargs = dict(
                 nin=self.layers[-1].nout,
-                nout=nout,
+                nout=size,
                 rng=rng,
-                name='hid{}'.format(len(self.layers)),
+                name='{}{}'.format(name, len(self.layers)),
                 noise=self.kwargs.get('hidden_noise', 0),
-                dropout=self.kwargs.get('hidden_dropouts', 0)))
+                dropout=self.kwargs.get('hidden_dropouts', 0),
+                batch_size=self.kwargs.get('batch_size', 64),
+                factors=self.kwargs.get('mrnn_factors', 0),
+                radius=self.kwargs.get('recurrent_radius', 0),
+                sparse=self.kwargs.get('recurrent_sparsity', 0),
+            )
+
+            # if size is a tuple, assume that it's the name of a class for the
+            # layer, as well as some keyword arguments, which we use to override
+            # our default keyword arguments above.
+            if isinstance(size, tuple):
+                klass, kw = size
+                kwargs.update(kw)
+
+            # if size is a dictionary, try to extract a class name for the
+            # layer, and override our default keyword arguments with the rest.
+            if isinstance(size, dict):
+                for c in 'cls class klass'.split():
+                    if c in size:
+                        klass = size.pop(c)
+                kwargs.update(size)
+
+            self.layers.append(layers.build(klass, **kwargs))
 
         # setup output layer.
         self.setup_decoder()

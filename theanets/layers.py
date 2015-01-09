@@ -239,7 +239,6 @@ class Registrar(type):
     def build(cls, key, *args, **kwargs):
         return cls._registry[key.lower()](*args, **kwargs)
 
-# py2k and py3k have different metaclass syntax. :-/
 Base = Registrar(str('Base'), (), {})
 
 

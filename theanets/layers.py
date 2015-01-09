@@ -34,7 +34,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def create_matrix(nin, nout, name, sparse=0, radius=0):
+def create_matrix(nin, nout, name, sparsity=0, radius=0):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
@@ -47,7 +47,7 @@ def create_matrix(nin, nout, name, sparse=0, radius=0):
         of "output" units that the weight matrix connects.
     name : str
         A string to use as the theano name for the created variable.
-    sparse : float in (0, 1), optional
+    sparsity : float in (0, 1), optional
         If given, ensure that the given fraction of the weight matrix is
         set to zero. Defaults to 0, meaning all weights are nonzero.
     radius : float, optional
@@ -62,9 +62,9 @@ def create_matrix(nin, nout, name, sparse=0, radius=0):
         in a layer.
     '''
     arr = np.random.randn(nin, nout) / np.sqrt(nin + nout)
-    if 0 < sparse < 1:
+    if 0 < sparsity < 1:
         k = min(nin, nout)
-        mask = np.random.binomial(n=1, p=1 - sparse, size=(nin, nout)).astype(bool)
+        mask = np.random.binomial(n=1, p=1 - sparsity, size=(nin, nout)).astype(bool)
         mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
         arr *= mask
     if radius:
@@ -273,6 +273,10 @@ class Layer(Base):
     activation : str, optional
         The name of an activation function to use for units in this layer. See
         :func:`build_activation`.
+    sparsity : float in (0, 1), optional
+        If given, create sparse connections in the layer's weight matrix, such
+        that this fraction of the weights is set to zero. By default, this
+        parameter is 0, meaning all weights are nonzero.
 
     Attributes
     ----------

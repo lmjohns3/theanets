@@ -24,6 +24,14 @@ class TestNetwork(util.MNIST):
         assert hs[1].shape == (self.NUM_DIGITS, 15)
         assert hs[2].shape == (self.NUM_DIGITS, 13)
 
+    def test_decode_from(self):
+        net = self._build(13, 14, 15, decode_from=2)
+        hs = net.feed_forward(self.images)
+        assert len(hs) == 4
+        assert hs[0].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+        assert hs[1].shape == (self.NUM_DIGITS, 13)
+        assert hs[2].shape == (self.NUM_DIGITS, 14)
+        assert hs[3].shape == (self.NUM_DIGITS, 15)
 
 class TestClassifier(util.MNIST):
     def _build(self, *hiddens, **kwargs):

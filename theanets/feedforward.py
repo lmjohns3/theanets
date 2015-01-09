@@ -252,9 +252,17 @@ class Network(object):
         '''
         outputs = []
         updates = []
-        for layer in self.layers:
-            inputs = outputs[-1] if outputs else self.x
-            out, upd = layer.output(inputs)
+        for i, layer in enumerate(self.layers):
+            if i == 0:
+                # input to first layer is data.
+                inputs = (self.x, )
+            elif i == len(self.layers) - 1:
+                # inputs to last layer is output of layers to decode.
+                inputs = outputs[-self.kwargs.get('decode_from', 1):]
+            else:
+                # inputs to other layers are outputs of previous layer.
+                inputs = outputs[-1:]
+            out, upd = layer.output(*inputs)
             outputs.append(out)
             updates.extend(upd)
         return outputs, updates

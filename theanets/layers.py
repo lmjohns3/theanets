@@ -398,6 +398,44 @@ class Layer(Base):
             string = '{}_' + string
         return string.format(self.name)
 
+    def _new_weights(self, nin=None, nout=None, name='weights'):
+        '''Helper method to create a new weight matrix.
+
+        Parameters
+        ----------
+        nin : int, optional
+            Size of "input" for this weight matrix. Defaults to self.nin.
+        nout : int, optional
+            Size of "output" for this weight matrix. Defaults to self.nout.
+        name : str, optional
+            Name of theano shared variable. Defaults to self.name + "_weights".
+
+        Returns
+        -------
+        matrix : theano shared variable
+            A shared variable containing a newly initialized weight matrix.
+        '''
+        return create_matrix(
+            nin or self.nin,
+            nout or self.nout,
+            name=self._fmt(name),
+            sparsity=self.kwargs.get('sparsity', 0))
+
+    def _new_bias(self, name='bias'):
+        '''Helper method to create a new bias vector.
+
+        Parameters
+        ----------
+        name : str, optional
+            Name of theano shared variable. Defaults to self.name + "_bias".
+
+        Returns
+        -------
+        vector : theano shared variable
+            A shared variable containing a newly initialized bias vector.
+        '''
+        return create_vector(self.nout, self._fmt(name))
+
 
 class Input(Layer):
     '''The input of a network is a special type of layer with no parameters.
@@ -453,10 +491,8 @@ class Feedforward(Layer):
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
-        self.weights = [
-            create_matrix(nin, self.nout, self._fmt('weights_{}'.format(nin)))
-            for nin in nins]
-        self.biases = [create_vector(self.nout, self._fmt('bias'))]
+        self.weights = [self._new_weights(nin, 'weights_{}'.format(nin)) for nin in nins]
+        self.biases = [self._new_bias()]
         return self.nout * (sum(nins) + 1)
 
 
@@ -510,7 +546,7 @@ class Tied(Feedforward):
             A count of the number of parameters in this layer.
         '''
         logging.info('tied weights from %s: %s x %s', self.partner.name, self.nin, self.nout)
-        self.biases = [create_vector(self.nout, self._fmt('bias'))]
+        self.biases = [self._new_bias()]
         return self.nout
 
 
@@ -554,11 +590,8 @@ class RNN(Layer):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [
-            create_matrix(self.nin, self.nout, self._fmt('xh')),
-            create_matrix(self.nout, self.nout, self._fmt('hh')),
-        ]
-        self.biases = [create_vector(self.nout, self._fmt('bias'))]
+        self.weights = [self._new_weights('xh'), self._new_weights('hh')]
+        self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin + self.nout)
 
     def transform(self, *inputs):
@@ -580,6 +613,32 @@ class RNN(Layer):
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
         return self._scan(self._fmt('rnn'), fn, inputs[0])
+
+    def _new_weights(self, nin=None, nout=None, name='weights'):
+        '''Helper method to create a new weight matrix.
+
+        Parameters
+        ----------
+        nin : int, optional
+            Size of "input" for this weight matrix. Defaults to self.nin.
+        nout : int, optional
+            Size of "output" for this weight matrix. Defaults to self.nout.
+        name : str, optional
+            Name of theano shared variable. Defaults to self.name + "_weights".
+
+        Returns
+        -------
+        matrix : theano shared variable
+            A shared variable containing a newly initialized weight matrix.
+        '''
+        nin = nin or self.nin
+        nout = nout or self.nout
+        return create_matrix(
+            nin,
+            nout,
+            name=self._fmt(name),
+            radius=self.kwargs.get('radius', 0) if nin == nout else 0,
+            sparsity=self.kwargs.get('sparsity', 0))
 
     def _scan(self, name, fn, *inputs):
         '''Helper method for defining a basic loop in theano.
@@ -629,12 +688,12 @@ class MRNN(RNN):
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
-            create_matrix(self.nin, self.nout, self._fmt('xh')),
-            create_matrix(self.nin, self.factors, self._fmt('xf')),
-            create_matrix(self.nout, self.factors, self._fmt('hf')),
-            create_matrix(self.factors, self.nout, self._fmt('fh')),
+            self._new_weights(self.nin, self.nout, 'xh'),
+            self._new_weights(self.nin, self.factors, 'xf'),
+            self._new_weights(self.nout, self.factors, 'hf'),
+            self._new_weights(self.factors, self.nout, 'fh'),
         ]
-        self.biases = [create_vector(self.nout, self._fmt('bias'))]
+        self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
 
     def transform(self, *inputs):
@@ -675,25 +734,25 @@ class LSTM(RNN):
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.
-            create_vector(self.nout, self._fmt('ci')),
-            create_vector(self.nout, self._fmt('cf')),
-            create_vector(self.nout, self._fmt('co')),
+            self._new_bias('ci'),
+            self._new_bias('cf'),
+            self._new_bias('co'),
 
-            create_matrix(self.nin, self.nout, self._fmt('xi')),
-            create_matrix(self.nin, self.nout, self._fmt('xf')),
-            create_matrix(self.nin, self.nout, self._fmt('xo')),
-            create_matrix(self.nin, self.nout, self._fmt('xc')),
+            self._new_weights('xi'),
+            self._new_weights('xf'),
+            self._new_weights('xo'),
+            self._new_weights('xc'),
 
-            create_matrix(self.nout, self.nout, self._fmt('hi')),
-            create_matrix(self.nout, self.nout, self._fmt('hf')),
-            create_matrix(self.nout, self.nout, self._fmt('ho')),
-            create_matrix(self.nout, self.nout, self._fmt('hc')),
+            self._new_weights(nin=self.nout, name='hi'),
+            self._new_weights(nin=self.nout, name='hf'),
+            self._new_weights(nin=self.nout, name='ho'),
+            self._new_weights(nin=self.nout, name='hc'),
         ]
         self.biases = [
-            create_vector(self.nout, self._fmt('bi')),
-            create_vector(self.nout, self._fmt('bf')),
-            create_vector(self.nout, self._fmt('bo')),
-            create_vector(self.nout, self._fmt('bc')),
+            self._new_bias('bi'),
+            self._new_bias('bf'),
+            self._new_bias('bo'),
+            self._new_bias('bc'),
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 

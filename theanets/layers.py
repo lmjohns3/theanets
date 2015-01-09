@@ -344,7 +344,7 @@ class Layer(Base):
         '''
         return inputs[0], ()
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the state of this layer to a new initial condition.
 
         Returns
@@ -439,7 +439,7 @@ class Feedforward(Layer):
         assert len(inputs) == len(self.weights)
         return sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0], ()
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the state of this layer to a new initial condition.
 
         Returns
@@ -452,8 +452,7 @@ class Feedforward(Layer):
         if isinstance(nins, int):
             nins = (nins, )
         self.weights = [
-            create_matrix(
-                nin, self.nout, self._fmt('weights_{}{{}}'.format(nin)), **kwargs)
+            create_matrix(nin, self.nout, self._fmt('weights_{}{{}}'.format(nin)))
             for nin in nins]
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout * (sum(nins) + 1)
@@ -500,7 +499,7 @@ class Tied(Feedforward):
         assert len(inputs) == 1
         return TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0], ()
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the state of this layer to a new initial condition.
 
         Returns
@@ -544,18 +543,8 @@ class RNN(Layer):
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0_{{}}'.format(s)))
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the state of this layer to a new initial condition.
-
-        Parameters
-        ----------
-        sparse : float in (0, 1), optional
-            If given, create sparse connections in the recurrent weight matrix,
-            such that this fraction of the weights is set to zero. By default,
-            this parameter is 0, meaning all recurrent  weights are nonzero.
-        radius : float, optional
-            If given, rescale the initial weights to have this spectral radius.
-            No scaling is performed by default.
 
         Returns
         -------
@@ -565,7 +554,7 @@ class RNN(Layer):
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
-            create_matrix(self.nout, self.nout, self._fmt('hh_{}'), **kwargs),
+            create_matrix(self.nout, self.nout, self._fmt('hh_{}')),
         ]
         self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
         return self.nout * (1 + self.nin + self.nout)
@@ -628,7 +617,7 @@ class MRNN(RNN):
         self.factors = factors or int(np.ceil(np.sqrt(kwargs['nout'])))
         super(MRNN, self).__init__(**kwargs)
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the weights and biases for this layer to random values.
 
         Returns
@@ -673,7 +662,7 @@ class LSTM(RNN):
     '''
     '''
 
-    def reset(self, **kwargs):
+    def reset(self):
         '''Reset the weights and biases for this layer to random values.
 
         Returns

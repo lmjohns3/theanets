@@ -94,7 +94,7 @@ def create_vector(size, name):
 
 
 def softmax(x):
-    '''Compute the softmax of the rows of a matrix x.
+    '''Compute the softmax of the rows of a matrix.
 
     Parameters
     ----------

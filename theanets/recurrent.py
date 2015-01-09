@@ -148,7 +148,7 @@ class Network(feedforward.Network):
         return [self.x]
 
     def setup_layers(self):
-        sizes = list(self.get_encoder_layers())
+        sizes = list(self.encode_layers)
         rng = self.kwargs.get('rng') or RandomStreams()
 
         # setup input layer.

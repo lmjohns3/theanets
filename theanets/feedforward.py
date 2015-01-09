@@ -166,7 +166,7 @@ class Network(object):
         Subclasses may override this method to construct alternative network
         topologies.
         '''
-        sizes = list(self.get_encoder_layers())
+        sizes = list(self.encode_layers)
         rng = self.kwargs.get('rng') or RandomStreams()
 
         # setup input layer.
@@ -223,7 +223,8 @@ class Network(object):
     def output_activation(self):
         return self.kwargs.get('output_activation', 'linear')
 
-    def get_encoder_layers(self):
+    @property
+    def encode_layers(self):
         '''Determine the layers that will be part of the network encoder.
 
         This method is used by the default implementation of
@@ -582,7 +583,8 @@ class Autoencoder(Network):
         kw.update(activation=self.output_activation)
         self.layers.append(layers.build('tied', self.layers[1], **kw))
 
-    def get_encoder_layers(self):
+    @property
+    def encode_layers(self):
         '''Compute the layers that will be part of the network encoder.
 
         This implementation ensures that --layers is compatible with
@@ -597,7 +599,7 @@ class Autoencoder(Network):
             A list of integers specifying sizes of the encoder network layers.
         '''
         if not self.tied_weights:
-            return super(Autoencoder, self).get_encoder_layers()
+            return super(Autoencoder, self).encode_layers
         error = 'with --tied-weights, --layers must be an odd-length palindrome'
         sizes = self.kwargs['layers']
         assert len(sizes) % 2 == 1, error

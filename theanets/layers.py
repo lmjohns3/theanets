@@ -491,7 +491,7 @@ class Feedforward(Layer):
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
-        self.weights = [self._new_weights(nin, 'weights_{}'.format(nin)) for nin in nins]
+        self.weights = [self._new_weights(nin=n, name='weights_{}'.format(n)) for n in nins]
         self.biases = [self._new_bias()]
         return self.nout * (sum(nins) + 1)
 
@@ -590,7 +590,7 @@ class RNN(Layer):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights('xh'), self._new_weights('hh')]
+        self.weights = [self._new_weights(name='xh'), self._new_weights(name='hh')]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin + self.nout)
 
@@ -734,14 +734,14 @@ class LSTM(RNN):
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.
-            self._new_bias('ci'),
-            self._new_bias('cf'),
-            self._new_bias('co'),
+            self._new_bias(name='ci'),
+            self._new_bias(name='cf'),
+            self._new_bias(name='co'),
 
-            self._new_weights('xi'),
-            self._new_weights('xf'),
-            self._new_weights('xo'),
-            self._new_weights('xc'),
+            self._new_weights(name='xi'),
+            self._new_weights(name='xf'),
+            self._new_weights(name='xo'),
+            self._new_weights(name='xc'),
 
             self._new_weights(nin=self.nout, name='hi'),
             self._new_weights(nin=self.nout, name='hf'),
@@ -749,10 +749,10 @@ class LSTM(RNN):
             self._new_weights(nin=self.nout, name='hc'),
         ]
         self.biases = [
-            self._new_bias('bi'),
-            self._new_bias('bf'),
-            self._new_bias('bo'),
-            self._new_bias('bc'),
+            self._new_bias(name='bi'),
+            self._new_bias(name='bf'),
+            self._new_bias(name='bo'),
+            self._new_bias(name='bc'),
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 

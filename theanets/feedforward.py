@@ -209,6 +209,7 @@ class Network(object):
                 for el in spec:
                     if isinstance(el, str):
                         form = el
+                        kwargs['name'] = '{}{}'.format(form, len(self.layers))
                     if isinstance(el, int):
                         kwargs['nout'] = el
 

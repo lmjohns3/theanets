@@ -52,10 +52,8 @@ def batches(dataset):
 
 e = theanets.Experiment(
     theanets.recurrent.Classifier,
-    layers=(39, 500, 51),
-    recurrent_layers=(0, 1),
+    layers=(39, ('lstm', 100), ('lstm', 200), ('lstm', 78), 51),
     recurrent_error_start=0,
-    recurrent_form='LSTM',
     output_activation='softmax',
     hidden_activation='tanh',
     batch_size=BATCH_SIZE,

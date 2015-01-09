@@ -31,12 +31,13 @@ transparent GPU computations. Some things it does:
 - Relatively easy to extend
 
 At present there are no RBMs, convolutions, or maxout in ``theanets`` -- for
-those, you might want to look at Morb_ or pylearn2_. There are many other neural
-networks toolkits out there as well; see `this stackoverflow question`_ for a
-few additional pointers.
+those, you might want to look at Morb_, Lasagne_, or pylearn2_. There are many
+other neural networks toolkits out there as well; see `this stackoverflow
+question`_ for a few additional pointers.
 
 .. _Theano: http://deeplearning.net/software/theano/
 .. _Morb: https://github.com/benanne/morb
+.. _Lasagne: https://github.com/benanne/Lasagne
 .. _pylearn2: http://deeplearning.net/software/pylearn2
 .. _this stackoverflow question: http://stackoverflow.com/questions/11477145/open-source-neural-network-library
 

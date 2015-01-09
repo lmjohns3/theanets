@@ -14,7 +14,7 @@ BATCH_SIZE = 32
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(1, 10, 1),
+    layers=(1, ('rnn', 10), 1),
     recurrent_error_start=TIME - BITS,
     batch_size=BATCH_SIZE)
 

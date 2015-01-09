@@ -169,35 +169,29 @@ class Network(object):
         if 'layers' not in self.kwargs:
             return
 
-        sizes = list(self.encode_layers)
+        specs = list(self.encode_layers)
         rng = self.kwargs.get('rng') or RandomStreams()
-        rnn_layers = set(self.kwargs.get('recurrent_layers', ()))
-        rnn_form = self.kwargs.get('recurrent_form', 'rnn').lower()
 
         # setup input layer.
-        self.layers.append(layers.build('input', sizes.pop(0),
+        self.layers.append(layers.build('input', specs.pop(0),
             rng=rng,
             name='in',
             dropout=self.kwargs.get('input_dropouts', 0),
             noise=self.kwargs.get('input_noise', 0)))
 
         # setup "encoder" layers.
-        for i, size in enumerate(sizes):
-            # if size is a Layer instance, just add it and move on.
-            if isinstance(size, layers.Layer):
-                self.layers.append(size)
+        for i, spec in enumerate(specs):
+            # if spec is a Layer instance, just add it and move on.
+            if isinstance(spec, layers.Layer):
+                self.layers.append(spec)
                 continue
 
-            # by default, size is assumed to be a lowly integer, giving the
-            # number of units in the layer. here we construct a suitable layer
-            # by building up keyword arguments.
-            klass = rnn_form if i in rnn_layers else 'feedforward'
-            name = rnn_form if i in rnn_layers else 'hid'
+            # here we set up some defaults for constructing a new layer.
+            form = 'feedforward'
             kwargs = dict(
                 nin=self.layers[-1].nout,
-                nout=size,
                 rng=rng,
-                name='{}{}'.format(name, len(self.layers)),
+                name='hid{}'.format(len(self.layers)),
                 noise=self.kwargs.get('hidden_noise', 0),
                 dropout=self.kwargs.get('hidden_dropouts', 0),
                 batch_size=self.kwargs.get('batch_size', 64),
@@ -206,22 +200,32 @@ class Network(object):
                 sparse=self.kwargs.get('rnn_sparsity', 0),
             )
 
-            # if size is a tuple, assume that it's the name of a class for the
-            # layer, as well as some keyword arguments, which we use to override
-            # our default keyword arguments above.
-            if isinstance(size, tuple):
-                klass, kw = size
-                kwargs.update(kw)
+            # by default, spec is assumed to be a lowly integer, giving the
+            # number of units in the layer.
+            if isinstance(spec, int):
+                kwargs['nout'] = spec
 
-            # if size is a dictionary, try to extract a class name for the
+            # if spec is a tuple, assume that it contains one or more of the following:
+            # - the name of a class for the layer (str)
+            # - the number of units in the layer (int)
+            if isinstance(spec, (tuple, list)):
+                for el in spec:
+                    if isinstance(el, str):
+                        form = el
+                    if isinstance(el, int):
+                        kwargs['nout'] = el
+
+            # if spec is a dictionary, try to extract a form and size for the
             # layer, and override our default keyword arguments with the rest.
-            if isinstance(size, dict):
-                for c in 'cls class klass'.split():
-                    if c in size:
-                        klass = size.pop(c)
-                kwargs.update(size)
+            if isinstance(spec, dict):
+                if 'form' in spec:
+                    form = spec['form'].lower()
+                    kwargs['name'] = '{}{}'.format(form, len(self.layers))
+                if 'size' in spec:
+                    kwargs['nout'] = spec['size']
+                kwargs.update(spec)
 
-            self.layers.append(layers.build(klass, **kwargs))
+            self.layers.append(layers.build(form, **kwargs))
 
         # setup output layer.
         self.setup_decoder()
@@ -247,14 +251,14 @@ class Network(object):
             results in a traditional setup that decodes only from the
             penultimate layer in the network.
         '''
-        sizes = self.kwargs['layers']
+        sizes = [l.nout for l in self.layers]
         back = self.kwargs.get('decode_from', 1)
-        L = len(sizes) - 1
-        ins = sizes[L - back:L]
-        if back == 1:
-            ins = ins[0]
-        kw = dict(nin=ins, nout=sizes[L], name='out', activation=self.output_activation)
-        self.layers.append(layers.build('feedforward', **kw))
+        self.layers.append(layers.build(
+            'feedforward',
+            name='out',
+            nin=sizes[-1] if back <= 1 else sizes[-back:],
+            nout=self.kwargs['layers'][-1],
+            activation=self.output_activation))
 
     @property
     def output_activation(self):

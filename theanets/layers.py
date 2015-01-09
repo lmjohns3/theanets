@@ -394,6 +394,8 @@ class Layer(Base):
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
+        if '{' not in string:
+            string = '{}_' + string
         return string.format(self.name)
 
 
@@ -452,9 +454,9 @@ class Feedforward(Layer):
         if isinstance(nins, int):
             nins = (nins, )
         self.weights = [
-            create_matrix(nin, self.nout, self._fmt('weights_{}{{}}'.format(nin)))
+            create_matrix(nin, self.nout, self._fmt('weights_{}'.format(nin)))
             for nin in nins]
-        self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
+        self.biases = [create_vector(self.nout, self._fmt('bias'))]
         return self.nout * (sum(nins) + 1)
 
 
@@ -508,7 +510,7 @@ class Tied(Feedforward):
             A count of the number of parameters in this layer.
         '''
         logging.info('tied weights from %s: %s x %s', self.partner.name, self.nin, self.nout)
-        self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
+        self.biases = [create_vector(self.nout, self._fmt('bias'))]
         return self.nout
 
 
@@ -541,7 +543,7 @@ class RNN(Layer):
     def __init__(self, batch_size=64, **kwargs):
         super(RNN, self).__init__(**kwargs)
         zeros = np.zeros((batch_size, self.nout), FLOAT)
-        self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0_{{}}'.format(s)))
+        self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -553,10 +555,10 @@ class RNN(Layer):
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
-            create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
-            create_matrix(self.nout, self.nout, self._fmt('hh_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xh')),
+            create_matrix(self.nout, self.nout, self._fmt('hh')),
         ]
-        self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
+        self.biases = [create_vector(self.nout, self._fmt('bias'))]
         return self.nout * (1 + self.nin + self.nout)
 
     def transform(self, *inputs):
@@ -577,7 +579,7 @@ class RNN(Layer):
         assert len(inputs) == 1
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-        return self._scan(self._fmt('rnn_{}'), fn, inputs[0])
+        return self._scan(self._fmt('rnn'), fn, inputs[0])
 
     def _scan(self, name, fn, *inputs):
         '''Helper method for defining a basic loop in theano.
@@ -627,12 +629,12 @@ class MRNN(RNN):
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
-            create_matrix(self.nin, self.nout, self._fmt('xh_{}')),
-            create_matrix(self.nin, self.factors, self._fmt('xf_{}')),
-            create_matrix(self.nout, self.factors, self._fmt('hf_{}')),
-            create_matrix(self.factors, self.nout, self._fmt('fh_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xh')),
+            create_matrix(self.nin, self.factors, self._fmt('xf')),
+            create_matrix(self.nout, self.factors, self._fmt('hf')),
+            create_matrix(self.factors, self.nout, self._fmt('fh')),
         ]
-        self.biases = [create_vector(self.nout, self._fmt('bias_{}'))]
+        self.biases = [create_vector(self.nout, self._fmt('bias'))]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
 
     def transform(self, *inputs):
@@ -654,7 +656,7 @@ class MRNN(RNN):
         def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
             f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
             return self.activate(TT.dot(x_t, W_xh) + b_h + f_t)
-        return self._scan(self._fmt('mrnn_{}'), fn, inputs[0])
+        return self._scan(self._fmt('mrnn'), fn, inputs[0])
 
 
 
@@ -673,25 +675,25 @@ class LSTM(RNN):
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             # these three weight matrices are always diagonal.
-            create_vector(self.nout, self._fmt('ci_{}')),
-            create_vector(self.nout, self._fmt('cf_{}')),
-            create_vector(self.nout, self._fmt('co_{}')),
+            create_vector(self.nout, self._fmt('ci')),
+            create_vector(self.nout, self._fmt('cf')),
+            create_vector(self.nout, self._fmt('co')),
 
-            create_matrix(self.nin, self.nout, self._fmt('xi_{}')),
-            create_matrix(self.nin, self.nout, self._fmt('xf_{}')),
-            create_matrix(self.nin, self.nout, self._fmt('xo_{}')),
-            create_matrix(self.nin, self.nout, self._fmt('xc_{}')),
+            create_matrix(self.nin, self.nout, self._fmt('xi')),
+            create_matrix(self.nin, self.nout, self._fmt('xf')),
+            create_matrix(self.nin, self.nout, self._fmt('xo')),
+            create_matrix(self.nin, self.nout, self._fmt('xc')),
 
-            create_matrix(self.nout, self.nout, self._fmt('hi_{}')),
-            create_matrix(self.nout, self.nout, self._fmt('hf_{}')),
-            create_matrix(self.nout, self.nout, self._fmt('ho_{}')),
-            create_matrix(self.nout, self.nout, self._fmt('hc_{}')),
+            create_matrix(self.nout, self.nout, self._fmt('hi')),
+            create_matrix(self.nout, self.nout, self._fmt('hf')),
+            create_matrix(self.nout, self.nout, self._fmt('ho')),
+            create_matrix(self.nout, self.nout, self._fmt('hc')),
         ]
         self.biases = [
-            create_vector(self.nout, self._fmt('bi_{}')),
-            create_vector(self.nout, self._fmt('bf_{}')),
-            create_vector(self.nout, self._fmt('bo_{}')),
-            create_vector(self.nout, self._fmt('bc_{}')),
+            create_vector(self.nout, self._fmt('bi')),
+            create_vector(self.nout, self._fmt('bf')),
+            create_vector(self.nout, self._fmt('bo')),
+            create_vector(self.nout, self._fmt('bc')),
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 
@@ -723,7 +725,7 @@ class LSTM(RNN):
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
         outputs, updates = theano.scan(
-            name=self._fmt('lstm_{}'),
+            name=self._fmt('lstm'),
             fn=fn,
             sequences=inputs,
             non_sequences=self.weights + self.biases,

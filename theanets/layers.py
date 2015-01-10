@@ -574,10 +574,23 @@ class RNN(Layer):
     implemented here is known as an Elman layer or an SRN (Simple Recurrent
     Network) -- the output from the layer at the previous time step is
     incorporated into the input of the layer at the current time step.
+
+    Parameters
+    ----------
+    radius : float, optional
+        If given, rescale the initial weights for the recurrent units to have
+        this spectral radius. No scaling is performed by default.
+
+    direction : {None, 'back', 'backwards'}, optional
+        If given, this string indicates whether the recurrency for this layer
+        should run "backwards", with future states influencing the current
+        state. The default is None, which runs the recurrency forwards in time
+        so that past states influence the current state of the layer.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
         super(RNN, self).__init__(**kwargs)
+
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
@@ -660,9 +673,13 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         return theano.scan(
-            name=name, fn=fn, sequences=inputs,
+            name=name,
+            fn=fn,
+            sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros()])
+            outputs_info=[self.zeros()],
+            go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
+        )
 
 
 class MRNN(RNN):

@@ -735,12 +735,16 @@ class MRNN(RNN):
         def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
             f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
             return self.activate(TT.dot(x_t, W_xh) + b_h + f_t)
-        return self._scan(self._fmt('mrnn'), fn, inputs[0])
+        return self._scan(self._fmt('mrnn'), fn, inputs)
 
 
 
 class LSTM(RNN):
-    '''
+    '''Long Short-Term Memory layer.
+
+    The implementation details for this layer follow the specification given by
+    A. Graves, "Generating Sequences with Recurrent Neural Networks,"
+    http://arxiv.org/pdf/1308.0850v5.pdf (page 5).
     '''
 
     def reset(self):
@@ -808,5 +812,5 @@ class LSTM(RNN):
             fn=fn,
             sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros(), self.zeros('c')])
+            outputs_info=[self.zeros('h'), self.zeros('c')])
         return outputs[0], updates

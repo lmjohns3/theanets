@@ -586,6 +586,25 @@ class RNN(Layer):
         should run "backwards", with future states influencing the current
         state. The default is None, which runs the recurrency forwards in time
         so that past states influence the current state of the layer.
+
+    viscosity : {None, 'lin', 'log'}, optional
+        If provided, this parameter enables different update "viscosities" for
+        each of the hidden units in the layer.
+
+        Normally, a hidden unit is updated completely at each time step,
+        :math:`h_t = f(x_t, h_{t-1})`. With an explicit update speed, the state
+        of a hidden unit is computed explicitly as a mixture of the new and old
+        values, `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. Low
+        viscosity (values near zero) allows hidden units to change quickly,
+        while high viscosity (values near 1) causes a hidden unit's output to
+        change slowly.
+
+        The value of this parameter specifies the distribution of viscosity
+        values: 'lin' creates viscosities linearly spaced between 0 and 1, while
+        'log' creates viscosities that are spaced logarithmically, with more
+        values near 0.
+
+        The default is None, which disables update viscosities for this layer.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
@@ -593,6 +612,13 @@ class RNN(Layer):
 
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
+
+        viscosity = np.zeros(self.nout)
+        if self.kwargs.get('viscosity', '').lower().startswith('lin'):
+            viscosity = np.linspace(0, 1, self.nout + 2)[1:-1]
+        if self.kwargs.get('viscosity', '').lower().startswith('log'):
+            viscosity = np.logspace(-6, 0, self.nout + 2)[1:-1]
+        self.viscosity = theano.shared(viscosity.astype(FLOAT), name=self._fmt('viscosity'))
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -627,7 +653,8 @@ class RNN(Layer):
         '''
         assert len(inputs) == 1
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
-            return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+            h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+            return self.viscosity * h_tm1 + (1 - self.viscosity) * h_t
         return self._scan(self._fmt('rnn'), fn, inputs)
 
     def _new_weights(self, nin=None, nout=None, name='weights'):

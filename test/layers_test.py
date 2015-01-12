@@ -66,11 +66,11 @@ class TestClassifier(Base):
 
 
 class TestRNN(Base):
-    def _build(self):
-        return theanets.layers.RNN(nin=2, nout=4)
+    def _build(self, **kwargs):
+        return theanets.layers.RNN(nin=2, nout=4, **kwargs)
 
     def test_create(self):
-        l = self._build()
+        l = self._build(viscosity='lin')
         assert l.reset() == 28
 
     def test_transform(self):

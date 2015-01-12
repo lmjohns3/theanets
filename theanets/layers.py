@@ -589,15 +589,14 @@ class RNN(Layer):
 
     rates : bool, optional
         If True, this parameter enables different update rates for each of
-        the hidden units in the layer. If False or not present (default),
-        this feature will be disabled.
+        the hidden units in the layer, based on the current input value at each
+        time step. If False or not present (default), this feature is disabled.
 
         Normally, a hidden unit is updated completely at each time step,
         :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state
         of a hidden unit is computed as a mixture of the new and old values,
-        `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. In a sense,
-        different rate values cause each hidden unit to behave as though it was
-        part of an exponentially weighted moving average of the hidden states.
+        `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. The rates are
+        computed as a logistic sigmoid transform of the input at each time step.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
@@ -618,9 +617,12 @@ class RNN(Layer):
         self.weights = [self._new_weights(name='xh'),
                         self._new_weights(nin=self.nout, name='hh')]
         self.biases = [self._new_bias()]
+        count = self.nout * (1 + self.nin + self.nout)
         if self.kwargs.get('rates'):
-            self.biases.append(self._new_bias())
-        return self.nout * (1 + self.nin + self.nout)
+            self.weights.append(self._new_weights(name='xr'))
+            self.biases.append(self._new_bias('rate'))
+            count += self.nout * (1 + self.nin)
+        return count
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -642,9 +644,9 @@ class RNN(Layer):
         def fn_plain(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
 
-        def fn_rates(x_t, h_tm1, W_xh, W_hh, b_h, rate):
+        def fn_rates(x_t, h_tm1, W_xh, W_hh, W_xr, b_h, b_r):
             h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-            alpha = TT.nnet.sigmoid(rate)
+            alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
             return alpha * h_tm1 + (1 - alpha) * h_t
 
         fn = fn_rates if self.kwargs.get('rates') else fn_plain

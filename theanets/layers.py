@@ -628,7 +628,7 @@ class RNN(Layer):
         assert len(inputs) == 1
         def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-        return self._scan(self._fmt('rnn'), fn, inputs[0])
+        return self._scan(self._fmt('rnn'), fn, inputs)
 
     def _new_weights(self, nin=None, nout=None, name='weights'):
         '''Helper method to create a new weight matrix.
@@ -656,7 +656,7 @@ class RNN(Layer):
             radius=self.kwargs.get('radius', 1.1) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _scan(self, name, fn, *inputs):
+    def _scan(self, name, fn, inputs):
         '''Helper method for defining a basic loop in theano.
 
         Parameters

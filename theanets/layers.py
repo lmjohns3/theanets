@@ -760,19 +760,19 @@ class LSTM(RNN):
 
             self._new_weights(name='xi'),
             self._new_weights(name='xf'),
-            self._new_weights(name='xo'),
             self._new_weights(name='xc'),
+            self._new_weights(name='xo'),
 
             self._new_weights(nin=self.nout, name='hi'),
             self._new_weights(nin=self.nout, name='hf'),
-            self._new_weights(nin=self.nout, name='ho'),
             self._new_weights(nin=self.nout, name='hc'),
+            self._new_weights(nin=self.nout, name='ho'),
         ]
         self.biases = [
             self._new_bias(name='bi'),
             self._new_bias(name='bf'),
-            self._new_bias(name='bo'),
             self._new_bias(name='bc'),
+            self._new_bias(name='bo'),
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 

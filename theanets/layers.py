@@ -603,7 +603,10 @@ class RNN(Layer):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights(name='xh'), self._new_weights(name='hh')]
+        self.weights = [
+            self._new_weights(name='xh'),
+            self._new_weights(nin=self.nout, name='hh'),
+        ]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin + self.nout)
 

@@ -794,9 +794,9 @@ class LSTM(RNN):
         assert len(inputs) == 1
         def fn(x_t, h_tm1, c_tm1,
                W_ci, W_cf, W_co,
-               W_xi, W_xf, W_xo, W_xc,
-               W_hi, W_hf, W_ho, W_hc,
-               b_i, b_f, b_o, b_c):
+               W_xi, W_xf, W_xc, W_xo,
+               W_hi, W_hf, W_hc, W_ho,
+               b_i, b_f, b_c, b_o):
             i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci + b_i)
             f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf + b_f)
             c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) + TT.dot(h_tm1, W_hc) + b_c)

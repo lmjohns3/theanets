@@ -587,24 +587,17 @@ class RNN(Layer):
         state. The default is None, which runs the recurrency forwards in time
         so that past states influence the current state of the layer.
 
-    viscosity : {None, 'lin', 'log'}, optional
-        If provided, this parameter enables different update "viscosities" for
-        each of the hidden units in the layer.
+    rates : bool, optional
+        If True, this parameter enables different update rates for each of
+        the hidden units in the layer. If False or not present (default),
+        this feature will be disabled.
 
         Normally, a hidden unit is updated completely at each time step,
-        :math:`h_t = f(x_t, h_{t-1})`. With an explicit update speed, the state
-        of a hidden unit is computed explicitly as a mixture of the new and old
-        values, `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. Low
-        viscosity (values near zero) allows hidden units to change quickly,
-        while high viscosity (values near 1) causes a hidden unit's output to
-        change slowly.
-
-        The value of this parameter specifies the distribution of viscosity
-        values: 'lin' creates viscosities linearly spaced between 0 and 1, while
-        'log' creates viscosities that are spaced logarithmically, with more
-        values near 0.
-
-        The default is None, which disables update viscosities for this layer.
+        :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state
+        of a hidden unit is computed as a mixture of the new and old values,
+        `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. In a sense,
+        different rate values cause each hidden unit to behave as though it was
+        part of an exponentially weighted moving average of the hidden states.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
@@ -612,13 +605,6 @@ class RNN(Layer):
 
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
-
-        viscosity = np.zeros(self.nout)
-        if self.kwargs.get('viscosity', '').lower().startswith('lin'):
-            viscosity = np.linspace(0, 1, self.nout + 2)[1:-1]
-        if self.kwargs.get('viscosity', '').lower().startswith('log'):
-            viscosity = np.logspace(-6, 0, self.nout + 2)[1:-1]
-        self.viscosity = theano.shared(viscosity.astype(FLOAT), name=self._fmt('viscosity'))
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -629,11 +615,11 @@ class RNN(Layer):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [
-            self._new_weights(name='xh'),
-            self._new_weights(nin=self.nout, name='hh'),
-        ]
+        self.weights = [self._new_weights(name='xh'),
+                        self._new_weights(nin=self.nout, name='hh')]
         self.biases = [self._new_bias()]
+        if self.kwargs.get('rates'):
+            self.biases.append(self._new_bias())
         return self.nout * (1 + self.nin + self.nout)
 
     def transform(self, *inputs):
@@ -652,9 +638,17 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
+
+        def fn_plain(x_t, h_tm1, W_xh, W_hh, b_h):
+            return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+
+        def fn_rates(x_t, h_tm1, W_xh, W_hh, b_h, rate):
             h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-            return self.viscosity * h_tm1 + (1 - self.viscosity) * h_t
+            alpha = TT.nnet.sigmoid(rate)
+            return alpha * h_tm1 + (1 - alpha) * h_t
+
+        fn = fn_rates if self.kwargs.get('rates') else fn_plain
+
         return self._scan(self._fmt('rnn'), fn, inputs)
 
     def _new_weights(self, nin=None, nout=None, name='weights'):

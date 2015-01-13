@@ -1,20 +1,11 @@
-# largely from https://gist.github.com/dan-blanchard/7045057
 language: python
 python:
   - "2.7"
   - "3.3"
   - "3.4"
 before_install:
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - conda update --yes conda
-  - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
-  - conda install --yes -n condaenv pip
-  - source activate condaenv
+  - sudo apt-get install -qq libatlas-dev libatlas-base-dev liblapack-dev gfortran
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy nose
   - pip install skdata
   - pip install .
 script:

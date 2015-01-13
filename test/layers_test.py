@@ -70,7 +70,7 @@ class TestRNN(Base):
         return theanets.layers.RNN(nin=2, nout=4, **kwargs)
 
     def test_create(self):
-        l = self._build(viscosity='lin')
+        l = self._build(rates=True)
         assert l.reset() == 28
 
     def test_transform(self):

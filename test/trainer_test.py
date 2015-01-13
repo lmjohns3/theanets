@@ -36,4 +36,7 @@ class TestTrainer(util.MNIST):
         self.assert_progress('cg')
 
     def test_layerwise(self):
+        self.exp = theanets.Experiment(
+            theanets.Autoencoder,
+            layers=(self.DIGIT_SIZE, 10, 10, self.DIGIT_SIZE))
         self.assert_progress('layerwise')

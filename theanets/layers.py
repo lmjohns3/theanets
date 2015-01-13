@@ -108,8 +108,8 @@ def softmax(x):
         A theano expression computing the softmax of each row of `x`.
     '''
     # TT.nnet.softmax doesn't work with the HF trainer.
-    z = TT.exp(x.T - x.T.max(axis=0))
-    return (z / z.sum(axis=0)).T
+    z = TT.exp(x - x.max(axis=-1, keepdims=True))
+    return z / z.sum(axis=-1, keepdims=True)
 
 
 def create_activation(activation):

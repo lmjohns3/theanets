@@ -1,3 +1,4 @@
+# largely from https://gist.github.com/dan-blanchard/7045057
 language: python
 python:
   - "2.7"
@@ -10,13 +11,13 @@ before_install:
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda update --yes conda
   - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
-  - conda create --yes -n condaenv pip
+  - conda install --yes -n condaenv pip
   - source activate condaenv
 install:
   - conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy nose
-  - pip install python-coveralls nose-cov climate skdata theano
+  - pip install coveralls nose-cov climate skdata theano
   - pip install .
 script:
-  - nosetests --with-cov --cov theanets --cov-config .coveragerc --logging-level=INFO
+  - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
 after_success:
   - coveralls --config_file .coveragerc

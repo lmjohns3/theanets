@@ -3,11 +3,9 @@ python:
   - "2.7"
   - "3.3"
   - "3.4"
-virtualenv:
-  system_site_packages: true
 before_install:
- - sudo apt-get install -qq python-numpy libblas-dev liblapack-dev gfortran
+ - sudo apt-get install -qq libblas-dev liblapack-dev gfortran
 install:
-  - "pip install ."
   - "pip install -r requirements.txt"
+  - "pip install ."
 script: nosetests

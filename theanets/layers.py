@@ -142,9 +142,9 @@ def create_activation(activation):
         'logsoftmax': logsoftmax,
 
         # rectification
-        'relu': lambda z: z * (z > 0),
-        'trel': lambda z: z * (z > 0) * (z < 1),
-        'trec': lambda z: z * (z > 1),
+        'relu': lambda z: TT.maximum(0, z),
+        'trel': lambda z: TT.maximum(0, TT.minimum(1, z)),
+        'trec': lambda z: TT.maximum(1, z),
         'tlin': lambda z: z * (abs(z) > 1),
 
         # modifiers
@@ -152,9 +152,10 @@ def create_activation(activation):
         'rect:min': lambda z: TT.maximum(0, z),
 
         # normalization
-        'norm:dc': lambda z: (z.T - z.mean(axis=1)).T,
-        'norm:max': lambda z: (z.T / TT.maximum(1e-10, abs(z).max(axis=1))).T,
-        'norm:std': lambda z: (z.T / TT.maximum(1e-10, TT.std(z, axis=1))).T,
+        'norm:dc': lambda z: z - z.mean(axis=-1, keepdims=True),
+        'norm:max': lambda z: z / TT.maximum(1e-7, abs(z).max(axis=-1, keepdims=True)),
+        'norm:std': lambda z: z / TT.maximum(1e-7, TT.std(z, axis=-1, keepdims=True)),
+        'norm:z': lambda z: (z - z.mean(axis=-1, keepdims=True)) / TT.maximum(1e-7, z.std(axis=-1, keepdims=True)),
         }
     for k, v in options.items():
         v.__theanets_name__ = k

@@ -93,8 +93,8 @@ def create_vector(size, name):
     return theano.shared((1e-6 * np.random.randn(size)).astype(FLOAT), name=name)
 
 
-def softmax(x):
-    '''Compute the softmax of the rows of a matrix.
+def logsoftmax(x):
+    '''Compute the log-softmax of the rows of a matrix.
 
     Parameters
     ----------
@@ -105,11 +105,10 @@ def softmax(x):
     Returns
     -------
     y : theano variable
-        A theano expression computing the softmax of each row of `x`.
+        A theano expression computing the log-softmax of each row of `x`.
     '''
-    # TT.nnet.softmax doesn't work with the HF trainer.
-    z = TT.exp(x.T - x.T.max(axis=0))
-    return (z / z.sum(axis=0)).T
+    z = TT.clip(TT.exp(x - x.max(axis=-1, keepdims=True)), 1e-7, 1e7)
+    return TT.log(z) - TT.log(z.sum(axis=-1, keepdims=True))
 
 
 def create_activation(activation):
@@ -139,9 +138,10 @@ def create_activation(activation):
         'logistic': TT.nnet.sigmoid,
         'sigmoid': TT.nnet.sigmoid,
         'softplus': TT.nnet.softplus,
-        'softmax': softmax,
+        'softmax': TT.nnet.softmax,
+        'logsoftmax': logsoftmax,
 
-        # shorthands
+        # rectification
         'relu': lambda z: z * (z > 0),
         'trel': lambda z: z * (z > 0) * (z < 1),
         'trec': lambda z: z * (z > 1),

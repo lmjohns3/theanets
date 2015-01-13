@@ -574,10 +574,34 @@ class RNN(Layer):
     implemented here is known as an Elman layer or an SRN (Simple Recurrent
     Network) -- the output from the layer at the previous time step is
     incorporated into the input of the layer at the current time step.
+
+    Parameters
+    ----------
+    radius : float, optional
+        If given, rescale the initial weights for the recurrent units to have
+        this spectral radius. No scaling is performed by default.
+
+    direction : {None, 'back', 'backwards'}, optional
+        If given, this string indicates whether the recurrency for this layer
+        should run "backwards", with future states influencing the current
+        state. The default is None, which runs the recurrency forwards in time
+        so that past states influence the current state of the layer.
+
+    rates : bool, optional
+        If True, this parameter enables different update rates for each of
+        the hidden units in the layer, based on the current input value at each
+        time step. If False or not present (default), this feature is disabled.
+
+        Normally, a hidden unit is updated completely at each time step,
+        :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state
+        of a hidden unit is computed as a mixture of the new and old values,
+        `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. The rates are
+        computed as a logistic sigmoid transform of the input at each time step.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
         super(RNN, self).__init__(**kwargs)
+
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
@@ -590,9 +614,15 @@ class RNN(Layer):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights(name='xh'), self._new_weights(name='hh')]
+        self.weights = [self._new_weights(name='xh'),
+                        self._new_weights(nin=self.nout, name='hh')]
         self.biases = [self._new_bias()]
-        return self.nout * (1 + self.nin + self.nout)
+        count = self.nout * (1 + self.nin + self.nout)
+        if self.kwargs.get('rates'):
+            self.weights.append(self._new_weights(name='xr'))
+            self.biases.append(self._new_bias('rate'))
+            count += self.nout * (1 + self.nin)
+        return count
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -610,9 +640,18 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
+
+        def fn_plain(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-        return self._scan(self._fmt('rnn'), fn, inputs[0])
+
+        def fn_rates(x_t, h_tm1, W_xh, W_hh, W_xr, b_h, b_r):
+            h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+            alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
+            return alpha * h_tm1 + (1 - alpha) * h_t
+
+        fn = fn_rates if self.kwargs.get('rates') else fn_plain
+
+        return self._scan(self._fmt('rnn'), fn, inputs)
 
     def _new_weights(self, nin=None, nout=None, name='weights'):
         '''Helper method to create a new weight matrix.
@@ -640,7 +679,7 @@ class RNN(Layer):
             radius=self.kwargs.get('radius', 1.1) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _scan(self, name, fn, *inputs):
+    def _scan(self, name, fn, inputs):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
@@ -660,9 +699,13 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         return theano.scan(
-            name=name, fn=fn, sequences=inputs,
+            name=name,
+            fn=fn,
+            sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros()])
+            outputs_info=[self.zeros()],
+            go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
+        )
 
 
 class MRNN(RNN):
@@ -715,12 +758,16 @@ class MRNN(RNN):
         def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
             f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
             return self.activate(TT.dot(x_t, W_xh) + b_h + f_t)
-        return self._scan(self._fmt('mrnn'), fn, inputs[0])
+        return self._scan(self._fmt('mrnn'), fn, inputs)
 
 
 
 class LSTM(RNN):
-    '''
+    '''Long Short-Term Memory layer.
+
+    The implementation details for this layer follow the specification given by
+    A. Graves, "Generating Sequences with Recurrent Neural Networks,"
+    http://arxiv.org/pdf/1308.0850v5.pdf (page 5).
     '''
 
     def reset(self):
@@ -740,19 +787,19 @@ class LSTM(RNN):
 
             self._new_weights(name='xi'),
             self._new_weights(name='xf'),
-            self._new_weights(name='xo'),
             self._new_weights(name='xc'),
+            self._new_weights(name='xo'),
 
             self._new_weights(nin=self.nout, name='hi'),
             self._new_weights(nin=self.nout, name='hf'),
-            self._new_weights(nin=self.nout, name='ho'),
             self._new_weights(nin=self.nout, name='hc'),
+            self._new_weights(nin=self.nout, name='ho'),
         ]
         self.biases = [
             self._new_bias(name='bi'),
             self._new_bias(name='bf'),
-            self._new_bias(name='bo'),
             self._new_bias(name='bc'),
+            self._new_bias(name='bo'),
         ]
         return self.nout * (7 + 4 * self.nout + 4 * self.nin)
 
@@ -774,9 +821,9 @@ class LSTM(RNN):
         assert len(inputs) == 1
         def fn(x_t, h_tm1, c_tm1,
                W_ci, W_cf, W_co,
-               W_xi, W_xf, W_xo, W_xc,
-               W_hi, W_hf, W_ho, W_hc,
-               b_i, b_f, b_o, b_c):
+               W_xi, W_xf, W_xc, W_xo,
+               W_hi, W_hf, W_hc, W_ho,
+               b_i, b_f, b_c, b_o):
             i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci + b_i)
             f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf + b_f)
             c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) + TT.dot(h_tm1, W_hc) + b_c)
@@ -788,5 +835,5 @@ class LSTM(RNN):
             fn=fn,
             sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros(), self.zeros('c')])
+            outputs_info=[self.zeros('h'), self.zeros('c')])
         return outputs[0], updates

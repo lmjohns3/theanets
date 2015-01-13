@@ -25,7 +25,7 @@ logging.info('data batches: %s -> %s', src.shape, tgt.shape)
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(2, ('rnn', 10), 2),
+    layers=(2, dict(form='rnn', size=10, rates=True), 2),
     batch_size=BATCH_SIZE)
 e.train(pair)
 prd = e.network.predict(src)

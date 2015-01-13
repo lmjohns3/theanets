@@ -706,7 +706,7 @@ class Layerwise(Trainer):
             l.reset()
             net.layers.append(l)
         for i in range(1, L):
-            logging.info('layerwise: training weights %s', net.layers[i].name)
+            logging.info('layerwise: training %s', original[i].name)
             net.layers = original[:i+1]
             if tied:
                 for j in range(i, 1, -1):

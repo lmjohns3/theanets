@@ -15,9 +15,7 @@ before_install:
   - source activate condaenv
 install:
   - conda install --yes python=$TRAVIS_PYTHON_VERSION atlas numpy scipy nose
-  - pip install coveralls nose-cov climate skdata theano
+  - pip install skdata
   - pip install .
 script:
-  - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
-after_success:
-  - coveralls --config_file .coveragerc
+  - nosetests

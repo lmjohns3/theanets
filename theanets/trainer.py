@@ -706,11 +706,13 @@ class Layerwise(Trainer):
         L = len(original)
         if tied:
             L //= 2
+        else:
+            L -= 1
         def addl(*args, **kwargs):
             l = layers.build(*args, **kwargs)
             l.reset()
             net.layers.append(l)
-        for i in range(1, L):
+        for i in range(1, L - 1):
             logging.info('layerwise: training %s', original[i].name)
             net.layers = original[:i+1]
             if tied:

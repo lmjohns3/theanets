@@ -70,8 +70,24 @@ class TestRNN(Base):
         return theanets.layers.RNN(nin=2, nout=4, **kwargs)
 
     def test_create(self):
-        l = self._build(rates=True)
+        l = self._build()
         assert l.reset() == 28
+
+    def test_transform(self):
+        l = self._build()
+        l.reset()
+        out, upd = l.transform(self.x)
+        assert out is not None
+        assert not upd
+
+
+class TestRRNN(Base):
+    def _build(self, **kwargs):
+        return theanets.layers.RRNN(nin=2, nout=4, **kwargs)
+
+    def test_create(self):
+        l = self._build()
+        assert l.reset() == 40
 
     def test_transform(self):
         l = self._build()

@@ -586,17 +586,6 @@ class RNN(Layer):
         should run "backwards", with future states influencing the current
         state. The default is None, which runs the recurrency forwards in time
         so that past states influence the current state of the layer.
-
-    rates : bool, optional
-        If True, this parameter enables different update rates for each of
-        the hidden units in the layer, based on the current input value at each
-        time step. If False or not present (default), this feature is disabled.
-
-        Normally, a hidden unit is updated completely at each time step,
-        :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state
-        of a hidden unit is computed as a mixture of the new and old values,
-        `h_t = \alpha h_{t-1} + (1 - \alpha) f(x_t, h_{t-1})`. The rates are
-        computed as a logistic sigmoid transform of the input at each time step.
     '''
 
     def __init__(self, batch_size=64, **kwargs):
@@ -617,12 +606,7 @@ class RNN(Layer):
         self.weights = [self._new_weights(name='xh'),
                         self._new_weights(nin=self.nout, name='hh')]
         self.biases = [self._new_bias()]
-        count = self.nout * (1 + self.nin + self.nout)
-        if self.kwargs.get('rates'):
-            self.weights.append(self._new_weights(name='xr'))
-            self.biases.append(self._new_bias('rate'))
-            count += self.nout * (1 + self.nin)
-        return count
+        return self.nout * (1 + self.nin + self.nout)
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -640,17 +624,8 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-
-        def fn_plain(x_t, h_tm1, W_xh, W_hh, b_h):
+        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
             return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-
-        def fn_rates(x_t, h_tm1, W_xh, W_hh, W_xr, b_h, b_r):
-            h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-            alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
-            return alpha * h_tm1 + (1 - alpha) * h_t
-
-        fn = fn_rates if self.kwargs.get('rates') else fn_plain
-
         return self._scan(self._fmt('rnn'), fn, inputs)
 
     def _new_weights(self, nin=None, nout=None, name='weights'):
@@ -706,6 +681,57 @@ class RNN(Layer):
             outputs_info=[self.zeros()],
             go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
         )
+
+
+class RRNN(RNN):
+    '''A rate-RNN defines per-hidden-unit accumulation rates.
+
+    In a normal RNN, a hidden unit is updated completely at each time step,
+    :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
+    hidden unit is computed as a mixture of the new and old values, `h_t =
+    \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
+
+    In this model, the rates are computed at each time step as a logistic
+    sigmoid applied to an affine transform of the input: :math:`\alpha_t =
+    \sigma(x_t W_{xr} + b_r)`.
+    '''
+
+    def reset(self):
+        '''Reset the state of this layer to a new initial condition.
+
+        Returns
+        -------
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        self.weights = [self._new_weights(name='xh'),
+                        self._new_weights(name='xr'),
+                        self._new_weights(nin=self.nout, name='hh')]
+        self.biases = [self._new_bias(), self._new_bias('rate')]
+        return self.nout * (2 + 2 * self.nin + self.nout)
+
+    def transform(self, *inputs):
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from the layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
+        '''
+        assert len(inputs) == 1
+        def fn(x_t, h_tm1, W_xh, W_xr, W_hh, b_h, b_r):
+            h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
+            alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
+            return alpha * h_tm1 + (1 - alpha) * h_t
+        return self._scan(self._fmt('rrnn'), fn, inputs)
 
 
 class MRNN(RNN):

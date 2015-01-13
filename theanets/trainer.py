@@ -721,6 +721,7 @@ class Layerwise(Trainer):
                 addl('tied', partner=original[1], name='out', activation=outact)
             else:
                 addl('feedforward',
+                     name='lwout',
                      nin=original[i].nout,
                      nout=original[-1].nout,
                      activation=outact)

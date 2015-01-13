@@ -8,11 +8,11 @@ from utils import load_mnist, plot_layers
 
 train, valid, _ = load_mnist(labels=True)
 
-N = 16
+N = 10
 
 e = theanets.Experiment(
     theanets.Classifier,
-    layers=(784, N * N, 10),
+    layers=(784, N * N, N * N, N * N, N * N, 10),
     train_batches=100,
 )
 e.train(train, valid)

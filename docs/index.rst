@@ -6,7 +6,7 @@ Theanets Documentation
    :maxdepth: 2
 
    quickstart
+   guide
    models
    trainers
-   hacking
    reference

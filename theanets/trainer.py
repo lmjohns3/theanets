@@ -743,17 +743,16 @@ class UnsupervisedPretrainer(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         # construct a copy of the input network, with tied weights in an
         # autoencoder configuration.
-        layers = self.network.layers[:-1]
-        ae = feedforward.Autoencoder(
-            tied_weights=True,
-            layers=layers[:-1] + layers[::-1],
-            hidden_activation=self.network.hidden_activation,
-            output_activation='linear')
+        lls = self.network.layers[:-1]
+        for l in lls[::-1][:-1]:
+            lls.append(layers.build('tied', partner=l, activation=self.network.hidden_activation))
+        lls.append(layers.build('tied', partner=lls[0], activation='linear'))
+        ae = feedforward.Autoencoder(tied_weights=True, layers=lls)
 
         # copy the current weights into the autoencoder.
-        for i in range(len(layers) - 1):
-            ae.weights[i].set_value(self.network.get_weights(i))
-            ae.biases[i].set_value(self.network.get_biases(i))
+        for i in range(len(self.network.layers) - 1):
+            ae.get_weights(i).set_value(self.network.get_weights(i).get_value())
+            ae.get_biases(i).set_value(self.network.get_biases(i).get_value())
 
         # train the autoencoder using a layerwise strategy.
         pre = Layerwise(ae, *self.args, **self.kwargs)
@@ -761,6 +760,6 @@ class UnsupervisedPretrainer(Trainer):
             yield costs
 
         # copy the trained autoencoder weights into our original model.
-        for i in range(len(layers) - 1):
-            self.network.weights[i].set_value(ae.get_weights(i))
-            self.network.biases[i].set_value(ae.get_biases(i))
+        for i in range(len(self.network.layers) - 1):
+            self.network.get_weights(i).set_value(ae.get_weights(i).get_value())
+            self.network.get_biases(i).set_value(ae.get_biases(i).get_value())

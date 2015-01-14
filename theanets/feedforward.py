@@ -195,6 +195,7 @@ class Network(object):
                 noise=self.kwargs.get('hidden_noise', 0),
                 dropout=self.kwargs.get('hidden_dropouts', 0),
                 batch_size=self.kwargs.get('batch_size', 64),
+                activation=self.kwargs.get('hidden_activation', 'logistic'),
             )
 
             # by default, spec is assumed to be a lowly integer, giving the

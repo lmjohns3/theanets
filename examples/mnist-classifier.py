@@ -8,7 +8,7 @@ from utils import load_mnist, plot_layers
 
 train, valid, _ = load_mnist(labels=True)
 
-N = 16
+N = 10
 
 e = theanets.Experiment(
     theanets.Classifier,
@@ -17,6 +17,6 @@ e = theanets.Experiment(
 )
 e.train(train, valid)
 
-plot_layers([e.network.get_weights(1)])
+plot_layers([e.network.get_weights(1), e.network.get_weights(2)])
 plt.tight_layout()
 plt.show()

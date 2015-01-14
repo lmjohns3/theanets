@@ -1,3 +1,0 @@
-climate
-skdata
-theano

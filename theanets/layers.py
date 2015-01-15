@@ -864,3 +864,62 @@ class LSTM(RNN):
             non_sequences=self.weights + self.biases,
             outputs_info=[self.zeros('h'), self.zeros('c')])
         return outputs[0], updates
+
+
+class Bidirectional(Layer):
+    '''
+    '''
+
+    def __init__(self, form='rnn', **kwargs):
+        super(Bidirectional, self).__init__(**kwargs)
+        if direction in kwargs:
+            kwargs.pop('direction')
+        self.forward = build(form, direction='forward', **kwargs)
+        self.backward = build(form, direction='backward', **kwargs)
+
+    def reset(self):
+        '''Reset the weights and biases for this layer to random values.
+
+        Returns
+        -------
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        logging.info('initializing %s: [%s, %s] x %s',
+                     self.name,
+                     self.forward.nout,
+                     self.backward.nout,
+                     self.nout)
+        nf = self.forward.reset()
+        nb = self.backward.reset()
+        self.forward_weight = self._new_weights(nin=self.forward.nout, name='forward')
+        self.backward_weight = self._new_weights(nin=self.backward.nout, name='backward')
+        self.overall_bias = self._new_bias()
+        self.weights = (self.forward.weights +
+                        self.backward.weights +
+                        [self.forward_weight, self.backward_weight])
+        self.biases = (self.forward.biases +
+                       self.backward.biases +
+                       [self.overall_bias])
+        return nf + nb + self.nout * (1 + self.forward.nout + self.backward.nout)
+
+    def transform(self, *inputs):
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from the layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
+        '''
+        fx, fu = self.forward.transform(*inputs)
+        bx, bu = self.backward.transform(*inputs)
+        return self.activate(TT.dot(fx, self.forward_weight) +
+                             TT.dot(bx, self.backward_weight) +
+                             self.overall_bias), fu + bu

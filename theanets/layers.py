@@ -882,8 +882,8 @@ class Bidirectional(Layer):
     transformation into the overall output for the layer.
 
     For an example specification of a bidirectional recurrent network, see A.
-    Graves (2013), "Hybrid Speech Recognition with Deep Bidirectional LSTM,"
-    available online at http://www.cs.toronto.edu/~graves/asru_2013.pdf
+    Graves, N. Jaitly, and A. Mohamed, "Hybrid Speech Recognition with Deep
+    Bidirectional LSTM," 2013. http://www.cs.toronto.edu/~graves/asru_2013.pdf
 
     Parameters
     ----------

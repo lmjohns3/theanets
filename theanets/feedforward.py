@@ -204,15 +204,25 @@ class Network(object):
                 kwargs['nout'] = spec
 
             # if spec is a tuple, assume that it contains one or more of the following:
-            # - the name of a class for the layer (str)
+            # - the type of layer to construct (layers.Layer subclass)
+            # - the name of a class for the layer (str; if layes.Layer subclass)
+            # - the name of an activation function (str; otherwise)
             # - the number of units in the layer (int)
             if isinstance(spec, (tuple, list)):
                 for el in spec:
+                    try:
+                        if issubclass(el, layers.Layer):
+                            form = el.__name__
+                    except TypeError:
+                        pass
                     if isinstance(el, str):
-                        form = el
-                        kwargs['name'] = '{}{}'.format(form, len(self.layers))
+                        if el.lower() in layers.Layer._registry:
+                            form = el
+                        else:
+                            kwargs['activation'] = el
                     if isinstance(el, int):
                         kwargs['nout'] = el
+                kwargs['name'] = '{}{}'.format(form, len(self.layers))
 
             # if spec is a dictionary, try to extract a form and size for the
             # layer, and override our default keyword arguments with the rest.

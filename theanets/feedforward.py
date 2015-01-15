@@ -234,6 +234,10 @@ class Network(object):
                     kwargs['nout'] = spec['size']
                 kwargs.update(spec)
 
+            if isinstance(form, str) and form.lower() == 'bidirectional':
+                kwargs['name'] = 'bd{}{}'.format(
+                    kwargs.get('worker', 'rnn'), len(self.layers))
+
             self.layers.append(layers.build(form, **kwargs))
 
         # setup output layer.

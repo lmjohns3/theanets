@@ -895,13 +895,13 @@ class Bidirectional(Layer):
     '''
 
     def __init__(self, worker='rnn', **kwargs):
-        super(Bidirectional, self).__init__(**kwargs)
         if 'direction' in kwargs:
             kwargs.pop('direction')
+        super(Bidirectional, self).__init__(**kwargs)
         if 'name' in kwargs:
             kwargs.pop('name')
-        self.forward = build(worker, direction='forward', name=self._fmt('forward'), **kwargs)
-        self.backward = build(worker, direction='backward', name=self._fmt('backward'), **kwargs)
+        self.forward = build(worker, direction='forward', name=self._fmt('f'), **kwargs)
+        self.backward = build(worker, direction='backward', name=self._fmt('b'), **kwargs)
 
     def reset(self):
         '''Reset the weights and biases for this layer to random values.

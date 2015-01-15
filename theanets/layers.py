@@ -444,7 +444,7 @@ class Layer(Base):
         vector : theano shared variable
             A shared variable containing a newly initialized bias vector.
         '''
-        return create_vector(self.nout, self._fmt(name), mean=mean)
+        return create_vector(self.nout, self._fmt(name), mean=mean, std=std)
 
 
 class Input(Layer):
@@ -833,7 +833,7 @@ class LSTM(RNN):
         ]
         self.biases = [
             self._new_bias(name='bi'),
-            self._new_bias(name='bf'),
+            self._new_bias(name='bf', mean=10),
             self._new_bias(name='bc'),
             self._new_bias(name='bo'),
         ]

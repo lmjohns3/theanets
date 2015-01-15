@@ -876,15 +876,32 @@ class LSTM(RNN):
 
 
 class Bidirectional(Layer):
-    '''
+    '''A bidirectional recurrent layer runs worker models forward and backward.
+
+    The outputs of the forward and backward passes are combined using an affine
+    transformation into the overall output for the layer.
+
+    For an example specification of a bidirectional recurrent network, see A.
+    Graves (2013), "Hybrid Speech Recognition with Deep Bidirectional LSTM,"
+    available online at http://www.cs.toronto.edu/~graves/asru_2013.pdf
+
+    Parameters
+    ----------
+    worker : str, optional
+        This string specifies the type of worker layer to use for the forward
+        and backward processing. This parameter defaults to 'rnn' (i.e., vanilla
+        recurrent network layer), but can be given as any string that specifies
+        a recurrent layer type.
     '''
 
-    def __init__(self, form='rnn', **kwargs):
+    def __init__(self, worker='rnn', **kwargs):
         super(Bidirectional, self).__init__(**kwargs)
-        if direction in kwargs:
+        if 'direction' in kwargs:
             kwargs.pop('direction')
-        self.forward = build(form, direction='forward', **kwargs)
-        self.backward = build(form, direction='backward', **kwargs)
+        if 'name' in kwargs:
+            kwargs.pop('name')
+        self.forward = build(worker, direction='forward', name=self._fmt('forward'), **kwargs)
+        self.backward = build(worker, direction='backward', name=self._fmt('backward'), **kwargs)
 
     def reset(self):
         '''Reset the weights and biases for this layer to random values.
@@ -894,7 +911,7 @@ class Bidirectional(Layer):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: [%s, %s] x %s',
+        logging.info('initializing %s: [%s|%s] x %s',
                      self.name,
                      self.forward.nout,
                      self.backward.nout,

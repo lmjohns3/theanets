@@ -74,7 +74,7 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0):
     return theano.shared(arr.astype(FLOAT), name=name)
 
 
-def create_vector(size, name):
+def create_vector(size, name, mean=0, std=1e-3):
     '''Create a vector of small values.
 
     Parameters
@@ -83,6 +83,10 @@ def create_vector(size, name):
         Length of vecctor to create.
     name : str
         A string to use as the theano name for the created variables.
+    mean : float, optional
+        Mean value for initial vector values. Defaults to 0.
+    std : float, optional
+        Standard deviation for initial vector values. Defaults to 1e-6.
 
     Returns
     -------
@@ -90,7 +94,8 @@ def create_vector(size, name):
         A shared array containing a vector of theano values. This often
         represents the bias for a layer of computation units.
     '''
-    return theano.shared((1e-6 * np.random.randn(size)).astype(FLOAT), name=name)
+    vec = mean + std * np.random.randn(size)
+    return theano.shared(vec.astype(FLOAT), name=name)
 
 
 def logsoftmax(x):
@@ -422,20 +427,24 @@ class Layer(Base):
             name=self._fmt(name),
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _new_bias(self, name='bias'):
+    def _new_bias(self, name='bias', mean=0, std=1e-3):
         '''Helper method to create a new bias vector.
 
         Parameters
         ----------
         name : str, optional
             Name of theano shared variable. Defaults to self.name + "_bias".
+        mean : float, optional
+            Mean value for randomly-initialized biases. Defaults to 0.
+        std : float, optional
+            Standard deviation for randomly-initialized biases. Defaults to 1e-3.
 
         Returns
         -------
         vector : theano shared variable
             A shared variable containing a newly initialized bias vector.
         '''
-        return create_vector(self.nout, self._fmt(name))
+        return create_vector(self.nout, self._fmt(name), mean=mean)
 
 
 class Input(Layer):

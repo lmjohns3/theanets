@@ -911,23 +911,17 @@ class Bidirectional(Layer):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: [%s|%s] x %s',
-                     self.name,
-                     self.forward.nout,
-                     self.backward.nout,
-                     self.nout)
+        logging.info('initializing %s: %s<-> x %s', self.name, self.forward.nin, self.nout)
         nf = self.forward.reset()
-        nb = self.backward.reset()
-        self.forward_weight = self._new_weights(nin=self.forward.nout, name='forward')
-        self.backward_weight = self._new_weights(nin=self.backward.nout, name='backward')
-        self.overall_bias = self._new_bias()
-        self.weights = (self.forward.weights +
-                        self.backward.weights +
-                        [self.forward_weight, self.backward_weight])
-        self.biases = (self.forward.biases +
-                       self.backward.biases +
-                       [self.overall_bias])
-        return nf + nb + self.nout * (1 + self.forward.nout + self.backward.nout)
+        # we "tie" together the weights for the forward and backward RNNs.
+        self.backward.weights = self.forward.weights
+        self.backward.biases = self.forward.biases
+        self.fw = self._new_weights(nin=self.forward.nout, name='forward')
+        self.bw = self._new_weights(nin=self.forward.nout, name='backward')
+        self.ob = self._new_bias()
+        self.weights = self.forward.weights + [self.fw, self.bw]
+        self.biases = self.forward.biases + [self.ob]
+        return nf + self.nout * (1 + 2 * self.forward.nout)
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -946,6 +940,4 @@ class Bidirectional(Layer):
         '''
         fx, fu = self.forward.transform(*inputs)
         bx, bu = self.backward.transform(*inputs)
-        return self.activate(TT.dot(fx, self.forward_weight) +
-                             TT.dot(bx, self.backward_weight) +
-                             self.overall_bias), fu + bu
+        return TT.dot(fx, self.fw) + TT.dot(bx, self.bw) + self.ob, fu + bu

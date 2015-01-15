@@ -902,8 +902,8 @@ class Bidirectional(Layer):
         super(Bidirectional, self).__init__(**kwargs)
         if 'name' in kwargs:
             kwargs.pop('name')
-        self.forward = build(worker, direction='forward', name=self._fmt('f'), **kwargs)
-        self.backward = build(worker, direction='backward', name=self._fmt('b'), **kwargs)
+        self.forward = build(worker, direction='forward', name=self._fmt('fw'), **kwargs)
+        self.backward = build(worker, direction='backward', name=self._fmt('bw'), **kwargs)
 
     def reset(self):
         '''Reset the weights and biases for this layer to random values.
@@ -918,8 +918,8 @@ class Bidirectional(Layer):
         # we "tie" together the weights for the forward and backward RNNs.
         self.backward.weights = self.forward.weights
         self.backward.biases = self.forward.biases
-        self.fw = self._new_weights(nin=self.forward.nout, name='forward')
-        self.bw = self._new_weights(nin=self.forward.nout, name='backward')
+        self.fw = self._new_weights(nin=self.forward.nout, name='fw')
+        self.bw = self._new_weights(nin=self.forward.nout, name='bw')
         self.ob = self._new_bias()
         self.weights = self.forward.weights + [self.fw, self.bw]
         self.biases = self.forward.biases + [self.ob]

@@ -871,7 +871,9 @@ class LSTM(RNN):
             fn=fn,
             sequences=inputs,
             non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros('h'), self.zeros('c')])
+            outputs_info=[self.zeros('h'), self.zeros('c')],
+            go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
+        )
         return outputs[0], updates
 
 

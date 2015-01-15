@@ -36,6 +36,29 @@ Recurrent networks
    theanets.recurrent.Predictor
    theanets.recurrent.Regressor
 
+.. _ref-layers:
+
+Layer types
+===========
+
+.. automodule:: theanets.layers
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   theanets.layers.Layer
+   theanets.layers.Input
+   theanets.layers.Feedforward
+   theanets.layers.Tied
+   theanets.layers.Classifier
+   theanets.layers.RNN
+   theanets.layers.RRNN
+   theanets.layers.MRNN
+   theanets.layers.LSTM
+   theanets.layers.Bidirectional
+
 .. _ref-trainers:
 
 Training strategies

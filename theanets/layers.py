@@ -661,7 +661,7 @@ class RNN(Layer):
             nin,
             nout,
             name=self._fmt(name),
-            radius=self.kwargs.get('radius', 1.1) if nin == nout else 0,
+            radius=self.kwargs.get('radius', 0) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
     def _scan(self, name, fn, inputs):

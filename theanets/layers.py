@@ -837,7 +837,7 @@ class LSTM(RNN):
             self._new_bias(name='bc'),
             self._new_bias(name='bo'),
         ]
-        return self.nout * (7 + 4 * self.nout + 4 * self.nin)
+        return self.nout * (7 + 4 * (self.nout + self.nin))
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.

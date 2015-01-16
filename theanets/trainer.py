@@ -180,7 +180,6 @@ class SGD(Trainer):
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(
             network.inputs,
-            self.cost_exprs,
             updates=list(network.updates) + list(self.learning_updates()))
 
     def learning_updates(self):
@@ -232,9 +231,15 @@ class SGD(Trainer):
                     break
 
             try:
+                [self.train_minibatch(*x) for x in train_set]
+            except KeyboardInterrupt:
+                logging.info('interrupted!')
+                break
+
+            try:
                 costs = list(zip(
                     self.cost_names,
-                    np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
+                    np.mean([self.f_eval(*x) for i, x in zip(range(3), train_set)], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break

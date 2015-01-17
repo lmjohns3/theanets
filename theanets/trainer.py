@@ -253,7 +253,7 @@ class SGD(Trainer):
         self.set_params(self.best_params)
 
     def train_minibatch(self, *x):
-        return self.f_learn(*x)
+        self.f_learn(*x)
 
 
 class NAG(SGD):
@@ -316,7 +316,7 @@ class NAG(SGD):
             prepare.append((param, param + step))
 
         logging.info('compiling NAG pre-step function')
-        self.f_prepare = theano.function([], [], updates=prepare)
+        self.f_prepare = theano.function(updates=prepare)
 
         super(NAG, self).__init__(network, **kwargs)
 
@@ -333,7 +333,7 @@ class NAG(SGD):
 
     def train_minibatch(self, *x):
         self.f_prepare()
-        return self.f_learn(*x)
+        self.f_learn(*x)
 
 
 class Rprop(SGD):

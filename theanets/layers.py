@@ -693,17 +693,19 @@ class RNN(Layer):
         )
 
 
-class RRNN(RNN):
-    '''A rate-RNN defines per-hidden-unit accumulation rates.
+class ARRNN(RNN):
+    '''An adaptive rate RNN defines per-hidden-unit accumulation rates.
 
     In a normal RNN, a hidden unit is updated completely at each time step,
     :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
     hidden unit is computed as a mixture of the new and old values, `h_t =
     \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
 
-    In this model, the rates are computed at each time step as a logistic
-    sigmoid applied to an affine transform of the input: :math:`\alpha_t =
-    \sigma(x_t W_{xr} + b_r)`.
+    Rates might be defined in a number of ways: as a vector of values sampled
+    randomly from (0, 1), or even as a learnable vector of values. But in the
+    adaptive rate RNN, the rate values are computed at each time step as a
+    logistic sigmoid applied to an affine transform of the input:
+    :math:`\alpha_t = 1 / (1 + e^{-x_t W_{xr} - b_r})`.
     '''
 
     def reset(self):
@@ -741,7 +743,7 @@ class RRNN(RNN):
             h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
             alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
             return alpha * h_tm1 + (1 - alpha) * h_t
-        return self._scan(self._fmt('rrnn'), fn, inputs)
+        return self._scan(self._fmt('arrnn'), fn, inputs)
 
 
 class MRNN(RNN):

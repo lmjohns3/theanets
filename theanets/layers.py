@@ -477,7 +477,7 @@ class Feedforward(Layer):
         Parameters
         ----------
         inputs : theano variables
-            The inputs to this layer. There must be exactly one input.
+            The inputs to this layer.
 
         Returns
         -------

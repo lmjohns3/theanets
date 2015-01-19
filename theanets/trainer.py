@@ -184,18 +184,17 @@ class SGD(Trainer):
             updates=list(network.updates) + list(self.learning_updates()))
 
     def learning_updates(self):
-        for param in self.params:
-            grad = self.clipped_gradient(param)
+        for param, grad in zip(self.params, self.clipped_gradients()):
             vel_tm1 = self.shared_like(param, 'vel')
             vel_t = self.momentum * vel_tm1 - self.learning_rate * grad
             yield vel_tm1, vel_t
             yield param, param + vel_t
 
-    def clipped_gradient(self, param):
-        grad = TT.grad(self.J, param)
-        clip = TT.clip(grad, -self.clip, self.clip)
-        norm = TT.sqrt((grad * grad).sum())
-        return clip * TT.minimum(1, self.max_norm / norm)
+    def clipped_gradients(self, params=None):
+        for grad in TT.grad(self.J, params or self.params):
+            clip = TT.clip(grad, -self.clip, self.clip)
+            norm = TT.sqrt((grad * grad).sum())
+            yield clip * TT.minimum(1, self.max_norm / norm)
 
     @staticmethod
     def shared_like(param, name, init=0):
@@ -324,8 +323,7 @@ class NAG(SGD):
 
     def learning_updates(self):
         # step 2. record the gradient here.
-        for param, step, vel in zip(self.params, self._steps, self._vels):
-            grad = self.clipped_gradient(param)
+        for grad, step, vel in zip(self.clipped_gradients(), self._steps, self._vels):
             yield vel, step - self.learning_rate * grad
 
         # step 3. update each of the parameters, removing the step that we took
@@ -371,10 +369,9 @@ class Rprop(SGD):
         super(Rprop, self).__init__(network, **kwargs)
 
     def learning_updates(self):
-        for param in self.params:
+        for param, grad in zip(self.params, self.clipped_gradients()):
             grad_tm1 = self.shared_like(param, 'grad')
             step_tm1 = self.shared_like(param, 'step', self.learning_rate)
-            grad = self.clipped_gradient(param)
             test = grad * grad_tm1
             same = TT.gt(test, 0)
             diff = TT.lt(test, 0)
@@ -418,11 +415,10 @@ class RmsProp(SGD):
         super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):
-        for param in self.params:
+        for param, grad in zip(self.params, self.clipped_gradients()):
             g1_tm1 = self.shared_like(param, 'g1_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
             vel_tm1 = self.shared_like(param, 'vel')
-            grad = self.clipped_gradient(param)
             g1_t = self.ewma * g1_tm1 + (1 - self.ewma) * grad
             g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
             rms = TT.sqrt(g2_t - g1_t * g1_t + 1e-4)
@@ -455,11 +451,10 @@ class ADADELTA(RmsProp):
 
     def learning_updates(self):
         eps = self.learning_rate
-        for param in self.params:
+        for param, grad in zip(self.params, self.clipped_gradients()):
             x2_tm1 = self.shared_like(param, 'x2_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
             vel_tm1 = self.shared_like(param, 'vel')
-            grad = self.clipped_gradient(param)
             g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
             delta = grad * TT.sqrt(x2_tm1 + eps) / TT.sqrt(g2_t + eps)
             x2_t = self.ewma * x2_tm1 + (1 - self.ewma) * delta * delta

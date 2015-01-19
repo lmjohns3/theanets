@@ -318,7 +318,7 @@ class NAG(SGD):
             prepare.append((param, param + step))
 
         logging.info('compiling NAG pre-step function')
-        self.f_prepare = theano.function(updates=prepare)
+        self.f_prepare = theano.function([], [], updates=prepare)
 
         super(NAG, self).__init__(network, **kwargs)
 

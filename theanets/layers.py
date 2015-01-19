@@ -571,7 +571,7 @@ class Classifier(Feedforward):
         super(Classifier, self).__init__(**kwargs)
 
 
-class RNN(Layer):
+class Recurrent(Layer):
     '''A recurrent network layer incorporates some dependency on past values.
 
     In many respects, a recurrent network layer is much like a basic feedforward
@@ -597,7 +597,7 @@ class RNN(Layer):
     '''
 
     def __init__(self, batch_size=64, **kwargs):
-        super(RNN, self).__init__(**kwargs)
+        super(Recurrent, self).__init__(**kwargs)
 
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
@@ -653,6 +653,16 @@ class RNN(Layer):
             inits = [self.zeros()]
         return theano.scan(fn, name=name, sequences=inputs, outputs_info=inits)
 
+
+class RNN(Recurrent):
+    '''"Vanilla" recurrent network layer.
+
+    There are many different styles of recurrent network layers, but the one
+    implemented here is known as an Elman layer or an SRN (Simple Recurrent
+    Network) -- the output from the layer at the previous time step is
+    incorporated into the input of the layer at the current time step.
+    '''
+
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
 
@@ -693,7 +703,7 @@ class RNN(Layer):
         return self._scan(self._fmt('rnn'), fn, [x])
 
 
-class ARRNN(RNN):
+class ARRNN(Recurrent):
     '''An adaptive rate RNN defines per-hidden-unit accumulation rates.
 
     In a normal RNN, a hidden unit is updated completely at each time step,
@@ -755,7 +765,7 @@ class ARRNN(RNN):
         return self._scan(self._fmt('arrnn'), fn, [x, TT.nnet.sigmoid(r)])
 
 
-class MRNN(RNN):
+class MRNN(Recurrent):
     '''Define a recurrent network layer using multiplicative dynamics.
 
     The formulation of MRNN implemented here uses a factored dynamics matrix as
@@ -816,7 +826,7 @@ class MRNN(RNN):
         return self._scan(self._fmt('mrnn'), fn, [x, f])
 
 
-class LSTM(RNN):
+class LSTM(Recurrent):
     '''Long Short-Term Memory layer.
 
     The implementation details for this layer follow the specification given by

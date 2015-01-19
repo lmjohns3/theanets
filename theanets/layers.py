@@ -34,7 +34,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def create_matrix(nin, nout, name, sparsity=0, radius=0):
+def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=None):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
@@ -53,6 +53,11 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0):
     radius : float, optional
         If given, rescale the initial weights to have this spectral radius.
         No scaling is performed by default.
+    mean : float, optional
+        Draw initial weight values from a normal with this mean. Defaults to 0.
+    std : float, optional
+        Draw initial weight values from a normal with this standard deviation.
+        Defaults to :math:`1 / \sqrt{n_i + n_o}`.
 
     Returns
     -------
@@ -61,13 +66,14 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0):
         represent the weights connecting each "input" unit to each "output" unit
         in a layer.
     '''
-    arr = np.random.randn(nin, nout) / np.sqrt(nin + nout)
-    if 0 < sparsity < 1:
+    std = std or 1 / np.sqrt(nin + nout)
+    arr = mean + std * np.random.randn(nin, nout)
+    if 1 > sparsity > 0:
         k = min(nin, nout)
         mask = np.random.binomial(n=1, p=1 - sparsity, size=(nin, nout)).astype(bool)
         mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
         arr *= mask
-    if radius:
+    if radius > 0:
         # rescale weights to have the appropriate spectral radius.
         u, s, vT = np.linalg.svd(arr)
         arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)

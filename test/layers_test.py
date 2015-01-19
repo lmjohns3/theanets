@@ -81,9 +81,9 @@ class TestRNN(Base):
         assert not upd
 
 
-class TestRRNN(Base):
+class TestARRNN(Base):
     def _build(self, **kwargs):
-        return theanets.layers.RRNN(nin=2, nout=4, **kwargs)
+        return theanets.layers.ARRNN(nin=2, nout=4, **kwargs)
 
     def test_create(self):
         l = self._build()

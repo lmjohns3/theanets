@@ -634,9 +634,10 @@ class RNN(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, W_xh, W_hh, b_h):
-            return self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-        return self._scan(self._fmt('rnn'), fn, inputs)
+        x = TT.dot(inputs[0], self.weights[0]) + self.biases[0]
+        def fn(x_t, h_tm1, W_hh):
+            return self.activate(x_t + TT.dot(h_tm1, W_hh))
+        return self._scan(self._fmt('rnn'), fn, [x], params=[self.weights[1]])
 
     def _new_weights(self, nin=None, nout=None, name='weights'):
         '''Helper method to create a new weight matrix.
@@ -664,7 +665,7 @@ class RNN(Layer):
             radius=self.kwargs.get('radius', 0) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _scan(self, name, fn, inputs):
+    def _scan(self, name, fn, inputs, params=None, inits=None):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
@@ -683,13 +684,18 @@ class RNN(Layer):
         updates : list of theano variables
             A sequence of updates to apply inside a theano function.
         '''
+        if self.kwargs.get('direction', '').lower().startswith('back'):
+            inputs = [x[::-1] for x in inputs]
+        if params is None:
+            params = self.weights + self.biases
+        if inits is None:
+            inits = [self.zeros()]
         return theano.scan(
             name=name,
             fn=fn,
             sequences=inputs,
-            non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros()],
-            go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
+            non_sequences=params,
+            outputs_info=inits,
         )
 
 
@@ -717,10 +723,13 @@ class ARRNN(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights(name='xh'),
-                        self._new_weights(name='xr'),
-                        self._new_weights(nin=self.nout, name='hh')]
-        self.biases = [self._new_bias(), self._new_bias('rate')]
+        self._W_xh = self._new_weights(name='xh')
+        self._W_xr = self._new_weights(name='xr')
+        self._W_hh = self._new_weights(nin=self.nout, name='hh')
+        self._b_h = self._new_bias('hid')
+        self._b_r = self._new_bias('rate')
+        self.weights = [self._W_xh, self._W_xr, self._W_hh]
+        self.biases = [self._b_h, self._b_r]
         return self.nout * (2 + 2 * self.nin + self.nout)
 
     def transform(self, *inputs):
@@ -739,11 +748,13 @@ class ARRNN(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, W_xh, W_xr, W_hh, b_h, b_r):
-            h_t = self.activate(TT.dot(x_t, W_xh) + TT.dot(h_tm1, W_hh) + b_h)
-            alpha = TT.nnet.sigmoid(TT.dot(x_t, W_xr) + b_r)
-            return alpha * h_tm1 + (1 - alpha) * h_t
-        return self._scan(self._fmt('arrnn'), fn, inputs)
+        def fn(x_t, r_t, h_tm1, W_hh):
+            h_t = self.activate(x_t + TT.dot(h_tm1, W_hh))
+            return r_t * h_tm1 + (1 - r_t) * h_t
+        x = TT.dot(inputs[0], self._W_xh) + self._b_h
+        r = TT.dot(inputs[0], self._W_xr) + self._b_r
+        return self._scan(
+            self._fmt('arrnn'), fn, [x, TT.nnet.sigmoid(r)], params=[self._W_hh])
 
 
 class MRNN(RNN):
@@ -768,12 +779,11 @@ class MRNN(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [
-            self._new_weights(self.nin, self.nout, 'xh'),
-            self._new_weights(self.nin, self.factors, 'xf'),
-            self._new_weights(self.nout, self.factors, 'hf'),
-            self._new_weights(self.factors, self.nout, 'fh'),
-        ]
+        self._W_xh = self._new_weights(self.nin, self.nout, 'xh')
+        self._W_xf = self._new_weights(self.nin, self.factors, 'xf')
+        self._W_hf = self._new_weights(self.nout, self.factors, 'hf')
+        self._W_fh = self._new_weights(self.factors, self.nout, 'fh')
+        self.weights = [self._W_xh, self._W_xf, self._W_hf, self._W_fh]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
 
@@ -793,11 +803,13 @@ class MRNN(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, W_xh, W_xf, W_hf, W_fh, b_h):
-            f_t = TT.dot(TT.dot(h_tm1, W_hf) * TT.dot(x_t, W_xf), W_fh)
-            return self.activate(TT.dot(x_t, W_xh) + b_h + f_t)
-        return self._scan(self._fmt('mrnn'), fn, inputs)
-
+        def fn(x_t, f_t, h_tm1, W_hf, W_fh):
+            return self.activate(x_t + TT.dot(f_t * TT.dot(h_tm1, W_hf), W_fh))
+        return self._scan(
+            self._fmt('mrnn'), fn,
+            [TT.dot(inputs[0], self._W_xh) + self.biases[0],
+             TT.dot(inputs[0], self._W_xf)],
+            params=[self._W_hf, self._W_fh])
 
 
 class LSTM(RNN):
@@ -817,22 +829,25 @@ class LSTM(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [
-            # these three weight matrices are always diagonal.
+        # these three "peephole" weight matrices are always diagonal.
+        self._peephole_w = [
             self._new_bias(name='ci'),
             self._new_bias(name='cf'),
             self._new_bias(name='co'),
-
+        ]
+        self._input_w = [
             self._new_weights(name='xi'),
             self._new_weights(name='xf'),
             self._new_weights(name='xc'),
             self._new_weights(name='xo'),
-
+        ]
+        self._recurrent_w = [
             self._new_weights(nin=self.nout, name='hi'),
             self._new_weights(nin=self.nout, name='hf'),
             self._new_weights(nin=self.nout, name='hc'),
             self._new_weights(nin=self.nout, name='ho'),
         ]
+        self.weights = self._peephole_w + self._input_w + self._recurrent_w
         self.biases = [
             self._new_bias(name='bi'),
             self._new_bias(name='bf', mean=10),
@@ -857,25 +872,23 @@ class LSTM(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, h_tm1, c_tm1,
-               W_ci, W_cf, W_co,
-               W_xi, W_xf, W_xc, W_xo,
-               W_hi, W_hf, W_hc, W_ho,
-               b_i, b_f, b_c, b_o):
-            i_t = TT.nnet.sigmoid(TT.dot(x_t, W_xi) + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci + b_i)
-            f_t = TT.nnet.sigmoid(TT.dot(x_t, W_xf) + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf + b_f)
-            c_t = f_t * c_tm1 + i_t * TT.tanh(TT.dot(x_t, W_xc) + TT.dot(h_tm1, W_hc) + b_c)
-            o_t = TT.nnet.sigmoid(TT.dot(x_t, W_xo) + TT.dot(h_tm1, W_ho) + c_t * W_co + b_o)
+        def fn(xi, xf, xc, xo, h_tm1, c_tm1, W_ci, W_cf, W_co, W_hi, W_hf, W_hc, W_ho):
+            i_t = TT.nnet.sigmoid(xi + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci)
+            f_t = TT.nnet.sigmoid(xf + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf)
+            c_t = f_t * c_tm1 + i_t * TT.tanh(xc + TT.dot(h_tm1, W_hc))
+            o_t = TT.nnet.sigmoid(xo + TT.dot(h_tm1, W_ho) + c_t * W_co)
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
-        outputs, updates = theano.scan(
-            name=self._fmt('lstm'),
-            fn=fn,
-            sequences=inputs,
-            non_sequences=self.weights + self.biases,
-            outputs_info=[self.zeros('h'), self.zeros('c')],
-            go_backwards=self.kwargs.get('direction', '').lower().startswith('back'),
-        )
+        b_i, b_f, b_c, b_o = self.biases
+        W_xi, W_xf, W_xc, W_xo = self._input_w
+        outputs, updates = self._scan(
+            self._fmt('lstm'), fn,
+            [TT.dot(inputs[0], W_xi) + b_i,
+             TT.dot(inputs[0], W_xf) + b_f,
+             TT.dot(inputs[0], W_xc) + b_c,
+             TT.dot(inputs[0], W_xo) + b_o],
+            params=self._peephole_w + self._recurrent_w,
+            inits=[self.zeros('h'), self.zeros('c')])
         return outputs[0], updates
 
 

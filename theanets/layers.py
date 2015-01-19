@@ -580,10 +580,8 @@ class RNN(Layer):
     preserve the previous state(s) of the layer's output and incorporate them
     into the transformation of the current input.
 
-    There are many different styles of recurrent network layers, but the one
-    implemented here is known as an Elman layer or an SRN (Simple Recurrent
-    Network) -- the output from the layer at the previous time step is
-    incorporated into the input of the layer at the current time step.
+    This layer type is actually just a base class for the many different types
+    of recurrent network layers, for example :class:`RNN` or :class:`LSTM`.
 
     Parameters
     ----------
@@ -603,41 +601,6 @@ class RNN(Layer):
 
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
-
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights(name='xh'),
-                        self._new_weights(nin=self.nout, name='hh')]
-        self.biases = [self._new_bias()]
-        return self.nout * (1 + self.nin + self.nout)
-
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
-
-        Parameters
-        ----------
-        inputs : theano variables
-            The inputs to this layer. There must be exactly one input.
-
-        Returns
-        -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
-            A sequence of updates to apply inside a theano function.
-        '''
-        assert len(inputs) == 1
-        x = TT.dot(inputs[0], self.weights[0]) + self.biases[0]
-        def fn(x_t, h_tm1, W_hh):
-            return self.activate(x_t + TT.dot(h_tm1, W_hh))
-        return self._scan(self._fmt('rnn'), fn, [x], params=[self.weights[1]])
 
     def _new_weights(self, nin=None, nout=None, name='weights'):
         '''Helper method to create a new weight matrix.
@@ -665,7 +628,7 @@ class RNN(Layer):
             radius=self.kwargs.get('radius', 0) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _scan(self, name, fn, inputs, params=None, inits=None):
+    def _scan(self, name, fn, inputs, inits=None):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
@@ -686,17 +649,48 @@ class RNN(Layer):
         '''
         if self.kwargs.get('direction', '').lower().startswith('back'):
             inputs = [x[::-1] for x in inputs]
-        if params is None:
-            params = self.weights + self.biases
         if inits is None:
             inits = [self.zeros()]
-        return theano.scan(
-            name=name,
-            fn=fn,
-            sequences=inputs,
-            non_sequences=params,
-            outputs_info=inits,
-        )
+        return theano.scan(fn, name=name, sequences=inputs, outputs_info=inits)
+
+    def reset(self):
+        '''Reset the state of this layer to a new initial condition.
+
+        Returns
+        -------
+        count : int
+            The number of learnable parameters in this layer.
+        '''
+        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        self.weights = [self._new_weights(name='xh'),
+                        self._new_weights(nin=self.nout, name='hh')]
+        self.biases = [self._new_bias()]
+        return self.nout * (1 + self.nin + self.nout)
+
+    _W_xh = property(lambda self: self.weights[0])
+    _W_hh = property(lambda self: self.weights[1])
+    _b_h = property(lambda self: self.biases[0])
+
+    def transform(self, *inputs):
+        '''Transform the inputs for this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : theano variables
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        outputs : theano variable
+            Theano variable representing the output from the layer.
+        updates : theano variables
+            A sequence of updates to apply inside a theano function.
+        '''
+        assert len(inputs) == 1
+        def fn(x_t, h_tm1):
+            return self.activate(x_t + TT.dot(h_tm1, self._W_hh))
+        x = TT.dot(inputs[0], self._W_xh) + self._b_h
+        return self._scan(self._fmt('rnn'), fn, [x])
 
 
 class ARRNN(RNN):
@@ -723,14 +717,19 @@ class ARRNN(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self._W_xh = self._new_weights(name='xh')
-        self._W_xr = self._new_weights(name='xr')
-        self._W_hh = self._new_weights(nin=self.nout, name='hh')
-        self._b_h = self._new_bias('hid')
-        self._b_r = self._new_bias('rate')
-        self.weights = [self._W_xh, self._W_xr, self._W_hh]
-        self.biases = [self._b_h, self._b_r]
+        self.weights = [
+            self._new_weights(name='xh'),
+            self._new_weights(name='xr'),
+            self._new_weights(nin=self.nout, name='hh'),
+        ]
+        self.biases = [self._new_bias('hid'), self._new_bias('rate')]
         return self.nout * (2 + 2 * self.nin + self.nout)
+
+    _W_xh = property(lambda self: self.weights[0])
+    _W_xr = property(lambda self: self.weights[1])
+    _W_hh = property(lambda self: self.weights[2])
+    _b_h = property(lambda self: self.biases[0])
+    _b_r = property(lambda self: self.biases[1])
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -748,13 +747,12 @@ class ARRNN(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, r_t, h_tm1, W_hh):
-            h_t = self.activate(x_t + TT.dot(h_tm1, W_hh))
+        def fn(x_t, r_t, h_tm1):
+            h_t = self.activate(x_t + TT.dot(h_tm1, self._W_hh))
             return r_t * h_tm1 + (1 - r_t) * h_t
         x = TT.dot(inputs[0], self._W_xh) + self._b_h
         r = TT.dot(inputs[0], self._W_xr) + self._b_r
-        return self._scan(
-            self._fmt('arrnn'), fn, [x, TT.nnet.sigmoid(r)], params=[self._W_hh])
+        return self._scan(self._fmt('arrnn'), fn, [x, TT.nnet.sigmoid(r)])
 
 
 class MRNN(RNN):
@@ -779,13 +777,20 @@ class MRNN(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self._W_xh = self._new_weights(self.nin, self.nout, 'xh')
-        self._W_xf = self._new_weights(self.nin, self.factors, 'xf')
-        self._W_hf = self._new_weights(self.nout, self.factors, 'hf')
-        self._W_fh = self._new_weights(self.factors, self.nout, 'fh')
-        self.weights = [self._W_xh, self._W_xf, self._W_hf, self._W_fh]
+        self.weights = [
+            self._new_weights(self.nin, self.nout, 'xh'),
+            self._new_weights(self.nin, self.factors, 'xf'),
+            self._new_weights(self.nout, self.factors, 'hf'),
+            self._new_weights(self.factors, self.nout, 'fh'),
+        ]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
+
+    _W_xh = property(lambda self: self.weights[0])
+    _W_xf = property(lambda self: self.weights[1])
+    _W_hf = property(lambda self: self.weights[2])
+    _W_fh = property(lambda self: self.weights[3])
+    _b_h = property(lambda self: self.biases[0])
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -803,13 +808,12 @@ class MRNN(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(x_t, f_t, h_tm1, W_hf, W_fh):
-            return self.activate(x_t + TT.dot(f_t * TT.dot(h_tm1, W_hf), W_fh))
-        return self._scan(
-            self._fmt('mrnn'), fn,
-            [TT.dot(inputs[0], self._W_xh) + self.biases[0],
-             TT.dot(inputs[0], self._W_xf)],
-            params=[self._W_hf, self._W_fh])
+        def fn(x_t, f_t, h_tm1):
+            h_t = TT.dot(f_t * TT.dot(h_tm1, self._W_hf), self._W_fh)
+            return self.activate(x_t + h_t)
+        x = TT.dot(inputs[0], self._W_xh) + self._b_h
+        f = TT.dot(inputs[0], self._W_xf)
+        return self._scan(self._fmt('mrnn'), fn, [x, f])
 
 
 class LSTM(RNN):
@@ -829,25 +833,22 @@ class LSTM(RNN):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        # these three "peephole" weight matrices are always diagonal.
-        self._peephole_w = [
+        self.weights = [
+            # these three "peephole" weight matrices are always diagonal.
             self._new_bias(name='ci'),
             self._new_bias(name='cf'),
             self._new_bias(name='co'),
-        ]
-        self._input_w = [
+
             self._new_weights(name='xi'),
             self._new_weights(name='xf'),
             self._new_weights(name='xc'),
             self._new_weights(name='xo'),
-        ]
-        self._recurrent_w = [
+
             self._new_weights(nin=self.nout, name='hi'),
             self._new_weights(nin=self.nout, name='hf'),
             self._new_weights(nin=self.nout, name='hc'),
             self._new_weights(nin=self.nout, name='ho'),
         ]
-        self.weights = self._peephole_w + self._input_w + self._recurrent_w
         self.biases = [
             self._new_bias(name='bi'),
             self._new_bias(name='bf', mean=10),
@@ -855,6 +856,22 @@ class LSTM(RNN):
             self._new_bias(name='bo'),
         ]
         return self.nout * (7 + 4 * (self.nout + self.nin))
+
+    _W_ci = property(lambda self: self.weights[0])
+    _W_cf = property(lambda self: self.weights[1])
+    _W_co = property(lambda self: self.weights[2])
+    _W_xi = property(lambda self: self.weights[3])
+    _W_xf = property(lambda self: self.weights[4])
+    _W_xc = property(lambda self: self.weights[5])
+    _W_xo = property(lambda self: self.weights[6])
+    _W_hi = property(lambda self: self.weights[7])
+    _W_hf = property(lambda self: self.weights[8])
+    _W_hc = property(lambda self: self.weights[9])
+    _W_ho = property(lambda self: self.weights[10])
+    _b_i = property(lambda self: self.biases[0])
+    _b_f = property(lambda self: self.biases[1])
+    _b_c = property(lambda self: self.biases[2])
+    _b_o = property(lambda self: self.biases[3])
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -872,22 +889,19 @@ class LSTM(RNN):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        def fn(xi, xf, xc, xo, h_tm1, c_tm1, W_ci, W_cf, W_co, W_hi, W_hf, W_hc, W_ho):
-            i_t = TT.nnet.sigmoid(xi + TT.dot(h_tm1, W_hi) + c_tm1 * W_ci)
-            f_t = TT.nnet.sigmoid(xf + TT.dot(h_tm1, W_hf) + c_tm1 * W_cf)
-            c_t = f_t * c_tm1 + i_t * TT.tanh(xc + TT.dot(h_tm1, W_hc))
-            o_t = TT.nnet.sigmoid(xo + TT.dot(h_tm1, W_ho) + c_t * W_co)
+        def fn(xi, xf, xc, xo, h_tm1, c_tm1):
+            i_t = TT.nnet.sigmoid(xi + TT.dot(h_tm1, self._W_hi) + c_tm1 * self._W_ci)
+            f_t = TT.nnet.sigmoid(xf + TT.dot(h_tm1, self._W_hf) + c_tm1 * self._W_cf)
+            c_t = f_t * c_tm1 + i_t * TT.tanh(xc + TT.dot(h_tm1, self._W_hc))
+            o_t = TT.nnet.sigmoid(xo + TT.dot(h_tm1, self._W_ho) + c_t * self._W_co)
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
-        b_i, b_f, b_c, b_o = self.biases
-        W_xi, W_xf, W_xc, W_xo = self._input_w
         outputs, updates = self._scan(
             self._fmt('lstm'), fn,
-            [TT.dot(inputs[0], W_xi) + b_i,
-             TT.dot(inputs[0], W_xf) + b_f,
-             TT.dot(inputs[0], W_xc) + b_c,
-             TT.dot(inputs[0], W_xo) + b_o],
-            params=self._peephole_w + self._recurrent_w,
+            [TT.dot(inputs[0], self._W_xi) + self._b_i,
+             TT.dot(inputs[0], self._W_xf) + self._b_f,
+             TT.dot(inputs[0], self._W_xc) + self._b_c,
+             TT.dot(inputs[0], self._W_xo) + self._b_o],
             inits=[self.zeros('h'), self.zeros('c')])
         return outputs[0], updates
 

@@ -50,20 +50,21 @@ def batches(dataset):
         return [s, t]
     return sample
 
-def bdlstm(n):
+def layer(n):
     return dict(
         form='bidirectional',
         worker='lstm',
-        #form='lstm',
         size=n,
+        radius=1.1,
     )
 
 e = theanets.Experiment(
     theanets.recurrent.Classifier,
-    layers=(39, bdlstm(156), bdlstm(300), bdlstm(102), 51),
+    layers=(39, layer(156), layer(300), layer(102), 51),
     recurrent_error_start=0,
     batch_size=BATCH_SIZE,
-    input_noise=0.3,
+    input_noise=0.6,
+    max_gradient_norm=10,
 )
 e.train(batches(scipy.io.netcdf_file(open(TRAIN_NC))),
         batches(scipy.io.netcdf_file(open(VALID_NC))))

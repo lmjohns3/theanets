@@ -786,15 +786,15 @@ class Classifier(Network):
 
     @property
     def output_activation(self):
-        return 'logsoftmax'
+        return 'softmax'
 
     @property
     def error(self):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
         idx = TT.arange(TT.prod(self.labels.shape))
-        logprobs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
-        return -TT.mean(logprobs[idx, self.labels.flatten(1)])
+        probs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
+        return -TT.mean(TT.log(probs[idx, self.labels.flatten(1)]))
 
     @property
     def accuracy(self):

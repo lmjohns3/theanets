@@ -104,24 +104,6 @@ def create_vector(size, name, mean=0, std=1e-3):
     return theano.shared(vec.astype(FLOAT), name=name)
 
 
-def logsoftmax(x):
-    '''Compute the log-softmax of the rows of a matrix.
-
-    Parameters
-    ----------
-    x : theano variable
-        A theano matrix. Each row represents one data point, and each column
-        represents one of the possible classes for the data points.
-
-    Returns
-    -------
-    y : theano variable
-        A theano expression computing the log-softmax of each row of `x`.
-    '''
-    z = TT.clip(TT.exp(x - x.max(axis=-1, keepdims=True)), 1e-7, 1e7)
-    return TT.log(z) - TT.log(z.sum(axis=-1, keepdims=True))
-
-
 def create_activation(activation):
 
     '''Given an activation description, return a callable that implements it.
@@ -150,7 +132,6 @@ def create_activation(activation):
         'sigmoid': TT.nnet.sigmoid,
         'softplus': TT.nnet.softplus,
         'softmax': TT.nnet.softmax,
-        'logsoftmax': logsoftmax,
 
         # rectification
         'relu': lambda z: TT.maximum(0, z),
@@ -265,11 +246,11 @@ def _only(x):
     Raises
     ------
     AssertionError :
-        If x is a sequence with more or less than one element.
+        If x is a sequence such that len(x) != 1.
 
     Returns
     -------
-    only : any
+    element : any
         If x is a sequence, returns the first element from the sequence. If x is
         not a sequence, returns x.
     '''

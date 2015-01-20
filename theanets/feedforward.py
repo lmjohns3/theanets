@@ -834,4 +834,4 @@ class Classifier(Network):
         k : ndarray (num-examples, )
             A vector of class index values, one per row of input data.
         '''
-        return self.predict(x).argmax(axis=1)
+        return self.predict(x).argmax(axis=-1)

@@ -86,7 +86,39 @@ def ipcluster_mapper(client):
 
 
 class Trainer(object):
-    '''All trainers derive from this base class.'''
+    '''All trainers derive from this base class.
+
+    A trainer is a wrapper for a few different types of theano functions, along
+    with the parameters that define the behavior of these functions. The trainer
+    base class is abstract; subclasses must provide an implementation of the
+    :func:`train` method.
+
+    Attributes
+    ----------
+    params : list of theano variables
+        Parameters from our network model that require training.
+    loss : theano expression
+        An expression for computing a scalar loss value for the network, given
+        the current parameter settings.
+    f_eval : theano function
+        A function that takes some data and returns a sequence of monitor values
+        for that data.
+
+    Parameters
+    ----------
+    validate : int, optional
+        Validate the model after this many training iterations have passed.
+        Defaults to 10.
+    min_improvement : float, optional
+        Quit training if the evaluation loss for the model does not improve by
+        at least this relative amount for `patience` training iterations.
+        Defaults to 0, meaning that the model can make any improvement to the
+        validation loss.
+    patience : int, optional
+        Maximum number of training iterations that can pass before
+        `min_improvement` relative validation loss improvement must be made.
+        Defaults to 100.
+    '''
 
     def __init__(self, network, **kwargs):
         super(Trainer, self).__init__()
@@ -117,17 +149,50 @@ class Trainer(object):
             network.inputs, self._monitor_exprs, updates=network.updates)
 
     def flat_to_arrays(self, x):
+        '''Convert a parameter vector to a sequence of parameter arrays.
+
+        Parameters
+        ----------
+        flat : ndarray
+            A one-dimensional numpy array containing flattened parameter values
+            for all parameters in our model.
+
+        Returns
+        -------
+        arrays : sequence of ndarray
+            Values of the parameters in our model.
+        '''
         x = x.astype(self._dtype)
         return [x[o:o+n].reshape(s) for s, o, n in
                 zip(self._shapes, self._starts, self._counts)]
 
     def arrays_to_flat(self, arrays):
+        '''Convert a sequence of parameter arrays to a vector.
+
+        Parameters
+        ----------
+        arrays : sequence of ndarray
+            Values of the parameters in our model.
+
+        Returns
+        -------
+        flat : ndarray
+            A one-dimensional numpy array containing flattened parameter values
+            for all parameters in our model.
+        '''
         x = np.zeros((sum(self._counts), ), self._dtype)
         for arr, o, n in zip(arrays, self._starts, self._counts):
             x[o:o+n] = arr.ravel()
         return x
 
     def set_params(self, targets):
+        '''Set the values of the parameters to the given target values.
+
+        Parameters
+        ----------
+        targets : sequence of ndarray
+            Arrays for setting the parameters of our model.
+        '''
         for param, target in zip(self.params, targets):
             param.set_value(target)
 
@@ -136,14 +201,18 @@ class Trainer(object):
 
         Parameters
         ----------
-        valid_set : theanets.Dataset
+        iteration : int
+            The number of the training iteration where this evaluation is taking
+            place.
+        valid_set : :class:`theanets.dataset.Dataset`
             A set of data to use for evaluating the model. Typically this is
             distinct from the training (and testing) data.
 
         Returns
         -------
-        True iff there was sufficient improvement compared with the last call to
-        evaluate.
+        waiting : bool
+            True iff we are still willing to wait for validation loss
+            improvements.
         '''
         costs = list(zip(
             self._monitor_names,
@@ -161,6 +230,24 @@ class Trainer(object):
         return iteration - self._best_iter < self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):
+        '''Train a model using a training and validation set.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.dataset.Dataset`
+            A set of training data for computing updates to model parameters.
+        valid_set : :class:`theanets.dataset.Dataset`
+            A set of validation data for computing monitor values and
+            determining when the loss has stopped improving.
+
+        Return
+        ------
+        monitors : sequence of dict
+            This method must yield a series of monitor values to the caller.
+            Typically one monitor dictionary is yielded after each pass through
+            the training data, but at a minimum a dictionary must be provided
+            when training has stopped.
+        '''
         raise NotImplementedError
 
 

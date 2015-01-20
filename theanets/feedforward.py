@@ -316,7 +316,7 @@ class Network(object):
             else:
                 # inputs to other layers are outputs of previous layer.
                 inputs = outputs[-1:]
-            out, upd = layer.output(*inputs)
+            out, upd = layer.output(inputs)
             outputs.append(out)
             updates.extend(upd)
         return outputs, updates

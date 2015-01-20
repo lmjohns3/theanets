@@ -254,6 +254,31 @@ class Registrar(type):
 Base = Registrar(str('Base'), (), {})
 
 
+def _only(x):
+    '''Normalize the type of x to return one element.
+
+    Parameters
+    ----------
+    x : any
+        Either a sequence of elements containing one value, or a non-sequence.
+
+    Raises
+    ------
+    AssertionError :
+        If x is a sequence with more or less than one element.
+
+    Returns
+    -------
+    only : any
+        If x is a sequence, returns the first element from the sequence. If x is
+        not a sequence, returns x.
+    '''
+    if hasattr(x, '__len__'):
+        assert len(x) == 1
+        return x[0]
+    return x
+
+
 class Layer(Base):
     '''Layers in network graphs derive from this base class.
 
@@ -315,19 +340,19 @@ class Layer(Base):
         self.biases = []
         super(Layer, self).__init__()
 
-    def output(self, *inputs):
+    def output(self, inputs):
         '''Create theano variables representing the output of this layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             Symbolic inputs to this layer. Usually layers have only one input,
             but layers in general are allowed to have many inputs.
 
         Returns
         -------
-        outputs : theano variable
-            Theano expression giving the output of this layer.
+        output : theano expression
+            Theano expression specifying the output of this layer.
         updates : sequence of update tuples
             Updates that should be performed by a theano function that computes
             something using this layer.
@@ -335,25 +360,25 @@ class Layer(Base):
         rng = self.kwargs.get('rng') or RandomStreams()
         noise = self.kwargs.get('noise', 0)
         dropout = self.kwargs.get('dropout', 0)
-        output, updates = self.transform(*inputs)
+        output, updates = self.transform(inputs)
         return add_dropout(add_noise(output, noise, rng), dropout, rng), updates
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
-            The inputs to this layer. There must be exactly one input.
+        inputs : sequence of theano expressions
+            Symbolic inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from this layer's transform.
+        output : theano expression
+            Theano expression representing the output from this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        return inputs[0], ()
+        return _only(inputs), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -476,23 +501,26 @@ class Feedforward(Layer):
     built.
     '''
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
-            The inputs to this layer.
+        inputs : sequence of theano expressions
+            Symbolic inputs to this layer.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from this layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from this layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
+        if not hasattr(inputs, '__len__'):
+            inputs = (inputs, )
         assert len(inputs) == len(self.weights)
-        return self.activate(sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0]), ()
+        xs = (TT.dot(i, w) for i, w in zip(inputs, self.weights))
+        return self.activate(sum(xs) + self.biases[0]), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -534,23 +562,23 @@ class Tied(Feedforward):
         kwargs['nout'] = partner.nin
         super(Tied, self).__init__(**kwargs)
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
-            The inputs to this layer. There must be exactly one input.
+        inputs : sequence of theano expressions
+            Symbolic inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from this layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from this layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        assert len(inputs) == 1
-        return self.activate(TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0]), ()
+        x = TT.dot(_only(inputs), self.partner.weights[0].T) + self.biases[0]
+        return self.activate(x), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -560,7 +588,9 @@ class Tied(Feedforward):
         count : int
             A count of the number of parameters in this layer.
         '''
-        logging.info('tied weights from %s: %s x %s', self.partner.name, self.nin, self.nout)
+        logging.info('tied weights from %s: %s x %s',
+                     self.partner.name, self.nin, self.nout)
+        # this layer does not create a weight matrix!
         self.biases = [self._new_bias()]
         return self.nout
 
@@ -642,13 +672,13 @@ class Recurrent(Layer):
             Name of the scan variable to create.
         fn : callable
             The callable to apply in the loop.
-        inputs : theano variables
+        inputs : sequence of theano expressions
             Inputs to the scan operation.
 
         Returns
         -------
-        outputs : theano variables
-            Theano variables representing the outputs from the scan.
+        output(s) : sequence of theano expression(s)
+            Theano expression(s) representing output(s) from the scan.
         updates : list of theano variables
             A sequence of updates to apply inside a theano function.
         '''
@@ -686,25 +716,24 @@ class RNN(Recurrent):
     _W_hh = property(lambda self: self.weights[1])
     _b_h = property(lambda self: self.biases[0])
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             The inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from the layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        assert len(inputs) == 1
         def fn(x_t, h_tm1):
             return self.activate(x_t + TT.dot(h_tm1, self._W_hh))
-        x = TT.dot(inputs[0], self._W_xh) + self._b_h
+        x = TT.dot(_only(inputs), self._W_xh) + self._b_h
         return self._scan(self._fmt('rnn'), fn, [x])
 
 
@@ -746,28 +775,28 @@ class ARRNN(Recurrent):
     _b_h = property(lambda self: self.biases[0])
     _b_r = property(lambda self: self.biases[1])
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             The inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from the layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        assert len(inputs) == 1
         def fn(x_t, r_t, h_tm1):
             h_t = self.activate(x_t + TT.dot(h_tm1, self._W_hh))
             return r_t * h_tm1 + (1 - r_t) * h_t
-        x = TT.dot(inputs[0], self._W_xh) + self._b_h
-        r = TT.dot(inputs[0], self._W_xr) + self._b_r
-        return self._scan(self._fmt('arrnn'), fn, [x, TT.nnet.sigmoid(r)])
+        x = _only(inputs)
+        h = TT.dot(x, self._W_xh) + self._b_h
+        r = TT.dot(x, self._W_xr) + self._b_r
+        return self._scan(self._fmt('arrnn'), fn, [h, TT.nnet.sigmoid(r)])
 
 
 class MRNN(Recurrent):
@@ -807,28 +836,28 @@ class MRNN(Recurrent):
     _W_fh = property(lambda self: self.weights[3])
     _b_h = property(lambda self: self.biases[0])
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             The inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from the layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        assert len(inputs) == 1
         def fn(x_t, f_t, h_tm1):
             h_t = TT.dot(f_t * TT.dot(h_tm1, self._W_hf), self._W_fh)
             return self.activate(x_t + h_t)
-        x = TT.dot(inputs[0], self._W_xh) + self._b_h
-        f = TT.dot(inputs[0], self._W_xf)
-        return self._scan(self._fmt('mrnn'), fn, [x, f])
+        x = _only(inputs)
+        h = TT.dot(x, self._W_xh) + self._b_h
+        f = TT.dot(x, self._W_xf)
+        return self._scan(self._fmt('mrnn'), fn, [h, f])
 
 
 class LSTM(Recurrent):
@@ -888,22 +917,21 @@ class LSTM(Recurrent):
     _b_c = property(lambda self: self.biases[2])
     _b_o = property(lambda self: self.biases[3])
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             The inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from the layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        assert len(inputs) == 1
         def fn(xi, xf, xc, xo, h_tm1, c_tm1):
             i_t = TT.nnet.sigmoid(xi + TT.dot(h_tm1, self._W_hi) + c_tm1 * self._W_ci)
             f_t = TT.nnet.sigmoid(xf + TT.dot(h_tm1, self._W_hf) + c_tm1 * self._W_cf)
@@ -911,14 +939,15 @@ class LSTM(Recurrent):
             o_t = TT.nnet.sigmoid(xo + TT.dot(h_tm1, self._W_ho) + c_t * self._W_co)
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
-        outputs, updates = self._scan(
+        x = _only(inputs)
+        (output, _), updates = self._scan(
             self._fmt('lstm'), fn,
-            [TT.dot(inputs[0], self._W_xi) + self._b_i,
-             TT.dot(inputs[0], self._W_xf) + self._b_f,
-             TT.dot(inputs[0], self._W_xc) + self._b_c,
-             TT.dot(inputs[0], self._W_xo) + self._b_o],
+            [TT.dot(x, self._W_xi) + self._b_i,
+             TT.dot(x, self._W_xf) + self._b_f,
+             TT.dot(x, self._W_xc) + self._b_c,
+             TT.dot(x, self._W_xo) + self._b_o],
             inits=[self.zeros('h'), self.zeros('c')])
-        return outputs[0], updates
+        return output, updates
 
 
 class Bidirectional(Layer):
@@ -969,21 +998,21 @@ class Bidirectional(Layer):
         self.biases = self.forward.biases + [self.ob]
         return nf + self.nout * (1 + 2 * self.forward.nout)
 
-    def transform(self, *inputs):
-        '''Transform the inputs for this layer into outputs for the layer.
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : theano variables
+        inputs : sequence of theano expressions
             The inputs to this layer. There must be exactly one input.
 
         Returns
         -------
-        outputs : theano variable
-            Theano variable representing the output from the layer.
-        updates : theano variables
+        output : theano expression
+            Theano expression representing the output from the layer.
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        fx, fu = self.forward.transform(*inputs)
-        bx, bu = self.backward.transform(*inputs)
+        fx, fu = self.forward.transform(inputs)
+        bx, bu = self.backward.transform(inputs)
         return TT.dot(fx, self.fw) + TT.dot(bx, self.bw) + self.ob, fu + bu

@@ -337,7 +337,9 @@ class SGD(Trainer):
             logging.info('%s %i %s', self.__class__.__name__, iteration + 1, info)
             iteration += 1
 
-            yield dict(monitors)
+            monitors = dict(monitors)
+            monitors['J'] = monitors['loss']
+            yield monitors
 
         self.set_params(self._best_params)
 
@@ -623,7 +625,7 @@ class Scipy(Trainer):
 
             self.set_params(self.flat_to_arrays(res.x))
 
-            yield dict(loss=res.fun)
+            yield dict(J=res.fun, loss=res.fun)
 
         self.set_params(self._best_params)
 
@@ -691,7 +693,7 @@ class HF(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
-        yield dict(loss=-1)
+        yield dict(J=-1, loss=-1)
 
 
 class Sample(Trainer):

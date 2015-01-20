@@ -329,9 +329,8 @@ class Layer(Base):
         rng = self.kwargs.get('rng') or RandomStreams()
         noise = self.kwargs.get('noise', 0)
         dropout = self.kwargs.get('dropout', 0)
-        clean, updates = self.transform(*inputs)
-        noisy = add_noise(self.activate(clean), noise, rng)
-        return add_dropout(noisy, dropout, rng), updates
+        output, updates = self.transform(*inputs)
+        return add_dropout(add_noise(output, noise, rng), dropout, rng), updates
 
     def transform(self, *inputs):
         '''Transform the inputs for this layer into outputs for the layer.
@@ -487,7 +486,7 @@ class Feedforward(Layer):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == len(self.weights)
-        return sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0], ()
+        return self.activate(sum(TT.dot(i, w) for i, w in zip(inputs, self.weights)) + self.biases[0]), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -545,7 +544,7 @@ class Tied(Feedforward):
             A sequence of updates to apply inside a theano function.
         '''
         assert len(inputs) == 1
-        return TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0], ()
+        return self.activate(TT.dot(inputs[0], self.partner.weights[0].T) + self.biases[0]), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.

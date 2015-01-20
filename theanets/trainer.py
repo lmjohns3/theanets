@@ -91,40 +91,39 @@ class Trainer(object):
     def __init__(self, network, **kwargs):
         super(Trainer, self).__init__()
 
-        self.params = network.params(**kwargs)
-
-        self.J = network.J(**kwargs)
-        self.cost_exprs = [self.J]
-        self.cost_names = ['J']
-        for name, monitor in network.monitors:
-            self.cost_names.append(name)
-            self.cost_exprs.append(monitor)
-
-        logging.info('compiling evaluation function')
-        self.f_eval = theano.function(
-            network.inputs, self.cost_exprs, updates=network.updates)
-
         self.validation_frequency = kwargs.get('validate', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.patience = kwargs.get('patience', 100)
 
-        self.shapes = [p.get_value(borrow=True).shape for p in self.params]
-        self.counts = [np.prod(s) for s in self.shapes]
-        self.starts = np.cumsum([0] + self.counts)[:-1]
-        self.dtype = self.params[0].get_value().dtype
+        self.params = network.params(**kwargs)
+        self._shapes = [p.get_value(borrow=True).shape for p in self.params]
+        self._counts = [np.prod(s) for s in self._shapes]
+        self._starts = np.cumsum([0] + self._counts)[:-1]
+        self._dtype = self.params[0].get_value().dtype
 
-        self.best_cost = 1e100
-        self.best_iter = 0
-        self.best_params = [p.get_value().copy() for p in self.params]
+        self._best_cost = 1e100
+        self._best_iter = 0
+        self._best_params = [p.get_value().copy() for p in self.params]
+
+        self.J = network.J(**kwargs)
+        self._monitor_exprs = [self.J]
+        self._monitor_names = ['J']
+        for name, monitor in network.monitors:
+            self._monitor_names.append(name)
+            self._monitor_exprs.append(monitor)
+
+        logging.info('compiling evaluation function')
+        self.f_eval = theano.function(
+            network.inputs, self._monitor_exprs, updates=network.updates)
 
     def flat_to_arrays(self, x):
-        x = x.astype(self.dtype)
+        x = x.astype(self._dtype)
         return [x[o:o+n].reshape(s) for s, o, n in
-                zip(self.shapes, self.starts, self.counts)]
+                zip(self._shapes, self._starts, self._counts)]
 
     def arrays_to_flat(self, arrays):
-        x = np.zeros((sum(self.counts), ), self.dtype)
-        for arr, o, n in zip(arrays, self.starts, self.counts):
+        x = np.zeros((sum(self._counts), ), self._dtype)
+        for arr, o, n in zip(arrays, self._starts, self._counts):
             x[o:o+n] = arr.ravel()
         return x
 
@@ -147,19 +146,19 @@ class Trainer(object):
         evaluate.
         '''
         costs = list(zip(
-            self.cost_names,
+            self._monitor_names,
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
         # this is the same as: (J_i - J_f) / J_i > min improvement
         _, J = costs[0]
-        if self.best_cost - J > self.best_cost * self.min_improvement:
-            self.best_cost = J
-            self.best_iter = iteration
-            self.best_params = [p.get_value().copy() for p in self.params]
+        if self._best_cost - J > self._best_cost * self.min_improvement:
+            self._best_cost = J
+            self._best_iter = iteration
+            self._best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
         info = ' '.join('%s=%.2f' % el for el in costs)
         logging.info('validation %i %s%s', iteration + 1, info, marker)
-        return iteration - self.best_iter < self.patience
+        return iteration - self._best_iter < self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):
         raise NotImplementedError
@@ -239,7 +238,7 @@ class SGD(Trainer):
 
             try:
                 costs = list(zip(
-                    self.cost_names,
+                    self._monitor_names,
                     np.mean([self.f_eval(*x) for i, x in zip(range(3), train_set)], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
@@ -251,7 +250,7 @@ class SGD(Trainer):
 
             yield dict(costs)
 
-        self.set_params(self.best_params)
+        self.set_params(self._best_params)
 
     def train_minibatch(self, *x):
         self.f_learn(*x)
@@ -507,7 +506,7 @@ class Scipy(Trainer):
             self.set_params(self.flat_to_arrays(x))
             costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             cost_desc = ' '.join(
-                '%s=%.2f' % el for el in zip(self.cost_names, costs))
+                '%s=%.2f' % el for el in zip(self._monitor_names, costs))
             logging.info('scipy.%s %i %s', self.method, i + 1, cost_desc)
 
         for i in range(self.iterations):
@@ -523,7 +522,7 @@ class Scipy(Trainer):
                 res = scipy.optimize.minimize(
                     fun=self.function_at,
                     jac=self.gradient_at,
-                    x0=self.arrays_to_flat(self.best_params),
+                    x0=self.arrays_to_flat(self._best_params),
                     args=(train_set, ),
                     method=self.method,
                     callback=display,
@@ -537,7 +536,7 @@ class Scipy(Trainer):
 
             yield {'J': res.fun}
 
-        self.set_params(self.best_params)
+        self.set_params(self._best_params)
 
 
 class LM(Trainer):

@@ -30,14 +30,15 @@ training routines implemented here assume that a :class:`Network
 <theanets.feedforward.Network>` is being optimized.
 
 Most of the general-purpose optimization routines in this module are based on
-the :class:`SGD` parent and optimize the cost function at hand by taking small
-steps in the general direction of the local gradient of the cost function. Such
+the :class:`SGD` parent and optimize the loss function at hand by taking small
+steps in the general direction of the local gradient of the loss. Such
 stochastic gradient optimization techniques are not bad, in the sense that they
-will generally always take steps that lower the cost function, but because they
-use local gradient information, they are not guaranteed to find a global optimum
-for nonlinear cost functions. Whether this is a problem or not depends on your
-task, but these approaches have been shown to be quite useful in the past couple
-decades of machine learning research.
+will generally always take steps that reduce the loss, but because they use
+local gradient information, they are not guaranteed to find a global optimum for
+nonlinear losses. Whether this is a problem or not depends on your task, but
+these approaches have been shown to be quite useful in the past couple decades
+of machine learning research.
+
 '''
 
 import climate
@@ -133,13 +134,13 @@ class Trainer(object):
         self._starts = np.cumsum([0] + self._counts)[:-1]
         self._dtype = self.params[0].get_value().dtype
 
-        self._best_cost = 1e100
+        self._best_loss = 1e100
         self._best_iter = 0
         self._best_params = [p.get_value().copy() for p in self.params]
 
-        self.J = network.J(**kwargs)
-        self._monitor_exprs = [self.J]
-        self._monitor_names = ['J']
+        self.loss = network.loss(**kwargs)
+        self._monitor_exprs = [self.loss]
+        self._monitor_names = ['loss']
         for name, monitor in network.monitors:
             self._monitor_names.append(name)
             self._monitor_exprs.append(monitor)
@@ -214,18 +215,18 @@ class Trainer(object):
             True iff we are still willing to wait for validation loss
             improvements.
         '''
-        costs = list(zip(
+        monitors = list(zip(
             self._monitor_names,
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
-        # this is the same as: (J_i - J_f) / J_i > min improvement
-        _, J = costs[0]
-        if self._best_cost - J > self._best_cost * self.min_improvement:
-            self._best_cost = J
+        # this is the same as: (loss_i - loss_f) / loss_i > min improvement
+        _, loss = monitors[0]
+        if self._best_loss - loss > self._best_loss * self.min_improvement:
+            self._best_loss = loss
             self._best_iter = iteration
             self._best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
-        info = ' '.join('%s=%.2f' % el for el in costs)
+        info = ' '.join('%s=%.2f' % el for el in monitors)
         logging.info('validation %i %s%s', iteration + 1, info, marker)
         return iteration - self._best_iter < self.patience
 
@@ -277,7 +278,7 @@ class SGD(Trainer):
             yield param, param + vel_t
 
     def clipped_gradients(self, params=None):
-        for grad in TT.grad(self.J, params or self.params):
+        for grad in TT.grad(self.loss, params or self.params):
             clip = TT.clip(grad, -self.clip, self.clip)
             norm = TT.sqrt((grad * grad).sum())
             yield clip * TT.minimum(1, self.max_norm / norm)
@@ -303,8 +304,9 @@ class SGD(Trainer):
 
         Returns
         -------
-        Generates a series of cost values as the network weights are tuned.
-
+        monitors : sequence of dict
+            Generates a series of monitor values as the network weights are
+            tuned.
         '''
         iteration = 0
         while True:
@@ -324,18 +326,18 @@ class SGD(Trainer):
                 break
 
             try:
-                costs = list(zip(
+                monitors = list(zip(
                     self._monitor_names,
                     np.mean([self.f_eval(*x) for i, x in zip(range(3), train_set)], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
-            info = ' '.join('%s=%.2f' % el for el in costs)
+            info = ' '.join('%s=%.2f' % el for el in monitors)
             logging.info('%s %i %s', self.__class__.__name__, iteration + 1, info)
             iteration += 1
 
-            yield dict(costs)
+            yield dict(monitors)
 
         self.set_params(self._best_params)
 
@@ -434,11 +436,11 @@ class Rprop(SGD):
 
     To accomplish this, Rprop maintains a separate learning rate for every
     parameter in the model, and adjusts this learning rate based on the
-    consistency of the sign of the gradient of J with respect to that parameter
-    over time. Whenever two consecutive gradients for a parameter have the same
-    sign, the learning rate for that parameter increases, and whenever the signs
-    disagree, the learning rate decreases. This has a similar effect to
-    momentum-based SGD methods but effectively maintains parameter-specific
+    consistency of the sign of the gradient of the loss with respect to that
+    parameter over time. Whenever two consecutive gradients for a parameter have
+    the same sign, the learning rate for that parameter increases, and whenever
+    the signs disagree, the learning rate decreases. This has a similar effect
+    to momentum-based SGD methods but effectively maintains parameter-specific
     momentum values.
 
     The implementation here actually uses the "iRprop-" variant of Rprop
@@ -574,7 +576,7 @@ class Scipy(Trainer):
         self.iterations = kwargs.get('num_updates', 100)
 
         logging.info('compiling gradient function')
-        self.f_grad = theano.function(network.inputs, TT.grad(self.J, self.params))
+        self.f_grad = theano.function(network.inputs, TT.grad(self.loss, self.params))
 
     def function_at(self, x, train_set):
         self.set_params(self.flat_to_arrays(x))
@@ -591,10 +593,10 @@ class Scipy(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         def display(x):
             self.set_params(self.flat_to_arrays(x))
-            costs = np.mean([self.f_eval(*x) for x in train_set], axis=0)
-            cost_desc = ' '.join(
-                '%s=%.2f' % el for el in zip(self._monitor_names, costs))
-            logging.info('scipy.%s %i %s', self.method, i + 1, cost_desc)
+            monitors = np.mean([self.f_eval(*x) for x in train_set], axis=0)
+            desc = ' '.join(
+                '%s=%.2f' % el for el in zip(self._monitor_names, monitors))
+            logging.info('scipy.%s %i %s', self.method, i + 1, desc)
 
         for i in range(self.iterations):
             try:
@@ -621,7 +623,7 @@ class Scipy(Trainer):
 
             self.set_params(self.flat_to_arrays(res.x))
 
-            yield {'J': res.fun}
+            yield dict(loss=res.fun)
 
         self.set_params(self._best_params)
 
@@ -673,7 +675,7 @@ class HF(Trainer):
             self.params,
             network.inputs,
             network.outputs[0],
-            [network.J(**kwargs)] + [mon for _, mon in network.monitors],
+            [network.loss(**kwargs)] + [mon for _, mon in network.monitors],
             None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
@@ -689,7 +691,7 @@ class HF(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
-        yield {'J': -1}
+        yield dict(loss=-1)
 
 
 class Sample(Trainer):
@@ -782,7 +784,9 @@ class Layerwise(Trainer):
 
         Returns
         -------
-        Generates a series of cost values as the network weights are tuned.
+        monitors : sequence of dict
+            Generates a series of monitor values as the network weights are
+            tuned.
         '''
         net = self.network
         outact = net.output_activation
@@ -811,8 +815,8 @@ class Layerwise(Trainer):
                      nout=original[-1].nout,
                      activation=outact)
             trainer = self.factory(net, *self.args, **self.kwargs)
-            for costs in trainer.train(train_set, valid_set):
-                yield costs
+            for monitors in trainer.train(train_set, valid_set):
+                yield monitors
         net.layers = original
 
 
@@ -849,8 +853,8 @@ class UnsupervisedPretrainer(Trainer):
 
         # train the autoencoder using a layerwise strategy.
         pre = Layerwise(ae, *self.args, **self.kwargs)
-        for costs in pre.train(train_set, valid_set=valid_set, **kwargs):
-            yield costs
+        for monitors in pre.train(train_set, valid_set=valid_set, **kwargs):
+            yield monitors
 
         # copy the trained autoencoder weights into our original model.
         for i in range(len(self.network.layers) - 1):

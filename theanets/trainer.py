@@ -268,6 +268,7 @@ class SGD(Trainer):
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(
             network.inputs,
+            self._monitor_exprs,
             updates=list(network.updates) + list(self.learning_updates()))
 
     def learning_updates(self):
@@ -320,15 +321,9 @@ class SGD(Trainer):
                     break
 
             try:
-                [self.train_minibatch(*x) for x in train_set]
-            except KeyboardInterrupt:
-                logging.info('interrupted!')
-                break
-
-            try:
                 monitors = list(zip(
                     self._monitor_names,
-                    np.mean([self.f_eval(*x) for i, x in zip(range(3), train_set)], axis=0)))
+                    np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -344,7 +339,7 @@ class SGD(Trainer):
         self.set_params(self._best_params)
 
     def train_minibatch(self, *x):
-        self.f_learn(*x)
+        return self.f_learn(*x)
 
 
 class NAG(SGD):
@@ -423,7 +418,7 @@ class NAG(SGD):
 
     def train_minibatch(self, *x):
         self.f_prepare()
-        self.f_learn(*x)
+        return self.f_learn(*x)
 
 
 class Rprop(SGD):

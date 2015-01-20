@@ -15,7 +15,7 @@ class TestTrainer(util.MNIST):
         costs0 = next(trainer)
         costs1 = next(trainer)
         costs2 = next(trainer)
-        assert costs2['J'] < costs0['J']
+        assert costs2['loss'] < costs0['loss']
 
     def test_sgd(self):
         self.assert_progress('sgd', learning_rate=1e-4)

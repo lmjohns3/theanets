@@ -292,16 +292,20 @@ actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
 <theanets.main.Experiment.itertrain>` method, which you can use directly if you
 want to do something special during training::
 
-  for costs in exp.itertrain(train, valid, **kwargs):
-      print(costs['J'])
+  for monitors in exp.itertrain(train, valid, **kwargs):
+      print(monitors['loss'])
 
 Trainers yield a dictionary after each training iteration. The keys and values
 in each dictionary give the costs and monitors that are computed during
 training, which will vary depending on the model and the training algorithm.
-However, there will always be a ``'J'`` key that gives the value of the loss
+However, there will always be a ``'loss'`` key that gives the value of the loss
 function that is being optimized. For classifier models, the dictionary will
 also have an ``'acc'`` key, which gives the percent accuracy of the classifier
 model.
+
+.. note::
+   The :class:`HF <theanets.trainer.HF>` trainer and the :class:`Sample
+   <theanets.trainer.Sample>` trainer always return loss values equal to -1.
 
 Saving and loading
 ------------------

@@ -340,11 +340,11 @@ class Network(object):
         quantities of interest during training. The default set of monitors
         consists of:
 
-        - err: the unregularized cost of the network
+        - err: the unregularized error of the network
         - X<0.1: percent of hidden units in layer X such that :math:`|a_i| < 0.1`
         - X<0.9: percent of hidden units in layer X such that :math:`|a_i| < 0.9`
         '''
-        yield 'err', self.cost
+        yield 'err', self.error
         for i, (layer, output) in enumerate(zip(self.layers, self.outputs)):
             yield '{}<0.1'.format(layer.name), 100 * (abs(output) < 0.1).mean()
             yield '{}<0.9'.format(layer.name), 100 * (abs(output) < 0.9).mean()
@@ -546,8 +546,11 @@ class Network(object):
             layer.set_values(saved['{}-values'.format(layer.name)])
         logging.info('%s: loaded model parameters', filename)
 
-    def J(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
-        '''Return a variable representing the regularized cost for this network.
+    def loss(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
+        '''Return a variable representing the loss for this network.
+
+        The loss includes both the error for the network as well as any
+        regularizers that are in place.
 
         Parameters
         ----------
@@ -564,24 +567,24 @@ class Network(object):
 
         Returns
         -------
-        J : theano variable
-            A variable representing the regularized cost of this network.
+        loss : theano variable
+            A variable representing the loss of this network.
         '''
         outputs, _ = self._connect()
         hiddens = outputs[1:-1]
-        cost = self.cost
+        loss = self.error
         if weight_l1 > 0:
-            cost += weight_l1 * sum(abs(w).sum() for l in self.layers for w in l.weights)
+            loss += weight_l1 * sum(abs(w).sum() for l in self.layers for w in l.weights)
         if weight_l2 > 0:
-            cost += weight_l2 * sum((w * w).sum() for l in self.layers for w in l.weights)
+            loss += weight_l2 * sum((w * w).sum() for l in self.layers for w in l.weights)
         if hidden_l1 > 0:
-            cost += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in hiddens)
+            loss += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in hiddens)
         if hidden_l2 > 0:
-            cost += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in hiddens)
+            loss += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in hiddens)
         if contractive_l2 > 0:
-            cost += contractive_l2 * sum(
+            loss += contractive_l2 * sum(
                 TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in hiddens)
-        return cost
+        return loss
 
 
 class Autoencoder(Network):
@@ -677,7 +680,7 @@ class Autoencoder(Network):
         return self.kwargs.get('tied_weights', False)
 
     @property
-    def cost(self):
+    def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.x
         return TT.mean((err * err).sum(axis=1))
@@ -757,7 +760,7 @@ class Regressor(Network):
         return [self.x, self.targets]
 
     @property
-    def cost(self):
+    def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.targets
         return TT.mean((err * err).sum(axis=1))
@@ -786,7 +789,7 @@ class Classifier(Network):
         return 'logsoftmax'
 
     @property
-    def cost(self):
+    def error(self):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
         idx = TT.arange(TT.prod(self.labels.shape))

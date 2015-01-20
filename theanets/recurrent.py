@@ -158,7 +158,7 @@ class Predictor(Autoencoder):
     '''
 
     @property
-    def cost(self):
+    def error(self):
         # we want the network to predict the next time step. y is the prediction
         # (output of the network), so we want y[0] to match x[1], y[1] to match
         # x[2], and so forth.

@@ -454,15 +454,12 @@ class ADADELTA(RmsProp):
         for param, grad in zip(self.params, self.clipped_gradients()):
             x2_tm1 = self.shared_like(param, 'x2_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
-            vel_tm1 = self.shared_like(param, 'vel')
             g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
             delta = grad * TT.sqrt(x2_tm1 + eps) / TT.sqrt(g2_t + eps)
             x2_t = self.ewma * x2_tm1 + (1 - self.ewma) * delta * delta
-            vel_t = self.momentum * vel_tm1 - delta
             yield g2_tm1, g2_t
             yield x2_tm1, x2_t
-            yield vel_tm1, vel_t
-            yield param, param + vel_t
+            yield param, param - delta
 
 
 class Scipy(Trainer):

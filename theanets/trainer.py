@@ -789,16 +789,12 @@ class Layerwise(Trainer):
         outact = net.output_activation
         tied = getattr(net, 'tied_weights', False)
         original = list(net.layers)
-        L = len(original)
-        if tied:
-            L //= 2
-        else:
-            L -= 1
+        L = 1 + len(original) // 2 if tied else len(original) - 1
         def addl(*args, **kwargs):
             l = layers.build(*args, **kwargs)
             l.reset()
             net.layers.append(l)
-        for i in range(1, L - 1):
+        for i in range(1, L):
             logging.info('layerwise: training %s', original[i].name)
             net.layers = original[:i+1]
             if tied:

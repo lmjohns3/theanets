@@ -14,9 +14,9 @@ Feedforward networks
 .. autosummary::
    :toctree: generated/
 
+   theanets.feedforward.Network
    theanets.feedforward.Autoencoder
    theanets.feedforward.Classifier
-   theanets.feedforward.Network
    theanets.feedforward.Regressor
 
 .. _ref-recurrent:
@@ -31,10 +31,19 @@ Recurrent networks
 .. autosummary::
    :toctree: generated/
 
-   theanets.recurrent.Autoencoder
    theanets.recurrent.Network
+   theanets.recurrent.Autoencoder
+   theanets.recurrent.Classifier
    theanets.recurrent.Predictor
    theanets.recurrent.Regressor
+
+Helpers
+-------
+
+.. autosummary::
+   :toctree: generated/
+
+   theanets.recurrent.batches
 
 .. _ref-layers:
 
@@ -53,11 +62,20 @@ Layer types
    theanets.layers.Feedforward
    theanets.layers.Tied
    theanets.layers.Classifier
+   theanets.layers.Recurrent
    theanets.layers.RNN
-   theanets.layers.RRNN
+   theanets.layers.ARRNN
    theanets.layers.MRNN
    theanets.layers.LSTM
    theanets.layers.Bidirectional
+
+Helpers
+-------
+
+.. autosummary::
+   :toctree: generated/
+
+   theanets.layers.build
 
 .. _ref-trainers:
 

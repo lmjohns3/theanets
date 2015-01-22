@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-'''This module contains a number of classes for modeling neural nets in Theano.
+r'''This module contains a number of classes for modeling neural nets in Theano.
 
 Neural networks are really just a concise, computational way of describing a
 mathematical model of some data. Before getting into the models below, we'll

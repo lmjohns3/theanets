@@ -30,6 +30,7 @@ copyright = u'2014, Leif Johnson'
 version = '0.4'
 release = '0.4.1'
 exclude_patterns = ['_build']
+templates_path = ['_templates']
 pygments_style = 'tango'
 
 html_theme = 'readable'

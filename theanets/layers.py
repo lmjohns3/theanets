@@ -104,6 +104,24 @@ def create_vector(size, name, mean=0, std=1e-3):
     return theano.shared(vec.astype(FLOAT), name=name)
 
 
+def softmax(x):
+    '''Compute the softmax of the rows of a matrix.
+
+    Parameters
+    ----------
+    x : theano variable
+        A theano matrix. Each row represents one data point, and each column
+        represents one of the possible classes for the data points.
+
+    Returns
+    -------
+    y : theano variable
+        A theano expression computing the log-softmax of each row of `x`.
+    '''
+    z = TT.exp(x - x.max(axis=-1, keepdims=True))
+    return z / z.sum(axis=-1, keepdims=True)
+
+
 def create_activation(activation):
 
     '''Given an activation description, return a callable that implements it.
@@ -131,7 +149,7 @@ def create_activation(activation):
         'logistic': TT.nnet.sigmoid,
         'sigmoid': TT.nnet.sigmoid,
         'softplus': TT.nnet.softplus,
-        'softmax': TT.nnet.softmax,
+        'softmax': softmax,
 
         # rectification
         'relu': lambda z: TT.maximum(0, z),

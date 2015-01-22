@@ -241,8 +241,8 @@ class Trainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Return
-        ------
+        Returns
+        -------
         monitors : sequence of dict
             This method must yield a series of monitor values to the caller.
             Typically one monitor dictionary is yielded after each pass through

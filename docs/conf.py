@@ -3,10 +3,6 @@ import sys
 
 import sphinx_readable_theme
 
-if os.environ.get('READTHEDOCS', None) == 'True':
-    os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
-    os.environ['LD_LIBRARY_PATH'] = os.path.abspath('_bin')
-
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -15,7 +11,6 @@ extensions = [
     'sphinx.ext.mathjax',
     #'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.tikz',
     'numpydoc',
     ]
 autosummary_generate = True
@@ -40,10 +35,7 @@ htmlhelp_basename = 'theanetsdoc'
 latex_elements = {
 #'papersize': 'letterpaper',
 #'pointsize': '10pt',
-'preamble': r'''
-\usepackage{tikz}
-\usepackage{pgfplots}
-\usetikzlibrary{arrows}''',
+#'preamble': '',
 }
 
 intersphinx_mapping = {

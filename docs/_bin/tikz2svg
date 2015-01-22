@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+#
+# author: github.com/jbenet
+# license: MIT
+#
+# tikz2svg: convert tikz input into svg
+# depends on:
+# - pdflatex: comes with your tex dist
+# - pdf2svg: brew install pdf2svg
+
+import fileinput
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+PDFLATEX = 'pdflatex --shell-escape -file-line-error -interaction=nonstopmode --'
+PDF2SVG = 'pdf2svg texput.pdf out.svg'
+
+LATEX = r'''
+\documentclass[border=2bp]{standalone}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{arrows}
+\begin{document}
+\begingroup
+\tikzset{every picture/.style={scale=1}}
+\begin{tikzpicture}%(content)s\end{tikzpicture}
+\endgroup
+\end{document}
+'''
+
+def run(cmd, stdin=None, exit_on_error=True):
+  CECI = subprocess.PIPE
+  p = subprocess.Popen(cmd, shell=True, stdin=CECI, stdout=CECI, stderr=CECI)
+  if stdin:
+    p.stdin.write(stdin)
+    p.stdin.close()
+  p.wait()
+  if p.returncode != 0 and exit_on_error:
+    print('>', cmd)
+    print('Error.')
+    print('-' * 20, 'STDIN')
+    print(stdin)
+    print('-' * 20, 'STDOUT')
+    print(p.stdout.read())
+    print('-' * 20, 'STDERR')
+    print(p.stderr.read())
+    sys.exit(p.returncode)
+  return p.stdout.read()
+
+
+def tikz2tex(tikz):
+  return LATEX % dict(content=tikz)
+
+def tex2pdf(tex):
+  with open('figure.tex', 'w') as h:
+    h.write(tex)
+  return run(PDFLATEX.split(' '), stdin=tex.encode('utf8'))
+
+def pdf2svg(pdf):
+  run(PDF2SVG)
+  with open('out.svg') as f:
+    return f.read()
+
+def tikz2svg(tikz):
+  return pdf2svg(tex2pdf(tikz2tex(tikz)))
+
+
+if __name__ == '__main__':
+  # move to tmp because latex litters :(
+  tmp = tempfile.mkdtemp()
+  cwd = os.getcwd()
+  os.chdir(tmp)
+  print(tikz2svg(''.join(fileinput.input())))
+  os.chdir(cwd)
+  shutil.rmtree(tmp)

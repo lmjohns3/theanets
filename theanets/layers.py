@@ -747,7 +747,7 @@ class ARRNN(Recurrent):
             self._new_weights(name='xr'),
             self._new_weights(nin=self.nout, name='hh'),
         ]
-        self.biases = [self._new_bias('hid'), self._new_bias('rate')]
+        self.biases = [self._new_bias('hid'), self._new_bias('rate', std=3)]
         return self.nout * (2 + 2 * self.nin + self.nout)
 
     _W_xh = property(lambda self: self.weights[0])

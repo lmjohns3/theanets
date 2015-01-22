@@ -45,7 +45,9 @@ def main(args):
     feat = args.features or int(np.sqrt(4 * K))
     e = theanets.Experiment(
         theanets.Autoencoder,
-        layers=(K, feat ** 2, K))
+        layers=(K, feat ** 2, K),
+        hidden_l1=1,
+    )
 
     e.train(whiten(train), whiten(valid))
 

@@ -153,6 +153,11 @@ class Autoencoder(Network, feedforward.Autoencoder):
     '''
 
 
+class Classifier(Network, feedforward.Classifier):
+    '''A classifier network attempts to match a 1-hot target.
+    '''
+
+
 class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
     '''

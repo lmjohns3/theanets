@@ -3,10 +3,6 @@ import sys
 
 import sphinx_readable_theme
 
-if os.environ.get('READTHEDOCS', None) == 'True':
-    os.environ['PATH'] += os.pathsep + os.path.abspath('_bin')
-    os.environ['LD_LIBRARY_PATH'] = os.path.abspath('_bin')
-
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -15,12 +11,11 @@ extensions = [
     'sphinx.ext.mathjax',
     #'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.tikz',
     'numpydoc',
     ]
 autosummary_generate = True
 autodoc_default_flags = ['members']
-numpydoc_show_class_members = True
+numpydoc_show_class_members = False
 numpydoc_show_inherited_class_members = True
 source_suffix = '.rst'
 source_encoding = 'utf-8-sig'
@@ -30,6 +25,7 @@ copyright = u'2014, Leif Johnson'
 version = '0.4'
 release = '0.4.1'
 exclude_patterns = ['_build']
+templates_path = ['_templates']
 pygments_style = 'tango'
 
 html_theme = 'readable'
@@ -39,10 +35,7 @@ htmlhelp_basename = 'theanetsdoc'
 latex_elements = {
 #'papersize': 'letterpaper',
 #'pointsize': '10pt',
-'preamble': r'''
-\usepackage{tikz}
-\usepackage{pgfplots}
-\usetikzlibrary{arrows}''',
+#'preamble': '',
 }
 
 intersphinx_mapping = {

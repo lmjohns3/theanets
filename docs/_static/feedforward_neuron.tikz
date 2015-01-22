@@ -1,0 +1,9 @@
+[thick,->,>=stealth',circle,minimum size=10mm,node distance=10mm,below,near start]
+\node[draw] (z) at (0, 0) {$\sum$};
+\node[draw] (x) at (20mm, 1.5mm) {$z_i^k$} edge[<-] (z);
+\node[draw] (b) at (-30mm, 0) {$z_j^{k-1}$} edge node {$w^k_{ji}$} (z);
+\node (adots) [above of=b] {$\vdots$};
+\node[draw] (a) [above of=adots] {$z_1^{k-1}$} edge node {$w^k_{1i}$} (z);
+\node (cdots) [below of=b] {$\vdots$};
+\node[draw] (c) [below of=cdots] {$z_{n_{k-1}}^{k-1}$} edge node [midway] {$w^k_{n_{k-1}i}$} (z);
+\node[draw] (bias) at (0, -20mm) {$b^k_i$} edge (z);

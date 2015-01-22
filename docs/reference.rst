@@ -2,8 +2,6 @@
 Reference
 =========
 
-.. _ref-feedforward:
-
 Feedforward networks
 ====================
 
@@ -14,12 +12,11 @@ Feedforward networks
 .. autosummary::
    :toctree: generated/
 
-   theanets.feedforward.Autoencoder
-   theanets.feedforward.Classifier
-   theanets.feedforward.Network
-   theanets.feedforward.Regressor
-
-.. _ref-recurrent:
+   load
+   Network
+   Autoencoder
+   Classifier
+   Regressor
 
 Recurrent networks
 ==================
@@ -31,12 +28,12 @@ Recurrent networks
 .. autosummary::
    :toctree: generated/
 
-   theanets.recurrent.Autoencoder
-   theanets.recurrent.Network
-   theanets.recurrent.Predictor
-   theanets.recurrent.Regressor
-
-.. _ref-layers:
+   batches
+   Network
+   Autoencoder
+   Classifier
+   Predictor
+   Regressor
 
 Layer types
 ===========
@@ -48,18 +45,32 @@ Layer types
 .. autosummary::
    :toctree: generated/
 
-   theanets.layers.Layer
-   theanets.layers.Input
-   theanets.layers.Feedforward
-   theanets.layers.Tied
-   theanets.layers.Classifier
-   theanets.layers.RNN
-   theanets.layers.RRNN
-   theanets.layers.MRNN
-   theanets.layers.LSTM
-   theanets.layers.Bidirectional
+   build
+   Layer
+   Input
 
-.. _ref-trainers:
+Feedforward layers
+------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   Feedforward
+   Tied
+   Classifier
+
+Recurrent layers
+----------------
+
+.. autosummary::
+   :toctree: generated/
+
+   Recurrent
+   RNN
+   ARRNN
+   MRNN
+   LSTM
+   Bidirectional
 
 Training strategies
 ===================
@@ -71,17 +82,37 @@ Training strategies
 .. autosummary::
    :toctree: generated/
 
-   theanets.trainer.HF
-   theanets.trainer.Layerwise
-   theanets.trainer.NAG
-   theanets.trainer.RmsProp
-   theanets.trainer.Rprop
-   theanets.trainer.Sample
-   theanets.trainer.Scipy
-   theanets.trainer.SGD
-   theanets.trainer.Trainer
+   Trainer
 
-.. _ref-main:
+Stochastic gradient trainers
+----------------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   SGD
+   NAG
+   Rprop
+   RmsProp
+   ADADELTA
+   HF
+
+Scipy optimizers
+----------------
+
+.. autosummary::
+   :toctree: generated/
+
+   Scipy
+
+Specialized trainers
+--------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   Sample
+   Layerwise
 
 Drivers
 =======
@@ -93,9 +124,7 @@ Drivers
 .. autosummary::
    :toctree: generated/
 
-   theanets.main.Experiment
-
-.. _ref-datasets:
+   Experiment
 
 Datasets
 ========
@@ -107,5 +136,5 @@ Datasets
 .. autosummary::
    :toctree: generated/
 
-   theanets.dataset.Dataset
-   theanets.dataset.SequenceDataset
+   Dataset
+   SequenceDataset

@@ -1,0 +1,6 @@
+[thick,->,>=stealth',rectangle,minimum size=10mm,node distance=25mm,rounded corners=3mm]
+\node (dots) at (0, 0) {$\dots$};
+\node[draw] (h1) [left of=dots] {Layer 1} edge (dots);
+\node[draw] (input) [left of=h1] {Input} edge (h1);
+\node[draw] (hkm1) [right of=dots] {Layer $k-1$} edge[<-] (dots);
+\node[draw] (output) [right of=hkm1] {Output} edge[<-] (hkm1);

@@ -1,6 +1,6 @@
-======================
-Theanets Documentation
-======================
+============
+``THEANETS``
+============
 
 The ``theanets`` package provides tools for defining and optimizing several
 common types of neural network models. It uses Python for rapid development, and
@@ -18,7 +18,7 @@ with any number of layers and combined with different regularizers:
 - L1/L2 hidden activation penalties (e.g., sparse autoencoders)
 - Dropout/gaussian noise (e.g., denoising autoencoders)
 
-Several built-in optimization algorithms are included:
+Several optimization algorithms are also included:
 
 - :class:`SGD <theanets.trainer.SGD>` and variants:
   :class:`NAG <theanets.trainer.NAG>`,

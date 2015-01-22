@@ -14,7 +14,7 @@ with different regularizers:
 - L1/L2 hidden activation penalties (e.g., sparse autoencoders)
 - Dropout/gaussian noise (e.g., denoising autoencoders)
 
-Several built-in optimization algorithms are included:
+Several optimization algorithms are also included:
 
 - SGD_ and variants: NAG_, Rprop_, RmsProp_, ADADELTA_
 - Many algorithms from ``scipy.optimize.minimize``

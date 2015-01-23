@@ -420,8 +420,8 @@ class Network(object):
         '''
         yield 'err', self.error
         for i, (layer, output) in enumerate(zip(self.layers, self.outputs)):
-            yield '{}<0.1'.format(layer.name), 100 * (abs(output) < 0.1).mean()
-            yield '{}<0.9'.format(layer.name), 100 * (abs(output) < 0.9).mean()
+            yield '{}<0.1'.format(layer.name), 100 * (TT.cast(abs(output) < 0.1, FLOAT)).mean()
+            yield '{}<0.9'.format(layer.name), 100 * (TT.cast(abs(output) < 0.9, FLOAT)).mean()
 
     def params(self, **kwargs):
         '''Get a list of the learnable theano parameters for this network.

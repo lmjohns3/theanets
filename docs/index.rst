@@ -12,7 +12,9 @@ The package defines models for
 :class:`autoencoding <theanets.feedforward.Autoencoder>`,
 :class:`regression <theanets.feedforward.Regressor>`, and
 :class:`prediction <theanets.recurrent.Predictor>`. Models can easily be created
-with any number of layers and combined with different regularizers:
+with any number of :class:`feedforward <theanets.layers.Feedforward>` or
+:class:`recurrent <theanets.layers.Recurrent>` :mod:`layers <theanets.layers>`
+and combined with different regularizers:
 
 - L1/L2 weight decay
 - L1/L2 hidden activation penalties (e.g., sparse autoencoders)

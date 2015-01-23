@@ -7,8 +7,8 @@ under the hood Theano_ provides graph optimization and fast computations on the
 GPU.
 
 The package defines models for classification_, autoencoding_, regression_, and
-prediction_. Models can easily be created with any number of layers and combined
-with different regularizers:
+prediction_. Models can easily be created with any number of feedforward_ or
+recurrent_  layers_ and combined with different regularizers:
 
 - L1/L2 weight decay
 - L1/L2 hidden activation penalties (e.g., sparse autoencoders)
@@ -36,6 +36,10 @@ them.
 .. _autoencoding: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Autoencoder.html
 .. _regression: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Regressor.html
 .. _prediction: http://theanets.readthedocs.org/en/latest/generated/theanets.recurrent.Predictor.html
+
+.. _feedforward: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Feedforward.html
+.. _recurrent: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Recurrent.html
+.. _layers: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers
 
 .. _SGD: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.SGD.html
 .. _NAG: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.NAG.html

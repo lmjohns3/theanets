@@ -223,7 +223,7 @@ class Trainer(object):
             self._best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
         info = ' '.join('%s=%.2f' % el for el in monitors)
-        logging.info('validation %i %s%s', self._curr_iter + 1, info, marker)
+        logging.info('validation %i %s%s', self._curr_iter, info, marker)
         return self._curr_iter - self._best_iter <= self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):

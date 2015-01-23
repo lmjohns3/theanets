@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # Copyright (c) 2012-2014 Leif Johnson <leif@leifjohnson.net>
 #

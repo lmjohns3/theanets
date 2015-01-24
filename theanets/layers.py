@@ -433,17 +433,20 @@ class Layer(Base):
             string = '{}_' + string
         return string.format(self.name)
 
-    def _new_weights(self, nin=None, nout=None, name='weights'):
+    def _new_weights(self, name, nin=None, nout=None, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
         ----------
+        name : str
+            Name of theano shared variable for the weight matrix.
         nin : int, optional
             Size of "input" for this weight matrix. Defaults to self.nin.
         nout : int, optional
             Size of "output" for this weight matrix. Defaults to self.nout.
-        name : str, optional
-            Name of theano shared variable. Defaults to self.name + "_weights".
+        std : float, optional
+            Standard deviation of initial values for the matrix. Defaults to
+            :math:`1 / \sqrt{n_i + n_o}`.
 
         Returns
         -------
@@ -454,9 +457,10 @@ class Layer(Base):
             nin or self.nin,
             nout or self.nout,
             name=self._fmt(name),
+            std=std or 1 / np.sqrt(nin + nout),
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _new_bias(self, name='bias', mean=0, std=1e-3):
+    def _new_bias(self, name='bias', mean=0, std=1):
         '''Helper method to create a new bias vector.
 
         Parameters
@@ -466,7 +470,7 @@ class Layer(Base):
         mean : float, optional
             Mean value for randomly-initialized biases. Defaults to 0.
         std : float, optional
-            Standard deviation for randomly-initialized biases. Defaults to 1e-3.
+            Standard deviation for randomly-initialized biases. Defaults to 1.
 
         Returns
         -------
@@ -533,7 +537,7 @@ class Feedforward(Layer):
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
-        self.weights = [self._new_weights(nin=n, name='weights_{}'.format(n)) for n in nins]
+        self.weights = [self._new_weights('weights_{}'.format(n), n) for n in nins]
         self.biases = [self._new_bias()]
         return self.nout * (sum(nins) + 1)
 
@@ -636,17 +640,20 @@ class Recurrent(Layer):
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
-    def _new_weights(self, nin=None, nout=None, name='weights'):
+    def _new_weights(self, name='weights', nin=None, nout=None, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
         ----------
+        name : str, optional
+            Name of theano shared variable. Defaults to self.name + "_weights".
         nin : int, optional
             Size of "input" for this weight matrix. Defaults to self.nin.
         nout : int, optional
             Size of "output" for this weight matrix. Defaults to self.nout.
-        name : str, optional
-            Name of theano shared variable. Defaults to self.name + "_weights".
+        std : float, optional
+            Standard deviation of initial values for the matrix. Defaults to
+            :math:`1 / \sqrt{n_i + n_o}`.
 
         Returns
         -------
@@ -659,6 +666,7 @@ class Recurrent(Layer):
             nin,
             nout,
             name=self._fmt(name),
+            std=std or 1 / np.sqrt(nin + nout),
             radius=self.kwargs.get('radius', 0) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
@@ -706,8 +714,8 @@ class RNN(Recurrent):
             The number of learnable parameters in this layer.
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
-        self.weights = [self._new_weights(name='xh'),
-                        self._new_weights(nin=self.nout, name='hh')]
+        self.weights = [self._new_weights('xh'),
+                        self._new_weights('hh', self.nout)]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin + self.nout)
 
@@ -761,9 +769,9 @@ class ARRNN(Recurrent):
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
-            self._new_weights(name='xh'),
-            self._new_weights(name='xr'),
-            self._new_weights(nin=self.nout, name='hh'),
+            self._new_weights('xh'),
+            self._new_weights('xr'),
+            self._new_weights('hh', self.nout),
         ]
         self.biases = [self._new_bias('hid'), self._new_bias('rate', std=3)]
         return self.nout * (2 + 2 * self.nin + self.nout)
@@ -821,10 +829,10 @@ class MRNN(Recurrent):
         '''
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
-            self._new_weights(self.nin, self.nout, 'xh'),
-            self._new_weights(self.nin, self.factors, 'xf'),
-            self._new_weights(self.nout, self.factors, 'hf'),
-            self._new_weights(self.factors, self.nout, 'fh'),
+            self._new_weights('xh', self.nin, self.nout),
+            self._new_weights('xf', self.nin, self.factors),
+            self._new_weights('hf', self.nout, self.factors),
+            self._new_weights('fh', self.factors, self.nout),
         ]
         self.biases = [self._new_bias()]
         return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
@@ -878,25 +886,25 @@ class LSTM(Recurrent):
         logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
         self.weights = [
             # these three "peephole" weight matrices are always diagonal.
-            self._new_bias(name='ci'),
-            self._new_bias(name='cf'),
-            self._new_bias(name='co'),
+            self._new_bias('ci'),
+            self._new_bias('cf'),
+            self._new_bias('co'),
 
-            self._new_weights(name='xi'),
-            self._new_weights(name='xf'),
-            self._new_weights(name='xc'),
-            self._new_weights(name='xo'),
+            self._new_weights('xi'),
+            self._new_weights('xf'),
+            self._new_weights('xc'),
+            self._new_weights('xo'),
 
-            self._new_weights(nin=self.nout, name='hi'),
-            self._new_weights(nin=self.nout, name='hf'),
-            self._new_weights(nin=self.nout, name='hc'),
-            self._new_weights(nin=self.nout, name='ho'),
+            self._new_weights('hi', self.nout),
+            self._new_weights('hf', self.nout),
+            self._new_weights('hc', self.nout),
+            self._new_weights('ho', self.nout),
         ]
         self.biases = [
-            self._new_bias(name='bi'),
-            self._new_bias(name='bf', mean=10),
-            self._new_bias(name='bc'),
-            self._new_bias(name='bo'),
+            self._new_bias('bi'),
+            self._new_bias('bf', mean=10),
+            self._new_bias('bc'),
+            self._new_bias('bo'),
         ]
         return self.nout * (7 + 4 * (self.nout + self.nin))
 
@@ -990,8 +998,8 @@ class Bidirectional(Layer):
         # we "tie" together the weights for the forward and backward RNNs.
         self.backward.weights = self.forward.weights
         self.backward.biases = self.forward.biases
-        self.fw = self._new_weights(nin=self.forward.nout, name='fw')
-        self.bw = self._new_weights(nin=self.forward.nout, name='bw')
+        self.fw = self._new_weights('fw', self.forward.nout)
+        self.bw = self._new_weights('bw', self.forward.nout)
         self.ob = self._new_bias()
         self.weights = self.forward.weights + [self.fw, self.bw]
         self.biases = self.forward.biases + [self.ob]

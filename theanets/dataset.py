@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Copyright (c) 2012 Leif Johnson <leif@leifjohnson.net>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,7 +20,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-'''This file contains a class for handling batched datasets.'''
+r'''This module contains a class for handling batched datasets.
+
+In most neural network models, parameters must be updated by
+:mod:`optimizing <theanets.trainer>` them with respect to a loss function. The
+loss function is typically estimated using a set of data that we have gathered
+from the problem at hand.
+
+If the problem at hand is "supervised" like a
+:class:`classification <theanets.feedforward.Classifier>` or
+:class:`regression <theanets.feedforward.Regressor>` problem, then the data to
+train your model will require two parts: input samples---for example, photos or
+audio recordings---along with target output labels---for example, object classes
+that are present in the photos, or words that are present in the audio
+recordings. If the problem at hand is "unsupervised" like using an
+:class:`autoencoder <theanets.feedforward.Autoencoder>` to learn efficient
+representations of data, then your dataset will only require the input samples.
+
+.. note::
+
+    In most mathematics treatments, samples are usually treated as column
+    vectors. However, in the ``theanets`` library (as well as many other
+    Python-based machine learning libraries), individual samples are treated as
+    rows. To avoid confusion with the coding world, the math and code in the
+    ``theanets`` documentation assumes row vectors and row-oriented matrices.
+'''
 
 import climate
 import collections
@@ -30,8 +56,34 @@ logging = climate.get_logger(__name__)
 class SequenceDataset:
     '''This class handles batching and shuffling a dataset.
 
-    It's mostly copied from the dataset class from hf.py, except that the
-    constructor has slightly different semantics.
+    In ``theanets``, models are :mod:`trained <theanets.trainer>` using sets of
+    data collected from the problem at hand; for example, to train an classifier
+    for MNIST digits, a labeled training dataset needs to be obtained containing
+    a sequence of sample MNIST digit images, and a matched sequence of labels,
+    one for each digit.
+
+    During training, data are grouped into "mini-batches"---that is, chunks that
+    are larger than 1 sample and smaller than the entire set of samples;
+    typically the size of a mini-batch is between 10 and 100, but the specific
+    setting can be varied depending on your model, hardware, dataset, and so
+    forth. These mini-batches must be presented to the optimization algorithm in
+    pseudo-random order to match the underlying stochasticity assumptions of
+    many optimization algorithms. This class handles the process of grouping
+    data into mini-batches as well as iterating and shuffling these mini-batches
+    dynamically as the dataset is consumed by the training algorithm.
+
+    For many tasks, a dataset is obtained as a large block of sample data, which
+    in Python is normally assembled as a ``numpy`` ndarray. To use this class on
+    such a dataset, just pass in a ``numpy`` array. If labels are required for
+    your task, pass a second ``numpy`` array of label data; the two arrays
+    should have the same size along their first axis.
+
+    There are some cases (especially when training recurrent networks) when a
+    suitable set of training data would be prohibitively expensive to assemble
+    in memory as a single ``numpy`` array. To handle these cases, this class can
+    also handle a source dataset that is provided via a Python callable (a
+    function, typically a closure). For more information on using closures to
+    provide data to your model, see the :ref:`guide <guide-data-callables>`.
 
     Parameters
     ----------
@@ -63,7 +115,7 @@ class SequenceDataset:
     iteration_size : int, optional
         The number of batches to yield for each call to iterate(). Defaults to
         the length of the data divided by batch_size. If the dataset is a
-        callable, then the number is len(callable). If callable has no len, 
+        callable, then the number is len(callable). If callable has no length,
         then the number is set to 100.
 
     axis : int, optional

@@ -32,10 +32,11 @@ html_theme = 'readable'
 html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
 htmlhelp_basename = 'theanetsdoc'
 
-latex_elements = {
-#'papersize': 'letterpaper',
-#'pointsize': '10pt',
-#'preamble': '',
+def h(*xs):
+    return ['{}.html'.format(x) for x in xs]
+html_sidebars = {
+    'index': h('gitwidgets', 'globaltoc', 'searchbox'),
+    '**': h('gitwidgets', 'localtoc', 'relations', 'sourcelink', 'searchbox'),
 }
 
 intersphinx_mapping = {

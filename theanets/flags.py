@@ -45,11 +45,9 @@ g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',
                help='train with the given optimization algorithm(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
-g.add_argument('--num-updates', type=int, default=10000, metavar='N',
-               help='perform at most N HF/scipy parameter updates')
 g.add_argument('-p', '--patience', type=int, default=50, metavar='N',
-               help='stop SGD/HF training if no improvement for N updates')
-g.add_argument('-v', '--validate', type=int, default=10, metavar='N',
+               help='stop training if less than --min-improvement for N validations')
+g.add_argument('-v', '--validate-every', type=int, default=10, metavar='N',
                help='validate the model every N updates')
 g.add_argument('-b', '--batch-size', type=int, default=64, metavar='N',
                help='train with mini-batches of size N')

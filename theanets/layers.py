@@ -104,8 +104,8 @@ def create_vector(size, name, mean=0, std=1e-3):
     return theano.shared(vec.astype(FLOAT), name=name)
 
 
-def logsoftmax(x):
-    '''Compute the log-softmax of the rows of a matrix.
+def softmax(x):
+    '''Compute the softmax of the rows of a matrix.
 
     Parameters
     ----------
@@ -118,8 +118,8 @@ def logsoftmax(x):
     y : theano variable
         A theano expression computing the log-softmax of each row of `x`.
     '''
-    z = TT.clip(TT.exp(x - x.max(axis=-1, keepdims=True)), 1e-7, 1e7)
-    return TT.log(z) - TT.log(z.sum(axis=-1, keepdims=True))
+    z = TT.exp(x - x.max(axis=-1, keepdims=True))
+    return z / z.sum(axis=-1, keepdims=True)
 
 
 def create_activation(activation):
@@ -149,8 +149,7 @@ def create_activation(activation):
         'logistic': TT.nnet.sigmoid,
         'sigmoid': TT.nnet.sigmoid,
         'softplus': TT.nnet.softplus,
-        'softmax': TT.nnet.softmax,
-        'logsoftmax': logsoftmax,
+        'softmax': softmax,
 
         # rectification
         'relu': lambda z: TT.maximum(0, z),
@@ -265,11 +264,11 @@ def _only(x):
     Raises
     ------
     AssertionError :
-        If x is a sequence with more or less than one element.
+        If x is a sequence such that len(x) != 1.
 
     Returns
     -------
-    only : any
+    element : any
         If x is a sequence, returns the first element from the sequence. If x is
         not a sequence, returns x.
     '''
@@ -766,7 +765,7 @@ class ARRNN(Recurrent):
             self._new_weights(name='xr'),
             self._new_weights(nin=self.nout, name='hh'),
         ]
-        self.biases = [self._new_bias('hid'), self._new_bias('rate')]
+        self.biases = [self._new_bias('hid'), self._new_bias('rate', std=3)]
         return self.nout * (2 + 2 * self.nin + self.nout)
 
     _W_xh = property(lambda self: self.weights[0])

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Copyright (c) 2012-2014 Leif Johnson <leif@leifjohnson.net>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -418,8 +420,8 @@ class Network(object):
         '''
         yield 'err', self.error
         for i, (layer, output) in enumerate(zip(self.layers, self.outputs)):
-            yield '{}<0.1'.format(layer.name), 100 * (abs(output) < 0.1).mean()
-            yield '{}<0.9'.format(layer.name), 100 * (abs(output) < 0.9).mean()
+            yield '{}<0.1'.format(layer.name), 100 * (TT.cast(abs(output) < 0.1, FLOAT)).mean()
+            yield '{}<0.9'.format(layer.name), 100 * (TT.cast(abs(output) < 0.9, FLOAT)).mean()
 
     def params(self, **kwargs):
         '''Get a list of the learnable theano parameters for this network.
@@ -858,15 +860,15 @@ class Classifier(Network):
 
     @property
     def output_activation(self):
-        return 'logsoftmax'
+        return 'softmax'
 
     @property
     def error(self):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]  # flatten all but last components of the output below, also flatten the labels
         idx = TT.arange(TT.prod(self.labels.shape))
-        logprobs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
-        return -TT.mean(logprobs[idx, self.labels.flatten(1)])
+        probs = TT.reshape(out, (TT.prod(out.shape[:-1]), out.shape[-1]))
+        return -TT.mean(TT.log(probs[idx, self.labels.flatten(1)]))
 
     @property
     def accuracy(self):
@@ -906,4 +908,4 @@ class Classifier(Network):
         k : ndarray (num-examples, )
             A vector of class index values, one per row of input data.
         '''
-        return self.predict(x).argmax(axis=1)
+        return self.predict(x).argmax(axis=-1)

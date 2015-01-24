@@ -96,12 +96,12 @@ class TestClassifier(Base):
     def test_classify_onelayer(self):
         net = self._build(13)
         z = net.classify(self.probe)
-        self.assert_shape(z.shape, (STEPS, OUTS))
+        self.assert_shape(z.shape, (STEPS, BATCH))
 
     def test_classify_twolayer(self):
         net = self._build(13, 14)
         z = net.classify(self.probe)
-        self.assert_shape(z.shape, (STEPS, OUTS))
+        self.assert_shape(z.shape, (STEPS, BATCH))
 
 
 class TestAutoencoder(Base):

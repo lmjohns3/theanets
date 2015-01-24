@@ -1,6 +1,6 @@
-======================
-Theanets Documentation
-======================
+============
+``THEANETS``
+============
 
 The ``theanets`` package provides tools for defining and optimizing several
 common types of neural network models. It uses Python for rapid development, and
@@ -12,13 +12,15 @@ The package defines models for
 :class:`autoencoding <theanets.feedforward.Autoencoder>`,
 :class:`regression <theanets.feedforward.Regressor>`, and
 :class:`prediction <theanets.recurrent.Predictor>`. Models can easily be created
-with any number of layers and combined with different regularizers:
+with any number of :class:`feedforward <theanets.layers.Feedforward>` or
+:class:`recurrent <theanets.layers.Recurrent>` :mod:`layers <theanets.layers>`
+and combined with different regularizers:
 
 - L1/L2 weight decay
 - L1/L2 hidden activation penalties (e.g., sparse autoencoders)
 - Dropout/gaussian noise (e.g., denoising autoencoders)
 
-Several built-in optimization algorithms are included:
+Several optimization algorithms are also included:
 
 - :class:`SGD <theanets.trainer.SGD>` and variants:
   :class:`NAG <theanets.trainer.NAG>`,

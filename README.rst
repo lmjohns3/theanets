@@ -1,41 +1,55 @@
 theanets
 ========
 
-This package contains implementations of several common neural network
-structures, using Theano_ for optimization, symbolic differentiation, and
-transparent GPU computations. Some things it does:
+The ``theanets`` package provides tools for defining and optimizing several
+common types of neural network models. It uses Python for rapid development, and
+under the hood Theano_ provides graph optimization and fast computations on the
+GPU.
 
-- Provides several common neural network models:
+The package defines models for classification_, autoencoding_, regression_, and
+prediction_. Models can easily be created with any number of feedforward_ or
+recurrent_  layers_ and combined with different regularizers:
 
-  - Feedforward Classifier, Autoencoder, Regression
-  - Recurrent Classifier, Autoencoder, Regression, Prediction
-  - Easy to specify models with any number of layers (e.g., "deep" networks)
+- L1/L2 weight decay
+- L1/L2 hidden activation penalties (e.g., sparse autoencoders)
+- Dropout/gaussian noise (e.g., denoising autoencoders)
 
-- Allows for many different types of regularization:
+Several optimization algorithms are also included:
 
-  - L1 and L2 weight decay
-  - L1 and L2 hidden activation penalties (e.g., sparse autoencoders)
-  - Dropout/gaussian noise on inputs (e.g., denoising autoencoders)
-  - Dropout/gaussian noise on hidden units
-  - Implement custom regularization with a bit of Python code
+- SGD_ and variants: NAG_, Rprop_, RmsProp_, ADADELTA_
+- Many algorithms from ``scipy.optimize.minimize``
+- Greedy layerwise_ pre-training
 
-- Implements several optimization algorithms:
-
-  - SGD variants: NAG, Rprop, RmsProp
-  - Many algorithms in ``scipy.optimize.minimize``
-  - Hessian-Free
-  - Greedy layerwise pre-training
-
-- Compatible with Python2 and Python3 (except HF optimizer)
-- Configure many parameters from the command-line
-- Relatively easy to extend
+The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets,
+the documentation lives at http://theanets.readthedocs.org, and announcements
+and discussion happen on the `mailing list`_.
 
 At present there are no RBMs, convolutions, or maxout in ``theanets`` -- for
 those, you might want to look at Morb_, Lasagne_, or pylearn2_. There are many
-other neural networks toolkits out there as well; see `this stackoverflow
-question`_ for a few additional pointers.
+other neural networks toolkits out there as well, in many other languages; see
+`this stackoverflow question`_ for a few additional pointers, or just search for
+them.
 
 .. _Theano: http://deeplearning.net/software/theano/
+
+.. _classification: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Classifier.html
+.. _autoencoding: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Autoencoder.html
+.. _regression: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Regressor.html
+.. _prediction: http://theanets.readthedocs.org/en/latest/generated/theanets.recurrent.Predictor.html
+
+.. _feedforward: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Feedforward.html
+.. _recurrent: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Recurrent.html
+.. _layers: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers
+
+.. _SGD: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.SGD.html
+.. _NAG: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.NAG.html
+.. _Rprop: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.Rprop.html
+.. _RmsProp: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.RmsProp.html
+.. _ADADELTA: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.ADADELTA.html
+.. _layerwise: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.Layerwise.html
+
+.. _mailing list: https://groups.google.com/forum/#!forum/theanets
+
 .. _Morb: https://github.com/benanne/morb
 .. _Lasagne: https://github.com/benanne/Lasagne
 .. _pylearn2: http://deeplearning.net/software/pylearn2
@@ -54,77 +68,29 @@ Or download the current source and run it from there::
     cd theanets
     python setup.py develop
 
-Getting started
----------------
+Example
+-------
 
-There are a few example scripts in the ``examples`` directory. You can run these
-from the command-line::
+Let's say you wanted to create a classifier and train it on some 100-dimensional
+data points that you've classified into 10 categories. You can define your model
+and train it using a few lines of code::
 
-    python examples/mnist-autoencoder.py
+  import theanets
+  import my_data_set
 
-This example trains an autoencoder with a single hidden layer to reconstruct
-images of handwritten digits from the MNIST dataset.
+  exp = theanets.Experiment(
+      theanets.Classifier,
+      layers=(100, 200, 100, 10),
+      hidden_l1=0.1,
+  )
 
-Command-line configuration
---------------------------
+  exp.train(
+      my_data_set.training_data,
+      my_data_set.validation_data,
+      optimize='sgd',
+      learning_rate=0.01,
+      momentum=0.5,
+  )
 
-The ``theanets`` package comes built-in with several network models and
-optimization algorithms available. Many of the available options can be
-configured from the command-line. To get help on the command-line options, run
-an example with the ``--help`` flag::
-
-    python examples/mnist-autoencoder.py --help
-
-There are many arguments, but some of the notable ones are::
-
-    -n or --layers N1 N2 N3 N4
-
-Builds a network with ``N1`` inputs, two hidden layers with ``N2`` and ``N3``
-units, and ``N4`` outputs. (Note that this argument is held constant in most of
-the examples, since it needs to correspond to the shape of the data being
-processed.)
-
-To set the activation function of the hidden units::
-
-    -g or --hidden-activation logistic|relu|linear|...
-
-Output layer units have a linear activation function by default, but an
-alternative can be given using the ``--output-activation`` flag. Several
-activation functions can be pipelined together using the plus symbol.
-
-To specify the algorithm to use for optimizing parameters::
-
-    -O or --optimize sgd|hf|sgd hf|layerwise hf|...
-
-Several training algorithms can be used in sequence by separating their names
-with spaces on the command line.
-
-Using the library
------------------
-
-Probably the easiest way to start with the library is to copy one of the
-examples and modify it to perform your tasks. The usual workflow involves
-instantiating ``theanets.Experiment`` with a subclass of ``theanets.Network``,
-and then calling ``train()`` to learn a good set of parameters for your data::
-
-    exp = theanets.Experiment(theanets.Classifier)
-    exp.train(my_dataset[:1000], my_dataset[1000:])
-
-You can ``save()`` the trained model to a pickle, or use the trained ``network``
-directly to ``predict()`` the outputs on a new dataset::
-
-    print(exp.network.predict(new_dataset))
-    exp.save('network-pickle.pkl.gz')
-
-Documentation and support
--------------------------
-
-The `package documentation`_ lives at readthedocs. The documentation is
-relatively sparse, so please file bugs if you find that there's a particularly
-hard-to-understand area in the code.
-
-For project announcements and discussion, subscribe to the
-`project mailing list`_.
-
-.. _package documentation: http://theanets.rtfd.org
-.. _project mailing list: https://groups.google.com/forum/#!forum/theanets
+The remainder of the documentation will help fill you in on the details of these
+calls and the options that ``theanets`` provides for each of them. Have fun!

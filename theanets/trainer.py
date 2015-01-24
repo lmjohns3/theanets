@@ -107,26 +107,24 @@ class Trainer(object):
 
     Parameters
     ----------
-    validate : int, optional
+    validate_every : int, optional
         Validate the model after this many training iterations have passed.
         Defaults to 10.
     min_improvement : float, optional
         Quit training if the evaluation loss for the model does not improve by
-        at least this relative amount for `patience` training iterations.
-        Defaults to 0, meaning that the model can make any improvement to the
-        validation loss.
+        at least this relative amount for `patience` validations. Defaults to 0,
+        meaning that any improvement to the validation loss counts.
     patience : int, optional
-        Maximum number of training iterations that can pass before
-        `min_improvement` relative validation loss improvement must be made.
-        Defaults to 100.
+        Maximum number of validations that can pass before the validation loss
+        must improve by `min_improvement` relative. Defaults to 10.
     '''
 
     def __init__(self, network, **kwargs):
         super(Trainer, self).__init__()
 
-        self.validation_frequency = kwargs.get('validate', 10)
+        self.validate_every = kwargs.get('validate_every', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
-        self.patience = kwargs.get('patience', 100)
+        self.patience = kwargs.get('patience', 10)
 
         self.params = network.params(**kwargs)
         self._shapes = [p.get_value(borrow=True).shape for p in self.params]
@@ -135,7 +133,7 @@ class Trainer(object):
         self._dtype = self.params[0].get_value().dtype
 
         self._best_loss = 1e100
-        self._best_iter = 0
+        self._best_iter = self._curr_iter = 0
         self._best_params = [p.get_value().copy() for p in self.params]
 
         self.loss = network.loss(**kwargs)
@@ -197,14 +195,11 @@ class Trainer(object):
         for param, target in zip(self.params, targets):
             param.set_value(target)
 
-    def evaluate(self, iteration, valid_set):
+    def evaluate(self, valid_set):
         '''Evaluate the current model using a validation set.
 
         Parameters
         ----------
-        iteration : int
-            The number of the training iteration where this evaluation is taking
-            place.
         valid_set : :class:`theanets.dataset.Dataset`
             A set of data to use for evaluating the model. Typically this is
             distinct from the training (and testing) data.
@@ -215,6 +210,7 @@ class Trainer(object):
             True iff we are still willing to wait for validation loss
             improvements.
         '''
+        self._curr_iter += 1
         monitors = list(zip(
             self._monitor_names,
             np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
@@ -223,12 +219,12 @@ class Trainer(object):
         _, loss = monitors[0]
         if self._best_loss - loss > self._best_loss * self.min_improvement:
             self._best_loss = loss
-            self._best_iter = iteration
+            self._best_iter = self._curr_iter
             self._best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
         info = ' '.join('%s=%.2f' % el for el in monitors)
-        logging.info('validation %i %s%s', iteration + 1, info, marker)
-        return iteration - self._best_iter < self.patience
+        logging.info('validation %i %s%s', self._curr_iter, info, marker)
+        return self._curr_iter - self._best_iter <= self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''Train a model using a training and validation set.
@@ -241,8 +237,8 @@ class Trainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Return
-        ------
+        Returns
+        -------
         monitors : sequence of dict
             This method must yield a series of monitor values to the caller.
             Typically one monitor dictionary is yielded after each pass through
@@ -268,6 +264,7 @@ class SGD(Trainer):
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(
             network.inputs,
+            self._monitor_exprs,
             updates=list(network.updates) + list(self.learning_updates()))
 
     def learning_updates(self):
@@ -310,9 +307,9 @@ class SGD(Trainer):
         '''
         iteration = 0
         while True:
-            if not iteration % self.validation_frequency:
+            if not iteration % self.validate_every:
                 try:
-                    if not self.evaluate(iteration, valid_set):
+                    if not self.evaluate(valid_set):
                         logging.info('patience elapsed, bailing out')
                         break
                 except KeyboardInterrupt:
@@ -320,15 +317,9 @@ class SGD(Trainer):
                     break
 
             try:
-                [self.train_minibatch(*x) for x in train_set]
-            except KeyboardInterrupt:
-                logging.info('interrupted!')
-                break
-
-            try:
                 monitors = list(zip(
                     self._monitor_names,
-                    np.mean([self.f_eval(*x) for i, x in zip(range(3), train_set)], axis=0)))
+                    np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -344,7 +335,7 @@ class SGD(Trainer):
         self.set_params(self._best_params)
 
     def train_minibatch(self, *x):
-        self.f_learn(*x)
+        return self.f_learn(*x)
 
 
 class NAG(SGD):
@@ -423,7 +414,7 @@ class NAG(SGD):
 
     def train_minibatch(self, *x):
         self.f_prepare()
-        self.f_learn(*x)
+        return self.f_learn(*x)
 
 
 class Rprop(SGD):
@@ -575,7 +566,6 @@ class Scipy(Trainer):
         super(Scipy, self).__init__(network, **kwargs)
 
         self.method = method
-        self.iterations = kwargs.get('num_updates', 100)
 
         logging.info('compiling gradient function')
         self.f_grad = theano.function(network.inputs, TT.grad(self.loss, self.params))
@@ -598,11 +588,12 @@ class Scipy(Trainer):
             monitors = np.mean([self.f_eval(*x) for x in train_set], axis=0)
             desc = ' '.join(
                 '%s=%.2f' % el for el in zip(self._monitor_names, monitors))
-            logging.info('scipy.%s %i %s', self.method, i + 1, desc)
+            logging.info('scipy.%s %i %s', self.method, iteration + 1, desc)
 
-        for i in range(self.iterations):
+        iteration = 0
+        while True:
             try:
-                if not self.evaluate(i, valid_set):
+                if not self.evaluate(valid_set):
                     logging.info('patience elapsed, bailing out')
                     break
             except KeyboardInterrupt:
@@ -617,14 +608,14 @@ class Scipy(Trainer):
                     args=(train_set, ),
                     method=self.method,
                     callback=display,
-                    options=dict(maxiter=self.validation_frequency),
+                    options=dict(maxiter=self.validate_every),
                 )
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
 
             self.set_params(self.flat_to_arrays(res.x))
-
+            iteration += 1
             yield dict(J=res.fun, loss=res.fun)
 
         self.set_params(self._best_params)
@@ -681,7 +672,7 @@ class HF(Trainer):
             None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
-        kwargs['validation_frequency'] = kwargs.pop('validate', 1 << 60)
+        kwargs['validate_every'] = kwargs.pop('validate', 1 << 60)
         try:
             func = self.opt.train.__func__.__code__
         except: # Python 2.x
@@ -794,16 +785,12 @@ class Layerwise(Trainer):
         outact = net.output_activation
         tied = getattr(net, 'tied_weights', False)
         original = list(net.layers)
-        L = len(original)
-        if tied:
-            L //= 2
-        else:
-            L -= 1
+        L = 1 + len(original) // 2 if tied else len(original) - 1
         def addl(*args, **kwargs):
             l = layers.build(*args, **kwargs)
             l.reset()
             net.layers.append(l)
-        for i in range(1, L - 1):
+        for i in range(1, L):
             logging.info('layerwise: training %s', original[i].name)
             net.layers = original[:i+1]
             if tied:

@@ -34,7 +34,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=None):
+def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=1):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
@@ -57,7 +57,7 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=None):
         Draw initial weight values from a normal with this mean. Defaults to 0.
     std : float, optional
         Draw initial weight values from a normal with this standard deviation.
-        Defaults to :math:`1 / \sqrt{n_i + n_o}`.
+        Defaults to 1.
 
     Returns
     -------
@@ -66,7 +66,6 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=None):
         represent the weights connecting each "input" unit to each "output" unit
         in a layer.
     '''
-    std = std or 1 / np.sqrt(nin + nout)
     arr = mean + std * np.random.randn(nin, nout)
     if 1 > sparsity > 0:
         k = min(nin, nout)
@@ -80,7 +79,7 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=None):
     return theano.shared(arr.astype(FLOAT), name=name)
 
 
-def create_vector(size, name, mean=0, std=1e-3):
+def create_vector(size, name, mean=0, std=1):
     '''Create a vector of small values.
 
     Parameters
@@ -92,7 +91,7 @@ def create_vector(size, name, mean=0, std=1e-3):
     mean : float, optional
         Mean value for initial vector values. Defaults to 0.
     std : float, optional
-        Standard deviation for initial vector values. Defaults to 1e-6.
+        Standard deviation for initial vector values. Defaults to 1.
 
     Returns
     -------
@@ -453,9 +452,11 @@ class Layer(Base):
         matrix : theano shared variable
             A shared variable containing a newly initialized weight matrix.
         '''
+        nin = nin or self.nin
+        nout = nout or self.nout
         return create_matrix(
-            nin or self.nin,
-            nout or self.nout,
+            nin,
+            nout,
             name=self._fmt(name),
             std=std or 1 / np.sqrt(nin + nout),
             sparsity=self.kwargs.get('sparsity', 0))

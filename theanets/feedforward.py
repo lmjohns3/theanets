@@ -92,7 +92,6 @@ might have linear or nonlinear activations depending on the modeling task.
 
 Usually all hidden nodes in a network share the same activation function, but
 this is not required.
-
 '''
 
 import climate
@@ -662,10 +661,50 @@ class Network(object):
 
 
 class Autoencoder(Network):
-    '''An autoencoder attempts to reproduce its input.
+    r'''An autoencoder attempts to reproduce its input.
 
-    Autoencoders retain all attributes of the parent class (:class:`Network`),
-    but additionally can have "tied weights".
+    Some types of neural network models have been shown to learn useful features
+    from a set of data without requiring any label information. This learning
+    task is often referred to as feature learning or manifold learning. A class
+    of neural network architectures known as autoencoders are ideally suited for
+    this task. An autoencoder takes as input a data sample and attempts to
+    produce the same data sample as its output. Formally, an autoencoder defines
+    a mapping from a source space to itself:
+
+    .. math::
+       F_\theta: \mathcal{S} \to \mathcal{S}
+
+    Often, this mapping can be decomposed into an "encoding" stage
+    :math:`f_\alpha(\cdot)` and a corresponding "decoding" stage
+    :math:`g_\beta(\cdot)` to and from some latent space :math:`\mathcal{Z} =
+    \mathbb{R}^{n_z}`:
+
+    .. math::
+       f_\alpha: \mathcal{S} \to \mathcal{Z}, \qquad
+       g_\beta: \mathcal{Z} \to \mathcal{S}
+
+    Autoencoders form an interesting class of models for several reasons. They:
+
+    - require only "unlabeled" data (which is typically easy to obtain),
+    - are generalizations of many popular density estimation techniques, and
+    - can be used to model the "manifold" or density of a dataset.
+
+    A generic autoencoder can be defined in ``theanets`` by using the
+    :class:`Autoencoder <theanets.feedforward.Autoencoder>` class::
+
+      exp = theanets.Experiment(theanets.Autoencoder)
+
+    The ``layers`` parameter is required to define such a model; it can be
+    provided on the command-line by using ``--layers A B C ... A``, or in your
+    code::
+
+      exp = theanets.Experiment(
+          theanets.Autoencoder,
+          layers=(A, B, C, ..., A))
+
+    Autoencoders retain all attributes of the parent :class:`Network` class,
+    but additionally can have "tied weights", if the layer configuration is
+    palindromic.
 
     Attributes
     ----------

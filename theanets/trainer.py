@@ -546,18 +546,35 @@ class ADADELTA(RmsProp):
 class Scipy(Trainer):
     '''General trainer for neural nets using ``scipy``.
 
-    This trainer class shells out to :func:`scipy.optimize.minimize` to minize
-    the network loss. All network operations are carried out using the
-    computation graph implemented in Theano, while all optimization procedures
-    are carried out using Scipy's code.
+    This class serves as a wrapper for the optimization algorithms provided in
+    `scipy.optimize.minimize`_. The following algorithms are available in this
+    trainer:
 
-    This separation can limit the speedup you might experience while optimizing
-    your network's loss, because computations are only carried out on the GPU
-    within the Theano graph; any results are passed across the PCI bus back into
-    main memory so that the Scipy code can process them.
+    - ``bfgs``
+    - ``cg``
+    - ``dogleg``
+    - ``newton-cg``
+    - ``trust-ncg``
 
-    The specific algorithms available in this trainer are given in the `METHODS`
-    list.
+    In general, these methods require two types of computations in order to
+    minimize a cost function: evaluating the cost function for a specific
+    setting of model parameters, and computing the gradient of the cost function
+    for a specific setting of model parameters. Both of these computations are
+    implemented by the ``theanets`` package and may, if you have a GPU, involve
+    computing values on the GPU.
+
+    However, all of the optimization steps that might be performed once these
+    two types of values are computed will not be handled on the GPU, since
+    ``scipy`` is not capable of using the GPU. This might or might not influence
+    the absolute time required to optimize a model, depending on the ratio of
+    time spent computing cost and gradient values to the time spent computing
+    parameter updates.
+
+    For more information about these optimization methods, please see the `Scipy
+    documentation`_.
+
+    .. _scipy.optimize.minimize: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
+    .. _Scipy documentation: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
     '''
 
     METHODS = ('bfgs', 'cg', 'dogleg', 'newton-cg', 'trust-ncg')

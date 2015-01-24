@@ -65,12 +65,214 @@ of practically any form, but there are a few notable classes of autoencoders:
   recently, as they perform quite well on a variety of difficult machine
   learning tasks.
 
-Finally, some autoencoders are capable of using *tied weights*, which means the
-"input" weights are the same as the "output" weights in the model. Autoencoders
-with tied weights represent some very common machine learning algorithms; see
-:ref:`models-tied-weights` for more information.
+.. note::
+   Command-line arguments do not work when running ``theanets`` code in
+   IPython; within IPython, all parameters must be specified as keyword
+   arguments.
 
-.. _guide-extending:
+Finally, a subset of autoencoders with an odd-length, palindromic number of
+layers can be defined as having **tied weights** whenever the parameters
+from the decoder are the transpose of the parameters from the encoder.
+Tied-weights autoencoders form an interesting subset of autoencoder models.
+
+Let's look at a few example models that fall into the autoencoder class.
+
+Single-layer autoencoders
+-------------------------
+
+Although the class of autoencoder models is quite large (any :math:`k`
+partite graph like the one described above, having the same number of input
+and output nodes would count). However, a very interesting class of these
+models has just one hidden layer, and uses a linear activation on its output
+nodes:
+
+.. math::
+   F_\theta(x) = \sigma(x W_e + b_e) W_d + b_d
+
+Here, :math:`\sigma` is the activation of the nodes in the hidden layer, and
+:math:`W_e`, :math:`W_d`, :math:`b_e`, and :math:`b_d` are the weights and
+bias of the "encoding" and "decoding" layers of the network. The trainable
+parameters are :math:`\theta = (W_e, W_d, b_e, b_d)`.
+
+To train the weights and biases in the network, an autoencoder typically
+optimizes a squared-error reconstruction loss:
+
+.. math::
+   J(X, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d + b_d - x_i \right\|_2^2 + \lambda R(X, \theta)
+
+This optimization process could result in a trivial model, depending on the
+setup of the network. In particular, if the number of hidden features
+:math:`n_z` is not less than the number of input variables :math:`n_0`, then
+with linear hidden activations :math:`\sigma(z) = z`, identity weights
+:math:`W_e = W_d = I`, and zero bias :math:`b_e = b_d = 0`, an autoencoder
+as defined above implements the identity transform:
+
+.. math::
+   F_\theta(x) = x
+
+Even if the hidden unit activations are nonlinear, the network is capable of
+learning an identity transform as long as :math:`n_z \ge n_0`. But things
+get much more interesting when an autoencoder network is forced to reproduce
+the input under some constraint. These constraints can be implemented either
+through the structure of the network, or by adding a regularizer. Both of
+these approaches will be discussed below.
+
+PCA
+```
+
+One way to prevent a model from learning trivial latent representations is
+to force the latent space to be smaller than the space where the data live.
+One of the most popular techniques for doing this is Principal Component
+Analysis (PCA) [Hot33]_. The principal components (PCs) of a dataset are the
+set of orthogonal directions :math:`U` (i.e., a rotation) that capture the
+maximal variance in a dataset. Each PC :math:`u_i` is scaled by the amount
+of variance :math:`s_i` in the corresponding direction of the data, so the
+first PC captures the most variance, the second PC the second-most variance,
+and so forth.
+
+Let's assume we have computed a PCA transform :math:`W = UD_s` for a dataset
+:math:`X` (here, :math:`D_s` is a diagonal matrix with the :math:`s_i` along
+the diagonal). Then we can "encode" the dataset by projecting it into the PC
+space using matrix multiplication to rotate and then scale the data:
+
+.. math:: Z = XUD_s
+
+If we wish to "decode" this representation of the data, we can project it
+back into the data space by doing another matrix multiplication to un-scale
+the data and rotate it back:
+
+.. math::
+   \hat{X} = ZD_{1/S}U^\top = X U D_s D_{1/S} U^\top = X U U^\top
+
+If we have the same number of principal components as variables in our
+dataset, then :math:`UU^\top = I` and :math:`\hat{X} = X`. However, if we
+restrict our PC representation to a smaller number of dimensions than we
+have in our data, we are performing *dimensionality reduction* in a way that
+is guaranteed to preserve the most variance in the data. In other words, our
+transform :math:`UD_s` minimizes the squared-error loss:
+
+.. math::
+   J(X) = \frac{1}{M} \sum_{i=1}^M \left\| \hat{x}_i - x_i \right\|_2^2
+
+.. math::
+   J(X) = \frac{1}{M} \sum_{i=1}^M \left\| x_i U U^\top - x_i \right\|_2^2
+
+Given this way of looking at PCA, we can see that it is really a sort of
+linear autoencoder with tied weights! To be more precise, optimizing the
+loss formulation immediately above is guaranteed to recover the same
+*subspace* as the PCA transform, even though the individual features are not
+necessarily guaranteed to be the same.
+
+To implement such a model in ``theanets``, we only need to provide the
+following hyperparameters::
+
+  pca = theanets.Experiment(
+      theanets.Autoencoder,
+      tied_weights=True,
+      hidden_activation='linear',
+      layers=(n_0, n_z, n_0),
+  )
+
+This type of model has the additional advantage that it is relatively easy
+to train, because the entire model is linear!
+
+In actuality, if your dataset is not too large, it's even easier to use a
+closed-form solution to compute the PCA transform; however, looking at PCA
+in this way, using a neural network framework, will serve as a good mental
+bridge to the sorts of models that will be introduced later on.
+
+ICA
+```
+
+For PCA, we had to use an *undercomplete* hidden representation to prevent
+the model from learning a trivial identity transform. This is problematic
+for a couple of reasons, but from a modeling perspective one of the worst is
+that the features computed by PCA are often "tangled together" to represent
+each of the points in our dataset. That is, a single PCA feature is often
+difficult to interpret by itself; instead, the entire set of PCs is required
+to yield a reasonable representation of a data point.
+
+For example, if PCA is performed on a set of image data, the PCs are
+typically close to a Fourier basis for the space of images being processed;
+this representation does in fact capture the most variance in the data, but
+any individual PC only captures one of the spatial frequencies in an
+image---a relatively large part of the entire set of PCs must be used to
+reconstruct an image with good fidelity.
+
+If instead we wanted to learn an *overcomplete* feature set (i.e., with
+:math:`n_z > n_0`), or if we wanted to learn some features of our data that
+were not dependent on the others, we could encourage the model to learn a
+non-trivial representation of the data by adding a regularizer that
+specifies how the features should behave.
+
+One good intuition for introducing a regularizer at this point is to assume
+that latent features should be used independently. We can translate that
+into mathematics by requiring that the model reproduce the input data using
+"as little" feature representation as possible and add an :math:`L_1`
+penalty to the hidden representation:
+
+.. math::
+   J(X, W) = \left\| WW^\top x - x \right\|_2^2 + \lambda \left\| W^\top x \right\|_1
+
+This model, called RICA [Le11]_ ("ICA with a reconstruction cost"), is
+actually equivalent to an existing statistical model called Independent
+Component Analysis [Jut91]_ [Hyv97]_, which can be trained by maximizing the
+non-gaussian-ness (e.g., the kurtosis) of the features. Here, we force the
+model to use a sparse representation while still using linear encoding and
+decoding with tied weights.
+
+In ``theanets``, we can create such a model by including a sparsity penalty
+on the hidden layer::
+
+  rica = theanets.Experiment(
+      theanets.Autoencoder,
+      tied_weights=True,
+      hidden_activation='linear',
+      hidden_l1=1,
+      layers=(n_0, n_z, n_0),
+  )
+
+This model does not have a simple closed-form solution, so an iterative
+optimization procedure is just what we need to learn good parameters for the
+model.
+
+Sparse autoencoders
+-------------------
+
+RICA models (and ICA generally) are a subset of a more general class of
+autoencoder called a *sparse autoencoder* [Glo11]_. Sparse autoencoders
+generalize the RICA formulation by adding:
+
+- different encoding and decoding weights,
+- bias terms, and
+- a nonlinearity at the hidden layer.
+
+Like RICA, however, sparse autoencoders assign a regularization penalty to
+the hidden activation of the model:
+
+.. math::
+   J(X, \theta) = \frac{1}{M} \sum_{i=1}^M \left\| \sigma(x_i W_e + b_e) W_d +
+   b_d - x_i \right\|_2^2 + \lambda\left\| \sigma(x_i W_e + b_e) \right\|_1
+
+The sparsity penalty forces the encoder and decoder of the autoencoder model
+to cooperate together to represent the input using as little of the latent
+space as possible.
+
+To create a sparse autoencoder in ``theanets``, just use the RICA
+formulation but omit the tied weights and linear activation::
+
+  sparse = theanets.Experiment(
+      theanets.Autoencoder,
+      hidden_l1=1,
+      layers=(n_0, n_z, n_0),
+  )
+
+Sparse autoencoders can also be created with more than one hidden layer.
+
+Denoising autoencoders
+----------------------
+
+guide-extending:
 
 Creating New Models
 ===================

@@ -896,7 +896,7 @@ class Regressor(Network):
 
 
 class Classifier(Network):
-    '''A classifier attempts to match a 1-hot target output.
+    r'''A classifier attempts to match a 1-hot target output.
 
     Classification models in ``theanets`` are trained by optimizing a (possibly
     regularized) loss that centers around the categorical cross-entropy. This

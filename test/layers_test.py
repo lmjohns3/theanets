@@ -26,8 +26,9 @@ class TestFeedforward(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 2
         assert not upd
 
 
@@ -44,8 +45,9 @@ class TestTied(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 2
         assert not upd
 
 
@@ -60,8 +62,9 @@ class TestClassifier(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 2
         assert not upd
 
 
@@ -76,8 +79,9 @@ class TestRNN(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 2
         assert not upd
 
 
@@ -92,8 +96,9 @@ class TestARRNN(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 4
         assert not upd
 
 
@@ -108,8 +113,9 @@ class TestMRNN(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 4
         assert not upd
 
 
@@ -124,6 +130,7 @@ class TestLSTM(Base):
     def test_transform(self):
         l = self._build()
         l.reset()
-        out, upd = l.transform(self.x)
+        out, mon, upd = l.transform(self.x)
         assert out is not None
+        assert len(mon) == 4
         assert not upd

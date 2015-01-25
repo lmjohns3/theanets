@@ -351,6 +351,8 @@ class Layer(Base):
         -------
         output : theano expression
             Theano expression specifying the output of this layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             Updates that should be performed by a theano function that computes
             something using this layer.
@@ -358,8 +360,8 @@ class Layer(Base):
         rng = self.kwargs.get('rng') or RandomStreams()
         noise = self.kwargs.get('noise', 0)
         dropout = self.kwargs.get('dropout', 0)
-        output, updates = self.transform(inputs)
-        return add_dropout(add_noise(output, noise, rng), dropout, rng), updates
+        out, mon, upd = self.transform(inputs)
+        return add_dropout(add_noise(out, noise, rng), dropout, rng), mon, upd
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -373,10 +375,12 @@ class Layer(Base):
         -------
         output : theano expression
             Theano expression representing the output from this layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        return _only(inputs), ()
+        return _only(inputs), (), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -431,6 +435,29 @@ class Layer(Base):
         if '{' not in string:
             string = '{}_' + string
         return string.format(self.name)
+
+    def _monitors(self, expr, suffix='', levels=(0.1, 0.9)):
+        '''Create a list of standard monitor tuples for a given expression.
+
+        Parameters
+        ----------
+        expr : theano expression
+            An expression from the network graph.
+        suffix : str, optional
+            A suffix to append to monitor names. Defaults to ''.
+        levels : sequence of float, optional
+            Activation level thresholds for computing monitor expressions.
+
+        Returns
+        -------
+        monitors : list of (name, expression) tuples
+            A list of named monitor expressions.
+        '''
+        def name(r):
+            return '{}{}<{}'.format(self.name, suffix, r)
+        def abspct(r):
+            return 100 * (TT.cast(abs(expr) < r, FLOAT)).mean()
+        return [(name(l), abspct(l)) for l in levels]
 
     def _new_weights(self, name, nin=None, nout=None, std=None):
         '''Helper method to create a new weight matrix.
@@ -517,6 +544,8 @@ class Feedforward(Layer):
         -------
         output : theano expression
             Theano expression representing the output from this layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
@@ -524,7 +553,8 @@ class Feedforward(Layer):
             inputs = (inputs, )
         assert len(inputs) == len(self.weights)
         xs = (TT.dot(i, w) for i, w in zip(inputs, self.weights))
-        return self.activate(sum(xs) + self.biases[0]), ()
+        output = self.activate(sum(xs) + self.biases[0])
+        return output, self._monitors(output), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -578,11 +608,14 @@ class Tied(Feedforward):
         -------
         output : theano expression
             Theano expression representing the output from this layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        x = TT.dot(_only(inputs), self.partner.weights[0].T) + self.biases[0]
-        return self.activate(x), ()
+        output = self.activate(
+            TT.dot(_only(inputs), self.partner.weights[0].T) + self.biases[0])
+        return output, self._monitors(output), ()
 
     def reset(self):
         '''Reset the state of this layer to a new initial condition.
@@ -736,13 +769,16 @@ class RNN(Recurrent):
         -------
         output : theano expression
             Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, h_tm1):
             return self.activate(x_t + TT.dot(h_tm1, self._W_hh))
         x = TT.dot(_only(inputs), self._W_xh) + self._b_h
-        return self._scan(self._fmt('rnn'), fn, [x])
+        output, updates = self._scan(self._fmt('rnn'), fn, [x])
+        return output, self._monitors(output), updates
 
 
 class ARRNN(Recurrent):
@@ -795,6 +831,8 @@ class ARRNN(Recurrent):
         -------
         output : theano expression
             Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
@@ -803,8 +841,10 @@ class ARRNN(Recurrent):
             return r_t * h_tm1 + (1 - r_t) * h_t
         x = _only(inputs)
         h = TT.dot(x, self._W_xh) + self._b_h
-        r = TT.dot(x, self._W_xr) + self._b_r
-        return self._scan(self._fmt('arrnn'), fn, [h, TT.nnet.sigmoid(r)])
+        r = TT.nnet.sigmoid(TT.dot(x, self._W_xr) + self._b_r)
+        output, updates = self._scan(self._fmt('arrnn'), fn, [h, r])
+        monitors = self._monitors(output) + self._monitors(r, 'rate')
+        return output, monitors, updates
 
 
 class MRNN(Recurrent):
@@ -856,6 +896,8 @@ class MRNN(Recurrent):
         -------
         output : theano expression
             Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
@@ -865,7 +907,9 @@ class MRNN(Recurrent):
         x = _only(inputs)
         h = TT.dot(x, self._W_xh) + self._b_h
         f = TT.dot(x, self._W_xf)
-        return self._scan(self._fmt('mrnn'), fn, [h, f])
+        output, updates = self._scan(self._fmt('mrnn'), fn, [h, f])
+        monitors = self._monitors(output) + self._monitors(f, 'fact')
+        return output, monitors, updates
 
 
 class LSTM(Recurrent):
@@ -937,6 +981,8 @@ class LSTM(Recurrent):
         -------
         output : theano expression
             Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
@@ -948,14 +994,15 @@ class LSTM(Recurrent):
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
         x = _only(inputs)
-        (output, _), updates = self._scan(
+        (output, cell), updates = self._scan(
             self._fmt('lstm'), fn,
             [TT.dot(x, self._W_xi) + self._b_i,
              TT.dot(x, self._W_xf) + self._b_f,
              TT.dot(x, self._W_xc) + self._b_c,
              TT.dot(x, self._W_xo) + self._b_o],
             inits=[self.zeros('h'), self.zeros('c')])
-        return output, updates
+        monitors = self._monitors(output) + self._monitors(cell, 'cell')
+        return output, monitors, updates
 
 
 class Bidirectional(Layer):

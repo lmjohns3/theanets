@@ -373,11 +373,14 @@ class Network(object):
         -------
         outputs : list of theano variables
             A list of expressions giving the output of each layer in the graph.
+        monitors : list of (name, expression) tuples
+            A list of expressions to use when monitoring the network.
         updates : list of update tuples
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
         outputs = []
+        monitors = []
         updates = []
         for i, layer in enumerate(self.layers):
             if i == 0:
@@ -389,18 +392,23 @@ class Network(object):
             else:
                 # inputs to other layers are outputs of previous layer.
                 inputs = outputs[-1]
-            out, upd = layer.output(inputs)
+            out, mon, upd = layer.output(inputs)
             outputs.append(out)
+            monitors.extend(mon)
             updates.extend(upd)
-        return outputs, updates
+        return outputs, monitors, updates
 
     @property
     def outputs(self):
         return self._connect()[0]
 
     @property
-    def updates(self):
+    def _monitors(self):
         return self._connect()[1]
+
+    @property
+    def updates(self):
+        return self._connect()[2]
 
     @property
     def monitors(self):
@@ -414,13 +422,12 @@ class Network(object):
         consists of:
 
         - err: the unregularized error of the network
-        - X<0.1: percent of hidden units in layer X such that :math:`|a_i| < 0.1`
-        - X<0.9: percent of hidden units in layer X such that :math:`|a_i| < 0.9`
+        - X<0.1: percent of units in layer X such that :math:`|a_i| < 0.1`
+        - X<0.9: percent of units in layer X such that :math:`|a_i| < 0.9`
         '''
         yield 'err', self.error
-        for i, (layer, output) in enumerate(zip(self.layers, self.outputs)):
-            yield '{}<0.1'.format(layer.name), 100 * (TT.cast(abs(output) < 0.1, FLOAT)).mean()
-            yield '{}<0.9'.format(layer.name), 100 * (TT.cast(abs(output) < 0.9, FLOAT)).mean()
+        for name, value in self._monitors:
+            yield name, value
 
     def params(self, **kwargs):
         '''Get a list of the learnable theano parameters for this network.
@@ -557,7 +564,7 @@ class Network(object):
             network is the last element of this list.
         '''
         if not hasattr(self, '_compute'):
-            outputs, updates = self._connect()
+            outputs, _, updates = self._connect()
             self._compute = theano.function([self.x], outputs, updates=updates)
         return self._compute(x)
 
@@ -643,8 +650,7 @@ class Network(object):
         loss : theano variable
             A variable representing the loss of this network.
         '''
-        outputs, _ = self._connect()
-        hiddens = outputs[1:-1]
+        hiddens = self.outputs[1:-1]
         loss = self.error
         if weight_l1 > 0:
             loss += weight_l1 * sum(abs(w).sum() for l in self.layers for w in l.weights)
@@ -848,7 +854,7 @@ class Autoencoder(Network):
             self._decoders = {}
         layer = layer or len(self.layers) // 2
         if layer not in self._decoders:
-            outputs, updates = self._connect()
+            outputs, _, updates = self._connect()
             self._decoders[layer] = theano.function(
                 [outputs[layer]], [outputs[-1]], updates=updates)
         return self._decoders[layer](z)[0]

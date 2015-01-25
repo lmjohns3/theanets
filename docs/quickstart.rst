@@ -2,18 +2,25 @@
 Getting Started
 ===============
 
-This page provides a quick overview of the ``theanets`` package. It is aimed at
-getting you up and running with a few simple examples. Once you understand the
-basic workflow, you will be able to extend the examples to your own datasets and
-modeling problems.
+The ``theanets`` package provides tools for defining and optimizing several
+common types of neural network models. It uses Python for rapid development, and
+under the hood Theano_ provides graph optimization and fast computations on the
+GPU.
 
-.. _qs-setup:
+This page provides a quick overview of the ``theanets`` package. It is aimed at
+getting you up and running with a few examples. Once you understand the basic
+workflow, you will be able to extend the examples to your own datasets and
+modeling problems. After you've finished reading through this document, have a
+look at the :doc:`guide` for more detailed usage information, and see the
+:doc:`reference` for detailed API documentation.
+
+.. _Theano: http://deeplearning.net/software/theano/
 
 Installation
 ============
 
-First of all, you'll probably want to download and install ``theanets``. The
-easiest way to do this is by using ``pip``::
+If you haven't already, the first thing you should do is download and install
+``theanets``. The easiest way to do this is by using ``pip``::
 
   pip install theanets
 
@@ -29,8 +36,6 @@ packages::
 These will help you obtain the example dataset described below, and also help in
 making plots of various things.
 
-.. _qs-overview:
-
 Package Overview
 ================
 
@@ -38,25 +43,29 @@ At a high level, the ``theanets`` package is a tool for (a) defining and (b)
 optimizing cost functions over a set of data. The workflow in ``theanets``
 typically involves three basic steps:
 
-#. First, you define the structure of the model that you'll use for your task.
-   For instance, if you're trying to classify MNIST digits, then you'll want
+#. First, you *define* the structure of the model that you'll use for your task.
+   For instance, if you're trying to classify MNIST digits, you'll want
    something that takes in pixels and outputs digit classes (a "classifier"). If
-   you're trying to model the digit images without labels, you might want to use
-   a model that takes in pixels and outputs pixels (an "autoencoder").
-#. Second, you train or adjust the parameters in your model so that it has a low
-   cost or performs well with respect to some task. For classification, you
+   you're trying to model the unlabeled digit images, you might want to use a
+   model that uses the same data for input and output (an "autoencoder").
+#. Second, you *train* or adjust the parameters in your model so that it has a
+   low cost or performs well with respect to some task. For classification, you
    might want to adjust your model parameters to minimize the negative
    log-likelihood of the correct image class given the pixels, and for
    autoencoders you might want to minimize the reconstruction error.
-#. Finally, you use the trained model in some way, probably by predicting
+
+   A significant component of this step usually involves preparing the data that
+   you'll use to train your model.
+#. Finally, you *use* the trained model in some way, probably by predicting
    results on a test dataset, visualizing the learned features, and so on.
 
 The ``theanets`` package provides a helper class, :class:`Experiment
 <theanets.main.Experiment>`, that performs these tasks with relatively low
-effort on your part. You will typically define a model by creating an experiment
-with a number of *model hyperparameters* that define the specific behavior of
-your model, and then train your model using another set of *optimization
-hyperparameters* that define the behavior of the optimization algorithm.
+effort on your part. You typically define a model in ``theanets`` by creating an
+experiment with a number of *model hyperparameters* that define the specific
+behavior of your model, and then train your model using another set of
+*optimization hyperparameters* that define the behavior of the optimization
+algorithm.
 
 The skeleton of your code will usually look something like this::
 
@@ -64,7 +73,7 @@ The skeleton of your code will usually look something like this::
   import skdata.mnist
   import theanets
 
-  # create an experiment to define and train a model.
+  # create an experiment to define a model.
   exp = theanets.Experiment(
       Model,
       hyperparam1=value1,
@@ -85,126 +94,73 @@ The skeleton of your code will usually look something like this::
   model.predict(test_data)
 
 This quickstart document shows how to implement these stages by following a
-couple of examples below.
-
-.. _qs-classifier:
+couple of examples.
 
 Classifying MNIST Digits
 ========================
 
-Suppose you're interested in learning a model that can classify an image of an
-MNIST digit as a 0, a 1, a 2, etc. For this task, you would normally use the
-:class:`Classifier <theanets.feedforward.Classifier>` feedforward network model.
+A standard benchmark for neural network
+:class:`classification <theanets.feedforward.Classifier>` is the `MNIST digits
+dataset <http://yann.lecun.com/exdb/mnist/>`_, a set of 70,000 28×28 images of
+hand-written digits. Each MNIST digit is labeled with the correct digit class
+(0, 1, ... 9). This example shows how to use ``theanets`` to create and train a
+model that can perform this task.
 
-Classifier networks map a layer of continuous-valued inputs through one or more
-hidden layers and finally to an output layer that is activated through the
-`softmax function`_. The softmax output is treated as a categorical distribution
-over the digit labels given the input image.
-
-The first ("input") and last ("output") layers in your network must match the
-size of the data you'll be providing. For an MNIST classification task, this
-means your network must have 784 inputs (one for each image pixel) and 10
-outputs (one for each class).
-
-Classifier models can be constructed with any number of layers between the input
-and output. Models with more than about two hidden layers are commonly called
-"deep" models and have been quite popular recently due to their success on a
-variety of difficult machine learning problems.
+Networks for classification map a layer of continuous-valued inputs, through one
+or more hidden layers, to an output layer that is activated through the `softmax
+function`_. The softmax generates output that can be treated as a categorical
+distribution over the digit labels given the input image.
 
 .. _softmax function: http://en.wikipedia.org/wiki/Softmax_function
 
 Defining the model
 ------------------
 
-Having chosen a model class to use for your task, and a set of layer sizes that
-you want in your model, you will create an :class:`Experiment
-<theanets.main.Experiment>` to construct your model.
+Now that you know which model to use for this task, you'll need to define some
+hyperparameters that determine the structure of your network. The most important
+of these is choosing a set of layer sizes that you want in your model.
 
-There are two required arguments: the class of the model to create, and the
-``layers`` keyword argument, which specifies the number and size of the layers
-in your network.  define a classifier model::
+The first ("input") and last ("output") layers in your network must match the
+size of the data you'll be providing. For an MNIST classification task, this
+means your network must have 784 inputs (one for each image pixel) and 10
+outputs (one for each class).
+
+Between the input and output layers, on the other hand, can be any number of
+so-called "hidden" layers, in almost any configuration. Models with more than
+about two hidden layers are commonly called "deep" models and have been quite
+popular recently due to their success on a variety of difficult machine learning
+problems. For now, though, to keep things simple, let's start out with a model
+that just has one hidden layer with 100 units.
+
+Once you've chosen the layers you want in your model, the easiest way to use
+``theanets`` is to create an :class:`Experiment <theanets.main.Experiment>` to
+construct your model::
 
   exp = theanets.Experiment(
       theanets.Classifier,
       layers=(784, 100, 10))
 
-This is all you need to do to define a classifier model that can be trained up
-and used. There are many more hyperparameters available, but for now we'll stick
-with the defaults.
+This is all that's required to get started. There are many different types of
+available hyperparameters that can be useful when constructing a model; see
+:ref:`guide-model-hyperparameters` for more information.
 
-If you want to set up a more sophisticated model like a classifier with sparse
-hidden representations, you can add regularization hyperparameters when you
-create your experiment::
+Preparing the data
+------------------
 
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      layers=(784, 1000, 784),
-      hidden_l1=0.1)
+In ``theanets``, the parameters of a model are initialized randomly. To improve
+the model's performance on the task, you'll need to train the model parameters.
+This training process requires a dataset to compute gradient and loss function
+values.
 
-Here we've specified that our model has a single, overcomplete hidden layer, and
-the activity of the hidden units in the network will be penalized with a 0.1
-coefficient.
+In the case of the MNIST digits, our classifier model will consume a dataset
+consisting of two parts---"samples" (image pixels) and corresponding "labels"
+(integer class values). Each of these parts is provided as a ``numpy`` array:
+the samples are a two-dimensional array, with vectorized MNIST pixels arranged
+along the first axis and pixel data arranged along the second axis; the labels
+are a one-dimensional array, with one integer value per MNIST image.
 
-.. _qs-training:
-
-Training a Model
-================
-
-So far, the code above is sufficient to instruct ``theanets`` to create a model.
-But models are initialized using small random values for the parameters, which
-are unlikely to do anything useful with an MNIST digit as input! To improve the
-performance of a model, you'll need to *train* or *optimize* it by adjusting the
-model parameters.
-
-The :class:`Experiment <theanets.main.Experiment>` class handles the general
-case of training with fairly little work. Most of the effort required here is in
-processing your dataset so that you can use it to train a network.
-
-Preparing a dataset
--------------------
-
-.. _qs-mnist:
-
-MNIST digits
-------------
-
-The examples throughout the documentation use the `MNIST digits dataset
-<http://yann.lecun.com/exdb/mnist/>`_, a set of 70,000 28×28 images of
-hand-written digits. Each MNIST digit is labeled with the correct digit class
-(0, 1, ... 9).
-
-.. image:: http://www.heikohoffmann.de/htmlthesis/img679.gif
-
-Because the MNIST digits are high-dimensional pixel arrays, they are useful for
-evaluating models of unsupervised learning like autoencoders. But because the
-MNIST digits are also labeled, they are also useful for evaluating models of
-supervised learning like classifiers. We'll address both of these tasks as
-examples in this document.
-
-For now, you can look at a few of the digits in the image above, or by plotting
-them on your computer::
-
-  import matplotlib.pyplot as plt
-  import numpy.random as rng
-  import skdata.mnist
-
-  mnist = skdata.mnist.dataset.MNIST()
-  mnist.meta  # trigger download if needed.
-  digits = mnist.arrays['train_images']
-
-  # show a 5 x 5 grid of MNIST samples.
-  for axes in plt.subplots(5, 5)[1]:
-      for ax in axes:
-          ax.imshow(digits[rng.randint(len(digits))])
-          ax.set_xticks([])
-          ax.set_yticks([])
-          ax.set_frame_on(False)
-
-  plt.show()
-
-Before you can train your model, you'll need to write a little glue code to
-arrange for a training and a validation dataset. With the MNIST digits, this is
-pretty straightforward::
+For easy access to the MNIST digits dataset, we'll use the ``skdata`` package
+and write a little bit of glue code to get the data into the desired format::
 
   def load_mnist():
       mnist = skdata.mnist.dataset.MNIST()
@@ -221,15 +177,10 @@ pretty straightforward::
               (train_images[50000:], train_labels[50000:, 0]),
               (test_images, test_labels[:, 0]))
 
-Here we've rescaled the image data so that each pixel lies in the interval
-:math:`[0, 1]` instead of the default :math:`[0, 255]`. We've also reshaped the
-data so that each example is a 1-dimensional vector rather than a 2-dimensional
-array of pixels.
-
-The load function returns a training split (the first 50000 examples), a
-validation split (the remainder of the training data from ``skdata``, containing
-10000 examples), and a test split (the test split from ``skdata``, containing
-10000 examples).
+Here we've rescaled the image data so that each pixel lies in the interval [0,
+1] instead of the default [0, 255]. (In general, it's a good idea to standardize
+the data for your problem so that each dimension has approximately the same
+scale.) We've also reshaped the data as described above.
 
 .. note::
 
@@ -240,15 +191,30 @@ validation split (the remainder of the training data from ``skdata``, containing
 
 .. _Theano's "floatX" configuration parameter: http://deeplearning.net/software/theano/library/config.html#config.floatX
 
-Choosing an optimizer
----------------------
+The load function returns a training split (the first 50000 examples), a
+validation split (the remainder of the training data from ``skdata``, containing
+10000 examples), and a test split (the test split from ``skdata``, containing
+10000 examples). The training dataset is used to compute parameter updates, and
+the validation dataset is used to determine when the model has stopped
+improving during training.
 
-The next step is to specify the training algorithm to use, and any associated
-hyperparameter values. This is most naturally accomplished using the
-:func:`train() <theanets.main.Experiment.train>` method of the experiment
-object::
+Training the model
+------------------
 
-  exp.train(training_data,
+Now that you have a model and some data, you're ready to train the model so that
+it performs the classification task as well as possible. The :class:`Experiment
+<theanets.main.Experiment>` class handles the general case of training with
+fairly little work.
+
+The main decision to make during training is to choose the training algorithm to
+use, along with values for any associated hyperparameters. This is most
+naturally accomplished using the :func:`train()
+<theanets.main.Experiment.train>` method of the experiment object::
+
+  train, valid, test = load_mnist()
+
+  exp.train(train,
+            valid,
             optimize='nag',
             learning_rate=1e-3,
             momentum=0.9)
@@ -256,56 +222,20 @@ object::
 The first positional argument to this method is the training dataset, and the
 second (if provided) is a validation dataset. (These positional arguments can
 also be passed to :func:`Experiment.train() <theanets.main.Experiment.train>`
-using the keywords ``train_set`` and ``valid_set``, respectively.) If a
+using the ``train_set`` and ``valid_set`` keywords, respectively.) If a
 validation dataset is not provided, the training dataset will be used for
 validation.
 
 The ``optimize`` keyword argument specifies an algorithm to use for training.
 (If you do not provide a value for this argument, ``'rmsprop'`` is used by
 default, using the :class:`RmsProp <theanets.trainer.RmsProp>` algorithm.) Any
-subsequent keyword arguments will be passed to the training algorithm
-implementation; these arguments typically specify hyperparameters of the
-training algorithm like the learning rate and so forth.
+subsequent keyword arguments will be passed to the training algorithm; these
+arguments typically specify hyperparameters of the algorithm like the learning
+rate and so forth.
 
-The available training methods are described mathematically in :doc:`trainers`;
-here we've specified :class:`Nesterov's Accelerated Gradient
-<theanets.trainer.NAG>`, a type of stochastic gradient descent with momentum.
-
-To train our model, we will use the MNIST digits dataset from above. Putting
-everything together yields code that looks like this::
-
-  train, valid, _ = load_mnist_labeled()
-  exp = theanets.Experiment(theanets.Classifier, layers=(784, 100, 10))
-  exp.train(train, valid, optimize='nag', learning_rate=1e-3, momentum=0.9)
-
-If you put this code, plus any necessary imports, into a file called something
-like ``mnist-classifier.py``, and then run it on the command-line, your computer
-will do a bunch of work to learn good parameter values for your model! If you
-enable Python's ``logging`` module you'll also get updates on the console about
-the progress of the optimization procedure.
-
-Training as iteration
-`````````````````````
-
-The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
-actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
-<theanets.main.Experiment.itertrain>` method, which you can use directly if you
-want to do something special during training::
-
-  for monitors in exp.itertrain(train, valid, **kwargs):
-      print(monitors['loss'])
-
-Trainers yield a dictionary after each training iteration. The keys and values
-in each dictionary give the costs and monitors that are computed during
-training, which will vary depending on the model and the training algorithm.
-However, there will always be a ``'loss'`` key that gives the value of the loss
-function that is being optimized. For classifier models, the dictionary will
-also have an ``'acc'`` key, which gives the percent accuracy of the classifier
-model.
-
-.. note::
-   The :class:`HF <theanets.trainer.HF>` trainer and the :class:`Sample
-   <theanets.trainer.Sample>` trainer always return loss values equal to -1.
+The available training methods are described in the :doc:`guide`; here we've
+specified :class:`Nesterov's Accelerated Gradient <theanets.trainer.NAG>`, a
+type of stochastic gradient descent with momentum.
 
 Saving and loading
 ------------------
@@ -331,8 +261,6 @@ from disk.
 You can also save and load models manually by calling :func:`Experiment.save()
 <theanets.main.Experiment.save>` and :func:`Experiment.load()
 <theanets.main.Experiment.load>`, respectively.
-
-.. _qs-using:
 
 Using a Model
 =============
@@ -403,8 +331,6 @@ reshaped -- into a giant image.
 That concludes the basic classification example. The ``theanets`` source code
 contains a complete ``mnist-classifier.py`` example that you can play around
 with.
-
-.. _qs-cli:
 
 Using the Command Line
 ======================

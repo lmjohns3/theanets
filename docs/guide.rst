@@ -23,7 +23,71 @@ Several broad classes of models are pre-defined in ``theanets``:
 It's also pretty simple to create custom models using ``theanets``; see
 :ref:`hacking-extending` for more information.
 
-.. _qs-autoencoder:
+.. _guide-model-hyperparameters:
+
+Model Hyperparameters
+=====================
+
+By default, layers in ``theano`` are constructed using straightforward
+:class:`feedforward <theanets.layers.Feedforward>` layers; these layers compute
+a weighted (affine) transformation of their input, and then perform a point-wise
+(i.e., independent on each computation unit) nonlinear transform.
+
+Activation functions
+--------------------
+
+- linear
+- logistic sigmoid
+- hyperbolic tangent
+- rectified linear
+- softplus
+- softmax
+
+Regularizers
+------------
+
+If you want to set up a more sophisticated model like a classifier with sparse
+hidden representations, you can add regularization hyperparameters when you
+create your experiment::
+
+  exp = theanets.Experiment(
+      theanets.Classifier,
+      layers=(784, 1000, 784),
+      hidden_l1=0.1)
+
+Here we've specified that our model has a single, overcomplete hidden layer, and
+the activity of the hidden units in the network will be penalized with a 0.1
+coefficient.
+
+.. _guide-training-hyperparameters:
+
+Training Hyperparameters
+========================
+
+Training as iteration
+`````````````````````
+
+The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
+actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
+<theanets.main.Experiment.itertrain>` method, which you can use directly if you
+want to do something special during training::
+
+  for monitors in exp.itertrain(train, valid, **kwargs):
+      print(monitors['loss'])
+
+Trainers yield a dictionary after each training iteration. The keys and values
+in each dictionary give the costs and monitors that are computed during
+training, which will vary depending on the model and the training algorithm.
+However, there will always be a ``'loss'`` key that gives the value of the loss
+function that is being optimized. For classifier models, the dictionary will
+also have an ``'acc'`` key, which gives the percent accuracy of the classifier
+model.
+
+.. note::
+   The :class:`HF <theanets.trainer.HF>` trainer and the :class:`Sample
+   <theanets.trainer.Sample>` trainer always return loss values equal to -1.
+
+.. _guide-autoencoders:
 
 Autoencoders
 ------------

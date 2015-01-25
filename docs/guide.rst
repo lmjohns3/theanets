@@ -272,7 +272,7 @@ Sparse autoencoders can also be created with more than one hidden layer.
 Denoising autoencoders
 ----------------------
 
-guide-extending:
+.. _guide-extending:
 
 Creating New Models
 ===================

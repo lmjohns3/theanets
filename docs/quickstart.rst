@@ -262,16 +262,13 @@ You can also save and load models manually by calling :func:`Experiment.save()
 <theanets.main.Experiment.save>` and :func:`Experiment.load()
 <theanets.main.Experiment.load>`, respectively.
 
-Using a Model
-=============
+Computing feedforward activations
+---------------------------------
 
 Once you've trained a model, you will probably want to do something useful with
 it. If you are working in a production environment, you might want to use the
 model to make predictions about incoming data; if you are doing research, you
 might want to examine the parameters that the model has learned.
-
-Computing feedforward activations
----------------------------------
 
 For all neural network models, you can compute the activation of the output
 layer by calling :func:`Network.predict()
@@ -279,16 +276,19 @@ layer by calling :func:`Network.predict()
 
   results = exp.network.predict(new_dataset)
 
-This returns an array containing one row of output activations for each row of
-input data. You can also compute the activations of all layers in the network
-using the :func:`Network.feed_forward()
-<theanets.feedforward.Network.feed_forward>` method::
+You pass a ``numpy`` array containing data to the method, which returns an array
+containing one row of output activations for each row of input data.
+
+You can also compute the activations of all layers in the network using the
+:func:`Network.feed_forward() <theanets.feedforward.Network.feed_forward>`
+method::
 
   for layer in exp.network.feed_forward(new_dataset):
       print(abs(layer).sum(axis=1))
 
-This method returns a list of arrays, one for each layer in the network. Each
-array contains one row for every row of input data.
+This method returns a sequence of arrays, one for each layer in the network.
+Like ``predict()``, each output array contains one row for every row of input
+data.
 
 Additionally, for classifiers, you can obtain predictions for new data using the
 :func:`Classifier.classify() <theanets.feedforward.Classifier.classify>`
@@ -308,10 +308,10 @@ the dataset through the "lens" of the learned features.
 
 The weights connecting successive layers of neurons in the model are available
 using :func:`Network.get_weights() <theanets.feedforward.Network.get_weights>`.
-This method takes an integer, the index of the weights to retrieve, and returns
-an array containing the weights. For "encoding" layers in the network, this
-array contains a feature vector in each column (for "decoding" layers, the
-features are in each row).
+This method takes an integer, the index of the layer to retrieve weights for,
+and returns an array containing the weights. For "encoding" layers in the
+network, this array contains a feature vector in each column (for "decoding"
+layers, the features are in each row).
 
 For a dataset like the MNIST digits, you can reshape the learned features and
 visualize them as though they were 28×28 images::
@@ -327,10 +327,6 @@ In this example, the weights in layer 0 connect the inputs to the first hidden
 layer; these weights have one column of 784 values for each hidden node in the
 network, so we can iterate over the transpose and put each column -- properly
 reshaped -- into a giant image.
-
-That concludes the basic classification example. The ``theanets`` source code
-contains a complete ``mnist-classifier.py`` example that you can play around
-with.
 
 Using the Command Line
 ======================

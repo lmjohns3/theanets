@@ -434,13 +434,11 @@ containing 100 model neurons, and one softmax output layer with 10 units.
 You can set many more hyperparameters on the command line. Use the ``--help``
 flag from the command line to show the options that are currently available.
 
-.. _qs-info:
-
 More Information
 ================
 
 This concludes the quick start guide! Please read more information about
-``theanets`` in the :doc:`models` and :doc:`trainers` sections of the
+``theanets`` in the :doc:`guide` and :doc:`reference` sections of the
 documentation.
 
 The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets.

@@ -20,10 +20,6 @@ Several optimization algorithms are also included:
 - Many algorithms from ``scipy.optimize.minimize``
 - Greedy layerwise_ pre-training
 
-The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets,
-the documentation lives at http://theanets.readthedocs.org, and announcements
-and discussion happen on the `mailing list`_.
-
 At present there are no RBMs, convolutions, or maxout in ``theanets`` -- for
 those, you might want to look at Morb_, Lasagne_, or pylearn2_. There are many
 other neural networks toolkits out there as well, in many other languages; see
@@ -47,8 +43,6 @@ them.
 .. _RmsProp: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.RmsProp.html
 .. _ADADELTA: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.ADADELTA.html
 .. _layerwise: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.Layerwise.html
-
-.. _mailing list: https://groups.google.com/forum/#!forum/theanets
 
 .. _Morb: https://github.com/benanne/morb
 .. _Lasagne: https://github.com/benanne/Lasagne
@@ -94,3 +88,12 @@ and train it using a few lines of code::
 
 The remainder of the documentation will help fill you in on the details of these
 calls and the options that ``theanets`` provides for each of them. Have fun!
+
+More Information
+----------------
+
+Source: https://github.com/lmjohns3/theanets
+
+Documentation: http://theanets.readthedocs.org
+
+Mailing list: https://groups.google.com/forum/#!forum/theanets

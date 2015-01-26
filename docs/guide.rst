@@ -65,7 +65,7 @@ Training Hyperparameters
 ========================
 
 Training as iteration
-`````````````````````
+---------------------
 
 The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
 actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
@@ -384,45 +384,78 @@ and must return a ``numpy`` array of the proper shape for your model.
 For example, this code defines a ``batch()`` helper that chooses a random
 dataset and a random offset for each batch::
 
-    SOURCES = 'foo.npy', 'bar.npy', 'baz.npy'
-    BATCH_SIZE = 64
+  SOURCES = 'foo.npy', 'bar.npy', 'baz.npy'
+  BATCH_SIZE = 64
 
-    def batch():
-        X = np.load(np.random.choice(SOURCES), mmap_mode='r')
-        i = np.random.randint(len(X))
-        return X[i:i+BATCH_SIZE]
+  def batch():
+      X = np.load(np.random.choice(SOURCES), mmap_mode='r')
+      i = np.random.randint(len(X))
+      return X[i:i+BATCH_SIZE]
 
-    # ...
+  # ...
 
-    exp.train(batch)
+  exp.train(batch)
 
 If you need to maintain more state than is reasonable from a single closure, you
 can also encapsulate the callable inside a class. Just make sure instances of
 the class are callable by defining the ``__call__`` method::
 
-    class Loader:
-        def __init__(sources=('foo.npy', 'bar.npy', 'baz.npy'), batch_size=64):
-            self.sources = sources
-            self.batch_size = batch_size
-            self.src = -1
-            self.idx = 0
-            self.X = ()
+  class Loader:
+      def __init__(sources=('foo.npy', 'bar.npy', 'baz.npy'), batch_size=64):
+          self.sources = sources
+          self.batch_size = batch_size
+          self.src = -1
+          self.idx = 0
+          self.X = ()
 
-        def __call__(self):
-            if self.idx + self.batch_size > len(self.X):
-                self.idx = 0
-                self.src = (self.src + 1) % len(self.sources)
-                self.X = np.load(self.sources[self.src], mmap_mode='r')
-            try:
-                return self.X[self.idx:self.idx+self.batch_size]
-            finally:
-                self.idx += self.batch_size
+      def __call__(self):
+          if self.idx + self.batch_size > len(self.X):
+              self.idx = 0
+              self.src = (self.src + 1) % len(self.sources)
+              self.X = np.load(self.sources[self.src], mmap_mode='r')
+          try:
+              return self.X[self.idx:self.idx+self.batch_size]
+          finally:
+              self.idx += self.batch_size
 
-    # ...
+  # ...
 
-    exp.train(Loader())
+  exp.train(Loader())
 
 .. _guide-contributing:
+
+Using the Command Line
+======================
+
+The ``theanets`` package was designed from the start to use the command line for
+configuring most aspects of defining and training a model.
+
+If you work in a command-line environment, you can leave many of the
+hyperparameters for your model unspecified when constructing your
+:class:`Experiment <theanets.main.Experiment>`, and instead specify the
+configuration of your network using flags defined on the command line::
+
+  exp = theanets.Experiment(theanets.Classifier)
+
+This will create the same network as the classification model described above if
+you run your file as::
+
+  (venv)~$ mnist-classifier.py --layers 784 100 10
+
+In both cases, the model has one input layer with 784 units, one hidden layer
+containing 100 model neurons, and one softmax output layer with 10 units.
+
+Command-line arguments can be stored in text files (one argument per line) and
+loaded from the command-line using the ``@`` prefix::
+
+  (venv)~$ mnist-classifier.py @args.txt
+
+.. note::
+   Command-line arguments do not work when running ``theanets`` code in IPython;
+   within IPython, all parameters must be specified as keyword arguments.
+
+You can set many more hyperparameters on the command line. Use the ``--help``
+flag from the command line to show the options that are currently available.
 
 More Information
 ================

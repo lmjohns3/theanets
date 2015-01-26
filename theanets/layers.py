@@ -718,16 +718,18 @@ class Recurrent(Layer):
 
         Returns
         -------
-        output(s) : sequence of theano expression(s)
+        output(s) : theano expression(s)
             Theano expression(s) representing output(s) from the scan.
-        updates : list of theano variables
+        updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        if self.kwargs.get('direction', '').lower().startswith('back'):
-            inputs = [x[::-1] for x in inputs]
-        if inits is None:
-            inits = [self.zeros()]
-        return theano.scan(fn, name=name, sequences=inputs, outputs_info=inits)
+        return theano.scan(
+            fn,
+            name=name,
+            sequences=inputs,
+            outputs_info=inits or [self.zeros()],
+            go_backwards='back' in self.kwargs.get('direction', '').lower(),
+        )
 
 
 class RNN(Recurrent):

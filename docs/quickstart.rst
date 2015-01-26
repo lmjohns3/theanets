@@ -262,8 +262,8 @@ You can also save and load models manually by calling :func:`Experiment.save()
 <theanets.main.Experiment.save>` and :func:`Experiment.load()
 <theanets.main.Experiment.load>`, respectively.
 
-Computing feedforward activations
----------------------------------
+Using the model
+---------------
 
 Once you've trained a model, you will probably want to do something useful with
 it. If you are working in a production environment, you might want to use the
@@ -299,8 +299,8 @@ method::
 This returns a vector of integers; each element in the vector gives the greedy
 (argmax) result across the categories for the corresponding row of input data.
 
-Visualizing learned features
-----------------------------
+Visualizing features
+--------------------
 
 Many times it is useful to create a plot of the features that the model learns;
 this can be useful for debugging model performance, but also for interpreting

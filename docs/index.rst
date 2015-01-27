@@ -44,8 +44,11 @@ Let's say you wanted to create a classifier and train it on some 100-dimensional
 data points that you've classified into 10 categories. You can define your model
 and train it using a few lines of code::
 
+  import climate
   import theanets
   import my_data_set
+
+  climate.enable_default_logging()
 
   exp = theanets.Experiment(
       theanets.Classifier,
@@ -60,6 +63,8 @@ and train it using a few lines of code::
       learning_rate=0.01,
       momentum=0.5,
   )
+
+  exp.network.predict(my_data_set.test_data)
 
 The remainder of the documentation will help fill you in on the details of these
 calls and the options that ``theanets`` provides for each of them. Have fun!

@@ -1067,9 +1067,11 @@ class Bidirectional(Layer):
         -------
         output : theano expression
             Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        fx, fu = self.forward.transform(inputs)
-        bx, bu = self.backward.transform(inputs)
-        return TT.dot(fx, self.fw) + TT.dot(bx, self.bw) + self.ob, fu + bu
+        fx, fm, fu = self.forward.transform(inputs)
+        bx, bm, bu = self.backward.transform(inputs)
+        return TT.dot(fx, self.fw) + TT.dot(bx, self.bw) + self.ob, fm + bm, fu + bu

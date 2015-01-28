@@ -564,7 +564,9 @@ class Feedforward(Layer):
         count : int
             A count of the number of parameters in this layer.
         '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s -> %s',
+                     self.name, self.nin, self.nout,
+                     self.activate.__theanets_name__)
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
@@ -625,8 +627,9 @@ class Tied(Feedforward):
         count : int
             A count of the number of parameters in this layer.
         '''
-        logging.info('tied weights from %s: %s x %s',
-                     self.partner.name, self.nin, self.nout)
+        logging.info('tied weights from %s: %s x %s -> %s',
+                     self.partner.name, self.nin, self.nout,
+                     self.activate.__theanets_name__)
         # this layer does not create a weight matrix!
         self.biases = [self._new_bias()]
         return self.nout
@@ -749,7 +752,9 @@ class RNN(Recurrent):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s -> %s',
+                     self.name, self.nin, self.nout,
+                     self.activate.__theanets_name__)
         self.weights = [self._new_weights('xh'),
                         self._new_weights('hh', self.nout)]
         self.biases = [self._new_bias()]
@@ -806,7 +811,9 @@ class ARRNN(Recurrent):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s -> %s',
+                     self.name, self.nin, self.nout,
+                     self.activate.__theanets_name__)
         self.weights = [
             self._new_weights('xh'),
             self._new_weights('xr'),
@@ -870,7 +877,9 @@ class MRNN(Recurrent):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+        logging.info('initializing %s: %s x %s -> %s',
+                     self.name, self.nin, self.nout,
+                     self.activate.__theanets_name__)
         self.weights = [
             self._new_weights('xh', self.nin, self.nout),
             self._new_weights('xf', self.nin, self.factors),
@@ -1043,7 +1052,9 @@ class Bidirectional(Layer):
         count : int
             The number of learnable parameters in this layer.
         '''
-        logging.info('initializing %s: %s<-> x %s', self.name, self.forward.nin, self.nout)
+        logging.info('initializing %s: <%s,%s> x %s -> %s',
+                     self.name, self.forward.nin, self.backward.nin, self.nout,
+                     self.activate.__theanets_name__)
         nf = self.forward.reset()
         # we "tie" together the weights for the forward and backward RNNs.
         self.backward.weights = self.forward.weights

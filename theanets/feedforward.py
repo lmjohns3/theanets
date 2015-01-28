@@ -242,7 +242,7 @@ class Network(object):
         if 'layers' not in self.kwargs:
             return
 
-        specs = list(self.encode_layers)
+        specs = list(self.encoding_layers)
         rng = self.kwargs.get('rng') or RandomStreams()
 
         # setup input layer.
@@ -351,7 +351,7 @@ class Network(object):
         return self.kwargs.get('output_activation', 'linear')
 
     @property
-    def encode_layers(self):
+    def encoding_layers(self):
         '''Determine the layers that will be part of the network encoder.
 
         This method is used by the default implementation of
@@ -768,7 +768,7 @@ class Autoencoder(Network):
         self.layers.append(layers.build('tied', self.layers[1], **kw))
 
     @property
-    def encode_layers(self):
+    def encoding_layers(self):
         '''Compute the layers that will be part of the network encoder.
 
         This implementation ensures that --layers is compatible with
@@ -783,7 +783,7 @@ class Autoencoder(Network):
             A list of integers specifying sizes of the encoder network layers.
         '''
         if not self.tied_weights:
-            return super(Autoencoder, self).encode_layers
+            return super(Autoencoder, self).encoding_layers
         error = 'with --tied-weights, --layers must be an odd-length palindrome'
         sizes = self.kwargs['layers']
         assert len(sizes) % 2 == 1, error

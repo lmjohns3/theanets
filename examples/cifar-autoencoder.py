@@ -46,7 +46,7 @@ def main(args):
     e = theanets.Experiment(
         theanets.Autoencoder,
         layers=(K, feat ** 2, K),
-        hidden_l1=1,
+        input_noise=1,
     )
 
     e.train(whiten(train), whiten(valid))

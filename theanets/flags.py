@@ -45,7 +45,7 @@ g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',
                help='train with the given optimization algorithm(s)')
 g.add_argument('--no-learn-biases', action='store_true',
                help='if set, do not update bias parameters during learning')
-g.add_argument('-p', '--patience', type=int, default=50, metavar='N',
+g.add_argument('-p', '--patience', type=int, default=4, metavar='N',
                help='stop training if less than --min-improvement for N validations')
 g.add_argument('-v', '--validate-every', type=int, default=10, metavar='N',
                help='validate the model every N updates')

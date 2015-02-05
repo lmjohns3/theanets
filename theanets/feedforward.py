@@ -653,15 +653,15 @@ class Network(object):
         hiddens = self.outputs[1:-1]
         loss = self.error
         if weight_l1 > 0:
-            loss += weight_l1 * sum(abs(w).sum() for l in self.layers for w in l.weights)
+            loss += TT.cast(weight_l1, FLOAT) * sum(abs(w).sum() for l in self.layers for w in l.weights)
         if weight_l2 > 0:
-            loss += weight_l2 * sum((w * w).sum() for l in self.layers for w in l.weights)
+            loss += TT.cast(weight_l2, FLOAT) * sum((w * w).sum() for l in self.layers for w in l.weights)
         if hidden_l1 > 0:
-            loss += hidden_l1 * sum(abs(h).mean(axis=0).sum() for h in hiddens)
+            loss += TT.cast(hidden_l1, FLOAT) * sum(abs(h).mean(axis=0).sum() for h in hiddens)
         if hidden_l2 > 0:
-            loss += hidden_l2 * sum((h * h).mean(axis=0).sum() for h in hiddens)
+            loss += TT.cast(hidden_l2, FLOAT) * sum((h * h).mean(axis=0).sum() for h in hiddens)
         if contractive_l2 > 0:
-            loss += contractive_l2 * sum(
+            loss += TT.cast(contractive_l2, FLOAT) * sum(
                 TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in hiddens)
         return loss
 

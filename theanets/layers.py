@@ -162,9 +162,9 @@ def create_activation(activation):
 
         # normalization
         'norm:dc': lambda z: z - z.mean(axis=-1, keepdims=True),
-        'norm:max': lambda z: z / TT.maximum(1e-7, abs(z).max(axis=-1, keepdims=True)),
-        'norm:std': lambda z: z / TT.maximum(1e-7, TT.std(z, axis=-1, keepdims=True)),
-        'norm:z': lambda z: (z - z.mean(axis=-1, keepdims=True)) / TT.maximum(1e-7, z.std(axis=-1, keepdims=True)),
+        'norm:max': lambda z: z / TT.maximum(TT.cast(1e-7, FLOAT), abs(z).max(axis=-1, keepdims=True)),
+        'norm:std': lambda z: z / TT.maximum(TT.cast(1e-7, FLOAT), TT.std(z, axis=-1, keepdims=True)),
+        'norm:z': lambda z: (z - z.mean(axis=-1, keepdims=True)) / TT.maximum(TT.cast(1e-7, FLOAT), z.std(axis=-1, keepdims=True)),
         }
     for k, v in options.items():
         v.__theanets_name__ = k
@@ -192,7 +192,7 @@ def add_noise(input, level, rng):
     '''
     if level == 0:
         return input
-    return input + rng.normal(size=input.shape, std=level, dtype=FLOAT)
+    return input + rng.normal(size=input.shape, std=TT.cast(level, FLOAT), dtype=FLOAT)
 
 
 def add_dropout(input, probability, rng):
@@ -213,7 +213,7 @@ def add_dropout(input, probability, rng):
     '''
     if probability == 0:
         return input
-    return input * rng.binomial(size=input.shape, n=1, p=1-probability, dtype=FLOAT)
+    return input * rng.binomial(size=input.shape, n=1, p=TT.cast(1, FLOAT)-probability, dtype=FLOAT)
 
 
 def build(layer, *args, **kwargs):

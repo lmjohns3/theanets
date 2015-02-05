@@ -55,6 +55,8 @@ from . import layers
 
 logging = climate.get_logger(__name__)
 
+FLOAT = theano.config.floatX
+
 
 def default_mapper(f, dataset, *args, **kwargs):
     '''Apply (map) a function to each element of a dataset.'''
@@ -256,10 +258,10 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
-        self.clip = kwargs.get('gradient_clip', 1e6)
-        self.max_norm = kwargs.get('max_gradient_norm', 1e6)
-        self.momentum = kwargs.get('momentum', 0.9)
-        self.learning_rate = kwargs.get('learning_rate', 1e-4)
+        self.clip = TT.cast(kwargs.get('gradient_clip', 1e6), FLOAT)
+        self.max_norm = TT.cast(kwargs.get('max_gradient_norm', 1e6), FLOAT)
+        self.momentum = TT.cast(kwargs.get('momentum', 0.9), FLOAT)
+        self.learning_rate = TT.cast(kwargs.get('learning_rate', 1e-4), FLOAT)
 
         logging.info('compiling %s learning function', self.__class__.__name__)
         self.f_learn = theano.function(
@@ -408,16 +410,16 @@ class Rprop(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.step_increase = kwargs.get('rprop_increase', 1.01)
-        self.step_decrease = kwargs.get('rprop_decrease', 0.99)
-        self.min_step = kwargs.get('rprop_min_step', 0.)
-        self.max_step = kwargs.get('rprop_max_step', 100.)
+        self.step_increase = TT.cast(kwargs.get('rprop_increase', 1.01), FLOAT)
+        self.step_decrease = TT.cast(kwargs.get('rprop_decrease', 0.99), FLOAT)
+        self.min_step = TT.cast(kwargs.get('rprop_min_step', 0.), FLOAT)
+        self.max_step = TT.cast(kwargs.get('rprop_max_step', 100.), FLOAT)
         super(Rprop, self).__init__(network, **kwargs)
 
     def learning_updates(self):
         for param, grad in zip(self.params, self.clipped_gradients()):
             grad_tm1 = self.shared_like(param, 'grad')
-            step_tm1 = self.shared_like(param, 'step', self.learning_rate)
+            step_tm1 = self.shared_like(param, 'step', self.learning_rate.value)
             test = grad * grad_tm1
             same = TT.gt(test, 0)
             diff = TT.lt(test, 0)
@@ -457,7 +459,7 @@ class RmsProp(SGD):
     '''
 
     def __init__(self, network, **kwargs):
-        self.ewma = float(np.exp(-np.log(2) / kwargs.get('rms_halflife', 7)))
+        self.ewma = TT.cast(np.exp(-np.log(2) / kwargs.get('rms_halflife', 7)), FLOAT)
         super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):

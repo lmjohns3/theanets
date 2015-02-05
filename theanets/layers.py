@@ -707,17 +707,17 @@ class Recurrent(Layer):
             radius=self.kwargs.get('radius', 0) if nin == nout else 0,
             sparsity=self.kwargs.get('sparsity', 0))
 
-    def _scan(self, name, fn, inputs, inits=None):
+    def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
         ----------
-        name : str
-            Name of the scan variable to create.
         fn : callable
             The callable to apply in the loop.
         inputs : sequence of theano expressions
             Inputs to the scan operation.
+        name : str, optional
+            Name of the scan variable to create. Defaults to 'scan'.
 
         Returns
         -------
@@ -728,7 +728,7 @@ class Recurrent(Layer):
         '''
         return theano.scan(
             fn,
-            name=name,
+            name=self._fmt(name),
             sequences=inputs,
             outputs_info=inits or [self.zeros()],
             go_backwards='back' in self.kwargs.get('direction', '').lower(),
@@ -784,7 +784,7 @@ class RNN(Recurrent):
         def fn(x_t, h_tm1):
             return self.activate(x_t + TT.dot(h_tm1, self._W_hh))
         x = TT.dot(_only(inputs), self._W_xh) + self._b_h
-        output, updates = self._scan(self._fmt('rnn'), fn, [x])
+        output, updates = self._scan(fn, [x])
         return output, self._monitors(output), updates
 
 
@@ -851,7 +851,7 @@ class ARRNN(Recurrent):
         x = _only(inputs)
         h = TT.dot(x, self._W_xh) + self._b_h
         r = TT.nnet.sigmoid(TT.dot(x, self._W_xr) + self._b_r)
-        output, updates = self._scan(self._fmt('arrnn'), fn, [h, r])
+        output, updates = self._scan(fn, [h, r])
         monitors = self._monitors(output) + self._monitors(r, 'rate')
         return output, monitors, updates
 
@@ -918,7 +918,7 @@ class MRNN(Recurrent):
         x = _only(inputs)
         h = TT.dot(x, self._W_xh) + self._b_h
         f = TT.dot(x, self._W_xf)
-        output, updates = self._scan(self._fmt('mrnn'), fn, [h, f])
+        output, updates = self._scan(fn, [h, f])
         monitors = self._monitors(output) + self._monitors(f, 'fact')
         return output, monitors, updates
 
@@ -1006,7 +1006,7 @@ class LSTM(Recurrent):
             return h_t, c_t
         x = _only(inputs)
         (output, cell), updates = self._scan(
-            self._fmt('lstm'), fn,
+            fn,
             [TT.dot(x, self._W_xi) + self._b_i,
              TT.dot(x, self._W_xf) + self._b_f,
              TT.dot(x, self._W_xc) + self._b_c,

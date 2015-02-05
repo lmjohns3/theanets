@@ -370,51 +370,13 @@ class NAG(SGD):
     http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf)
     '''
 
-    def __init__(self, network, **kwargs):
-        # due to the way that theano handles updates, we cannot update a
-        # parameter twice during the same function call. so, instead of handling
-        # everything in the updates for self.f_learn(...), we split the
-        # parameter updates into two function calls. the first "prepares" the
-        # parameters for the gradient computation by moving the entire model one
-        # step according to the current velocity. then the second computes the
-        # gradient at that new model position and performs the usual velocity
-        # and parameter updates.
-
-        self.params = network.params(**kwargs)
-        self.momentum = kwargs.get('momentum', 0.5)
-
-        # set up space for temporary variables used during learning.
-        self._steps = []
-        self._vels = []
-        for param in self.params:
-            self._steps.append(self.shared_like(param, 'step'))
-            self._vels.append(self.shared_like(param, 'vel'))
-
-        # step 1. move to the position in parameter space where we want to
-        # compute our gradient.
-        prepare = []
-        for param, step, vel in zip(self.params, self._steps, self._vels):
-            prepare.append((step, self.momentum * vel))
-            prepare.append((param, param + step))
-
-        logging.info('compiling NAG pre-step function')
-        self.f_prepare = theano.function([], [], updates=prepare)
-
-        super(NAG, self).__init__(network, **kwargs)
-
     def learning_updates(self):
-        # step 2. record the gradient here.
-        for grad, step, vel in zip(self.clipped_gradients(), self._steps, self._vels):
-            yield vel, step - self.learning_rate * grad
-
-        # step 3. update each of the parameters, removing the step that we took
-        # to compute the gradient.
-        for param, step, vel in zip(self.params, self._steps, self._vels):
-            yield param, param + vel - step
-
-    def train_minibatch(self, *x):
-        self.f_prepare()
-        return self.f_learn(*x)
+        # see https://github.com/lisa-lab/pylearn2/pull/136#issuecomment-10381617
+        for param, grad in zip(self.params, self.clipped_gradients()):
+            vel_tm1 = self.shared_like(param, 'vel')
+            vel_t = self.momentum * vel_tm1 - self.learning_rate * grad
+            yield vel_tm1, vel_t
+            yield param, param + self.momentum * vel_t - self.learning_rate * grad
 
 
 class Rprop(SGD):

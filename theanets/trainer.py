@@ -344,19 +344,22 @@ class NAG(SGD):
     The basic difference between NAG and "classical" momentum in SGD
     optimization approaches is that NAG computes the gradients at the position
     in parameter space where "classical" momentum would put us at the *next*
-    step. In symbols, the classical method with momentum m and learning rate a
-    updates parameter p by blending the current "velocity" with the current
-    gradient:
+    step. In symbols, the classical method with momentum :math:`\mu` and
+    learning rate :math:`\alpha` updates parameter :math:`p` at step :math:`t`
+    by blending the current "velocity" :math:`v` with the current gradient
+    :math:`\nabla(p_t)`:
 
-        v_t+1 = m * v_t - a * grad(p_t)
-        p_t+1 = p_t + v_t+1
+    .. math::
+        v_{t+1} = \mu * v_t - \alpha * \nabla(p_t)
+        p_{t+1} = p_t + v_{t+1}
 
     while NAG adjusts the update by blending the current "velocity" with the
     next-step gradient (i.e., the gradient at the point where the velocity
     would have taken us):
 
-        v_t+1 = m * v_t - a * grad(p_t + m * v_t)
-        p_t+1 = p_t + v_t+1
+    .. math::
+        v_{t+1} = \mu * v_t - \alpha * \nabla(p_t + m * v_t)
+        p_{t+1} = p_t + v_{t+1}
 
     The difference here is that the gradient is computed at the place in
     parameter space where we would have stepped using the classical

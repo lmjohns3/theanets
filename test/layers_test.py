@@ -98,7 +98,7 @@ class TestARRNN(Base):
         l.reset()
         out, mon, upd = l.transform(self.x)
         assert out is not None
-        assert len(mon) == 4
+        assert len(mon) == 6
         assert not upd
 
 
@@ -115,7 +115,7 @@ class TestMRNN(Base):
         l.reset()
         out, mon, upd = l.transform(self.x)
         assert out is not None
-        assert len(mon) == 4
+        assert len(mon) == 6
         assert not upd
 
 
@@ -132,5 +132,5 @@ class TestLSTM(Base):
         l.reset()
         out, mon, upd = l.transform(self.x)
         assert out is not None
-        assert len(mon) == 4
+        assert len(mon) == 6
         assert not upd

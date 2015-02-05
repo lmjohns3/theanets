@@ -436,7 +436,7 @@ class Layer(Base):
             string = '{}_' + string
         return string.format(self.name)
 
-    def _monitors(self, expr, suffix='', levels=(0.1, 0.9)):
+    def _monitors(self, expr, suffix='', levels=None):
         '''Create a list of standard monitor tuples for a given expression.
 
         Parameters
@@ -456,7 +456,9 @@ class Layer(Base):
         def name(r):
             return '{}{}<{}'.format(self.name, suffix, r)
         def abspct(r):
-            return 100 * (TT.cast(abs(expr) < r, FLOAT)).mean()
+            return TT.cast(100, FLOAT) * (abs(expr) < TT.cast(r, FLOAT)).mean()
+        if levels is None:
+            levels = (0.1, 0.2, 0.5, 0.9) if suffix else (0.1, 0.9)
         return [(name(l), abspct(l)) for l in levels]
 
     def _new_weights(self, name, nin=None, nout=None, std=None):

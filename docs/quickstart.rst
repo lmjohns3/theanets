@@ -106,6 +106,8 @@ hand-written digits. Each MNIST digit is labeled with the correct digit class
 (0, 1, ... 9). This example shows how to use ``theanets`` to create and train a
 model that can perform this task.
 
+.. image:: _static/mnist-digits.png
+
 Networks for classification map a layer of continuous-valued inputs, through one
 or more hidden layers, to an output layer that is activated through the `softmax
 function`_. The softmax generates output that can be treated as a categorical

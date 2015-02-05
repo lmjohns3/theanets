@@ -1041,8 +1041,12 @@ class Bidirectional(Layer):
         super(Bidirectional, self).__init__(**kwargs)
         if 'name' in kwargs:
             kwargs.pop('name')
-        self.forward = build(worker, direction='forward', name=self._fmt('fw'), **kwargs)
-        self.backward = build(worker, direction='backward', name=self._fmt('bw'), **kwargs)
+        if 'nout' in kwargs:
+            kwargs.pop('nout')
+        def make(name, direction):
+            return build(worker, direction=direction, nout=self.nout // 2, name=self._fmt(name), **kwargs)
+        self.forward = make('fw', 'forward')
+        self.backward = make('bw', 'backward')
 
     def reset(self):
         '''Reset the weights and biases for this layer to random values.
@@ -1056,15 +1060,10 @@ class Bidirectional(Layer):
                      self.name, self.forward.nin, self.backward.nin, self.nout,
                      self.activate.__theanets_name__)
         nf = self.forward.reset()
-        # we "tie" together the weights for the forward and backward RNNs.
-        self.backward.weights = self.forward.weights
-        self.backward.biases = self.forward.biases
-        self.fw = self._new_weights('fw', self.forward.nout)
-        self.bw = self._new_weights('bw', self.forward.nout)
-        self.ob = self._new_bias()
-        self.weights = self.forward.weights + [self.fw, self.bw]
-        self.biases = self.forward.biases + [self.ob]
-        return nf + self.nout * (1 + 2 * self.forward.nout)
+        nb = self.backward.reset()
+        self.weights = self.forward.weights + self.backward.weights
+        self.biases = self.forward.biases + self.backward.biases
+        return nf + nb
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1085,4 +1084,4 @@ class Bidirectional(Layer):
         '''
         fx, fm, fu = self.forward.transform(inputs)
         bx, bm, bu = self.backward.transform(inputs)
-        return TT.dot(fx, self.fw) + TT.dot(bx, self.bw) + self.ob, fm + bm, fu + bu
+        return TT.concatenate([fx, bx], axis=2), fm + bm, fu + bu

@@ -385,9 +385,9 @@ class Layer(Base):
         count : int
             Number of parameter values in this layer.
         '''
-        logging.info('layer %s: %s, %s x %s, %d parameters',
-                     self.name, self.activate.__theanets_name__,
-                     self.nin, self.nout, count)
+        logging.info('layer %s %s x %s [%s] %d parameters',
+                     self.name, self.nin, self.nout,
+                     self.activate.__theanets_name__, count)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
@@ -607,9 +607,9 @@ class Tied(Feedforward):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         count = self._add_bias('b')
-        logging.info('layer %s -- tied to %s: %s, %s x %s, %d parameters',
-                     self.name, self.partner.name, self.activate.__theanets_name__,
-                     self.nin, self.nout, count)
+        logging.info('layer %s (tied to %s) %s x %s [%s] %d parameters',
+                     self.name, self.partner.name, self.nin, self.nout,
+                      self.activate.__theanets_name__, count)
 
 
 class Classifier(Feedforward):

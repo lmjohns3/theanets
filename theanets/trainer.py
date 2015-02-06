@@ -700,30 +700,35 @@ class Sample(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         ifci = itertools.chain.from_iterable
 
-        # set output (decoding) weights on the network.
+        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         last = lambda x: x[-1] if isinstance(x, (tuple, list)) else x
+        odim = idim = None
+        for t in train_set:
+            idim = first(t).shape[-1]
+            odim = last(t).shape[-1]
+
+        # set output (decoding) weights on the network.
         samples = ifci(last(t) for t in train_set)
-        for w in self.network.weights:
-            k, n = w.get_value(borrow=True).shape
-            if w.name.startswith('W_out_'):
-                arr = np.vstack(Sample.reservoir(samples, k))
-                logging.info('setting weights for %s: %d x %d <- %s', w.name, k, n, arr.shape)
-                w.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
+        for param in self.network.layers[-1].params:
+            shape = param.get_value(borrow=True).shape
+            if len(shape) == 2 and shape[1] == odim:
+                arr = np.vstack(Sample.reservoir(samples, shape[0]))
+                logging.info('setting %s: %s <- %s', param.name, shape)
+                param.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
         # set input (encoding) weights on the network.
-        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
         samples = ifci(first(t) for t in train_set)
-        for i, h in enumerate(self.network.hiddens):
-            if i == len(self.network.weights):
-                break
-            w = self.network.weights[i]
-            m, k = w.get_value(borrow=True).shape
-            arr = np.vstack(Sample.reservoir(samples, k)).T
-            logging.info('setting weights for %s: %d x %d <- %s', w.name, m, k, arr.shape)
-            w.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
-            samples = ifci(self.network.feed_forward(first(t))[i-1] for t in train_set)
+        for layer in self.network.layers:
+            for param in layer.params:
+                shape = param.get_value(borrow=True).shape
+                if len(shape) == 2 and shape[0] == idim:
+                    arr = np.vstack(Sample.reservoir(samples, shape[1])).T
+                    logging.info('setting %s: %s', param.name, shape)
+                    param.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
+                    samples = ifci(self.network.feed_forward(
+                        first(t))[i-1] for t in train_set)
 
-        yield {'J': -1}
+        yield {'loss': -1}
 
 
 class Layerwise(Trainer):
@@ -811,16 +816,16 @@ class UnsupervisedPretrainer(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         # construct a copy of the input network, with tied weights in an
         # autoencoder configuration.
-        lls = self.network.layers[:-1]
+        lls = list(self.network.layers[:-1])
         for l in lls[::-1][:-1]:
             lls.append(layers.build('tied', partner=l, activation=self.network.hidden_activation))
         lls.append(layers.build('tied', partner=lls[0], activation='linear'))
         ae = feedforward.Autoencoder(tied_weights=True, layers=lls)
 
         # copy the current weights into the autoencoder.
-        for i in range(len(self.network.layers) - 1):
-            ae.get_weights(i).set_value(self.network.get_weights(i).get_value())
-            ae.get_biases(i).set_value(self.network.get_biases(i).get_value())
+        for l, layer in enumerate(self.network.layers[:-1]):
+            for param in layer.params:
+                ae.find(l, param.name).set_value(param.get_value())
 
         # train the autoencoder using a layerwise strategy.
         pre = Layerwise(ae, *self.args, **self.kwargs)
@@ -828,6 +833,6 @@ class UnsupervisedPretrainer(Trainer):
             yield monitors
 
         # copy the trained autoencoder weights into our original model.
-        for i in range(len(self.network.layers) - 1):
-            self.network.get_weights(i).set_value(ae.get_weights(i).get_value())
-            self.network.get_biases(i).set_value(ae.get_biases(i).get_value())
+        for l, layer in enumerate(self.network.layers[:-1]):
+            for param in layer.params:
+                param.set_value(ae.find(l, param.name).get_value())

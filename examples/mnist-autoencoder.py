@@ -20,7 +20,7 @@ def main(args):
 
     e.train(train, valid)
 
-    plot_layers([e.network.get_weights(1), e.network.get_weights('out')])
+    plot_layers([e.network.find(1, 0), e.network.find(2, 0)])
     plt.tight_layout()
     plt.show()
 

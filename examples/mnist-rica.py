@@ -61,7 +61,7 @@ e.train(whiten(train), whiten(valid))
 
 # color the network weights so they are viewable as digits.
 plot_layers(
-    [color(e.network.get_weights('hid1').T).T],
+    [color(e.network.find('hid1', 0).get_value().T).T],
     tied_weights=True)
 plt.tight_layout()
 plt.show()

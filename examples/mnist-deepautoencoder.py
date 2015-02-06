@@ -17,7 +17,7 @@ e = theanets.Experiment(
 e.train(train, valid, optimize='layerwise', patience=1, min_improvement=0.1)
 e.train(train, valid)
 
-plot_layers([e.network.get_weights(i) for i in (1, 2, 3)], tied_weights=True)
+plot_layers([e.network.find(i, 0) for i in (1, 2, 3)], tied_weights=True)
 plt.tight_layout()
 plt.show()
 

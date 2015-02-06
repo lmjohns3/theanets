@@ -52,8 +52,8 @@ def main(args):
     e.train(whiten(train), whiten(valid))
 
     plot_layers([
-        color(e.network.get_weights(1).T).T,
-        color(e.network.get_weights('out'))], channels=3)
+        color(e.network.find(1, 0).get_value().T).T,
+        color(e.network.find('out', 0).get_value())], channels=3)
     plt.tight_layout()
     plt.show()
 

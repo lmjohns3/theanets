@@ -309,32 +309,30 @@ Many times it is useful to create a plot of the features that the model learns;
 this can be useful for debugging model performance, but also for interpreting
 the dataset through the "lens" of the learned features.
 
-The weights connecting successive layers of neurons in the model are available
-using :func:`Network.get_weights() <theanets.feedforward.Network.get_weights>`.
-This method takes an integer, the index of the layer to retrieve weights for,
-and returns an array containing the weights. For "encoding" layers in the
-network, this array contains a feature vector in each column (for "decoding"
-layers, the features are in each row).
+The parameters in each layer of the model are available using
+:func:`Network.find() <theanets.feedforward.Network.find>`. This method takes
+two query terms---either integer index values or string names---and returns a
+theano shared variable for the given parameter. The first query term finds a
+layer in the network, and the second finds a parameter within that layer. To get
+a numpy array of the current values of the parameter, call ``get_value()`` on
+the result from ``find()``, like ``network.find(a, b).get_value()``. For
+"encoding" layers in the network, this value array contains a feature vector in
+each column, and for "decoding" layers, the features are in each row.
 
 For a dataset like the MNIST digits, you can reshape the learned features and
 visualize them as though they were 28×28 images::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
-  for i, pix in enumerate(exp.network.get_weights(0).T):
+  for i, pix in enumerate(exp.network.find(1, 0).get_value().T):
       r, c = divmod(i, 10)
       img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
   plt.imshow(img, cmap=plt.cm.gray)
   plt.show()
 
-In this example, the weights in layer 0 connect the inputs to the first hidden
+In this example, the weights in layer 1 connect the inputs to the first hidden
 layer; these weights have one column of 784 values for each hidden node in the
 network, so we can iterate over the transpose and put each column---properly
 reshaped---into a giant image.
-
-Recurrent Regression
-====================
-
-
 
 More Information
 ================

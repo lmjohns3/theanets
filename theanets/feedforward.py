@@ -440,102 +440,39 @@ class Network(object):
         '''
         return [p for l in self.layers for p in l.params]
 
-    def get_layer(self, which):
-        '''Return the current weights for a given layer.
+    def find(self, layer, param):
+        '''Get a parameter from a layer in the network.
 
         Parameters
         ----------
-        which : int or str
-            The layer of weights to return. If this is an integer, then 1 refers
-            to the "first" hidden layer, 2 to the "second", and so on. If it is
-            a string, the layer with the corresponding name, if any, will be
-            used.
+        layer : int or str
+            The layer that owns the parameter to return.
+
+            If this is an integer, then 0 refers to the input layer, 1 refers
+            to the first hidden layer, 2 to the second, and so on.
+
+            If this is a string, the layer with the corresponding name, if any,
+            will be used.
+
+        param : int or str
+            Name of the parameter to retrieve from the specified layer, or its
+            index in the parameter list of the layer.
 
         Raises
         ------
         KeyError
-            If there is no such layer.
+            If there is no such layer, or if there is no such parameter in the
+            specified layer.
 
         Returns
         -------
-        layer : :class:`layers.Layer`
-            The layer in the network with this name or index.
+        param : theano shared variable
+            A shared parameter variable from the indicated layer.
         '''
-        try:
-            if isinstance(which, int):
-                return self.layers[which]
-            return [l for l in self.layers if l.name == which][0]
-        except:
-            raise KeyError(which)
-
-    def get_weights(self, which, index=0, borrow=False):
-        '''Return the current weights for a given layer.
-
-        Parameters
-        ----------
-        which : int or str
-            The layer of weights to return. If this is an integer, then 1 refers
-            to the "first" hidden layer, 2 to the "second", and so on. If it is
-            a string, the layer with the corresponding name, if any, will be
-            used.
-        index : int, optional
-            Index of the weights to get from this layer. Most layers just have
-            one set of weights, so this defaults to 0. Recurrent layers might
-            have many sets, however, and the index will depend on the
-            implementation.
-        borrow : bool, optional
-            Whether to "borrow" the reference to the weights. If True, this
-            returns a view onto the current weight array; if False (default), it
-            returns a copy of the weight array.
-
-        Raises
-        ------
-        KeyError
-            If there is no such layer.
-        IndexError
-            If there is no such weight array in the given layer.
-
-        Returns
-        -------
-        weights : ndarray
-            The weight values, as a numpy array.
-
-        '''
-        return self.get_layer(which).weights[index].get_value(borrow=borrow)
-
-    def get_bias(self, layer, index=0, borrow=False):
-        '''Return the current bias vector for a given layer.
-
-        Parameters
-        ----------
-        which : int or str
-            The layer of weights to return. If this is an integer, then 1 refers
-            to the "first" hidden layer, 2 to the "second", and so on. If it is
-            a string, the layer with the corresponding name, if any, will be
-            used.
-        index : int, optional
-            Index of the bias values to get from this layer. Most layers just
-            have one set of bias values, so this defaults to 0. Recurrent layers
-            might have many sets, however, and the index will depend on the
-            implementation.
-        borrow : bool, optional
-            Whether to "borrow" the reference to the biases. If True, this
-            returns a view onto the current bias vector; if False (default), it
-            returns a copy of the biases.
-
-        Raises
-        ------
-        KeyError
-            If there is no such layer.
-        IndexError
-            If there is no such bias vector in the given layer.
-
-        Returns
-        -------
-        bias : ndarray
-            The bias values, as a numpy vector.
-        '''
-        return self.get_layer(which).biases[index].get_value(borrow=borrow)
+        for i, l in enumerate(self.layers):
+            if layer == i or layer == l.name:
+                return l.find(param)
+        raise KeyError(layer)
 
     def feed_forward(self, x):
         '''Compute a forward pass of all layers from the given input.

@@ -59,7 +59,7 @@ g.add_argument('--save-every', type=float, default=0, metavar='N',
                help='save the model every N iterations or -N minutes')
 
 g = climate.add_arg_group('Regularization')
-g.add_argument('--contractive-l2', type=float, default=0, metavar='S',
+g.add_argument('--contractive', type=float, default=0, metavar='S',
                help='penalize the Frobenius norm of the hidden Jacobian')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
                help='add noise to network inputs drawn from N(0, S)')

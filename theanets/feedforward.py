@@ -558,7 +558,7 @@ class Network(object):
                 p.set_value(v)
         logging.info('%s: loaded model parameters', filename)
 
-    def loss(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):
+    def loss(self, **kwargs):
         '''Return a variable representing the loss for this network.
 
         The loss includes both the error for the network as well as any
@@ -574,7 +574,7 @@ class Network(object):
             Regularize the L1 norm of hidden unit activations by this constant.
         hidden_l2 : float, optional
             Regularize the L2 norm of hidden unit activations by this constant.
-        contractive_l2 : float, optional
+        contractive : float, optional
             Regularize model using the Frobenius norm of the hidden Jacobian.
 
         Returns
@@ -583,19 +583,17 @@ class Network(object):
             A variable representing the loss of this network.
         '''
         hiddens = self.outputs[1:-1]
-        loss = self.error
-        if weight_l1 > 0:
-            loss += TT.cast(weight_l1, FLOAT) * sum(abs(w).sum() for l in self.layers for w in l.weights)
-        if weight_l2 > 0:
-            loss += TT.cast(weight_l2, FLOAT) * sum((w * w).sum() for l in self.layers for w in l.weights)
-        if hidden_l1 > 0:
-            loss += TT.cast(hidden_l1, FLOAT) * sum(abs(h).mean(axis=0).sum() for h in hiddens)
-        if hidden_l2 > 0:
-            loss += TT.cast(hidden_l2, FLOAT) * sum((h * h).mean(axis=0).sum() for h in hiddens)
-        if contractive_l2 > 0:
-            loss += TT.cast(contractive_l2, FLOAT) * sum(
-                TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum() for h in hiddens)
-        return loss
+        regularizers = dict(
+            weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
+            weight_l2=((w * w).sum() for l in self.layers for w in l.params),
+            hidden_l1=(abs(h).mean(axis=0).sum() for h in hiddens),
+            hidden_l2=((h * h).mean(axis=0).sum() for h in hiddens),
+            contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
+                         for h in hiddens),
+        )
+        return self.error + sum(TT.cast(kwargs[weight], FLOAT) * sum(expr)
+                                for weight, expr in regularizers.items()
+                                if kwargs.get(weight, 0) > 0)
 
 
 class Autoencoder(Network):

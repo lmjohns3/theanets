@@ -153,22 +153,19 @@ class Autoencoder(Network, feedforward.Autoencoder):
     '''
 
 
-class Classifier(Network, feedforward.Classifier):
-    '''A classifier network attempts to match a 1-hot target.
-    '''
-
-
 class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
     '''
 
     @property
     def error(self):
-        # we want the network to predict the next time step. y is the prediction
-        # (output of the network), so we want y[0] to match x[1], y[1] to match
-        # x[2], and so forth.
-        err = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
-        return TT.mean((err * err).sum(axis=2)[self.error_start:])
+        # we want the network to predict the next time step. if y =
+        # self.outputs[-1] is output of the network and f(y) gives the
+        # prediction, then we want f(y)[0] to match x[1], f(y)[1] to match x[2],
+        # and so forth.
+        error = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
+        err = error[self.error_start:]
+        return TT.mean((err * err).sum(axis=-1))
 
     def generate_prediction(self, y):
         '''Given outputs from each time step, map them to subsequent inputs.
@@ -210,6 +207,11 @@ class Regressor(Network, feedforward.Regressor):
 
         return [self.x, self.targets]
 
+    @property
+    def error(self):
+        err = (self.outputs[-1] - self.targets)[self.error_start:]
+        return TT.mean((err * err).sum(axis=-1))
+
 
 class Classifier(Network, feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
@@ -228,3 +230,21 @@ class Classifier(Network, feedforward.Classifier):
         self.labels = TT.imatrix('labels')
 
         return [self.x, self.labels]
+
+    @property
+    def error(self):
+        '''Returns a theano computation of cross entropy.'''
+        out = self.outputs[-1]
+        # flatten all but last components of the output and labels
+        count = (out.shape[0] - self.error_start) * out.shape[1]
+        correct = TT.reshape(self.labels[self.error_start:], (count, ))
+        prob = TT.reshape(out[self.error_start:], (count, out.shape[2]))
+        return -TT.mean(TT.log(prob[TT.arange(count), correct]))
+
+    @property
+    def accuracy(self):
+        '''Returns a theano computation of percent correct classifications.'''
+        out = self.outputs[-1]
+        predict = TT.argmax(out, axis=-1)
+        correct = TT.eq(predict, self.labels)
+        return TT.cast(100, FLOAT) * TT.mean(correct.flatten())

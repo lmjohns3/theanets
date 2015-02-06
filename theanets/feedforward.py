@@ -316,9 +316,6 @@ class Network(object):
         # setup output layer.
         self.setup_decoder()
 
-        logging.info('%d total network parameters',
-                     sum(l.reset() for l in self.layers))
-
     def setup_decoder(self):
         '''Set up the "decoding" computations from layer activations to output.
 

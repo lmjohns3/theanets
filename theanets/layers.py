@@ -322,6 +322,7 @@ class Layer(Base):
     count = 0
 
     def __init__(self, **kwargs):
+        super(Layer, self).__init__()
         Layer.count += 1
         self.kwargs = kwargs
         self.name = kwargs.get('name', 'layer{}'.format(Layer.count))
@@ -330,7 +331,7 @@ class Layer(Base):
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
         self.weights = []
         self.biases = []
-        super(Layer, self).__init__()
+        self.setup()
 
     def output(self, inputs):
         '''Create theano variables representing the output of this layer.
@@ -376,15 +377,9 @@ class Layer(Base):
         '''
         return _only(inputs), (), ()
 
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            A count of the number of parameters in this layer.
-        '''
-        return 0
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
+        pass
 
     def get_params(self, exclude_bias=False):
         '''Get a list of parameters in this layer that can be optimized.
@@ -423,6 +418,18 @@ class Layer(Base):
         '''
         for v, p in zip(values, self.get_params()):
             p.set_value(v)
+
+    def _log_setup(self, count):
+        '''Log some information about this layer.
+
+        Parameters
+        ----------
+        count : int
+            Number of parameter values in this layer.
+        '''
+        logging.info('layer %s: %s, %s x %s, %d parameters',
+                     self.name, self.activate.__theanets_name__,
+                     self.nin, self.nout, count)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
@@ -554,23 +561,14 @@ class Feedforward(Layer):
         output = self.activate(sum(xs) + self.biases[0])
         return output, self._monitors(output), ()
 
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            A count of the number of parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s -> %s',
-                     self.name, self.nin, self.nout,
-                     self.activate.__theanets_name__)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
         self.weights = [self._new_weights('weights_{}'.format(n), n) for n in nins]
         self.biases = [self._new_bias()]
-        return self.nout * (sum(nins) + 1)
+        self._log_setup(self.nout * (sum(nins) + 1))
 
 
 class Tied(Feedforward):
@@ -617,20 +615,14 @@ class Tied(Feedforward):
             TT.dot(_only(inputs), self.partner.weights[0].T) + self.biases[0])
         return output, self._monitors(output), ()
 
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            A count of the number of parameters in this layer.
-        '''
-        logging.info('tied weights from %s: %s x %s -> %s',
-                     self.partner.name, self.nin, self.nout,
-                     self.activate.__theanets_name__)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         self.biases = [self._new_bias()]
-        return self.nout
+        count = self.nout
+        logging.info('layer %s -- tied to %s: %s, %s x %s, %d parameters',
+                     self.name, self.partner.name, self.activate.__theanets_name__,
+                     self.nin, self.nout, count)
 
 
 class Classifier(Feedforward):
@@ -742,21 +734,12 @@ class RNN(Recurrent):
     incorporated into the input of the layer at the current time step.
     '''
 
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s -> %s',
-                     self.name, self.nin, self.nout,
-                     self.activate.__theanets_name__)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.weights = [self._new_weights('xh'),
                         self._new_weights('hh', self.nout)]
         self.biases = [self._new_bias()]
-        return self.nout * (1 + self.nin + self.nout)
+        self._log_setup(self.nout * (1 + self.nin + self.nout))
 
     _W_xh = property(lambda self: self.weights[0])
     _W_hh = property(lambda self: self.weights[1])
@@ -801,24 +784,15 @@ class ARRNN(Recurrent):
     :math:`\alpha_t = 1 / (1 + e^{-x_t W_{xr} - b_r})`.
     '''
 
-    def reset(self):
-        '''Reset the state of this layer to a new initial condition.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s -> %s',
-                     self.name, self.nin, self.nout,
-                     self.activate.__theanets_name__)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.weights = [
             self._new_weights('xh'),
             self._new_weights('xr'),
             self._new_weights('hh', self.nout),
         ]
         self.biases = [self._new_bias('hid'), self._new_bias('rate', std=3)]
-        return self.nout * (2 + 2 * self.nin + self.nout)
+        self._log_setup(self.nout * (2 + 2 * self.nin + self.nout))
 
     _W_xh = property(lambda self: self.weights[0])
     _W_xr = property(lambda self: self.weights[1])
@@ -867,17 +841,8 @@ class MRNN(Recurrent):
         self.factors = factors or int(np.ceil(np.sqrt(kwargs['nout'])))
         super(MRNN, self).__init__(**kwargs)
 
-    def reset(self):
-        '''Reset the weights and biases for this layer to random values.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s -> %s',
-                     self.name, self.nin, self.nout,
-                     self.activate.__theanets_name__)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.weights = [
             self._new_weights('xh', self.nin, self.nout),
             self._new_weights('xf', self.nin, self.factors),
@@ -885,7 +850,7 @@ class MRNN(Recurrent):
             self._new_weights('fh', self.factors, self.nout),
         ]
         self.biases = [self._new_bias()]
-        return self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin)
+        self._log_setup(self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin))
 
     _W_xh = property(lambda self: self.weights[0])
     _W_xf = property(lambda self: self.weights[1])
@@ -929,15 +894,8 @@ class LSTM(Recurrent):
     http://arxiv.org/pdf/1308.0850v5.pdf (page 5).
     '''
 
-    def reset(self):
-        '''Reset the weights and biases for this layer to random values.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: %s x %s', self.name, self.nin, self.nout)
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.weights = [
             # these three "peephole" weight matrices are always diagonal.
             self._new_bias('ci'),
@@ -960,7 +918,7 @@ class LSTM(Recurrent):
             self._new_bias('bc'),
             self._new_bias('bo'),
         ]
-        return self.nout * (7 + 4 * (self.nout + self.nin))
+        self._log_setup(self.nout * (7 + 4 * (self.nout + self.nin)))
 
     _W_ci = property(lambda self: self.weights[0])
     _W_cf = property(lambda self: self.weights[1])
@@ -1034,34 +992,20 @@ class Bidirectional(Layer):
     '''
 
     def __init__(self, worker='rnn', **kwargs):
+        nout = kwargs.pop('nout')
+        name = kwargs.pop('name', 'layer{}'.format(Layer.count))
         if 'direction' in kwargs:
             kwargs.pop('direction')
-        super(Bidirectional, self).__init__(**kwargs)
-        if 'name' in kwargs:
-            kwargs.pop('name')
-        if 'nout' in kwargs:
-            kwargs.pop('nout')
-        def make(name, direction):
-            return build(worker, direction=direction, nout=self.nout // 2, name=self._fmt(name), **kwargs)
+        def make(suffix, direction):
+            return build(worker,
+                         direction=direction,
+                         nout=nout // 2,
+                         name='{}_{}'.format(name, suffix),
+                         **kwargs)
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
-
-    def reset(self):
-        '''Reset the weights and biases for this layer to random values.
-
-        Returns
-        -------
-        count : int
-            The number of learnable parameters in this layer.
-        '''
-        logging.info('initializing %s: <%s,%s> x %s -> %s',
-                     self.name, self.forward.nin, self.backward.nin, self.nout,
-                     self.activate.__theanets_name__)
-        nf = self.forward.reset()
-        nb = self.backward.reset()
-        self.weights = self.forward.weights + self.backward.weights
-        self.biases = self.forward.biases + self.backward.biases
-        return nf + nb
+        self.params = [self.forward.params, self.backward.params]
+        super(Bidirectional, self).__init__(nout=nout, name=name, **kwargs)
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

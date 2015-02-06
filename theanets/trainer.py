@@ -771,9 +771,7 @@ class Layerwise(Trainer):
         original = list(net.layers)
         L = 1 + len(original) // 2 if tied else len(original) - 1
         def addl(*args, **kwargs):
-            l = layers.build(*args, **kwargs)
-            l.reset()
-            net.layers.append(l)
+            net.layers.append(layers.build(*args, **kwargs))
         for i in range(1, L):
             logging.info('layerwise: training %s', original[i].name)
             net.layers = original[:i+1]

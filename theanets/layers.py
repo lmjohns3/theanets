@@ -420,7 +420,7 @@ class Layer(Base):
             levels = (0.1, 0.2, 0.5, 0.9) if suffix else (0.1, 0.9)
         return [(name(l), abspct(l)) for l in levels]
 
-    def p(self, key):
+    def find(self, key):
         '''Get a shared variable for a parameter by name.
 
         Parameter
@@ -543,8 +543,8 @@ class Feedforward(Layer):
         '''
         if not hasattr(inputs, '__len__'):
             inputs = (inputs, )
-        xs = (TT.dot(x, self.p(str(i))) for i, x in enumerate(inputs))
-        output = self.activate(sum(xs) + self.p('b'))
+        xs = (TT.dot(x, self.find(str(i))) for i, x in enumerate(inputs))
+        output = self.activate(sum(xs) + self.find('b'))
         return output, self._monitors(output), ()
 
     def setup(self):
@@ -599,7 +599,7 @@ class Tied(Feedforward):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        preact = TT.dot(_only(inputs), self.partner.p('0').T) + self.p('b')
+        preact = TT.dot(_only(inputs), self.partner.find('0').T) + self.find('b')
         output = self.activate(preact)
         return output, self._monitors(output), ()
 
@@ -745,8 +745,8 @@ class RNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, h_tm1):
-            return self.activate(x_t + TT.dot(h_tm1, self.p('hh')))
-        x = TT.dot(_only(inputs), self.p('xh')) + self.p('b')
+            return self.activate(x_t + TT.dot(h_tm1, self.find('hh')))
+        x = TT.dot(_only(inputs), self.find('xh')) + self.find('b')
         output, updates = self._scan(fn, [x])
         return output, self._monitors(output), updates
 
@@ -792,11 +792,11 @@ class ARRNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, r_t, h_tm1):
-            h_t = self.activate(x_t + TT.dot(h_tm1, self.p('hh')))
+            h_t = self.activate(x_t + TT.dot(h_tm1, self.find('hh')))
             return r_t * h_tm1 + (1 - r_t) * h_t
         x = _only(inputs)
-        h = TT.dot(x, self.p('xh')) + self.p('b')
-        r = TT.nnet.sigmoid(TT.dot(x, self.p('xr')) + self.p('r'))
+        h = TT.dot(x, self.find('xh')) + self.find('b')
+        r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
         output, updates = self._scan(fn, [h, r])
         monitors = self._monitors(output) + self._monitors(r, 'rate')
         return output, monitors, updates
@@ -842,11 +842,11 @@ class MRNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, f_t, h_tm1):
-            h_t = TT.dot(f_t * TT.dot(h_tm1, self.p('hf')), self.p('fh'))
+            h_t = TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
             return self.activate(x_t + h_t)
         x = _only(inputs)
-        h = TT.dot(x, self.p('xh')) + self.p('b')
-        f = TT.dot(x, self.p('xf'))
+        h = TT.dot(x, self.find('xh')) + self.find('b')
+        f = TT.dot(x, self.find('xf'))
         output, updates = self._scan(fn, [h, f])
         monitors = self._monitors(output) + self._monitors(f, 'fact')
         return output, monitors, updates
@@ -892,17 +892,17 @@ class LSTM(Recurrent):
             n = self.nout
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         def fn(x_t, h_tm1, c_tm1):
-            xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.p('hh')))
-            i_t = TT.nnet.sigmoid(xi + c_tm1 * self.p('ci'))
-            f_t = TT.nnet.sigmoid(xf + c_tm1 * self.p('cf'))
+            xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
+            i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
+            f_t = TT.nnet.sigmoid(xf + c_tm1 * self.find('cf'))
             c_t = f_t * c_tm1 + i_t * TT.tanh(xc)
-            o_t = TT.nnet.sigmoid(xo + c_t * self.p('co'))
+            o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
         x = _only(inputs)
         (output, cell), updates = self._scan(
             fn,
-            [TT.dot(x, self.p('xh')) + self.p('b')],
+            [TT.dot(x, self.find('xh')) + self.find('b')],
             inits=[self.zeros('h'), self.zeros('c')])
         monitors = self._monitors(output) + self._monitors(cell, 'cell')
         return output, monitors, updates

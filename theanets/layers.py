@@ -440,7 +440,7 @@ class Layer(Base):
         KeyError
             If a param with the given name does not exist.
         '''
-        name = self._fmt(key)
+        name = self._fmt(str(key))
         for i, p in enumerate(self.params):
             if key == i or name == p.name:
                 return p

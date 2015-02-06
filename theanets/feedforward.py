@@ -95,7 +95,6 @@ this is not required.
 '''
 
 import climate
-import functools
 import gzip
 import numpy as np
 import pickle
@@ -426,10 +425,11 @@ class Network(object):
         for name, value in self._monitors:
             yield name, value
 
-    def params(self, **kwargs):
+    @property
+    def params(self):
         '''Get a list of the learnable theano parameters for this network.
 
-        This method is used internally by :class:`theanets.trainer.Trainer`
+        This attribute is mostly used by :class:`theanets.trainer.Trainer`
         implementations to compute the set of parameters that are tunable in a
         network.
 
@@ -438,11 +438,7 @@ class Network(object):
         params : list of theano variables
             A list of parameters that can be learned in this model.
         '''
-        exclude_bias = kwargs.get('no_learn_bias', False)
-        params = []
-        for layer in self.layers:
-            params.extend(layer.get_params(exclude_bias=exclude_bias))
-        return params
+        return [p for l in self.layers for p in l.params]
 
     def get_layer(self, which):
         '''Return the current weights for a given layer.
@@ -598,7 +594,8 @@ class Network(object):
         '''
         state = dict(klass=self.__class__, kwargs=self.kwargs)
         for layer in self.layers:
-            state['{}-values'.format(layer.name)] = layer.get_values()
+            key = '{}-values'.format(layer.name)
+            state[key] = [p.get_value() for p in layer.params]
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
         pickle.dump(state, handle, -1)
@@ -620,7 +617,8 @@ class Network(object):
         saved = pickle.load(handle)
         handle.close()
         for layer in self.layers:
-            layer.set_values(saved['{}-values'.format(layer.name)])
+            for p, v in zip(layer.params, saved['{}-values'.format(layer.name)]):
+                p.set_value(v)
         logging.info('%s: loaded model parameters', filename)
 
     def loss(self, weight_l1=0, weight_l2=0, hidden_l1=0, hidden_l2=0, contractive_l2=0, **unused):

@@ -14,19 +14,19 @@ class Base:
     def setUp(self):
         self.x = TT.matrix('x')
 
+    def assert_param_names(self, expected):
+        assert (sorted(p.name for p in self._build().params) ==
+                sorted('l_{}'.format(n) for n in expected))
 
 class TestFeedforward(Base):
     def _build(self):
-        return theanets.layers.Feedforward(nin=2, nout=4)
+        return theanets.layers.Feedforward(nin=2, nout=4, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 12
+        self.assert_param_names(['0', 'b'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 2
         assert not upd
@@ -34,18 +34,14 @@ class TestFeedforward(Base):
 
 class TestTied(Base):
     def _build(self):
-        l0 = theanets.layers.Feedforward(nin=2, nout=4)
-        l0.reset()
-        return theanets.layers.Tied(partner=l0)
+        l0 = theanets.layers.Feedforward(nin=2, nout=4, name='l0')
+        return theanets.layers.Tied(partner=l0, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 2
+        self.assert_param_names(['b'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 2
         assert not upd
@@ -53,50 +49,41 @@ class TestTied(Base):
 
 class TestClassifier(Base):
     def _build(self):
-        return theanets.layers.Classifier(nin=2, nout=4)
+        return theanets.layers.Classifier(nin=2, nout=4, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 12
+        self.assert_param_names(['0', 'b'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 2
         assert not upd
 
 
 class TestRNN(Base):
-    def _build(self, **kwargs):
-        return theanets.layers.RNN(nin=2, nout=4, **kwargs)
+    def _build(self):
+        return theanets.layers.RNN(nin=2, nout=4, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 28
+        self.assert_param_names(['b', 'hh', 'xh'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 2
         assert not upd
 
 
 class TestARRNN(Base):
-    def _build(self, **kwargs):
-        return theanets.layers.ARRNN(nin=2, nout=4, **kwargs)
+    def _build(self):
+        return theanets.layers.ARRNN(nin=2, nout=4, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 40
+        self.assert_param_names(['b', 'hh', 'r', 'xh', 'xr'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 6
         assert not upd
@@ -104,16 +91,13 @@ class TestARRNN(Base):
 
 class TestMRNN(Base):
     def _build(self):
-        return theanets.layers.MRNN(nin=2, nout=4, factors=3)
+        return theanets.layers.MRNN(nin=2, nout=4, factors=3, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 42
+        self.assert_param_names(['b', 'fh', 'hf', 'xf', 'xh'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 6
         assert not upd
@@ -121,16 +105,13 @@ class TestMRNN(Base):
 
 class TestLSTM(Base):
     def _build(self):
-        return theanets.layers.LSTM(nin=2, nout=4)
+        return theanets.layers.LSTM(nin=2, nout=4, name='l')
 
     def test_create(self):
-        l = self._build()
-        assert l.reset() == 124
+        self.assert_param_names(['b_ifco', 'cf', 'ci', 'co', 'h_ifco', 'x_ifco'])
 
     def test_transform(self):
-        l = self._build()
-        l.reset()
-        out, mon, upd = l.transform(self.x)
+        out, mon, upd = self._build().transform(self.x)
         assert out is not None
         assert len(mon) == 6
         assert not upd

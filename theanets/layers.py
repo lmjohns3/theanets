@@ -116,7 +116,6 @@ def softmax(x):
 
 
 def create_activation(activation):
-
     '''Given an activation description, return a callable that implements it.
 
     Parameters
@@ -313,10 +312,8 @@ class Layer(Base):
         Keyword arguments that were used when constructing this layer.
     activate : callable
         The activation function to use on this layer's output units.
-    weights : list of theano shared variables
-        A list of weight matrix(ces) for this layer.
-    biases : list of theano shared variables
-        A list of bias vector(s) for this layer.
+    params : list of Params
+        A list of the parameters in this layer.
     '''
 
     count = 0
@@ -329,8 +326,7 @@ class Layer(Base):
         self.nin = kwargs['nin']
         self.nout = kwargs['nout']
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
-        self.weights = []
-        self.biases = []
+        self.params = []
         self.setup()
 
     def output(self, inputs):
@@ -381,44 +377,6 @@ class Layer(Base):
         '''Set up the parameters and initial values for this layer.'''
         pass
 
-    def get_params(self, exclude_bias=False):
-        '''Get a list of parameters in this layer that can be optimized.
-
-        Parameters
-        ----------
-        exclude_bias : bool, optional
-            If True, then do not include bias parameters in this list. Defaults
-            to False, which includes both weights and bias parameters.
-
-        Returns
-        -------
-        params : list of theano shared variables
-            A list of the parameters in this layer that can be optimized.
-        '''
-        return self.weights if exclude_bias else self.weights + self.biases
-
-    def get_values(self):
-        '''Get the values of the parameters in this layer.
-
-        Returns
-        -------
-        values : list of ndarray
-            A list of numpy arrays, one for each parameter in the layer.
-        '''
-        return [p.get_value() for p in self.get_params()]
-
-    def set_values(self, values):
-        '''Set the parameters in this layer to a set of values.
-
-        Parameters
-        ----------
-        values : list of ndarray
-            A list of numpy arrays to set each parameter to. This must contain
-            the same number of elements as the layer has parameters to set.
-        '''
-        for v, p in zip(values, self.get_params()):
-            p.set_value(v)
-
     def _log_setup(self, count):
         '''Log some information about this layer.
 
@@ -462,42 +420,68 @@ class Layer(Base):
             levels = (0.1, 0.2, 0.5, 0.9) if suffix else (0.1, 0.9)
         return [(name(l), abspct(l)) for l in levels]
 
-    def _new_weights(self, name, nin=None, nout=None, std=None):
+    def p(self, name):
+        '''Get a shared variable for a parameter by name.
+
+        Parameter
+        ---------
+        name : str
+            The name of the parameter to look up.
+
+        Returns
+        -------
+        param : shared variable
+            A shared variable containing values for the given parameter.
+
+        Raises
+        ------
+        KeyError
+            If a param with the given name does not exist.
+        '''
+        key = self._fmt(name)
+        for p in self.params:
+            if key == p.name:
+                return p
+        raise KeyError(name)
+
+    def _add_weights(self, name, nin=None, nout=None, mean=0, std=0.1):
         '''Helper method to create a new weight matrix.
 
         Parameters
         ----------
         name : str
-            Name of theano shared variable for the weight matrix.
+            Name of the parameter to add.
         nin : int, optional
             Size of "input" for this weight matrix. Defaults to self.nin.
         nout : int, optional
             Size of "output" for this weight matrix. Defaults to self.nout.
+        mean : float, optional
+            Mean value for randomly-initialized weights. Defaults to 0.
         std : float, optional
-            Standard deviation of initial values for the matrix. Defaults to
-            :math:`1 / \sqrt{n_i + n_o}`.
+            Standard deviation of initial matrix values. Defaults to 0.1.
 
         Returns
         -------
-        matrix : theano shared variable
-            A shared variable containing a newly initialized weight matrix.
+        count : int
+            The number of values in this weight parameter.
         '''
         nin = nin or self.nin
         nout = nout or self.nout
-        return theano.shared(random_matrix(
-            nin,
-            nout,
-            name=self._fmt(name),
-            std=std or 1 / np.sqrt(nin + nout),
-            sparsity=self.kwargs.get('sparsity', 0)), name=name)
+        sparsity = self.kwargs.get('sparsity', 0)
+        self.params.append(theano.shared(
+            random_matrix(nin, nout, mean, std, sparsity=sparsity),
+            name=self._fmt(name)))
+        return nin * nout
 
-    def _new_bias(self, name='bias', mean=0, std=1):
+    def _add_bias(self, name, nout=None, mean=0, std=1):
         '''Helper method to create a new bias vector.
 
         Parameters
         ----------
-        name : str, optional
-            Name of theano shared variable. Defaults to self.name + "_bias".
+        name : str
+            Name of the parameter to add.
+        nout : int, optional
+            Size of the bias vector. Defaults to self.nout.
         mean : float, optional
             Mean value for randomly-initialized biases. Defaults to 0.
         std : float, optional
@@ -505,12 +489,13 @@ class Layer(Base):
 
         Returns
         -------
-        vector : theano shared variable
-            A shared variable containing a newly initialized bias vector.
+        count : int
+            The number of values in this bias parameter.
         '''
-        return theano.shared(
-            random_vector(self.nout, self._fmt(name), mean=mean, std=std),
-            name=name)
+        nout = nout or self.nout
+        self.params.append(theano.shared(
+            random_vector(nout, mean, std), name=self._fmt(name)))
+        return nout
 
 
 class Input(Layer):
@@ -556,9 +541,8 @@ class Feedforward(Layer):
         '''
         if not hasattr(inputs, '__len__'):
             inputs = (inputs, )
-        assert len(inputs) == len(self.weights)
-        xs = (TT.dot(i, w) for i, w in zip(inputs, self.weights))
-        output = self.activate(sum(xs) + self.biases[0])
+        xs = (TT.dot(x, self.p(str(i))) for i, x in enumerate(inputs))
+        output = self.activate(sum(xs) + self.p('b'))
         return output, self._monitors(output), ()
 
     def setup(self):
@@ -566,9 +550,11 @@ class Feedforward(Layer):
         nins = self.nin
         if isinstance(nins, int):
             nins = (nins, )
-        self.weights = [self._new_weights('weights_{}'.format(n), n) for n in nins]
-        self.biases = [self._new_bias()]
-        self._log_setup(self.nout * (sum(nins) + 1))
+        count = 0
+        for i, nin in enumerate(nins):
+            count += self._add_weights(str(i), nin)
+        count += self._add_bias('b')
+        self._log_setup(count)
 
 
 class Tied(Feedforward):
@@ -611,15 +597,14 @@ class Tied(Feedforward):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        output = self.activate(
-            TT.dot(_only(inputs), self.partner.weights[0].T) + self.biases[0])
+        preact = TT.dot(_only(inputs), self.partner.p('0').T) + self.p('b')
+        output = self.activate(preact)
         return output, self._monitors(output), ()
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
-        self.biases = [self._new_bias()]
-        count = self.nout
+        count = self._add_bias('b')
         logging.info('layer %s -- tied to %s: %s, %s x %s, %d parameters',
                      self.name, self.partner.name, self.activate.__theanets_name__,
                      self.nin, self.nout, count)
@@ -667,35 +652,35 @@ class Recurrent(Layer):
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
-    def _new_weights(self, name='weights', nin=None, nout=None, std=None):
+    def _add_weights(self, name, nin=None, nout=None, mean=0, std=0.1):
         '''Helper method to create a new weight matrix.
 
         Parameters
         ----------
-        name : str, optional
-            Name of theano shared variable. Defaults to self.name + "_weights".
+        name : str
+            Name of parameter to define.
         nin : int, optional
             Size of "input" for this weight matrix. Defaults to self.nin.
         nout : int, optional
             Size of "output" for this weight matrix. Defaults to self.nout.
+        mean : float, optional
+            Mean of initial matrix values. Defaults to 0.
         std : float, optional
-            Standard deviation of initial values for the matrix. Defaults to
-            :math:`1 / \sqrt{n_i + n_o}`.
+            Standard deviation of initial matrix values. Defaults to 0.1.
 
         Returns
         -------
-        matrix : theano shared variable
-            A shared variable containing a newly initialized weight matrix.
+        count : int
+            A count of the number of values in this parameter.
         '''
         nin = nin or self.nin
         nout = nout or self.nout
-        return theano.shared(random_matrix(
-            nin,
-            nout,
-            name=self._fmt(name),
-            std=std or 1 / np.sqrt(nin + nout),
-            radius=self.kwargs.get('radius', 0) if nin == nout else 0,
-            sparsity=self.kwargs.get('sparsity', 0)), name=name)
+        sparsity = self.kwargs.get('sparsity', 0)
+        radius = self.kwargs.get('radius', 0) if nin == nout else 0
+        self.params.append(theano.shared(
+            random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
+            name=self._fmt(name)))
+        return nin * nout
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.
@@ -736,14 +721,9 @@ class RNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.weights = [self._new_weights('xh'),
-                        self._new_weights('hh', self.nout)]
-        self.biases = [self._new_bias()]
-        self._log_setup(self.nout * (1 + self.nin + self.nout))
-
-    _W_xh = property(lambda self: self.weights[0])
-    _W_hh = property(lambda self: self.weights[1])
-    _b_h = property(lambda self: self.biases[0])
+        self._log_setup(self._add_weights('xh') +
+                        self._add_weights('hh', self.nout) +
+                        self._add_bias('b'))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -763,8 +743,8 @@ class RNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, h_tm1):
-            return self.activate(x_t + TT.dot(h_tm1, self._W_hh))
-        x = TT.dot(_only(inputs), self._W_xh) + self._b_h
+            return self.activate(x_t + TT.dot(h_tm1, self.p('hh')))
+        x = TT.dot(_only(inputs), self.p('xh')) + self.p('b')
         output, updates = self._scan(fn, [x])
         return output, self._monitors(output), updates
 
@@ -786,19 +766,11 @@ class ARRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.weights = [
-            self._new_weights('xh'),
-            self._new_weights('xr'),
-            self._new_weights('hh', self.nout),
-        ]
-        self.biases = [self._new_bias('hid'), self._new_bias('rate', std=3)]
-        self._log_setup(self.nout * (2 + 2 * self.nin + self.nout))
-
-    _W_xh = property(lambda self: self.weights[0])
-    _W_xr = property(lambda self: self.weights[1])
-    _W_hh = property(lambda self: self.weights[2])
-    _b_h = property(lambda self: self.biases[0])
-    _b_r = property(lambda self: self.biases[1])
+        self._log_setup(self._add_weights('xh') +
+                        self._add_weights('xr') +
+                        self._add_weights('hh', self.nout) +
+                        self._add_bias('b') +
+                        self._add_bias('r', std=3))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -818,11 +790,11 @@ class ARRNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, r_t, h_tm1):
-            h_t = self.activate(x_t + TT.dot(h_tm1, self._W_hh))
+            h_t = self.activate(x_t + TT.dot(h_tm1, self.p('hh')))
             return r_t * h_tm1 + (1 - r_t) * h_t
         x = _only(inputs)
-        h = TT.dot(x, self._W_xh) + self._b_h
-        r = TT.nnet.sigmoid(TT.dot(x, self._W_xr) + self._b_r)
+        h = TT.dot(x, self.p('xh')) + self.p('b')
+        r = TT.nnet.sigmoid(TT.dot(x, self.p('xr')) + self.p('r'))
         output, updates = self._scan(fn, [h, r])
         monitors = self._monitors(output) + self._monitors(r, 'rate')
         return output, monitors, updates
@@ -843,20 +815,12 @@ class MRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.weights = [
-            self._new_weights('xh', self.nin, self.nout),
-            self._new_weights('xf', self.nin, self.factors),
-            self._new_weights('hf', self.nout, self.factors),
-            self._new_weights('fh', self.factors, self.nout),
-        ]
-        self.biases = [self._new_bias()]
-        self._log_setup(self.nout * (1 + self.nin) + self.factors * (2 * self.nout + self.nin))
-
-    _W_xh = property(lambda self: self.weights[0])
-    _W_xf = property(lambda self: self.weights[1])
-    _W_hf = property(lambda self: self.weights[2])
-    _W_fh = property(lambda self: self.weights[3])
-    _b_h = property(lambda self: self.biases[0])
+        self._log_setup(
+            self._add_weights('xh', self.nin, self.nout) +
+            self._add_weights('xf', self.nin, self.factors) +
+            self._add_weights('hf', self.nout, self.factors) +
+            self._add_weights('fh', self.factors, self.nout) +
+            self._add_bias('b'))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -876,11 +840,11 @@ class MRNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, f_t, h_tm1):
-            h_t = TT.dot(f_t * TT.dot(h_tm1, self._W_hf), self._W_fh)
+            h_t = TT.dot(f_t * TT.dot(h_tm1, self.p('hf')), self.p('fh'))
             return self.activate(x_t + h_t)
         x = _only(inputs)
-        h = TT.dot(x, self._W_xh) + self._b_h
-        f = TT.dot(x, self._W_xf)
+        h = TT.dot(x, self.p('xh')) + self.p('b')
+        f = TT.dot(x, self.p('xf'))
         output, updates = self._scan(fn, [h, f])
         monitors = self._monitors(output) + self._monitors(f, 'fact')
         return output, monitors, updates
@@ -896,45 +860,14 @@ class LSTM(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.weights = [
-            # these three "peephole" weight matrices are always diagonal.
-            self._new_bias('ci'),
-            self._new_bias('cf'),
-            self._new_bias('co'),
-
-            self._new_weights('xi'),
-            self._new_weights('xf'),
-            self._new_weights('xc'),
-            self._new_weights('xo'),
-
-            self._new_weights('hi', self.nout),
-            self._new_weights('hf', self.nout),
-            self._new_weights('hc', self.nout),
-            self._new_weights('ho', self.nout),
-        ]
-        self.biases = [
-            self._new_bias('bi'),
-            self._new_bias('bf', mean=10),
-            self._new_bias('bc'),
-            self._new_bias('bo'),
-        ]
-        self._log_setup(self.nout * (7 + 4 * (self.nout + self.nin)))
-
-    _W_ci = property(lambda self: self.weights[0])
-    _W_cf = property(lambda self: self.weights[1])
-    _W_co = property(lambda self: self.weights[2])
-    _W_xi = property(lambda self: self.weights[3])
-    _W_xf = property(lambda self: self.weights[4])
-    _W_xc = property(lambda self: self.weights[5])
-    _W_xo = property(lambda self: self.weights[6])
-    _W_hi = property(lambda self: self.weights[7])
-    _W_hf = property(lambda self: self.weights[8])
-    _W_hc = property(lambda self: self.weights[9])
-    _W_ho = property(lambda self: self.weights[10])
-    _b_i = property(lambda self: self.biases[0])
-    _b_f = property(lambda self: self.biases[1])
-    _b_c = property(lambda self: self.biases[2])
-    _b_o = property(lambda self: self.biases[3])
+        self._log_setup(
+            self._add_weights('xh', self.nin, 4 * self.nout) +
+            self._add_weights('hh', self.nout, 4 * self.nout) +
+            self._add_bias('b', 4 * self.nout, mean=3) +
+            # the three "peephole" weight matrices are always diagonal.
+            self._add_bias('ci', self.nout) +
+            self._add_bias('cf', self.nout) +
+            self._add_bias('co', self.nout))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -953,20 +886,21 @@ class LSTM(Recurrent):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(xi, xf, xc, xo, h_tm1, c_tm1):
-            i_t = TT.nnet.sigmoid(xi + TT.dot(h_tm1, self._W_hi) + c_tm1 * self._W_ci)
-            f_t = TT.nnet.sigmoid(xf + TT.dot(h_tm1, self._W_hf) + c_tm1 * self._W_cf)
-            c_t = f_t * c_tm1 + i_t * TT.tanh(xc + TT.dot(h_tm1, self._W_hc))
-            o_t = TT.nnet.sigmoid(xo + TT.dot(h_tm1, self._W_ho) + c_t * self._W_co)
+        def split(z):
+            n = self.nout
+            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
+        def fn(x_t, h_tm1, c_tm1):
+            xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.p('hh')))
+            i_t = TT.nnet.sigmoid(xi + c_tm1 * self.p('ci'))
+            f_t = TT.nnet.sigmoid(xf + c_tm1 * self.p('cf'))
+            c_t = f_t * c_tm1 + i_t * TT.tanh(xc)
+            o_t = TT.nnet.sigmoid(xo + c_t * self.p('co'))
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
         x = _only(inputs)
         (output, cell), updates = self._scan(
             fn,
-            [TT.dot(x, self._W_xi) + self._b_i,
-             TT.dot(x, self._W_xf) + self._b_f,
-             TT.dot(x, self._W_xc) + self._b_c,
-             TT.dot(x, self._W_xo) + self._b_o],
+            [TT.dot(x, self.p('xh')) + self.p('b')],
             inits=[self.zeros('h'), self.zeros('c')])
         monitors = self._monitors(output) + self._monitors(cell, 'cell')
         return output, monitors, updates

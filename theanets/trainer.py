@@ -128,7 +128,7 @@ class Trainer(object):
         self.min_improvement = kwargs.get('min_improvement', 0.)
         self.patience = kwargs.get('patience', 10)
 
-        self.params = network.params(**kwargs)
+        self.params = network.params
         self._shapes = [p.get_value(borrow=True).shape for p in self.params]
         self._counts = [np.prod(s) for s in self._shapes]
         self._starts = np.cumsum([0] + self._counts)[:-1]
@@ -647,7 +647,7 @@ class HF(Trainer):
             logging.info('downloaded hf code to %s', path)
             import hf
 
-        self.params = network.params(**kwargs)
+        self.params = network.params
         self.opt = hf.hf_optimizer(
             self.params,
             network.inputs,

@@ -51,12 +51,7 @@ def batches(dataset):
     return sample
 
 def layer(n):
-    return dict(
-        form='bidirectional',
-        worker='lstm',
-        size=n,
-        radius=1.1,
-    )
+    return dict(form='bidirectional', worker='lstm', size=n)
 
 e = theanets.Experiment(
     theanets.recurrent.Classifier,

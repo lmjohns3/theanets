@@ -19,7 +19,7 @@ e = theanets.Experiment(
     batch_size=BATCH_SIZE)
 
 def generate():
-    s, t = np.zeros((2, TIME, BATCH_SIZE, 1), 'f')
+    s, t = np.random.randn(2, TIME, BATCH_SIZE, 1).astype('f')
     s[:BITS] = t[-BITS:] = np.random.randn(BITS, BATCH_SIZE, 1)
     return [s, t]
 

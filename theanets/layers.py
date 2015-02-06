@@ -420,13 +420,15 @@ class Layer(Base):
             levels = (0.1, 0.2, 0.5, 0.9) if suffix else (0.1, 0.9)
         return [(name(l), abspct(l)) for l in levels]
 
-    def p(self, name):
+    def p(self, key):
         '''Get a shared variable for a parameter by name.
 
         Parameter
         ---------
-        name : str
-            The name of the parameter to look up.
+        key : str or int
+            The name of the parameter to look up, or the index of the parameter
+            in our parameter list. These are both dependent on the
+            implementation of the layer.
 
         Returns
         -------
@@ -438,11 +440,11 @@ class Layer(Base):
         KeyError
             If a param with the given name does not exist.
         '''
-        key = self._fmt(name)
-        for p in self.params:
-            if key == p.name:
+        name = self._fmt(key)
+        for i, p in enumerate(self.params):
+            if key == i or name == p.name:
                 return p
-        raise KeyError(name)
+        raise KeyError(key)
 
     def _add_weights(self, name, nin=None, nout=None, mean=0, std=0.1):
         '''Helper method to create a new weight matrix.

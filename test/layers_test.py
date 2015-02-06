@@ -108,7 +108,7 @@ class TestLSTM(Base):
         return theanets.layers.LSTM(nin=2, nout=4, name='l')
 
     def test_create(self):
-        self.assert_param_names(['b_ifco', 'cf', 'ci', 'co', 'h_ifco', 'x_ifco'])
+        self.assert_param_names(['b', 'cf', 'ci', 'co', 'hh', 'xh'])
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)

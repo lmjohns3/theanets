@@ -34,7 +34,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=1):
+def random_matrix(nin, nout, mean=0, std=1, sparsity=0, radius=0):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
@@ -45,26 +45,23 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=1):
     nout : int
         Number of columns of the weight matrix -- equivalently, the number
         of "output" units that the weight matrix connects.
-    name : str
-        A string to use as the theano name for the created variable.
+    mean : float, optional
+        Draw initial weight values from a normal with this mean. Defaults to 0.
+    std : float, optional
+        Draw initial weight values from a normal with this standard deviation.
+        Defaults to 1.
     sparsity : float in (0, 1), optional
         If given, ensure that the given fraction of the weight matrix is
         set to zero. Defaults to 0, meaning all weights are nonzero.
     radius : float, optional
         If given, rescale the initial weights to have this spectral radius.
         No scaling is performed by default.
-    mean : float, optional
-        Draw initial weight values from a normal with this mean. Defaults to 0.
-    std : float, optional
-        Draw initial weight values from a normal with this standard deviation.
-        Defaults to 1.
 
     Returns
     -------
-    matrix : theano shared array
-        A shared array containing a matrix of theano values. These often
-        represent the weights connecting each "input" unit to each "output" unit
-        in a layer.
+    matrix : numpy array
+        An array containing random values. These often represent the weights
+        connecting each "input" unit to each "output" unit in a layer.
     '''
     arr = mean + std * np.random.randn(nin, nout)
     if 1 > sparsity > 0:
@@ -76,18 +73,16 @@ def create_matrix(nin, nout, name, sparsity=0, radius=0, mean=0, std=1):
         # rescale weights to have the appropriate spectral radius.
         u, s, vT = np.linalg.svd(arr)
         arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)
-    return theano.shared(arr.astype(FLOAT), name=name)
+    return arr.astype(FLOAT)
 
 
-def create_vector(size, name, mean=0, std=1):
-    '''Create a vector of small values.
+def random_vector(size, mean=0, std=1):
+    '''Create a vector of randomly-initialized values.
 
     Parameters
     ----------
     size : int
         Length of vecctor to create.
-    name : str
-        A string to use as the theano name for the created variables.
     mean : float, optional
         Mean value for initial vector values. Defaults to 0.
     std : float, optional
@@ -95,12 +90,11 @@ def create_vector(size, name, mean=0, std=1):
 
     Returns
     -------
-    vector : theano shared array
-        A shared array containing a vector of theano values. This often
-        represents the bias for a layer of computation units.
+    vector : numpy array
+        An array containing random values. This often represents the bias for a
+        layer of computation units.
     '''
-    vec = mean + std * np.random.randn(size)
-    return theano.shared(vec.astype(FLOAT), name=name)
+    return (mean + std * np.random.randn(size)).astype(FLOAT)
 
 
 def softmax(x):
@@ -483,12 +477,12 @@ class Layer(Base):
         '''
         nin = nin or self.nin
         nout = nout or self.nout
-        return create_matrix(
+        return theano.shared(random_matrix(
             nin,
             nout,
             name=self._fmt(name),
             std=std or 1 / np.sqrt(nin + nout),
-            sparsity=self.kwargs.get('sparsity', 0))
+            sparsity=self.kwargs.get('sparsity', 0)), name=name)
 
     def _new_bias(self, name='bias', mean=0, std=1):
         '''Helper method to create a new bias vector.
@@ -507,7 +501,9 @@ class Layer(Base):
         vector : theano shared variable
             A shared variable containing a newly initialized bias vector.
         '''
-        return create_vector(self.nout, self._fmt(name), mean=mean, std=std)
+        return theano.shared(
+            random_vector(self.nout, self._fmt(name), mean=mean, std=std),
+            name=name)
 
 
 class Input(Layer):
@@ -701,13 +697,13 @@ class Recurrent(Layer):
         '''
         nin = nin or self.nin
         nout = nout or self.nout
-        return create_matrix(
+        return theano.shared(random_matrix(
             nin,
             nout,
             name=self._fmt(name),
             std=std or 1 / np.sqrt(nin + nout),
             radius=self.kwargs.get('radius', 0) if nin == nout else 0,
-            sparsity=self.kwargs.get('sparsity', 0))
+            sparsity=self.kwargs.get('sparsity', 0)), name=name)
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.

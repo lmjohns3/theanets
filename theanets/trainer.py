@@ -853,25 +853,23 @@ class Layerwise(Trainer):
             dataset.
         '''
         net = self.network
-        outact = net.output_activation
         tied = getattr(net, 'tied_weights', False)
         original = list(net.layers)
         L = 1 + len(original) // 2 if tied else len(original) - 1
-        def addl(*args, **kwargs):
-            net.layers.append(layers.build(*args, **kwargs))
         for i in range(1, L):
-            logging.info('layerwise: training %s', original[i].name)
-            net.layers = original[:i+1]
-            if tied:
-                for j in range(i, 1, -1):
-                    addl('tied', partner=original[j], name='lw{}'.format(j))
-                addl('tied', partner=original[1], name='out', activation=outact)
+            if i == L - 1:
+                net.layers = original
+            elif tied:
+                net.layers = original[:i+1] + original[-i:]
             else:
-                addl('feedforward',
-                     name='lwout',
-                     nin=original[i].nout,
-                     nout=original[-1].nout,
-                     activation=outact)
+                net.layers = original[:i+1] + [layers.build(
+                    'feedforward',
+                    name='lwout',
+                    nin=original[i].nout,
+                    nout=original[-1].nout,
+                    activation=net.output_activation)]
+            logging.info('layerwise: training %s',
+                         ' -> '.join(l.name for l in net.layers))
             trainer = self.factory(net, *self.args, **self.kwargs)
             for monitors in trainer.itertrain(train_set, valid_set):
                 yield monitors

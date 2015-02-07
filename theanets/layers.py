@@ -385,7 +385,7 @@ class Layer(Base):
         count : int
             Number of parameter values in this layer.
         '''
-        logging.info('layer %s %s x %s [%s] %d parameters',
+        logging.info('layer %s: %s -> %s, %s, %d parameters',
                      self.name, self.nin, self.nout,
                      self.activate.__theanets_name__, count)
 

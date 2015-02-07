@@ -321,7 +321,7 @@ class SGD(Trainer):
 
 
 class NAG(SGD):
-    '''Optimize using Nesterov's Accelerated Gradient (NAG).
+    r'''Optimize using Nesterov's Accelerated Gradient (NAG).
 
     The basic difference between NAG and "classical" momentum in SGD
     optimization approaches is that NAG computes the gradients at the position

@@ -244,7 +244,28 @@ class Trainer(object):
             the training data, but at a minimum a dictionary must be provided
             when training has stopped.
         '''
-        raise NotImplementedError
+        iteration = 0
+        training = validation = None
+        while True:
+            if not iteration % self.validate_every:
+                try:
+                    validation = self.evaluate(valid_set)
+                except KeyboardInterrupt:
+                    logging.info('interrupted!')
+                    break
+                if self.test_patience(validation):
+                    logging.info('patience elapsed!')
+                    break
+            try:
+                self.step(train_set)
+                training = self.evaluate(train_set)
+            except KeyboardInterrupt:
+                logging.info('interrupted!')
+                break
+            iteration += 1
+            self.log(training, iteration)
+            yield training
+        self.set_params(self._best_params)
 
 
 class SGD(Trainer):
@@ -261,10 +282,8 @@ class SGD(Trainer):
         self.learning_rate = TT.cast(kwargs.get('learning_rate', 1e-4), FLOAT)
 
         logging.info('compiling %s learning function', self.__class__.__name__)
-        self.f_learn = theano.function(
-            network.inputs,
-            self._monitor_exprs,
-            updates=list(network.updates) + list(self.learning_updates()))
+        updates = list(network.updates) + list(self.learning_updates())
+        self.f_learn = theano.function(network.inputs, [], updates=updates)
 
     def learning_updates(self):
         for param, grad in zip(self.params, self.clipped_gradients()):
@@ -284,52 +303,8 @@ class SGD(Trainer):
         return theano.shared(np.zeros_like(param.get_value()) + init,
                              name='{}_{}'.format(param.name, name))
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        '''We compute gradients using mini-batches and evaluate periodically.
-
-        This trainer encompasses an important subset of optimization algorithms
-        that use local gradient information to make iterative adjustments to
-        minimize a loss function.
-
-        Parameters
-        ----------
-        train_set : :class:`theanets.dataset.Dataset`
-            A training set to use while training the weights in our network.
-        valid_set : :class:`theanets.dataset.Dataset`
-            A validation set to use while training the weights in our network.
-
-        Returns
-        -------
-        monitors : sequence of dict
-            Generates a series of monitor values as the network weights are
-            tuned.
-        '''
-        iteration = 0
-        training = validation = None
-        while True:
-            if not iteration % self.validate_every:
-                try:
-                    validation = self.evaluate(valid_set)
-                except KeyboardInterrupt:
-                    logging.info('interrupted!')
-                    break
-                if self.test_patience(validation):
-                    logging.info('patience elapsed!')
-                    break
-            try:
-                training = collections.OrderedDict(zip(
-                    self._monitor_names,
-                    np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
-            except KeyboardInterrupt:
-                logging.info('interrupted!')
-                break
-            iteration += 1
-            self.log(training, iteration)
-            yield training
-        self.set_params(self._best_params)
-
-    def train_minibatch(self, *x):
-        return self.f_learn(*x)
+    def step(self, dataset):
+        [self.f_learn(*x) for x in train_set]
 
 
 class NAG(SGD):
@@ -624,45 +599,16 @@ class Scipy(Trainer):
                 grads[i].append(np.asarray(g))
         return self.arrays_to_flat([np.mean(g, axis=0) for g in grads])
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        def display(x):
-            self.set_params(self.flat_to_arrays(x))
-            monitors = np.mean([self.f_eval(*x) for x in train_set], axis=0)
-            desc = ' '.join(
-                '%s=%.2f' % el for el in zip(self._monitor_names, monitors))
-            logging.info('scipy.%s %i %s', self.method, iteration + 1, desc)
-
-        iteration = 0
-        training = validation = None
-        while True:
-            if not iteration % self.validate_every:
-                try:
-                    validation = self.evaluate(valid_set)
-                except KeyboardInterrupt:
-                    logging.info('interrupted!')
-                    break
-                if self.test_patience(validation):
-                    logging.info('patience elapsed!')
-                    break
-            try:
-                res = scipy.optimize.minimize(
-                    fun=self.function_at,
-                    jac=self.gradient_at,
-                    x0=self.arrays_to_flat(self._best_params),
-                    args=(train_set, ),
-                    method=self.method,
-                    callback=display,
-                    options=dict(maxiter=self.validate_every),
-                )
-                self.set_params(self.flat_to_arrays(res.x))
-                training = self.evaluate(train_set)
-            except KeyboardInterrupt:
-                logging.info('interrupted!')
-                break
-            iteration += 1
-            self.log(training, iteration)
-            yield training
-        self.set_params(self._best_params)
+    def step(self, dataset):
+        res = scipy.optimize.minimize(
+            fun=self.function_at,
+            jac=self.gradient_at,
+            x0=self.arrays_to_flat(self._best_params),
+            args=(train_set, ),
+            method=self.method,
+            options=dict(maxiter=self.validate_every),
+        )
+        self.set_params(self.flat_to_arrays(res.x))
 
 
 class LM(Trainer):

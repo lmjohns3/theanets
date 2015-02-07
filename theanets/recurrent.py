@@ -97,10 +97,6 @@ class Network(feedforward.Network):
         network.
     '''
 
-    @property
-    def error_start(self):
-        return self.kwargs.get('recurrent_error_start', 3)
-
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -120,6 +116,28 @@ class Autoencoder(Network, feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
 
+    def setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
+        super(Autoencoder, self).setup_vars()
+
+        # the mask is the same shape as the output and specifies which entries
+        # are to be included in the error computation.
+        self.mask = TT.btensor3('mask')
+
+        return [self.x, self.mask]
+
+    @property
+    def error(self):
+        delta = self.outputs[-1] - self.targets
+        err = delta[self.mask]
+        return TT.sum(err * err) / TT.sum(self.mask)
+
 
 class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
@@ -131,9 +149,9 @@ class Predictor(Autoencoder):
         # self.outputs[-1] is output of the network and f(y) gives the
         # prediction, then we want f(y)[0] to match x[1], f(y)[1] to match x[2],
         # and so forth.
-        error = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
-        err = error[self.error_start:]
-        return TT.mean((err * err).sum(axis=-1))
+        delta = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
+        err = delta[self.mask[1:]]
+        return TT.sum(err * err) / TT.sum(self.mask[1:])
 
     def generate_prediction(self, y):
         '''Given outputs from each time step, map them to subsequent inputs.
@@ -173,12 +191,17 @@ class Regressor(Network, feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
-        return [self.x, self.targets]
+        # the mask is the same shape as the output and specifies which entries
+        # are to be included in the error computation.
+        self.mask = TT.btensor3('mask')
+
+        return [self.x, self.targets, self.mask]
 
     @property
     def error(self):
-        err = (self.outputs[-1] - self.targets)[self.error_start:]
-        return TT.mean((err * err).sum(axis=-1))
+        delta = self.outputs[-1] - self.targets
+        err = delta[self.mask]
+        return TT.sum(err * err) / TT.sum(self.mask)
 
 
 class Classifier(Network, feedforward.Classifier):
@@ -195,19 +218,23 @@ class Classifier(Network, feedforward.Classifier):
         super(Classifier, self).setup_vars()
 
         # for a classifier, this specifies the correct labels for a given input.
+        # the labels array for a recurrent network is (time_steps, batch_size).
         self.labels = TT.imatrix('labels')
 
-        return [self.x, self.labels]
+        # the mask is the same shape as the output and specifies which entries
+        # are to be included in the error computation.
+        self.mask = TT.bmatrix('mask')
+
+        return [self.x, self.labels, self.mask]
 
     @property
     def error(self):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]
-        # flatten all but last components of the output and labels
-        count = (out.shape[0] - self.error_start) * out.shape[1]
-        correct = TT.reshape(self.labels[self.error_start:], (count, ))
-        prob = TT.reshape(out[self.error_start:], (count, out.shape[2]))
-        return -TT.mean(TT.log(prob[TT.arange(count), correct]))
+        count = out.shape[0] * out.shape[1]
+        prob = TT.reshape(out, (count, out.shape[2]))
+        correct = TT.reshape(self.labels, (count, ))
+        return -TT.sum(TT.log(prob[TT.arange(count), correct])) / TT.sum(self.mask)
 
     @property
     def accuracy(self):
@@ -215,4 +242,4 @@ class Classifier(Network, feedforward.Classifier):
         out = self.outputs[-1]
         predict = TT.argmax(out, axis=-1)
         correct = TT.eq(predict, self.labels)
-        return TT.cast(100, FLOAT) * TT.mean(correct.flatten())
+        return TT.cast(100, FLOAT) * TT.sum(correct[self.mask]) / TT.sum(self.mask)

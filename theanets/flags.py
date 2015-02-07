@@ -92,7 +92,3 @@ g.add_argument('--global-backtracking', action='store_true',
                help='backtrack to lowest cost parameters during CG')
 g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
-
-g = climate.add_group('Recurrent Nets')
-g.add_argument('--recurrent-error-start', type=int, default=3, metavar='T',
-               help='compute recurrent network error starting at time T')

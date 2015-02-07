@@ -112,7 +112,8 @@ Specialized trainers
    :toctree: generated/
 
    Sample
-   Layerwise
+   SupervisedPretrainer
+   UnsupervisedPretrainer
 
 Drivers
 =======

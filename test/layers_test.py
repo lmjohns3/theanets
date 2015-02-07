@@ -38,7 +38,8 @@ class TestTied(Base):
         return theanets.layers.Tied(partner=l0, name='l')
 
     def test_create(self):
-        self.assert_param_names(['b'])
+        l = self._build()
+        assert sorted(p.name for p in l.params) == [l.name + '_b']
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)

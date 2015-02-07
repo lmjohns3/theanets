@@ -347,7 +347,7 @@ class NAG(SGD):
     :math:`\nabla(p)`:
 
     .. math::
-        v_{t+1} = \mu v_t - \alpha \nabla(p_t)
+        v_{t+1} = \mu v_t - \alpha \nabla(p_t) \\
         p_{t+1} = p_t + v_{t+1}
 
     while NAG adjusts the update by blending the current "velocity" with the
@@ -355,7 +355,7 @@ class NAG(SGD):
     would have taken us):
 
     .. math::
-        v_{t+1} = \mu v_t - \alpha \nabla(p_t + \mu v_t)
+        v_{t+1} = \mu v_t - \alpha \nabla(p_t + \mu v_t) \\
         p_{t+1} = p_t + v_{t+1}
 
     The difference here is that the gradient is computed at the place in
@@ -441,9 +441,9 @@ class RmsProp(SGD):
     before being applied to update the parameters.
 
     .. math::
-        a_{t+1} = \gamma a_t + (1 - \gamma) \nabla(p_t)
-        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2
-        v_{t+1} = \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - a_{t+1}^2 + \epsilon}} \nabla(p_t)
+        a_{t+1} = \gamma a_t + (1 - \gamma) \nabla(p_t) \\
+        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2 \\
+        v_{t+1} = \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - a_{t+1}^2 + \epsilon}} \nabla(p_t) \\
         p_{t+1} = p_t + v_{t+1}
 
     Like Rprop, this learning method effectively maintains a sort of
@@ -491,9 +491,9 @@ class ADADELTA(RmsProp):
     parameter step RMS values to the gradient RMS values.
 
     .. math::
-        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2
-        v_{t+1} = -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t)
-        x_{t+1} = \gamma x_t + (1 - \gamma) v_{t+1}^2
+        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2 \\
+        v_{t+1} = -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t) \\
+        x_{t+1} = \gamma x_t + (1 - \gamma) v_{t+1}^2 \\
         p_{t+1} = p_t + v_{t+1}
 
     Like Rprop and RmsProp, this learning method effectively maintains a sort of

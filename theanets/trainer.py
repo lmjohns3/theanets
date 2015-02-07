@@ -283,8 +283,22 @@ class Trainer(object):
 
 
 class SGD(Trainer):
-    '''Stochastic gradient descent network trainer.
+    r'''Optimize using stochastic gradient descent with momentum.
 
+    A stochastic gradient trainer with momentum :math:`\mu` and learning rate
+    :math:`\alpha` updates parameter :math:`p` at step :math:`t` by blending the
+    current "velocity" :math:`v` with the current gradient :math:`\nabla(p)`:
+
+    .. math::
+        v_{t+1} = \mu * v_t - \alpha \nabla(p_t)
+        p_{t+1} = p_t + v_{t+1}.
+
+    Without momentum (or when :math:`\mu = 0`), these updates reduce to
+    :math:`p_{t+1} = p_t - \alpha \nabla(p_t)`, which just takes steps downhill
+    according to the the local gradient :math:`\nabla(p_t)`. Adding the momentum
+    term permits the algorithm to incorporate information from previous steps as
+    well, which in practice has the effect of incorporating some information
+    about second-order derivatives of the loss surface.
     '''
 
     def __init__(self, network, **kwargs):
@@ -330,10 +344,10 @@ class NAG(SGD):
     step. In symbols, the classical method with momentum :math:`\mu` and
     learning rate :math:`\alpha` updates parameter :math:`p` at step :math:`t`
     by blending the current "velocity" :math:`v` with the current gradient
-    :math:`\nabla(p_t)`:
+    :math:`\nabla(p)`:
 
     .. math::
-        v_{t+1} = \mu * v_t - \alpha * \nabla(p_t)
+        v_{t+1} = \mu v_t - \alpha \nabla(p_t)
         p_{t+1} = p_t + v_{t+1}
 
     while NAG adjusts the update by blending the current "velocity" with the
@@ -341,7 +355,7 @@ class NAG(SGD):
     would have taken us):
 
     .. math::
-        v_{t+1} = \mu * v_t - \alpha * \nabla(p_t + m * v_t)
+        v_{t+1} = \mu v_t - \alpha \nabla(p_t + \mu v_t)
         p_{t+1} = p_t + v_{t+1}
 
     The difference here is that the gradient is computed at the place in
@@ -350,11 +364,10 @@ class NAG(SGD):
 
     In theory, this helps correct for oversteps during learning: If momentum
     would lead us to overshoot, then the gradient at that overshot place will
-    point backwards, toward where we came from. (For details see Sutskever,
-    Martens, Dahl, and Hinton, ICML 2013, "On the importance of initialization
-    and momentum in deep learning." A PDF of this paper is freely available at
-    http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf)
-    '''
+    point backwards, toward where we came from. For details on this idea, see
+    Sutskever, Martens, Dahl, and Hinton, "On the importance of initialization
+    and momentum in deep learning" (ICML 2013)
+    http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf '''
 
     def learning_updates(self):
         # see https://github.com/lisa-lab/pylearn2/pull/136#issuecomment-10381617
@@ -366,7 +379,7 @@ class NAG(SGD):
 
 
 class Rprop(SGD):
-    '''Trainer for neural nets using resilient backpropagation.
+    r'''Trainer for neural nets using resilient backpropagation.
 
     The Rprop method uses the same general strategy as SGD (both methods are
     make small parameter adjustments using local derivative information). The
@@ -385,9 +398,10 @@ class Rprop(SGD):
     momentum values.
 
     The implementation here actually uses the "iRprop-" variant of Rprop
-    described in Algorithm 4 from Igel and Huesken (2000), "Improving the Rprop
-    Learning Algorithm." This variant resets the running gradient estimates to
-    zero in cases where the previous and current gradients have switched signs.
+    described in Algorithm 4 from Igel and Huesken, "Improving the Rprop
+    Learning Algorithm" (2000). This variant resets the running gradient
+    estimates to zero in cases where the previous and current gradients have
+    switched signs.
     '''
 
     def __init__(self, network, **kwargs):
@@ -415,28 +429,35 @@ class Rprop(SGD):
 
 
 class RmsProp(SGD):
-    '''RmsProp trains neural network models using scaled SGD.
+    r'''RmsProp trains neural network models using scaled SGD.
 
-    The RmsProp method uses the same general strategy as SGD (both methods are
-    make small parameter adjustments using local derivative information). The
-    difference here is that as gradients are computed during each parameter
-    update, an exponential moving average of squared gradient magnitudes is
-    maintained as well. At each update, the EMA is used to compute the
-    root-mean-square (RMS) gradient value that's been seen in the recent past.
-    The actual gradient is normalized by this RMS scale before being applied to
-    update the parameters.
+    The RmsProp method uses the same general strategy as SGD, in the sense that
+    all gradient-based methods make small parameter adjustments using local
+    derivative information. The difference here is that as gradients are
+    computed during each parameter update, an exponential moving average of
+    gradient magnitudes is maintained as well. At each update, the EMA is used
+    to compute the root-mean-square (RMS) gradient value that's been seen in the
+    recent past. The actual gradient is normalized by this RMS scaling factor
+    before being applied to update the parameters.
+
+    .. math::
+        a_{t+1} = \gamma a_t + (1 - \gamma) \nabla(p_t)
+        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2
+        v_{t+1} = \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - a_{t+1}^2 + \epsilon}} \nabla(p_t)
+        p_{t+1} = p_t + v_{t+1}
 
     Like Rprop, this learning method effectively maintains a sort of
-    parameter-specific momentum value, but the difference here is that only the
-    magnitudes of the gradients are taken into account, rather than the signs.
+    parameter-specific momentum value, but this method takes into account both
+    the sign and the magnitude of the gradient for each parameter.
 
-    The weight parameter for the EMA window is taken from the "momentum" keyword
-    argument. If this weight is set to a low value, the EMA will have a short
-    memory and will be prone to changing quickly. If the momentum parameter is
-    set close to 1, the EMA will have a long history and will change slowly.
+    In this implementation, :math:`\epsilon = 0.0001`, and the weight parameter
+    :math:`\gamma` for the EMA window is computed from the ``rms_halflife``
+    keyword argument, such that the actual EMA weight varies inversely with the
+    halflife :math:`h`: :math:`\gamma = e^{\frac{-\ln 2}{h}}`.
 
-    The implementation here is modeled after Graves (2013), "Generating
-    Sequences With Recurrent Neural Networks," http://arxiv.org/abs/1308.0850.
+    The implementation here is modeled after Graves, "Generating Sequences With
+    Recurrent Neural Networks" (2013), equations (38)--(45).
+    http://arxiv.org/abs/1308.0850
     '''
 
     def __init__(self, network, **kwargs):
@@ -459,7 +480,7 @@ class RmsProp(SGD):
 
 
 class ADADELTA(RmsProp):
-    '''ADADELTA trains neural network models using scaled SGD.
+    r'''ADADELTA trains neural network models using scaled SGD.
 
     The ADADELTA method uses the same general strategy as SGD (both methods are
     make small parameter adjustments using local derivative information). The
@@ -469,10 +490,17 @@ class ADADELTA(RmsProp):
     maintained as well. The actual gradient is normalized by the ratio of the
     parameter step RMS values to the gradient RMS values.
 
+    .. math::
+        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2
+        v_{t+1} = \mu v_t - \frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t)
+        x_{t+1} = \gamma x_t + (1 - \gamma) v_{t+1}^2
+        p_{t+1} = p_t + v_{t+1}
+
     Like Rprop and RmsProp, this learning method effectively maintains a sort of
     parameter-specific momentum value. The primary difference between this
     method and RmsProp is that ADADELTA additionally incorporates a sliding
-    window of RMS parameter steps.
+    window of RMS parameter steps, obviating the need for a learning rate
+    parameter.
 
     The implementation here is modeled after Zeiler (2012), "ADADELTA: An
     adaptive learning rate method," available at http://arxiv.org/abs/1212.5701.
@@ -894,9 +922,9 @@ class UnsupervisedPretrainer(Trainer):
     on a current network model, trains the autoencoder, and then transfers the
     trained weights back to the original model.
 
-    This code is intended mostly as a proof-of-concept; more elaborate training
-    strategies are certainly possible but should be coded outside the core
-    package.
+    This code is intended mostly as a proof-of-concept to demonstrate how shadow
+    networks can be created, and how trainers can call other trainers for lots
+    of different types of training regimens.
     '''
 
     def __init__(self, network, *args, **kwargs):

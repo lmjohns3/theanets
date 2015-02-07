@@ -492,7 +492,7 @@ class ADADELTA(RmsProp):
 
     .. math::
         g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2
-        v_{t+1} = \mu v_t - \frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t)
+        v_{t+1} = -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t)
         x_{t+1} = \gamma x_t + (1 - \gamma) v_{t+1}^2
         p_{t+1} = p_t + v_{t+1}
 

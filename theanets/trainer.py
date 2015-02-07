@@ -178,8 +178,15 @@ class Trainer(object):
             A suffix to add to the end of the log line, if any.
         '''
         label = label or self.__class__.__name__
-        info = ' '.join('%s=%.3f' % el for el in monitors.items())
-        logging.info('%s %i %s%s', label, iteration, info, suffix)
+        fields = []
+        for name, value in monitors.items():
+            width = '{:.2f}'
+            if name == 'loss':
+                width = '{:.6f}'
+            elif '<' in name or '>' in name:
+                width = '{:.1f}'
+            fields.append(('{}=' + width).format(name, value))
+        logging.info('%s %i %s%s', label, iteration, ' '.join(fields), suffix)
 
     def evaluate(self, dataset):
         '''Evaluate the current model parameters on a dataset.

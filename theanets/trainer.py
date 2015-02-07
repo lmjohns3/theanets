@@ -160,36 +160,70 @@ class Trainer(object):
         for param, target in zip(self.params, targets):
             param.set_value(target)
 
-    def evaluate(self, valid_set):
-        '''Evaluate the current model using a validation set.
+    def log(self, monitors, iteration, label='', suffix=''):
+        '''Log the state of the model through the logging system.
 
         Parameters
         ----------
-        valid_set : :class:`theanets.dataset.Dataset`
-            A set of data to use for evaluating the model. Typically this is
-            distinct from the training (and testing) data.
+        monitors : OrderedDict
+            A dictionary of monitor names mapped to values. These names and
+            values are what is being logged.
+        iteration : int
+            Training iteration that we are logging.
+        label : str, optional
+            A label for the name of the trainer creating the log line. Defaults
+            to the name of the current class.
+        suffix : str, optional
+            A suffix to add to the end of the log line, if any.
+        '''
+        label = label or self.__class__.__name__
+        info = ' '.join('%s=%.3f' % el for el in monitors.items())
+        logging.info('%s %i %s%s', label, iteration, info, suffix)
+
+    def evaluate(self, dataset):
+        '''Evaluate the current model parameters on a dataset.
+
+        Parameters
+        ----------
+        dataset : :class:`theanets.dataset.Dataset`
+            A set of data to use for evaluating the model.
 
         Returns
         -------
-        waiting : bool
-            True iff we are still willing to wait for validation loss
-            improvements.
+        monitors : OrderedDict
+            A dictionary mapping monitor names to values. Monitors are
+            quantities of interest during training---for example, loss function,
+            accuracy, or whatever the layers in the network define.
+        '''
+        values = [self.f_eval(*x) for _, x in zip(max_batches, dataset)]
+        monitors = zip(self._monitor_names, np.mean(values, axis=0))
+        return collections.OrderedDict(monitors)
+
+    def test_patience(self, monitors):
+        '''Test whether our patience with training has elapsed.
+
+        Parameters
+        ----------
+        monitors : dict
+            A dictionary mapping monitor names to values. The 'loss' key from
+            this dictionary will be used to evaluate training progress.
+
+        Returns
+        -------
+        elapsed : bool
+            True iff our patience has elapsed and the model is no longer
+            improving.
         '''
         self._curr_iter += 1
-        monitors = list(zip(
-            self._monitor_names,
-            np.mean([self.f_eval(*x) for x in valid_set], axis=0)))
         marker = ''
-        # this is the same as: (loss_i - loss_f) / loss_i > min improvement
-        _, loss = monitors[0]
+        loss = monitors['loss']
         if self._best_loss - loss > self._best_loss * self.min_improvement:
             self._best_loss = loss
             self._best_iter = self._curr_iter
             self._best_params = [p.get_value().copy() for p in self.params]
             marker = ' *'
-        info = ' '.join('%s=%.2f' % el for el in monitors)
-        logging.info('validation %i %s%s', self._curr_iter - 1, info, marker)
-        return self._curr_iter - self._best_iter <= self.patience
+        self.log(monitors, self._curr_iter - 1, 'validation', marker)
+        return self._curr_iter - self._best_iter > self.patience
 
     def train(self, train_set, valid_set=None, **kwargs):
         '''Train a model using a training and validation set.
@@ -271,32 +305,27 @@ class SGD(Trainer):
             tuned.
         '''
         iteration = 0
+        training = validation = None
         while True:
             if not iteration % self.validate_every:
                 try:
-                    if not self.evaluate(valid_set):
-                        logging.info('patience elapsed, bailing out')
-                        break
+                    validation = self.evaluate(valid_set)
                 except KeyboardInterrupt:
                     logging.info('interrupted!')
                     break
-
+                if self.test_patience(validation):
+                    logging.info('patience elapsed!')
+                    break
             try:
-                monitors = list(zip(
+                training = collections.OrderedDict(zip(
                     self._monitor_names,
                     np.mean([self.train_minibatch(*x) for x in train_set], axis=0)))
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
-
-            info = ' '.join('%s=%.2f' % el for el in monitors)
-            logging.info('%s %i %s', self.__class__.__name__, iteration + 1, info)
             iteration += 1
-
-            monitors = dict(monitors)
-            monitors['J'] = monitors['loss']
-            yield monitors
-
+            self.log(training, iteration)
+            yield training
         self.set_params(self._best_params)
 
     def train_minibatch(self, *x):
@@ -604,15 +633,17 @@ class Scipy(Trainer):
             logging.info('scipy.%s %i %s', self.method, iteration + 1, desc)
 
         iteration = 0
+        training = validation = None
         while True:
-            try:
-                if not self.evaluate(valid_set):
-                    logging.info('patience elapsed, bailing out')
+            if not iteration % self.validate_every:
+                try:
+                    validation = self.evaluate(valid_set)
+                except KeyboardInterrupt:
+                    logging.info('interrupted!')
                     break
-            except KeyboardInterrupt:
-                logging.info('interrupted!')
-                break
-
+                if self.test_patience(validation):
+                    logging.info('patience elapsed!')
+                    break
             try:
                 res = scipy.optimize.minimize(
                     fun=self.function_at,
@@ -623,14 +654,14 @@ class Scipy(Trainer):
                     callback=display,
                     options=dict(maxiter=self.validate_every),
                 )
+                self.set_params(self.flat_to_arrays(res.x))
+                training = self.evaluate(train_set)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
-
-            self.set_params(self.flat_to_arrays(res.x))
             iteration += 1
-            yield dict(J=res.fun, loss=res.fun)
-
+            self.log(training, iteration)
+            yield training
         self.set_params(self._best_params)
 
 
@@ -697,7 +728,7 @@ class HF(Trainer):
     def train(self, train_set, valid_set=None, **kwargs):
         self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
-        yield dict(J=-1, loss=-1)
+        yield dict(loss=-1)
 
 
 class Sample(Trainer):
@@ -757,7 +788,7 @@ class Sample(Trainer):
                     samples = ifci(self.network.feed_forward(
                         first(t))[i-1] for t in train_set)
 
-        yield {'loss': -1}
+        yield dict(loss=-1)
 
 
 class Layerwise(Trainer):

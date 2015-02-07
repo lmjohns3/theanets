@@ -42,6 +42,7 @@ of machine learning research.
 '''
 
 import climate
+import collections
 import itertools
 import numpy as np
 import numpy.random as rng
@@ -195,7 +196,7 @@ class Trainer(object):
             quantities of interest during training---for example, loss function,
             accuracy, or whatever the layers in the network define.
         '''
-        values = [self.f_eval(*x) for _, x in zip(max_batches, dataset)]
+        values = [self.f_eval(*x) for x in dataset]
         monitors = zip(self._monitor_names, np.mean(values, axis=0))
         return collections.OrderedDict(monitors)
 
@@ -304,7 +305,7 @@ class SGD(Trainer):
                              name='{}_{}'.format(param.name, name))
 
     def step(self, dataset):
-        [self.f_learn(*x) for x in train_set]
+        [self.f_learn(*x) for x in dataset]
 
 
 class NAG(SGD):
@@ -575,7 +576,7 @@ class Scipy(Trainer):
             settings, using the given dataset.
         '''
         self.set_params(self.flat_to_arrays(x))
-        return np.mean([self.f_eval(*x)[0] for x in train_set])
+        return self.evaluate(dataset)['loss']
 
     def gradient_at(self, x, dataset):
         '''Compute the gradients of the loss function at given parameter values.
@@ -594,7 +595,7 @@ class Scipy(Trainer):
         '''
         self.set_params(self.flat_to_arrays(x))
         grads = [[] for _ in range(len(self.params))]
-        for x in train_set:
+        for x in dataset:
             for i, g in enumerate(self.f_grad(*x)):
                 grads[i].append(np.asarray(g))
         return self.arrays_to_flat([np.mean(g, axis=0) for g in grads])
@@ -604,7 +605,7 @@ class Scipy(Trainer):
             fun=self.function_at,
             jac=self.gradient_at,
             x0=self.arrays_to_flat(self._best_params),
-            args=(train_set, ),
+            args=(dataset, ),
             method=self.method,
             options=dict(maxiter=self.validate_every),
         )

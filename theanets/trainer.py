@@ -20,14 +20,12 @@
 
 '''This module contains optimization methods for neural networks.
 
-Several of the optimization methods --- namely, :class:`SGD`, :class:`Rprop`,
-:class:`RmsProp`, :class:`ADADELTA`, :class:`HF`, and :class:`Scipy` --- are
+Most of the optimization methods (mostly the ones based on gradient descent) are
 general-purpose optimization routines that happen to be pretty good for training
-neural networks. Other methods --- :class:`Sample`,
-:class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are
-specific to neural networks. Despite the difference in generality, all of the
-training routines implemented here assume that a :class:`Network
-<theanets.feedforward.Network>` is being optimized.
+neural networks. Other methods --- :class:`Sample`, :class:`Layerwise`, and
+:class:`UnsupervisedPretrainer` --- are specific to neural networks. Despite the
+difference in generality, all of the training routines implemented here assume
+that a :class:`Network <theanets.feedforward.Network>` is being optimized.
 
 Most of the general-purpose optimization routines in this module are based on
 the :class:`SGD` parent and optimize the loss function at hand by taking small
@@ -38,7 +36,6 @@ local gradient information, they are not guaranteed to find a global optimum for
 nonlinear losses. Whether this is a problem or not depends on your task, but
 these approaches have been shown to be quite useful in the past couple decades
 of machine learning research.
-
 '''
 
 import climate

@@ -18,7 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-'''This file contains an object encapsulating a main process.'''
+'''This module contains an object encapsulating a "main" process.
+
+The code here is aimed at wrapping the most common tasks involved in creating
+and, especially, training a neural network model.
+'''
 
 import climate
 import datetime
@@ -91,7 +95,6 @@ rmsprop: RMS-scaled Backpropagation
   --rms-halflife
 
 adadelta: ADADELTA
-  --learning-rate (sets RMS normalization)
   --rms-halflife
 
 bfgs, cg, dogleg, newton-cg, trust-ncg
@@ -103,7 +106,6 @@ hf: Hessian-Free
   --cg-batches
   --initial-lambda
   --global-backtracking
-  --num-updates
   --preconditioner
 
 Miscellaneous
@@ -129,14 +131,14 @@ class Experiment:
         The only input this constructor needs is the Python class of the network
         to build. Other configuration---for example, creating the appropriate
         trainer class---typically takes place by parsing command-line argument
-        values, or by a call to train(...).
+        values, or by a call to :func:`train`.
 
         Any keyword arguments provided to the constructor will be used to
         override values passed on the command line. (Typically this is used to
         provide experiment-specific default values for command line arguments
         that have no global defaults, e.g., network architecture.)
         '''
-        self.args, self.kwargs = climate.parse_args(**overrides)
+        _, self.kwargs = climate.parse_args(**overrides)
         if self.kwargs.get('activation') and 'hidden_activation' not in overrides:
             warnings.warn(
                 'please use --hidden-activation instead of --activation',
@@ -171,13 +173,13 @@ class Experiment:
         Parameters
         ----------
         factory : str or callable
-            A callable that creates a Trainer instance, or a string that maps to
-            a Trainer constructor.
+            A callable that creates a trainer, or a string that maps to a
+            trainer constructor.
 
         Returns
         -------
-        trainer.Trainer :
-            A Trainer instance to alter the parameters of our network.
+        trainer : :class:`trainer.Trainer`
+            A trainer instance to alter the parameters of our network.
         '''
         args = (self.network, ) + args
         if isinstance(factory, str):
@@ -219,15 +221,15 @@ class Experiment:
         ----------
         data : ndarray, (ndarray, ndarray), or callable
             The values that you provide for data will be encapsulated inside a
-            `dataset.Dataset` instance; see that class for documentation on the
-            types of things it needs. In particular, you can currently pass in
-            either a list/array/etc. of data, or a callable that generates data
-            dynamically.
+            :class:`dataset.Dataset` instance; see that class for documentation
+            on the types of things it needs. In particular, you can currently
+            pass in either a list/array/etc. of data, or a callable that
+            generates data dynamically.
 
         Returns
         -------
-        dataset.Dataset :
-            A Dataset capable of providing mini-batches of data to a training
+        data : :class:`dataset.Dataset`
+            A dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
         samples, labels = data, None
@@ -376,7 +378,7 @@ class Experiment:
 
         Returns
         -------
-        Network :
+        network : :class:`feedforward.Network`
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''

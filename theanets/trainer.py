@@ -271,8 +271,7 @@ class Trainer(object):
                     logging.info('patience elapsed!')
                     break
             try:
-                self.step(train_set)
-                training = self.evaluate(train_set)
+                training = self.step(train_set)
             except KeyboardInterrupt:
                 logging.info('interrupted!')
                 break
@@ -311,7 +310,8 @@ class SGD(Trainer):
 
         logging.info('compiling %s learning function', self.__class__.__name__)
         updates = list(network.updates) + list(self.learning_updates())
-        self.f_learn = theano.function(network.inputs, [], updates=updates)
+        self.f_learn = theano.function(
+            network.inputs, self._monitor_exprs, updates=updates)
 
     def learning_updates(self):
         for param, grad in zip(self.params, self.clipped_gradients()):
@@ -332,7 +332,21 @@ class SGD(Trainer):
                              name='{}_{}'.format(param.name, name))
 
     def step(self, dataset):
-        [self.f_learn(*x) for x in dataset]
+        '''Advance the state of the model by one training step.
+
+        Parameters
+        ----------
+        dataset : :class:`Dataset <theanets.dataset.Dataset>`
+            A dataset for training the model.
+
+        Returns
+        -------
+        training : dict
+            A dictionary mapping monitor names to values.
+        '''
+        values = [self.f_learn(*x) for x in dataset]
+        return collections.OrderedDict(
+            zip(self._monitor_names, np.mean(values, axis=0)))
 
 
 class NAG(SGD):
@@ -642,6 +656,18 @@ class Scipy(Trainer):
         return self.arrays_to_flat([np.mean(g, axis=0) for g in grads])
 
     def step(self, dataset):
+        '''Advance the state of the model by one training step.
+
+        Parameters
+        ----------
+        dataset : :class:`Dataset <theanets.dataset.Dataset>`
+            A dataset for training the model.
+
+        Returns
+        -------
+        training : dict
+            A dictionary mapping monitor names to values.
+        '''
         res = scipy.optimize.minimize(
             fun=self.function_at,
             jac=self.gradient_at,
@@ -651,6 +677,7 @@ class Scipy(Trainer):
             options=dict(maxiter=self.validate_every),
         )
         self.set_params(self.flat_to_arrays(res.x))
+        return self.evaluate(dataset)
 
 
 class LM(Trainer):

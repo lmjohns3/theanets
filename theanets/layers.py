@@ -580,6 +580,7 @@ class Tied(Feedforward):
         self.partner = partner
         kwargs['nin'] = partner.nout
         kwargs['nout'] = partner.nin
+        kwargs['name'] = 'tied-{}'.format(partner.name)
         super(Tied, self).__init__(**kwargs)
 
     def transform(self, inputs):
@@ -606,10 +607,7 @@ class Tied(Feedforward):
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
-        count = self._add_bias('b')
-        logging.info('layer %s (tied to %s) %s x %s [%s] %d parameters',
-                     self.name, self.partner.name, self.nin, self.nout,
-                      self.activate.__theanets_name__, count)
+        self._log_setup(self._add_bias('b'))
 
 
 class Classifier(Feedforward):

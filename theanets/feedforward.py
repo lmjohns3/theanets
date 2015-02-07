@@ -345,24 +345,26 @@ class Network(object):
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
-        outputs = []
-        monitors = []
-        updates = []
-        for i, layer in enumerate(self.layers):
-            if i == 0:
-                # input to first layer is data.
-                inputs = self.x
-            elif i == len(self.layers) - 1:
-                # inputs to last layer is output of layers to decode.
-                inputs = outputs[-self.kwargs.get('decode_from', 1):]
-            else:
-                # inputs to other layers are outputs of previous layer.
-                inputs = outputs[-1]
-            out, mon, upd = layer.output(inputs)
-            outputs.append(out)
-            monitors.extend(mon)
-            updates.extend(upd)
-        return outputs, monitors, updates
+        if not hasattr(self, '_graph'):
+            outputs = []
+            monitors = []
+            updates = []
+            for i, layer in enumerate(self.layers):
+                if i == 0:
+                    # input to first layer is data.
+                    inputs = self.x
+                elif i == len(self.layers) - 1:
+                    # inputs to last layer is output of layers to decode.
+                    inputs = outputs[-self.kwargs.get('decode_from', 1):]
+                else:
+                    # inputs to other layers are outputs of previous layer.
+                    inputs = outputs[-1]
+                out, mon, upd = layer.output(inputs)
+                outputs.append(out)
+                monitors.extend(mon)
+                updates.extend(upd)
+            self._graph = outputs, monitors, updates
+        return self._graph
 
     @property
     def outputs(self):

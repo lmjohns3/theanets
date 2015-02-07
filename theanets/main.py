@@ -254,16 +254,35 @@ class Experiment:
         '''Train the network until the trainer converges.
 
         All arguments are passed to :func:`itertrain`.
+
+        Returns
+        -------
+        training : dict
+            A dictionary of monitor values computed using the training dataset,
+            at the conclusion of training. This dictionary will at least contain
+            a 'loss' key that indicates the value of the loss function. Other
+            keys may be available depending on the trainer being used.
+        validation : dict
+            A dictionary of monitor values computed using the validation
+            dataset, at the conclusion of training.
         '''
-        for _ in self.itertrain(*args, **kwargs):
+        for monitors in self.itertrain(*args, **kwargs):
             pass
+        return monitors
 
     def itertrain(self, train_set=None, valid_set=None, optimize=None, **kwargs):
         '''Train our network, one batch at a time.
 
-        The output of this method is whatever is logged to the console during
-        training, but the method pauses after each trainer completes a training
-        iteration.
+        This method yields a series of ``(train, valid)`` monitor pairs. The
+        ``train`` value is a dictionary mapping names to monitor values
+        evaluated on the training dataset. The ``valid`` value is also a
+        dictionary mapping names to values, but these values are evaluated on
+        the validation dataset.
+
+        Because validation might not occur every training iteration, the
+        validation monitors might be repeated for multiple training iterations.
+        It is probably most helpful to think of the validation monitors as being
+        the "most recent" values that have been computed.
 
         After training completes, the network attribute of this class will
         contain the trained network parameters.
@@ -286,11 +305,14 @@ class Experiment:
 
         Returns
         -------
-        sequence of dict :
-            This method generates a series of dictionaries that represent the
-            cost values of the model being trained. Each dictionary should have
-            a "J" key providing the total cost of the model with respect to the
-            training dataset. Other keys are available depending on the trainer.
+        training : dict
+            A dictionary of monitor values computed using the training dataset,
+            at the conclusion of training. This dictionary will at least contain
+            a 'loss' key that indicates the value of the loss function. Other
+            keys may be available depending on the trainer being used.
+        validation : dict
+            A dictionary of monitor values computed using the validation
+            dataset, at the conclusion of training.
         '''
         # set up datasets
         if valid_set is None:
@@ -320,8 +342,8 @@ class Experiment:
             if not callable(getattr(opt, 'train', None)):
                 opt = self.create_trainer(opt, **kwargs)
             start = datetime.datetime.now()
-            for i, costs in enumerate(opt.train(**sets)):
-                yield costs
+            for i, monitors in enumerate(opt.itertrain(**sets)):
+                yield monitors
                 now = datetime.datetime.now()
                 elapsed = (now - start).total_seconds()
                 if i and progress and (

@@ -72,8 +72,9 @@ actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
 <theanets.main.Experiment.itertrain>` method, which you can use directly if you
 want to do something special during training::
 
-  for monitors in exp.itertrain(train, valid, **kwargs):
-      print(monitors['loss'])
+  for t_monitors, v_monitors in exp.itertrain(train, valid, **kwargs):
+      print('training loss:', t_monitors['loss'])
+      print('validation loss:', v_monitors['loss'])
 
 Trainers yield a dictionary after each training iteration. The keys and values
 in each dictionary give the costs and monitors that are computed during

@@ -149,43 +149,6 @@ class Trainer(object):
         self.f_eval = theano.function(
             network.inputs, self._monitor_exprs, updates=network.updates)
 
-    def flat_to_arrays(self, x):
-        '''Convert a parameter vector to a sequence of parameter arrays.
-
-        Parameters
-        ----------
-        flat : ndarray
-            A one-dimensional numpy array containing flattened parameter values
-            for all parameters in our model.
-
-        Returns
-        -------
-        arrays : sequence of ndarray
-            Values of the parameters in our model.
-        '''
-        x = x.astype(self._dtype)
-        return [x[o:o+n].reshape(s) for s, o, n in
-                zip(self._shapes, self._starts, self._counts)]
-
-    def arrays_to_flat(self, arrays):
-        '''Convert a sequence of parameter arrays to a vector.
-
-        Parameters
-        ----------
-        arrays : sequence of ndarray
-            Values of the parameters in our model.
-
-        Returns
-        -------
-        flat : ndarray
-            A one-dimensional numpy array containing flattened parameter values
-            for all parameters in our model.
-        '''
-        x = np.zeros((sum(self._counts), ), self._dtype)
-        for arr, o, n in zip(arrays, self._starts, self._counts):
-            x[o:o+n] = arr.ravel()
-        return x
-
     def set_params(self, targets):
         '''Set the values of the parameters to the given target values.
 
@@ -554,11 +517,77 @@ class Scipy(Trainer):
         logging.info('compiling gradient function')
         self.f_grad = theano.function(network.inputs, TT.grad(self.loss, self.params))
 
-    def function_at(self, x, train_set):
+    def flat_to_arrays(self, x):
+        '''Convert a parameter vector to a sequence of parameter arrays.
+
+        Parameters
+        ----------
+        flat : ndarray
+            A one-dimensional numpy array containing flattened parameter values
+            for all parameters in our model.
+
+        Returns
+        -------
+        arrays : sequence of ndarray
+            Values of the parameters in our model.
+        '''
+        x = x.astype(self._dtype)
+        return [x[o:o+n].reshape(s) for s, o, n in
+                zip(self._shapes, self._starts, self._counts)]
+
+    def arrays_to_flat(self, arrays):
+        '''Convert a sequence of parameter arrays to a vector.
+
+        Parameters
+        ----------
+        arrays : sequence of ndarray
+            Values of the parameters in our model.
+
+        Returns
+        -------
+        flat : ndarray
+            A one-dimensional numpy array containing flattened parameter values
+            for all parameters in our model.
+        '''
+        x = np.zeros((sum(self._counts), ), self._dtype)
+        for arr, o, n in zip(arrays, self._starts, self._counts):
+            x[o:o+n] = arr.ravel()
+        return x
+
+    def function_at(self, x, dataset):
+        '''Compute the value of the loss function at given parameter values.
+
+        Parameters
+        ----------
+        x : ndarray
+            An array of parameter values to set our model at.
+        dataset : :class:`theanets.dataset.Dataset`
+            A set of data over which to compute our loss function.
+
+        Returns
+        -------
+        loss : float
+            Scalar value of the loss function, evaluated at the given parameter
+            settings, using the given dataset.
+        '''
         self.set_params(self.flat_to_arrays(x))
         return np.mean([self.f_eval(*x)[0] for x in train_set])
 
-    def gradient_at(self, x, train_set):
+    def gradient_at(self, x, dataset):
+        '''Compute the gradients of the loss function at given parameter values.
+
+        Parameters
+        ----------
+        x : ndarray
+            An array of parameter values to set our model at.
+        dataset : :class:`theanets.dataset.Dataset`
+            A set of data over which to compute our gradients.
+
+        Returns
+        -------
+        gradients : ndarray
+            A vector of gradient values, of the same dimensions as `x`.
+        '''
         self.set_params(self.flat_to_arrays(x))
         grads = [[] for _ in range(len(self.params))]
         for x in train_set:

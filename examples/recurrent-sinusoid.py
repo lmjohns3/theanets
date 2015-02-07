@@ -25,7 +25,7 @@ def sines():
     return concat(time, freq), concat(np.sin(z), np.cos(z)), mask
 
 src, tgt, msk = sines()
-logging.info('data batches: %s -> %s [%s]', src.shape, tgt.shape, msk.shape)
+logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,

@@ -226,8 +226,15 @@ class Trainer(object):
         self.log(monitors, self._curr_iter - 1, 'validation', marker)
         return self._curr_iter - self._best_iter > self.patience
 
-    def train(self, train_set, valid_set=None, **kwargs):
+    def itertrain(self, train_set, valid_set=None, **kwargs):
         '''Train a model using a training and validation set.
+
+        This method yields a series of monitor values to the caller. After every
+        iteration, a pair of monitor dictionaries is generated: one evaluated on
+        the training dataset, and another evaluated on the validation dataset.
+        The validation monitors might not be updated during every training
+        iteration; in this case, the most recent validation monitors will be
+        yielded along with the training monitors.
 
         Parameters
         ----------
@@ -239,11 +246,12 @@ class Trainer(object):
 
         Returns
         -------
-        monitors : sequence of dict
-            This method must yield a series of monitor values to the caller.
-            Typically one monitor dictionary is yielded after each pass through
-            the training data, but at a minimum a dictionary must be provided
-            when training has stopped.
+        training : dict
+            A dictionary mapping monitor names to values, evaluated on the
+            training dataset.
+        validation : dict
+            A dictionary containing monitor values evaluated on the validation
+            dataset.
         '''
         iteration = 0
         training = validation = None
@@ -265,7 +273,7 @@ class Trainer(object):
                 break
             iteration += 1
             self.log(training, iteration)
-            yield training
+            yield training, validation
         self.set_params(self._best_params)
 
 
@@ -672,10 +680,36 @@ class HF(Trainer):
             kwargs.pop(k)
         self.kwargs = kwargs
 
-    def train(self, train_set, valid_set=None, **kwargs):
+    def itertrain(self, train_set, valid_set=None, **kwargs):
+        '''Train a model using a training and validation set.
+
+        This method yields a series of monitor values to the caller. After every
+        iteration, a pair of monitor dictionaries is generated: one evaluated on
+        the training dataset, and another evaluated on the validation dataset.
+        The validation monitors might not be updated during every training
+        iteration; in this case, the most recent validation monitors will be
+        yielded along with the training monitors.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.dataset.Dataset`
+            A set of training data for computing updates to model parameters.
+        valid_set : :class:`theanets.dataset.Dataset`
+            A set of validation data for computing monitor values and
+            determining when the loss has stopped improving.
+
+        Returns
+        -------
+        training : dict
+            A dictionary mapping monitor names to values, evaluated on the
+            training dataset.
+        validation : dict
+            A dictionary containing monitor values evaluated on the validation
+            dataset.
+        '''
         self.set_params(self.opt.train(
             train_set, kwargs['cg_set'], validation=valid_set, **self.kwargs))
-        yield dict(loss=-1)
+        yield self.evaluate(train_set), self.evaluate(valid_set)
 
 
 class Sample(Trainer):
@@ -704,7 +738,33 @@ class Sample(Trainer):
     def __init__(self, network, **kwargs):
         self.network = network
 
-    def train(self, train_set, valid_set=None, **kwargs):
+    def itertrain(self, train_set, valid_set=None, **kwargs):
+        '''Train a model using a training and validation set.
+
+        This method yields a series of monitor values to the caller. After every
+        iteration, a pair of monitor dictionaries is generated: one evaluated on
+        the training dataset, and another evaluated on the validation dataset.
+        The validation monitors might not be updated during every training
+        iteration; in this case, the most recent validation monitors will be
+        yielded along with the training monitors.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.dataset.Dataset`
+            A set of training data for computing updates to model parameters.
+        valid_set : :class:`theanets.dataset.Dataset`
+            A set of validation data for computing monitor values and
+            determining when the loss has stopped improving.
+
+        Returns
+        -------
+        training : dict
+            A dictionary mapping monitor names to values, evaluated on the
+            training dataset.
+        validation : dict
+            A dictionary containing monitor values evaluated on the validation
+            dataset.
+        '''
         ifci = itertools.chain.from_iterable
 
         first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
@@ -735,7 +795,7 @@ class Sample(Trainer):
                     samples = ifci(self.network.feed_forward(
                         first(t))[i-1] for t in train_set)
 
-        yield dict(loss=-1)
+        yield self.evaluate(train_set), self.evaluate(valid_set)
 
 
 class Layerwise(Trainer):
@@ -761,21 +821,32 @@ class Layerwise(Trainer):
         self.args = args
         self.kwargs = kwargs
 
-    def train(self, train_set, valid_set=None, **kwargs):
-        '''Train a network using a layerwise strategy.
+    def itertrain(self, train_set, valid_set=None, **kwargs):
+        '''Train a model using a training and validation set.
+
+        This method yields a series of monitor values to the caller. After every
+        iteration, a pair of monitor dictionaries is generated: one evaluated on
+        the training dataset, and another evaluated on the validation dataset.
+        The validation monitors might not be updated during every training
+        iteration; in this case, the most recent validation monitors will be
+        yielded along with the training monitors.
 
         Parameters
         ----------
         train_set : :class:`theanets.dataset.Dataset`
-            A training set to use while training the weights in our network.
+            A set of training data for computing updates to model parameters.
         valid_set : :class:`theanets.dataset.Dataset`
-            A validation set to use while training the weights in our network.
+            A set of validation data for computing monitor values and
+            determining when the loss has stopped improving.
 
         Returns
         -------
-        monitors : sequence of dict
-            Generates a series of monitor values as the network weights are
-            tuned.
+        training : dict
+            A dictionary mapping monitor names to values, evaluated on the
+            training dataset.
+        validation : dict
+            A dictionary containing monitor values evaluated on the validation
+            dataset.
         '''
         net = self.network
         outact = net.output_activation
@@ -798,7 +869,7 @@ class Layerwise(Trainer):
                      nout=original[-1].nout,
                      activation=outact)
             trainer = self.factory(net, *self.args, **self.kwargs)
-            for monitors in trainer.train(train_set, valid_set):
+            for monitors in trainer.itertrain(train_set, valid_set):
                 yield monitors
         net.layers = original
 
@@ -820,7 +891,33 @@ class UnsupervisedPretrainer(Trainer):
         self.args = args
         self.kwargs = kwargs
 
-    def train(self, train_set, valid_set=None, **kwargs):
+    def itertrain(self, train_set, valid_set=None, **kwargs):
+        '''Train a model using a training and validation set.
+
+        This method yields a series of monitor values to the caller. After every
+        iteration, a pair of monitor dictionaries is generated: one evaluated on
+        the training dataset, and another evaluated on the validation dataset.
+        The validation monitors might not be updated during every training
+        iteration; in this case, the most recent validation monitors will be
+        yielded along with the training monitors.
+
+        Parameters
+        ----------
+        train_set : :class:`theanets.dataset.Dataset`
+            A set of training data for computing updates to model parameters.
+        valid_set : :class:`theanets.dataset.Dataset`
+            A set of validation data for computing monitor values and
+            determining when the loss has stopped improving.
+
+        Returns
+        -------
+        training : dict
+            A dictionary mapping monitor names to values, evaluated on the
+            training dataset.
+        validation : dict
+            A dictionary containing monitor values evaluated on the validation
+            dataset.
+        '''
         # construct a copy of the input network, with tied weights in an
         # autoencoder configuration.
         lls = list(self.network.layers[:-1])
@@ -836,7 +933,7 @@ class UnsupervisedPretrainer(Trainer):
 
         # train the autoencoder using a layerwise strategy.
         pre = Layerwise(ae, *self.args, **self.kwargs)
-        for monitors in pre.train(train_set, valid_set=valid_set, **kwargs):
+        for monitors in pre.itertrain(train_set, valid_set=valid_set, **kwargs):
             yield monitors
 
         # copy the trained autoencoder weights into our original model.

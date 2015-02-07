@@ -906,7 +906,7 @@ class SupervisedPretrainer(Trainer):
                     name='lwout',
                     nin=original[i].nout,
                     nout=original[-1].nout,
-                    activation=net.output_activation)]
+                    activation=original[-1].kwargs['activation'])]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
             trainer = self.factory(net, *self.args, **self.kwargs)
@@ -959,25 +959,20 @@ class UnsupervisedPretrainer(Trainer):
             A dictionary containing monitor values evaluated on the validation
             dataset.
         '''
-        # construct a copy of the input network, with tied weights in an
-        # autoencoder configuration.
-        lls = list(self.network.layers[:-1])
-        for l in lls[::-1][:-1]:
-            lls.append(layers.build('tied', partner=l, activation=self.network.hidden_activation))
-        lls.append(layers.build('tied', partner=lls[0], activation='linear'))
-        ae = feedforward.Autoencoder(tied_weights=True, layers=lls)
+        # construct a "shadow" of the input network, using the original
+        # network's encoding layers, with tied weights in an autoencoder
+        # configuration.
+        layers_ = list(self.network.layers[:-1])
+        for l in layers_[::-1][:-2]:
+            layers_.append(layers.build(
+                'tied', partner=l, activation=l.kwargs['activation']))
+        layers_.append(layers.build(
+            'tied', partner=layers_[1], activation='linear'))
 
-        # copy the current weights into the autoencoder.
-        for l, layer in enumerate(self.network.layers[:-1]):
-            for param in layer.params:
-                ae.find(l, param.name).set_value(param.get_value())
+        logging.info('creating shadow network')
+        ae = feedforward.Autoencoder(tied_weights=True, layers=layers_)
 
-        # train the autoencoder using a layerwise strategy.
+        # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(ae, *self.args, **self.kwargs)
         for monitors in pre.itertrain(train_set, valid_set=valid_set, **kwargs):
             yield monitors
-
-        # copy the trained autoencoder weights into our original model.
-        for l, layer in enumerate(self.network.layers[:-1]):
-            for param in layer.params:
-                param.set_value(ae.find(l, param.name).get_value())

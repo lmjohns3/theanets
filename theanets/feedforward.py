@@ -715,7 +715,14 @@ class Autoencoder(Network):
         if not self.tied_weights:
             return super(Autoencoder, self).encoding_layers
         error = 'with --tied-weights, --layers must be an odd-length palindrome'
-        sizes = self.kwargs['layers']
+        sizes = []
+        for layer in self.kwargs['layers']:
+            if isinstance(layer, layers.Layer):
+                sizes.append(layer.nout)
+            if isinstance(layer, int):
+                sizes.append(layer)
+            if isinstance(layer, dict):
+                sizes.append(layer.get('size', layer.get('nout', -1)))
         assert len(sizes) % 2 == 1, error
         k = len(sizes) // 2
         encode = np.asarray(sizes[:k])

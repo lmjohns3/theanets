@@ -12,22 +12,26 @@ climate.enable_default_logging()
 BATCH_SIZE = 32
 T = np.linspace(0, 1, 100)
 
-def pair():
-    c = lambda a, b: np.concatenate([a, b], axis=2).astype('f')
-    f = np.exp(rng.uniform(0, 1, size=BATCH_SIZE))
-    t = np.outer(T, np.ones(BATCH_SIZE))[..., None]
-    s = np.outer(np.ones_like(T), f)[..., None]
-    z = 2 * np.pi * s * t
-    return c(t, s), c(np.sin(z), np.cos(z))
+concat = lambda a, b: np.concatenate([a, b], axis=2).astype('f')
 
-src, tgt = pair()
-logging.info('data batches: %s -> %s', src.shape, tgt.shape)
+mask = np.ones((len(T), BATCH_SIZE, 2), bool)
+mask[:3] = 0
+
+def sines():
+    f = np.exp(rng.uniform(0, 1, size=BATCH_SIZE))
+    time = np.outer(T, np.ones(BATCH_SIZE))[..., None]
+    freq = np.outer(np.ones_like(T), f)[..., None]
+    z = 2 * np.pi * freq * time
+    return concat(time, freq), concat(np.sin(z), np.cos(z)), mask
+
+src, tgt, msk = sines()
+logging.info('data batches: %s -> %s [%s]', src.shape, tgt.shape, msk.shape)
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
     layers=(2, ('arrnn', 10), 2),
     batch_size=BATCH_SIZE)
-e.train(pair)
+e.train(sines)
 prd = e.network.predict(src)
 
 for i in range(3):

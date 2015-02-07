@@ -290,8 +290,8 @@ class SGD(Trainer):
     current "velocity" :math:`v` with the current gradient :math:`\nabla(p)`:
 
     .. math::
-        v_{t+1} = \mu * v_t - \alpha \nabla(p_t)
-        p_{t+1} = p_t + v_{t+1}.
+        v_{t+1} = \mu * v_t - \alpha \nabla(p_t) \\
+        p_{t+1} = p_t + v_{t+1}
 
     Without momentum (or when :math:`\mu = 0`), these updates reduce to
     :math:`p_{t+1} = p_t - \alpha \nabla(p_t)`, which just takes steps downhill

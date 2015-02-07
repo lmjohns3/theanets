@@ -186,12 +186,12 @@ class Experiment:
             if factory.lower() in trainer.Scipy.METHODS:
                 args = (self.network, factory)
                 factory = trainer.Scipy
-            elif factory.lower().startswith('l'):
+            elif factory.lower().startswith('layer'):
                 if len(args) == 1:
                     # use RmsProp trainer by default for individual layers
                     args += (trainer.RmsProp, )
-                factory = trainer.Layerwise
-            elif factory.lower().startswith('p'):
+                factory = trainer.SupervisedPretrainer
+            elif factory.lower().startswith('pre'):
                 if len(args) == 1:
                     # use RmsProp trainer by default for pretrainer
                     args += (trainer.RmsProp, )

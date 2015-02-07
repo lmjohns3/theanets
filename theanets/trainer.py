@@ -22,10 +22,11 @@
 
 Most of the optimization methods (mostly the ones based on gradient descent) are
 general-purpose optimization routines that happen to be pretty good for training
-neural networks. Other methods --- :class:`Sample`, :class:`Layerwise`, and
-:class:`UnsupervisedPretrainer` --- are specific to neural networks. Despite the
-difference in generality, all of the training routines implemented here assume
-that a :class:`Network <theanets.feedforward.Network>` is being optimized.
+neural networks. Other methods --- :class:`Sample`,
+:class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are
+specific to neural networks. Despite the difference in generality, all of the
+training routines implemented here assume that a :class:`Network
+<theanets.feedforward.Network>` is being optimized.
 
 Most of the general-purpose optimization routines in this module are based on
 the :class:`SGD` parent and optimize the loss function at hand by taking small
@@ -802,21 +803,31 @@ class Sample(Trainer):
         yield self.evaluate(train_set), self.evaluate(valid_set)
 
 
-class Layerwise(Trainer):
-    '''This trainer adapts parameters using a variant of layerwise pretraining.
+class SupervisedPretrainer(Trainer):
+    '''This trainer adapts parameters using a supervised pretraining approach.
 
     In this variant, we create "taps" at increasing depths into the original
     network weights, training only those weights that are below the tap. So, for
     a hypothetical binary classifier network with layers [3, 4, 5, 6, 2], we
     would first insert a tap after the first hidden layer (effectively a binary
-    classifier in a [3, 4, 2] configuration) and train just that network. Then
-    we insert a tap at the next layer (effectively training a [3, 4, 5, 2]
-    classifier, re-using the trained weights for the 3x4 layer), and so forth.
+    classifier in a [3, 4, (2)] configuration, where (2) indicates that the
+    corresponding layer is the tap, not present in the original) and train just
+    that network. Then we insert a tap at the next layer (effectively training a
+    [3, 4, 5, (2)] classifier, re-using the trained weights for the 3 x 4
+    layer), and so forth. When we get to training the last layer, i.e., [3, 4,
+    5, 6, 2], then we just train all of the layers in the original network.
 
-    By inserting taps into the original network, we preserve all of the relevant
-    settings of noise, dropouts, loss function and the like, in addition to
-    removing the need for copying trained weights around between different
-    Network instances.
+    For autoencoder networks with tied weights, consider an example with layers
+    [3, 4, 5, 6, 5', 4', 3'], where the prime indicates that the layer is tied.
+    In cases like this, we train the "outermost" pair of layers first, then add
+    then next pair of layers inward, etc. The training for our example would
+    start with [3, 4, 3'], then proceed to [3, 4, 5, 4', 3'], and then finish by
+    training all the layers in the original network.
+
+    By using layers from the original network whenever possible, we preserve all
+    of the relevant settings of noise, dropouts, loss function and the like, in
+    addition to removing the need for copying trained weights around between
+    different :class:`theanets.feedforward.Network` instances.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):
@@ -934,7 +945,7 @@ class UnsupervisedPretrainer(Trainer):
                 ae.find(l, param.name).set_value(param.get_value())
 
         # train the autoencoder using a layerwise strategy.
-        pre = Layerwise(ae, *self.args, **self.kwargs)
+        pre = SupervisedPretrainer(ae, *self.args, **self.kwargs)
         for monitors in pre.itertrain(train_set, valid_set=valid_set, **kwargs):
             yield monitors
 

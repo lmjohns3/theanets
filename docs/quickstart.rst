@@ -235,35 +235,10 @@ subsequent keyword arguments will be passed to the training algorithm; these
 arguments typically specify hyperparameters of the algorithm like the learning
 rate and so forth.
 
-The available training methods are described in the :mod:`reference
-documentation <theanets.trainer>`; here we've specified :class:`Nesterov's
+The available training methods are described in :ref:`training-gradient-methods`
+and :ref:`training-other-methods`; here we've specified :class:`Nesterov's
 Accelerated Gradient <theanets.trainer.NAG>`, a type of stochastic gradient
 descent with momentum.
-
-Saving and loading
-------------------
-
-The :class:`Experiment <theanets.main.Experiment>` class can snapshot your model
-automatically during training. When you call :func:`Experiment.train()
-<theanets.main.Experiment.train>`, you can provide the following keyword
-arguments:
-
-- ``save_progress``: This should be a string containing a filename where the
-  model should be saved.
-
-- ``save_every``: This should be a numeric value specifying how often the model
-  should be saved during training. If this value is positive, it specifies the
-  number of training iterations between checkpoints; if it is negative, it
-  specifies the number of minutes that are allowed to elapse between
-  checkpoints.
-
-If you provide a ``save_progress`` argument when you construct your experiment,
-and a model exists in the given snapshot file, then that model will be loaded
-from disk.
-
-You can also save and load models manually by calling :func:`Experiment.save()
-<theanets.main.Experiment.save>` and :func:`Experiment.load()
-<theanets.main.Experiment.load>`, respectively.
 
 Using the model
 ---------------

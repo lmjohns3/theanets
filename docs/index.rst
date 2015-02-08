@@ -76,5 +76,8 @@ Documentation
    :maxdepth: 2
 
    quickstart
-   guide
+   creating
+   training
+   using
+   misc
    reference

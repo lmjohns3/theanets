@@ -82,51 +82,39 @@ class Network(feedforward.Network):
 
     Parameters
     ----------
-    layers : sequence of int
-        A sequence of integers specifying the number of units at each layer. As
-        an example, layers=(10, 20, 3) has one "input" layer with 10 units, one
-        "hidden" layer with 20 units, and one "output" layer with 3 units. That
-        is, inputs should be of length 10, and outputs will be of length 3.
-
-    recurrent_layers : sequence of int, optional
-        A sequence of integers specifying the indices of recurrent layers in the
-        network. Non-recurrent network layers receive input only from the
-        preceding layers for a given input, while recurrent layers also receive
-        input from the output of the recurrent layer from the previous time
-        step. Defaults to [len(layers) // 2 - 1], i.e., the "middle" layer of
-        the network is the only recurrent layer.
-
-    recurrent_sparsity : float in (0, 1), optional
-        Ensure that the given fraction of recurrent model weights is initialized
-        to zero. Defaults to 0, which makes all recurrent weights nonzero.
-
+    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
+        A sequence of values specifying the layer configuration for the network.
+        For more information, please see :ref:`creating-specifying-layers`.
     hidden_activation : str, optional
-        The name of an activation function to use on hidden network units.
-        Defaults to 'sigmoid'.
-
+        The name of an activation function to use on hidden network layers by
+        default. Defaults to 'logistic'.
     output_activation : str, optional
-        The name of an activation function to use on output units. Defaults to
-        'linear'.
-
-    rng : theano.RandomStreams, optional
+        The name of an activation function to use on the output layer by
+        default. Defaults to 'linear'.
+    rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-
     input_noise : float, optional
         Standard deviation of desired noise to inject into input.
-
     hidden_noise : float, optional
         Standard deviation of desired noise to inject into hidden unit
         activation output.
-
-    input_dropouts : float, optional
+    input_dropouts : float in [0, 1], optional
         Proportion of input units to randomly set to 0.
-
-    hidden_dropouts : float, optional
+    hidden_dropouts : float in [0, 1], optional
         Proportion of hidden unit activations to randomly set to 0.
+    decode_from : positive int, optional
+        Any of the hidden layers can be tapped at the output. Just specify a
+        value greater than 1 to tap the last N hidden layers. The default is 1,
+        which decodes from just the last layer.
 
-    recurrent_error_start : int, optional
-        Compute error metrics starting at this time step. (Defaults to 3.)
+    Attributes
+    ----------
+    layers : list of :class:`theanets.Layer`
+        A list of the layers in this network model.
+    kwargs : dict
+        A dictionary containing the keyword arguments used to construct the
+        network.
     '''
 
     @property

@@ -157,37 +157,27 @@ class Network(object):
 
     Parameters
     ----------
-    layers : sequence of int
-        A sequence of integers specifying the number of units at each layer. As
-        an example, layers=(10, 20, 3) has one "input" layer with 10 units, one
-        "hidden" layer with 20 units, and one "output" layer with 3 units. That
-        is, inputs should be of length 10, and outputs will be of length 3.
-
+    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
+        A sequence of values specifying the layer configuration for the network.
+        For more information, please see :ref:`creating-specifying-layers`.
     hidden_activation : str, optional
-        The name of an activation function to use on hidden network units.
-        Defaults to 'sigmoid'.
-
+        The name of an activation function to use on hidden network layers by
+        default. Defaults to 'logistic'.
     output_activation : str, optional
-        The name of an activation function to use on output units. Defaults to
-        'linear'.
-
+        The name of an activation function to use on the output layer by
+        default. Defaults to 'linear'.
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-
     input_noise : float, optional
         Standard deviation of desired noise to inject into input.
-
     hidden_noise : float, optional
         Standard deviation of desired noise to inject into hidden unit
         activation output.
-
     input_dropouts : float in [0, 1], optional
         Proportion of input units to randomly set to 0.
-
     hidden_dropouts : float in [0, 1], optional
         Proportion of hidden unit activations to randomly set to 0.
-
     decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
@@ -196,7 +186,7 @@ class Network(object):
     Attributes
     ----------
     layers : list of :class:`theanets.Layer`
-
+        A list of the layers in this network model.
     kwargs : dict
         A dictionary containing the keyword arguments used to construct the
         network.

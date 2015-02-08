@@ -81,9 +81,9 @@ class SequenceDataset:
     There are some cases (especially when training recurrent networks) when a
     suitable set of training data would be prohibitively expensive to assemble
     in memory as a single ``numpy`` array. To handle these cases, this class can
-    also handle a source dataset that is provided via a Python callable (a
-    function, typically a closure). For more information on using closures to
-    provide data to your model, see the :ref:`guide <guide-data-callables>`.
+    also handle a source dataset that is provided via a Python callable. For
+    more information on using callables to provide data to your model, see
+    :ref:`training-using-callables`.
 
     Parameters
     ----------

@@ -26,27 +26,27 @@ inputs to the network will be of length 10, and outputs will be of length 3.
 Activation functions
 --------------------
 
-linear     g(z) = z                     plain linear
+``'linear'`` :math:`g(z) = z` linear
 
-sigmoid    g(z) = 1 / (1 + e^-z)        logistic sigmoid
-logistic   g(z) = 1 / (1 + e^-z)        logistic sigmoid
-tanh       g(z) = tanh(z)               hyperbolic tangent
+``'sigmoid'`` :math:`g(z) = (1 + e^{-z})^{-1}` logistic sigmoid
+``'logistic'`` :math:`g(z) = (1 + e^{-z})^{-1}` logistic sigmoid
+``'tanh'`` :math:`g(z) = \tanh(z)` hyperbolic tangent
 
-softplus   g(z) = log(1 + exp(z))       smooth approximation to relu
+``'softplus'`` :math:`g(z) = \log(1 + \exp(z))` smooth approximation to relu
 
-softmax    g(z) = e^z / sum(e^z)        categorical distribution
+``'softmax'`` :math:`g(z) = e^z / \sum e^z` categorical distribution
 
-relu       g(z) = max(0, z)             rectified linear
-trel       g(z) = max(0, min(1, z))     truncated rectified linear
-trec       g(z) = z if z > 1 else 0     thresholded rectified linear
-tlin       g(z) = z if |z| > 1 else 0   thresholded linear
+``'relu'`` :math:`g(z) = \max(0, z)` rectified linear
+``'trel'`` :math:`g(z) = \max(0, \min(1, z))` truncated rectified linear
+``'trec'`` :math:`g(z) = z \mbox{ if } z > 1 \mbox{ else } 0` thresholded rectified linear
+``'tlin'`` :math:`g(z) = z \mbox{ if } |z| > 1 \mbox{ else } 0` thresholded linear
 
-rect:max   g(z) = min(1, z)             truncation operator
-rect:min   g(z) = max(0, z)             rectification operator
+``'rect:max'`` :math:`g(z) = \min(1, z)` truncation operator
+``'rect:min'`` :math:`g(z) = \max(0, z)` rectification operator
 
-norm:dc    g(z) = z - mean(z)           mean-normalization operator
-norm:max   g(z) = z - max(abs(z))       max-normalization operator
-norm:std   g(z) = z - std(z)            variance-normalization operator
+``'norm:dc'`` :math:`g(z) = z - \bar{z}` mean-normalization operator
+``'norm:max'`` :math:`g(z) = z - \max |z|` max-normalization operator
+``'norm:std'`` :math:`g(z) = z - \mathbb{E}[z-\bar{z}]` variance-normalization operator
 
 .. _creating-specifying-regularizers:
 

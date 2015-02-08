@@ -423,8 +423,8 @@ class Layer(Base):
     def find(self, key):
         '''Get a shared variable for a parameter by name.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         key : str or int
             The name of the parameter to look up, or the index of the parameter
             in our parameter list. These are both dependent on the

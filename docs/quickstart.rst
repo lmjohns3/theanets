@@ -11,8 +11,8 @@ This page provides a quick overview of the ``theanets`` package. It is aimed at
 getting you up and running with a few examples. Once you understand the basic
 workflow, you will be able to extend the examples to your own datasets and
 modeling problems. After you've finished reading through this document, have a
-look at the :doc:`guide` for more detailed usage information, and see the
-:doc:`reference` for detailed API documentation.
+look at :doc:`creating`, :doc:`training`, and :doc:`using` for more detailed
+documentation.
 
 .. _Theano: http://deeplearning.net/software/theano/
 
@@ -142,9 +142,9 @@ construct your model::
       theanets.Classifier,
       layers=(784, 100, 10))
 
-This is all that's required to get started. There are many different types of
-available hyperparameters that can be useful when constructing a model; see
-:ref:`guide-model-hyperparameters` for more information.
+This is all that's required to get started. There are many different
+hyperparameters that can also be useful when constructing a model; see
+:doc:`creating` for more information.
 
 Preparing the data
 ------------------
@@ -313,8 +313,9 @@ More Information
 ================
 
 This concludes the quick start guide! Please read more information about
-``theanets`` in the :doc:`guide` and :doc:`reference` sections of the
-documentation.
+creating models in ``theanets`` in :doc:`creating`, :doc:`training`, and
+:doc:`using`. Once you're familiar with the basic concepts, the :doc:`reference`
+section might also be useful.
 
 The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets.
 Please fork, explore, and send pull requests!

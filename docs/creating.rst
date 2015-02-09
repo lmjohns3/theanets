@@ -12,12 +12,37 @@ Predefined Models
 Specifying Layers
 =================
 
-In this sequence, an int value specifies the size of a vanilla, fully-connected
-feedforward layer. A :class:`Layer <theanets.layers.Layer>` instance is simply
-used as-is. A tuple must contain exactly one integer, which specifies the size
-of the layer, and can also contain a string, which either names a type of layer
-(e.g., ``'tied'``, ``'rnn'``, etc.) or an activation function (e.g.,
-``'logistic'``, ``'relu'``, etc.)
+One of the most critical bits of creating a neural network model is specifying
+how the layers of the network are arranged and connected together. There are
+very few limits to the complexity of possible neural network architectures, so
+it will never be possible to specify all combinations using a single,
+easy-to-use markup. However, ``theanets`` tries to make it easy to create
+many common types of layer configurations.
+
+When you create a network model, the ``layers`` keyword argument is used to
+specify the layers for your network. This keyword argument must be a sequence
+specifying the layers; there are four options for the values in this sequence.
+
+- If a value is an integer, it is interpreted as the size of a vanilla,
+  fully-connected feedforward layer. All options for the layer are set to their
+  defaults (e.g., the activation for a hidden layer will be given by the
+  ``hidden_activation`` configuration parameter, which defaults to a logistic
+  sigmoid).
+- If a value is a tuple, it must contain an integer and may contain a string.
+  The integer in the tuple specifies the size of the layer. If there is a
+  string, and the string names a valid layer type (e.g., ``'tied'``, ``'rnn'``,
+  etc.), then this type of layer will be created. Otherwise, the string is
+  assumed to name an activation function (e.g., ``'logistic'``, ``'relu'``,
+  etc.) and a standard feedforward layer will be created with that activation.
+- If a value in this sequence is a dictionary, it must contain either a ``size``
+  or an ``nout`` key, which specify the number of units in the layer. It can
+  additionally contain an ``activation`` key to specify the activation function
+  for the layer (see below), and a ``form`` key to specify the type of layer to
+  be constructed (e.g., ``'tied'``, ``'rnn'``, etc.). Additional keys in this
+  dictionary will be passed as keyword arguments to
+  :func:`theanets.layers.build`.
+- Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, it
+  is simply added to the network model as-is.
 
 As an example, ``(10, 20, 3)`` specifies an input layer with 10 units, one
 hidden layer with 20 units, and an output layer with 3 units. In this case,
@@ -26,27 +51,39 @@ inputs to the network will be of length 10, and outputs will be of length 3.
 Activation functions
 --------------------
 
-``'linear'`` :math:`g(z) = z` linear
+An activation function (sometimes also called a transfer function) specifies how
+the output of a layer is computed from the weighted sums of the inputs. By
+default, hidden layers in ``theanets`` use a logistic sigmoid activation
+function. Output layers in :class:`Regressor <theanets.feedforward.Regressor>`
+and :class:`Autoencoder <theanets.feedforward.Autoencoder>` models use linear
+activations (i.e., the output is just the weighted sum of the inputs from the
+previous layer), and the output layer in :class:`Classifier
+<theanets.feedforward.Classifier>` models uses a softmax activation.
 
-``'sigmoid'`` :math:`g(z) = (1 + e^{-z})^{-1}` logistic sigmoid
-``'logistic'`` :math:`g(z) = (1 + e^{-z})^{-1}` logistic sigmoid
-``'tanh'`` :math:`g(z) = \tanh(z)` hyperbolic tangent
+To specify a different activation function for a layer, include an activation
+key chosen from the table below. As described above, this can be included in
+your model specification either using the ``activation`` keyword argument in a
+layer dictionary, or by including the key in a tuple with the layer size.
 
-``'softplus'`` :math:`g(z) = \log(1 + \exp(z))` smooth approximation to relu
-
-``'softmax'`` :math:`g(z) = e^z / \sum e^z` categorical distribution
-
-``'relu'`` :math:`g(z) = \max(0, z)` rectified linear
-``'trel'`` :math:`g(z) = \max(0, \min(1, z))` truncated rectified linear
-``'trec'`` :math:`g(z) = z \mbox{ if } z > 1 \mbox{ else } 0` thresholded rectified linear
-``'tlin'`` :math:`g(z) = z \mbox{ if } |z| > 1 \mbox{ else } 0` thresholded linear
-
-``'rect:max'`` :math:`g(z) = \min(1, z)` truncation operator
-``'rect:min'`` :math:`g(z) = \max(0, z)` rectification operator
-
-``'norm:dc'`` :math:`g(z) = z - \bar{z}` mean-normalization operator
-``'norm:max'`` :math:`g(z) = z - \max |z|` max-normalization operator
-``'norm:std'`` :math:`g(z) = z - \mathbb{E}[z-\bar{z}]` variance-normalization operator
+========   ============================  =============================================
+Key        Description                   :math:`g(z) =`
+========   ============================  =============================================
+linear     linear                        :math:`z`
+sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
+logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
+tanh       hyperbolic tangent            :math:`\tanh(z)`
+softplus   smooth relu approximation     :math:`\log(1 + \exp(z))`
+softmax    categorical distribution      :math:`e^z / \sum e^z`
+relu       rectified linear              :math:`\max(0, z)`
+trel       truncated rectified linear    :math:`\max(0, \min(1, z))`
+trec       thresholded rectified linear  :math:`z \mbox{ if } z > 1 \mbox{ else } 0`
+tlin       thresholded linear            :math:`z \mbox{ if } |z| > 1 \mbox{ else } 0`
+rect:max   truncation                    :math:`\min(1, z)`
+rect:min   rectification                 :math:`\max(0, z)`
+norm:mean  mean-normalization            :math:`z - \bar{z}`
+norm:max   max-normalization             :math:`z / \max |z|`
+norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
+========   ============================  =============================================
 
 .. _creating-specifying-regularizers:
 

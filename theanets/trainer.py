@@ -1003,3 +1003,5 @@ class UnsupervisedPretrainer(Trainer):
         pre = SupervisedPretrainer(ae, *self.args, **self.kwargs)
         for monitors in pre.itertrain(train_set, valid_set=valid_set, **kwargs):
             yield monitors
+
+        logging.info('completed unsupervised pretraining')

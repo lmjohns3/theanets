@@ -8,9 +8,8 @@ from utils import load_mnist, plot_layers, plot_images
 
 e = theanets.Experiment(
     theanets.Classifier,
-    layers=(784, 256, 64, 36, 10),
+    layers=(784, 1024, 256, 64, 10),
     train_batches=100,
-    weight_l2=0.01,
 )
 
 # first, run an unsupervised layerwise pretrainer.

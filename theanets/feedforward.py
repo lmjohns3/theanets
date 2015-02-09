@@ -718,7 +718,7 @@ class Autoencoder(Network):
         encode = np.asarray(sizes[:k])
         decode = np.asarray(sizes[k+1:])
         assert (encode == decode[::-1]).all(), error
-        return sizes[:k+1]
+        return self.kwargs['layers'][:k+1]
 
     @property
     def tied_weights(self):

@@ -27,6 +27,16 @@ If you haven't already, the first thing you should do is download and install
 This command will automatically install all of the dependencies for
 ``theanets``, including ``numpy`` and ``theano``.
 
+If you're feeling adventurous, you can also check out the latest version of
+``theanets`` and run the code from your local copy::
+
+  git clone https://github.com/lmjohns3/theanets
+  cd theanets
+  python setup.py develop
+
+This can be risky, however, since ``theanets`` is in active development---the
+API might change in the development branch from time to time.
+
 To work through the documentation you should also install a couple of supporting
 packages::
 

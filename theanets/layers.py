@@ -446,7 +446,7 @@ class Layer(Base):
                 return p
         raise KeyError(key)
 
-    def _add_weights(self, name, nin=None, nout=None, mean=0, std=0.1):
+    def _add_weights(self, name, nin=None, nout=None, mean=0, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -460,7 +460,8 @@ class Layer(Base):
         mean : float, optional
             Mean value for randomly-initialized weights. Defaults to 0.
         std : float, optional
-            Standard deviation of initial matrix values. Defaults to 0.1.
+            Standard deviation of initial matrix values. Defaults to
+            :math:`1 / sqrt(n_i + n_o)`.
 
         Returns
         -------
@@ -469,6 +470,7 @@ class Layer(Base):
         '''
         nin = nin or self.nin
         nout = nout or self.nout
+        std = std or 1 / np.sqrt(nin + nout)
         sparsity = self.kwargs.get('sparsity', 0)
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity),
@@ -652,7 +654,7 @@ class Recurrent(Layer):
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
-    def _add_weights(self, name, nin=None, nout=None, mean=0, std=0.1):
+    def _add_weights(self, name, nin=None, nout=None, mean=0, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -666,7 +668,8 @@ class Recurrent(Layer):
         mean : float, optional
             Mean of initial matrix values. Defaults to 0.
         std : float, optional
-            Standard deviation of initial matrix values. Defaults to 0.1.
+            Standard deviation of initial matrix values. Defaults to
+            :math:`1 / sqrt(n_i + n_o)`.
 
         Returns
         -------
@@ -675,6 +678,7 @@ class Recurrent(Layer):
         '''
         nin = nin or self.nin
         nout = nout or self.nout
+        std = std or 1 / np.sqrt(nin + nout)
         sparsity = self.kwargs.get('sparsity', 0)
         radius = self.kwargs.get('radius', 0) if nin == nout else 0
         self.params.append(theano.shared(

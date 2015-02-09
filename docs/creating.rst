@@ -65,9 +65,9 @@ key chosen from the table below. As described above, this can be included in
 your model specification either using the ``activation`` keyword argument in a
 layer dictionary, or by including the key in a tuple with the layer size.
 
-========   ============================  =============================================
+=========  ============================  =============================================
 Key        Description                   :math:`g(z) =`
-========   ============================  =============================================
+=========  ============================  =============================================
 linear     linear                        :math:`z`
 sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
 logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
@@ -83,7 +83,7 @@ rect:min   rectification                 :math:`\max(0, z)`
 norm:mean  mean-normalization            :math:`z - \bar{z}`
 norm:max   max-normalization             :math:`z / \max |z|`
 norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
-========   ============================  =============================================
+=========  ============================  =============================================
 
 .. _creating-specifying-regularizers:
 

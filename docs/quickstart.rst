@@ -322,6 +322,22 @@ layer; these weights have one column of 784 values for each hidden node in the
 network, so we can iterate over the transpose and put each column---properly
 reshaped---into a giant image.
 
+Remembering Network Inputs
+==========================
+
+Recurrent neural networks are a family of network models whose computation graph
+contains a cycle---that is, there are some layers in a recurrent network whose
+outputs at a certain time step depend not only on the inputs at that time step,
+but also on the state of the network at some previous time step as well.
+
+Recurrent networks, while often quite tricky to train effectively, can be used
+to solve extremely difficult modeling tasks. Thanks to recent advances in
+optimization algorithms, recurrent networks are enjoying a resurgence in
+popularity and have been shown to be quite effective at a number of different
+temporal modeling tasks.
+
+
+
 More Information
 ================
 

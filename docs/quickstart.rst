@@ -210,6 +210,9 @@ validation split (the remainder of the training data from ``skdata``, containing
 the validation dataset is used to determine when the model has stopped
 improving during training.
 
+There are other ways to provide data to your model during training; for a more
+complete description, see :ref:`training-providing-data`.
+
 Training the model
 ------------------
 
@@ -220,8 +223,8 @@ fairly little work.
 
 The main decision to make during training is to choose the training algorithm to
 use, along with values for any associated hyperparameters. This is most
-naturally accomplished using the :func:`train()
-<theanets.main.Experiment.train>` method of the experiment object::
+naturally accomplished using the :func:`Experiment.train()
+<theanets.main.Experiment.train>` method::
 
   train, valid, test = load_mnist()
 
@@ -238,9 +241,9 @@ using the ``train_set`` and ``valid_set`` keywords, respectively.) If a
 validation dataset is not provided, the training dataset will be used for
 validation.
 
-The ``optimize`` keyword argument specifies an algorithm to use for training.
-(If you do not provide a value for this argument, ``'rmsprop'`` is used by
-default, using the :class:`RmsProp <theanets.trainer.RmsProp>` algorithm.) Any
+The ``optimize`` keyword argument specifies an algorithm to use for training. If
+you do not provide a value for this argument, :class:`RmsProp
+<theanets.trainer.RmsProp>` is used as the default training algorithm. Any
 subsequent keyword arguments will be passed to the training algorithm; these
 arguments typically specify hyperparameters of the algorithm like the learning
 rate and so forth.

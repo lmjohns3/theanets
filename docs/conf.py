@@ -1,7 +1,7 @@
 import os
 import sys
 
-import sphinx_readable_theme
+import better
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -28,15 +28,15 @@ exclude_patterns = ['_build']
 templates_path = ['_templates']
 pygments_style = 'tango'
 
-html_theme = 'readable'
-html_theme_path = [sphinx_readable_theme.get_html_theme_path()]
-htmlhelp_basename = 'theanetsdoc'
+html_theme = 'better'
+html_theme_path = [better.better_theme_path]
+html_short_title = 'Home'
 
-def h(*xs):
-    return ['{}.html'.format(x) for x in xs]
+def h(xs):
+    return ['{}.html'.format(x) for x in xs.split()]
 html_sidebars = {
-    'index': h('gitwidgets', 'globaltoc', 'searchbox'),
-    '**': h('gitwidgets', 'localtoc', 'relations', 'sourcelink', 'searchbox'),
+    'index': h('gitwidgets globaltoc sourcelink searchbox'),
+    '**': h('gitwidgets localtoc sourcelink searchbox'),
 }
 
 intersphinx_mapping = {

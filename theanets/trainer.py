@@ -286,18 +286,21 @@ class SGD(Trainer):
 
     A stochastic gradient trainer with momentum :math:`\mu` and learning rate
     :math:`\alpha` updates parameter :math:`p` at step :math:`t` by blending the
-    current "velocity" :math:`v` with the current gradient :math:`\nabla(p)`:
+    current "velocity" :math:`v` with the current gradient
+    :math:`\frac{\partial\mathcal{L}}{\partial p}`:
 
     .. math::
-        v_{t+1} = \mu * v_t - \alpha \nabla(p_t) \\
-        p_{t+1} = p_t + v_{t+1}
+        \begin{eqnarray*}
+        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial p} \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
 
     Without momentum (or when :math:`\mu = 0`), these updates reduce to
-    :math:`p_{t+1} = p_t - \alpha \nabla(p_t)`, which just takes steps downhill
-    according to the the local gradient :math:`\nabla(p_t)`. Adding the momentum
-    term permits the algorithm to incorporate information from previous steps as
-    well, which in practice has the effect of incorporating some information
-    about second-order derivatives of the loss surface.
+    :math:`p_{t+1} = p_t - \alpha \frac{\partial\mathcal{L}}{\partial p}`, which
+    just takes steps downhill according to the the local gradient. Adding the
+    momentum term permits the algorithm to incorporate information from previous
+    steps as well, which in practice has the effect of incorporating some
+    information about second-order derivatives of the loss surface.
     '''
 
     def __init__(self, network, **kwargs):
@@ -355,33 +358,38 @@ class NAG(SGD):
     The basic difference between NAG and "classical" momentum in SGD
     optimization approaches is that NAG computes the gradients at the position
     in parameter space where "classical" momentum would put us at the *next*
-    step. In symbols, the classical method with momentum :math:`\mu` and
-    learning rate :math:`\alpha` updates parameter :math:`p` at step :math:`t`
-    by blending the current "velocity" :math:`v` with the current gradient
-    :math:`\nabla(p)`:
+    step. In classical :class:`SGD` with momentum :math:`\mu` and learning rate
+    :math:`\alpha`, updates to parameter :math:`p` at step :math:`t` are
+    computed by blending the current "velocity" :math:`v` with the current
+    gradient :math:`\frac{\partial\mathcal{L}}{\partial p}`:
 
     .. math::
-        v_{t+1} = \mu v_t - \alpha \nabla(p_t) \\
-        p_{t+1} = p_t + v_{t+1}
+        \begin{eqnarray*}
+        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial p} \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
 
-    while NAG adjusts the update by blending the current "velocity" with the
-    next-step gradient (i.e., the gradient at the point where the velocity
-    would have taken us):
+    In contrast, NAG adjusts the update by blending the current "velocity" with
+    the gradient at the next step---that is, the gradient is computed at the
+    point where the velocity would have taken us:
 
     .. math::
-        v_{t+1} = \mu v_t - \alpha \nabla(p_t + \mu v_t) \\
-        p_{t+1} = p_t + v_{t+1}
+        \begin{eqnarray*}
+        v_{t+1} &=& \mu v_t - \alpha \left.\frac{\partial\mathcal{L}}{\partial p}\right|_{p_t + \mu v_t} \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
 
-    The difference here is that the gradient is computed at the place in
-    parameter space where we would have stepped using the classical
-    technique, in the absence of a new gradient.
+    Again, the difference here is that the gradient is computed at the place in
+    parameter space where we would have stepped using the classical technique,
+    in the absence of a new gradient.
 
     In theory, this helps correct for oversteps during learning: If momentum
     would lead us to overshoot, then the gradient at that overshot place will
     point backwards, toward where we came from. For details on this idea, see
     Sutskever, Martens, Dahl, and Hinton, "On the importance of initialization
     and momentum in deep learning" (ICML 2013)
-    http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf '''
+    http://jmlr.csail.mit.edu/proceedings/papers/v28/sutskever13.pdf
+    '''
 
     def learning_updates(self):
         # see https://github.com/lisa-lab/pylearn2/pull/136#issuecomment-10381617
@@ -409,13 +417,28 @@ class Rprop(SGD):
     the same sign, the learning rate for that parameter increases, and whenever
     the signs disagree, the learning rate decreases. This has a similar effect
     to momentum-based SGD methods but effectively maintains parameter-specific
-    momentum values.
+    learning rates.
 
-    The implementation here actually uses the "iRprop-" variant of Rprop
-    described in Algorithm 4 from Igel and Huesken, "Improving the Rprop
-    Learning Algorithm" (2000). This variant resets the running gradient
-    estimates to zero in cases where the previous and current gradients have
-    switched signs.
+    .. math::
+        \begin{eqnarray*}
+        && \mbox{if } \frac{\partial\mathcal{L}}{\partial p}_{t-1}\frac{\partial\mathcal{L}}{\partial p} > 0 \\
+        && \qquad \Delta_t = \min (\eta_+\Delta_{t−1}, \Delta_+) \\
+        && \mbox{if } \frac{\partial\mathcal{L}}{\partial p}_{t-1}\frac{\partial\mathcal{L}}{\partial p} < 0 \\
+        && \qquad \Delta_t = \max (\eta_-\Delta_{t−1}, \Delta_-) \\
+        && \qquad \frac{\partial\mathcal{L}}{\partial p} = 0 \\
+        && p_{t+1} = p_t − \mbox{sgn}\left(\frac{\partial\mathcal{L}}{\partial p}\right) \Delta_t
+        \end{eqnarray*}
+
+    Here, :math:`s(\cdot)` is the sign function (i.e., returns -1 if its
+    argument is negative and 1 otherwise), :math:`\eta_-` and :math:`\eta_+` are
+    the amount to decrease (increase) the step size if the gradients disagree
+    (agree) in sign, and :math:`\Delta_+` and :math:`\Delta_-` are the maximum
+    and minimum step size.
+
+    The implementation here is actually the "iRprop-" variant of Rprop described
+    in Algorithm 4 from Igel and Huesken, "Improving the Rprop Learning
+    Algorithm" (2000). This variant resets the running gradient estimates to
+    zero in cases where the previous and current gradients have switched signs.
     '''
 
     def __init__(self, network, **kwargs):
@@ -455,10 +478,12 @@ class RmsProp(SGD):
     before being applied to update the parameters.
 
     .. math::
-        a_{t+1} = \gamma a_t + (1 - \gamma) \nabla(p_t) \\
-        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2 \\
-        v_{t+1} = \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - a_{t+1}^2 + \epsilon}} \nabla(p_t) \\
-        p_{t+1} = p_t + v_{t+1}
+        \begin{eqnarray*}
+        f_{t+1} &=& \gamma a_t + (1 - \gamma) \frac{\partial\mathcal{L}}{\partial p} \\
+        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial p}\right)^2 \\
+        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - f_{t+1}^2 + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
 
     Like Rprop, this learning method effectively maintains a sort of
     parameter-specific momentum value, but this method takes into account both
@@ -469,9 +494,12 @@ class RmsProp(SGD):
     keyword argument, such that the actual EMA weight varies inversely with the
     halflife :math:`h`: :math:`\gamma = e^{\frac{-\ln 2}{h}}`.
 
-    The implementation here is modeled after Graves, "Generating Sequences With
-    Recurrent Neural Networks" (2013), equations (38)--(45).
-    http://arxiv.org/abs/1308.0850
+    The implementation here is taken from Graves, "Generating Sequences With
+    Recurrent Neural Networks" (2013), equations (38)--(45); the paper is
+    available at http://arxiv.org/abs/1308.0850. Graves' implementation in
+    particular seems to have introduced the :math:`f_t` terms into the RMS
+    computation; these terms appear to act as a sort of momentum for the RMS
+    values.
     '''
 
     def __init__(self, network, **kwargs):
@@ -494,30 +522,38 @@ class RmsProp(SGD):
 
 
 class ADADELTA(RmsProp):
-    r'''ADADELTA trains neural network models using scaled SGD.
+    r'''ADADELTA trains neural network models using scaled :class:`SGD`.
 
-    The ADADELTA method uses the same general strategy as SGD (both methods are
-    make small parameter adjustments using local derivative information). The
-    difference here is that as gradients are computed during each parameter
-    update, an exponential weighted moving average gradient value, as well as an
-    exponential weighted moving average of recent parameter steps, are
-    maintained as well. The actual gradient is normalized by the ratio of the
-    parameter step RMS values to the gradient RMS values.
+    The ADADELTA method uses the same general strategy as :class:`SGD` (both
+    methods are make small parameter adjustments using local derivative
+    information). The difference here is that as gradients are computed during
+    each parameter update, an exponential weighted moving average gradient
+    value, as well as an exponential weighted moving average of recent parameter
+    steps, are maintained as well. The actual gradient is normalized by the
+    ratio of the parameter step RMS values to the gradient RMS values.
 
     .. math::
-        g_{t+1} = \gamma g_t + (1 - \gamma) \nabla(p_t)^2 \\
-        v_{t+1} = -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \nabla(p_t) \\
-        x_{t+1} = \gamma x_t + (1 - \gamma) v_{t+1}^2 \\
-        p_{t+1} = p_t + v_{t+1}
+        \begin{eqnarray*}
+        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial p}\right)^2 \\
+        v_{t+1} &=& -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
+        x_{t+1} &=& \gamma x_t + (1 - \gamma) v_{t+1}^2 \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
 
-    Like Rprop and RmsProp, this learning method effectively maintains a sort of
-    parameter-specific momentum value. The primary difference between this
-    method and RmsProp is that ADADELTA additionally incorporates a sliding
-    window of RMS parameter steps, obviating the need for a learning rate
-    parameter.
+    Like :class:`Rprop` and :class:`RmsProp`, this learning method effectively
+    maintains a sort of parameter-specific momentum value. The primary
+    difference between this method and :class:`RmsProp` is that ADADELTA
+    additionally incorporates a sliding window of RMS parameter steps, obviating
+    the need for a learning rate parameter.
 
-    The implementation here is modeled after Zeiler (2012), "ADADELTA: An
-    adaptive learning rate method," available at http://arxiv.org/abs/1212.5701.
+    In this implementation, :math:`\epsilon` is taken from the ``learning_rate``
+    keyword argument. The weight parameter :math:`\gamma` for the EMA window is
+    computed from the ``rms_halflife`` keyword argument, such that the actual
+    EMA weight varies inversely with the halflife :math:`h`: :math:`\gamma =
+    e^{\frac{-\ln 2}{h}}`.
+
+    The implementation is modeled after Zeiler (2012), "ADADELTA: An adaptive
+    learning rate method," available at http://arxiv.org/abs/1212.5701.
     '''
 
     def learning_updates(self):

@@ -17,7 +17,7 @@ Predefined Models
 There are three basic types of models in the neural networks literature; while
 other types of models are certainly possible, ``theanets`` only tries to handle
 the common cases with built-in model classes. To define a new type of model, see
-:ref:`creating-custom-models`.
+:ref:`creating-customizing`.
 
 In ``theanets``, a network model is a subclass of :class:`Network
 <theanets.feedforward.Network>`. Its primary defining characteristics are the
@@ -100,6 +100,17 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
 
   exp = theanets.Experiment(theanets.Classifier)
   net = exp.network
+
+.. _creating-recurrent-models:
+
+Recurrent models
+----------------
+
+The three types of models described above also exist in recurrent formulations,
+where time is an explicit part of the data being modeled. In ``theanets``, if
+you wish to include recurrent layers in your model, you must use a model class
+from the :mod:`theanets.recurrent` module; this is because recurrent models
+require data matrices with an additional dimension to represent time.
 
 .. _creating-specifying-layers:
 

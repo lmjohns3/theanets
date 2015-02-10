@@ -116,7 +116,7 @@ hand-written digits. Each MNIST digit is labeled with the correct digit class
 (0, 1, ... 9). This example shows how to use ``theanets`` to create and train a
 model that can perform this task.
 
-.. image:: _static/mnist-digits.png
+.. image:: _static/mnist-digits-small.png
 
 Networks for classification map a layer of continuous-valued inputs, through one
 or more hidden layers, to an output layer that is activated through the `softmax
@@ -154,7 +154,9 @@ construct your model::
 
 This is all that's required to get started. There are many different
 hyperparameters that can also be useful when constructing a model; see
-:doc:`creating` for more information.
+:doc:`creating` for more information. Particularly useful to know will be the
+different ways of creating layers; see :ref:`creating-specifying-layers` for
+details.
 
 Preparing the data
 ------------------
@@ -253,62 +255,13 @@ and :ref:`training-other-methods`; here we've specified :class:`Nesterov's
 Accelerated Gradient <theanets.trainer.NAG>`, a type of stochastic gradient
 descent with momentum.
 
-Using the model
----------------
-
-Once you've trained a model, you will probably want to do something useful with
-it. If you are working in a production environment, you might want to use the
-model to make predictions about incoming data; if you are doing research, you
-might want to examine the parameters that the model has learned.
-
-For all neural network models, you can compute the activation of the output
-layer by calling :func:`Network.predict()
-<theanets.feedforward.Network.predict>`::
-
-  results = exp.network.predict(new_dataset)
-
-You pass a ``numpy`` array containing data to the method, which returns an array
-containing one row of output activations for each row of input data.
-
-You can also compute the activations of all layers in the network using the
-:func:`Network.feed_forward() <theanets.feedforward.Network.feed_forward>`
-method::
-
-  for layer in exp.network.feed_forward(new_dataset):
-      print(abs(layer).sum(axis=1))
-
-This method returns a sequence of arrays, one for each layer in the network.
-Like ``predict()``, each output array contains one row for every row of input
-data.
-
-Additionally, for classifiers, you can obtain predictions for new data using the
-:func:`Classifier.classify() <theanets.feedforward.Classifier.classify>`
-method::
-
-  classes = exp.network.classify(new_dataset)
-
-This returns a vector of integers; each element in the vector gives the greedy
-(argmax) result across the categories for the corresponding row of input data.
-
 Visualizing features
 --------------------
 
-Many times it is useful to create a plot of the features that the model learns;
-this can be useful for debugging model performance, but also for interpreting
-the dataset through the "lens" of the learned features.
-
-The parameters in each layer of the model are available using
-:func:`Network.find() <theanets.feedforward.Network.find>`. This method takes
-two query terms---either integer index values or string names---and returns a
-theano shared variable for the given parameter. The first query term finds a
-layer in the network, and the second finds a parameter within that layer. To get
-a numpy array of the current values of the parameter, call ``get_value()`` on
-the result from ``find()``, like ``network.find(a, b).get_value()``. For
-"encoding" layers in the network, this value array contains a feature vector in
-each column, and for "decoding" layers, the features are in each row.
-
-For a dataset like the MNIST digits, you can reshape the learned features and
-visualize them as though they were 28×28 images::
+Once you've trained a classification model for MNIST digits, it can be
+informative to visually inspect the features that the model has learned. Because
+the model was trained using the MNIST digits, you can reshape the learned
+features and visualize them as though they were 28×28 images::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
   for i, pix in enumerate(exp.network.find(1, 0).get_value().T):
@@ -322,6 +275,12 @@ layer; these weights have one column of 784 values for each hidden node in the
 network, so we can iterate over the transpose and put each column---properly
 reshaped---into a giant image.
 
+The trained model can also be used to predict the class for a new MNIST digit::
+
+  predicted_class = exp.network.predict(new_digit)
+
+For more information on the things you can do with a model, see :doc:`using`.
+
 Remembering Network Inputs
 ==========================
 
@@ -330,13 +289,71 @@ contains a cycle---that is, there are some layers in a recurrent network whose
 outputs at a certain time step depend not only on the inputs at that time step,
 but also on the state of the network at some previous time step as well.
 
-Recurrent networks, while often quite tricky to train effectively, can be used
-to solve extremely difficult modeling tasks. Thanks to recent advances in
-optimization algorithms, recurrent networks are enjoying a resurgence in
-popularity and have been shown to be quite effective at a number of different
-temporal modeling tasks.
+Recurrent networks, while often quite tricky to train, can be used to solve
+difficult modeling tasks. Thanks to recent advances in optimization algorithms,
+recurrent networks are enjoying a resurgence in popularity and have been shown
+to be quite effective at a number of different temporal modeling tasks.
 
+In this section we consider a classic task for a recurrent network: remembering
+data from past inputs. In this task, a network model receives one input value at
+each time step. The network is to remember the first :math:`k` values, then wait
+for :math:`t` time steps, and then reproduce the first :math:`k` values that it
+saw. Effectively the model must ignore the inputs after time step :math:`k` and
+start producing the desired output at time step :math:`k + t`.
 
+Defining the model
+------------------
+
+We'll set up a recurrent model by creating an :class:`Experiment
+<theanets.main.Experiment>` with the appropriate model class and layers::
+
+  BATCH_SIZE = 32
+
+  exp = theanets.Experiment(
+      theanets.recurrent.Regressor,
+      layers=(1, ('lstm', 10), 1),
+      batch_size=BATCH_SIZE)
+
+Here we've specified that we're using a :class:`recurrent regression
+<theanets.recurrent.Regressor>` model. Our network has three layers: the first
+just has one input unit, the next is a Long Short-Term Memory (LSTM) recurrent
+layer with ten units, and the output is a linear layer with just one output
+unit. This is just one way of specifying layers in a network; for more details
+see :ref:`creating-specifying-layers`.
+
+Training the model
+------------------
+
+The most difficult part of training this model is creating the required data. To
+compute the loss for a recurrent regression model in ``theanets``, we need to
+provide two arrays of data---one input array, and one target output array. Each
+of these arrays must have three dimensions: the first is time, the second is the
+batch size, and the third is the number of inputs/outputs in the dataset.
+
+For the memory task, we can easily create random arrays with the appropriate
+shape. We just need to make sure that the last :math:`k` time steps of the
+output are set to the first :math:`k` time steps of the input::
+
+  T = 20
+  K = 3
+
+  def generate():
+      s, t = np.random.randn(2, T, BATCH_SIZE, 1).astype('f')
+      s[:K] = t[-K:] = np.random.randn(K, BATCH_SIZE, 1)
+      return [s, t]
+
+In ``theanets``, data can be provided to a trainer in several ways; here we've
+used a callable that generates batches of data for us. See
+:ref:`training-using-callables` for more information.
+
+Having set up a way to create training data, we just need to pass this along to
+our training algorithm::
+
+  exp.train(generate, optimize='rmsprop')
+
+This process will adjust the weights in the model so that the outputs of the
+model, given the inputs, will be closer and closer to the targets that we
+provide.
 
 More Information
 ================

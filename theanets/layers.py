@@ -377,7 +377,7 @@ class Layer(Base):
         '''Set up the parameters and initial values for this layer.'''
         pass
 
-    def _log_setup(self, count):
+    def log_setup(self, count):
         '''Log some information about this layer.
 
         Parameters
@@ -446,7 +446,7 @@ class Layer(Base):
                 return p
         raise KeyError(key)
 
-    def _add_weights(self, name, nin=None, nout=None, mean=0, std=None):
+    def add_weights(self, name, nin=None, nout=None, mean=0, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -477,7 +477,7 @@ class Layer(Base):
             name=self._fmt(name)))
         return nin * nout
 
-    def _add_bias(self, name, nout=None, mean=0, std=1):
+    def add_bias(self, name, nout=None, mean=0, std=1):
         '''Helper method to create a new bias vector.
 
         Parameters
@@ -556,9 +556,9 @@ class Feedforward(Layer):
             nins = (nins, )
         count = 0
         for i, nin in enumerate(nins):
-            count += self._add_weights(str(i), nin)
-        count += self._add_bias('b')
-        self._log_setup(count)
+            count += self.add_weights(str(i), nin)
+        count += self.add_bias('b')
+        self.log_setup(count)
 
 
 class Tied(Feedforward):
@@ -609,7 +609,7 @@ class Tied(Feedforward):
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
-        self._log_setup(self._add_bias('b'))
+        self.log_setup(self.add_bias('b'))
 
 
 class Classifier(Feedforward):
@@ -654,7 +654,7 @@ class Recurrent(Layer):
         zeros = np.zeros((batch_size, self.nout), FLOAT)
         self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
 
-    def _add_weights(self, name, nin=None, nout=None, mean=0, std=None):
+    def add_weights(self, name, nin=None, nout=None, mean=0, std=None):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -725,9 +725,9 @@ class RNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self._log_setup(self._add_weights('xh') +
-                        self._add_weights('hh', self.nout) +
-                        self._add_bias('b'))
+        self.log_setup(self.add_weights('xh') +
+                        self.add_weights('hh', self.nout) +
+                        self.add_bias('b'))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -770,11 +770,11 @@ class ARRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self._log_setup(self._add_weights('xh') +
-                        self._add_weights('xr') +
-                        self._add_weights('hh', self.nout) +
-                        self._add_bias('b') +
-                        self._add_bias('r', std=3))
+        self.log_setup(self.add_weights('xh') +
+                        self.add_weights('xr') +
+                        self.add_weights('hh', self.nout) +
+                        self.add_bias('b') +
+                        self.add_bias('r', std=3))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -819,12 +819,12 @@ class MRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self._log_setup(
-            self._add_weights('xh', self.nin, self.nout) +
-            self._add_weights('xf', self.nin, self.factors) +
-            self._add_weights('hf', self.nout, self.factors) +
-            self._add_weights('fh', self.factors, self.nout) +
-            self._add_bias('b'))
+        self.log_setup(
+            self.add_weights('xh', self.nin, self.nout) +
+            self.add_weights('xf', self.nin, self.factors) +
+            self.add_weights('hf', self.nout, self.factors) +
+            self.add_weights('fh', self.factors, self.nout) +
+            self.add_bias('b'))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -864,14 +864,14 @@ class LSTM(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self._log_setup(
-            self._add_weights('xh', self.nin, 4 * self.nout) +
-            self._add_weights('hh', self.nout, 4 * self.nout) +
-            self._add_bias('b', 4 * self.nout, mean=3) +
+        self.log_setup(
+            self.add_weights('xh', self.nin, 4 * self.nout) +
+            self.add_weights('hh', self.nout, 4 * self.nout) +
+            self.add_bias('b', 4 * self.nout, mean=3) +
             # the three "peephole" weight matrices are always diagonal.
-            self._add_bias('ci', self.nout) +
-            self._add_bias('cf', self.nout) +
-            self._add_bias('co', self.nout))
+            self.add_bias('ci', self.nout) +
+            self.add_bias('cf', self.nout) +
+            self.add_bias('co', self.nout))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

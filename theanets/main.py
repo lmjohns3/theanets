@@ -138,7 +138,10 @@ class Experiment:
         provide experiment-specific default values for command line arguments
         that have no global defaults, e.g., network architecture.)
         '''
-        _, self.kwargs = climate.parse_args(**overrides)
+        args, _ = climate.parse_known_args(**overrides)
+
+        self.kwargs = vars(args)
+
         if self.kwargs.get('activation') and 'hidden_activation' not in overrides:
             warnings.warn(
                 'please use --hidden-activation instead of --activation',

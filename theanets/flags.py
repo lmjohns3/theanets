@@ -28,7 +28,7 @@ climate.add_arg('--help-activation', action='store_true',
 climate.add_arg('--help-optimize', action='store_true',
                 help='show available optimization algorithms')
 
-g = climate.add_arg_group('Architecture')
+g = climate.add_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')
 g.add_argument('-g', '--hidden-activation', default='logistic', metavar='FUNC',
@@ -40,7 +40,7 @@ g.add_argument('-t', '--tied-weights', action='store_true',
 g.add_argument('--decode-from', type=int, default=1, metavar='N',
                help='decode from the final N layers of the net')
 
-g = climate.add_arg_group('Training')
+g = climate.add_group('Training')
 g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',
                help='train with the given optimization algorithm(s)')
 g.add_argument('-p', '--patience', type=int, default=4, metavar='N',
@@ -58,7 +58,7 @@ g.add_argument('--save-progress', metavar='FILE',
 g.add_argument('--save-every', type=float, default=0, metavar='N',
                help='save the model every N iterations or -N minutes')
 
-g = climate.add_arg_group('Regularization')
+g = climate.add_group('Regularization')
 g.add_argument('--contractive', type=float, default=0, metavar='S',
                help='penalize the Frobenius norm of the hidden Jacobian')
 g.add_argument('--input-noise', type=float, default=0, metavar='S',
@@ -78,7 +78,7 @@ g.add_argument('--weight-l1', type=float, default=0, metavar='K',
 g.add_argument('--weight-l2', type=float, default=0, metavar='K',
                help='regularize network weights with K on the L2 term')
 
-g = climate.add_arg_group('SGD-Based Optimization')
+g = climate.add_group('SGD-Based Optimization')
 g.add_argument('-l', '--learning-rate', type=float, default=1e-4, metavar='V',
                help='train the network with a learning rate of V')
 g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
@@ -90,11 +90,11 @@ g.add_argument('--gradient-clip', type=float, default=1e6, metavar='V',
 g.add_argument('--max-gradient-norm', type=float, default=1e6, metavar='V',
                help='clip gradients with norms outside [-V, V]')
 
-g = climate.add_arg_group('RmsProp Optimization')
+g = climate.add_group('RmsProp Optimization')
 g.add_argument('--rms-halflife', type=float, default=7, metavar='N',
                help='use a half-life of N for RMS exponential moving averages')
 
-g = climate.add_arg_group('Rprop Optimization')
+g = climate.add_group('Rprop Optimization')
 g.add_argument('--rprop-increase', type=float, default=1.01, metavar='R',
                help='increase parameter steps at rate R')
 g.add_argument('--rprop-decrease', type=float, default=0.99, metavar='R',
@@ -104,7 +104,7 @@ g.add_argument('--rprop-min-step', type=float, default=0., metavar='V',
 g.add_argument('--rprop-max-step', type=float, default=1., metavar='V',
                help='cap parameter steps to V at the largest')
 
-g = climate.add_arg_group('HF Optimization')
+g = climate.add_group('HF Optimization')
 g.add_argument('-C', '--cg-batches', type=int, metavar='N',
                help='use at most N batches for CG computation')
 g.add_argument('--initial-lambda', type=float, default=1., metavar='K',
@@ -114,6 +114,6 @@ g.add_argument('--global-backtracking', action='store_true',
 g.add_argument('--preconditioner', action='store_true',
                help='precondition the system during CG')
 
-g = climate.add_arg_group('Recurrent Nets')
+g = climate.add_group('Recurrent Nets')
 g.add_argument('--recurrent-error-start', type=int, default=3, metavar='T',
                help='compute recurrent network error starting at time T')

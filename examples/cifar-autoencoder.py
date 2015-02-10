@@ -9,7 +9,7 @@ from utils import load_cifar, plot_layers, plot_images
 
 logging = climate.get_logger('cifar')
 
-g = climate.add_arg_group('CIFAR Example')
+g = climate.add_group('CIFAR Example')
 g.add_argument('--features', type=int, default=0, metavar='N',
                help='train a model using N^2 hidden-layer features')
 

@@ -6,7 +6,7 @@ import theanets
 
 from utils import load_mnist, plot_layers, plot_images
 
-g = climate.add_arg_group('MNIST Example')
+g = climate.add_group('MNIST Example')
 g.add_argument('--features', type=int, default=8, metavar='N',
                help='train a model using N^2 hidden-layer features')
 

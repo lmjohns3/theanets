@@ -138,4 +138,3 @@ Datasets
    :toctree: generated/
 
    Dataset
-   SequenceDataset

@@ -12,10 +12,8 @@ class TestTrainer(util.MNIST):
 
     def assert_progress(self, algo, **kwargs):
         trainer = self.exp.itertrain(self.images, optimize=algo, **kwargs)
-        t0, v0 = next(trainer)
-        t1, v1 = next(trainer)
-        t2, v2 = next(trainer)
-        assert t2['loss'] < t0['loss']
+        train, valid = next(trainer)
+        assert train['loss'] < valid['loss']
 
     def test_sgd(self):
         self.assert_progress('sgd', learning_rate=1e-4)

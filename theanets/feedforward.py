@@ -165,7 +165,7 @@ class Network(object):
 
     Attributes
     ----------
-    layers : list of :class:`theanets.Layer`
+    layers : list of :class:`Layer <layers.Layer>`
         A list of the layers in this network model.
     kwargs : dict
         A dictionary containing the keyword arguments used to construct the
@@ -401,14 +401,15 @@ class Network(object):
     def params(self):
         '''Get a list of the learnable theano parameters for this network.
 
-        This attribute is mostly used by :class:`theanets.trainer.Trainer`
-        implementations to compute the set of parameters that are tunable in a
-        network.
+        This attribute is mostly used by :class:`Trainer
+        <theanets.trainer.Trainer>` implementations to compute the set of
+        parameters that are tunable in a network.
 
         Returns
         -------
         params : list of theano variables
             A list of parameters that can be learned in this model.
+
         '''
         return [p for l in self.layers for p in l.params]
 

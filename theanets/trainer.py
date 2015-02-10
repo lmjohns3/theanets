@@ -173,7 +173,7 @@ class Trainer(object):
 
         Parameters
         ----------
-        dataset : :class:`theanets.dataset.Dataset`
+        dataset : :class:`Dataset <theanets.dataset.Dataset>`
             A set of data to use for evaluating the model.
 
         Returns
@@ -225,9 +225,9 @@ class Trainer(object):
 
         Parameters
         ----------
-        train_set : :class:`theanets.dataset.Dataset`
+        train_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of training data for computing updates to model parameters.
-        valid_set : :class:`theanets.dataset.Dataset`
+        valid_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
@@ -639,7 +639,7 @@ class Scipy(Trainer):
         ----------
         x : ndarray
             An array of parameter values to set our model at.
-        dataset : :class:`theanets.dataset.Dataset`
+        dataset : :class:`Dataset <theanets.dataset.Dataset>`
             A set of data over which to compute our loss function.
 
         Returns
@@ -658,7 +658,7 @@ class Scipy(Trainer):
         ----------
         x : ndarray
             An array of parameter values to set our model at.
-        dataset : :class:`theanets.dataset.Dataset`
+        dataset : :class:`Dataset <theanets.dataset.Dataset>`
             A set of data over which to compute our gradients.
 
         Returns
@@ -770,9 +770,9 @@ class HF(Trainer):
 
         Parameters
         ----------
-        train_set : :class:`theanets.dataset.Dataset`
+        train_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of training data for computing updates to model parameters.
-        valid_set : :class:`theanets.dataset.Dataset`
+        valid_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
@@ -828,9 +828,9 @@ class Sample(Trainer):
 
         Parameters
         ----------
-        train_set : :class:`theanets.dataset.Dataset`
+        train_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of training data for computing updates to model parameters.
-        valid_set : :class:`theanets.dataset.Dataset`
+        valid_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
@@ -900,7 +900,7 @@ class SupervisedPretrainer(Trainer):
     By using layers from the original network whenever possible, we preserve all
     of the relevant settings of noise, dropouts, loss function and the like, in
     addition to removing the need for copying trained weights around between
-    different :class:`theanets.feedforward.Network` instances.
+    different :class:`Network <feedforward.Network>` instances.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):
@@ -921,9 +921,9 @@ class SupervisedPretrainer(Trainer):
 
         Parameters
         ----------
-        train_set : :class:`theanets.dataset.Dataset`
+        train_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of training data for computing updates to model parameters.
-        valid_set : :class:`theanets.dataset.Dataset`
+        valid_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
@@ -989,9 +989,9 @@ class UnsupervisedPretrainer(Trainer):
 
         Parameters
         ----------
-        train_set : :class:`theanets.dataset.Dataset`
+        train_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of training data for computing updates to model parameters.
-        valid_set : :class:`theanets.dataset.Dataset`
+        valid_set : :class:`Dataset <theanets.dataset.Dataset>`
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 

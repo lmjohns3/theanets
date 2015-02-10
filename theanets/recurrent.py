@@ -90,7 +90,7 @@ class Network(feedforward.Network):
 
     Attributes
     ----------
-    layers : list of :class:`theanets.Layer`
+    layers : list of :class:`Layer <layers.Layer>`
         A list of the layers in this network model.
     kwargs : dict
         A dictionary containing the keyword arguments used to construct the

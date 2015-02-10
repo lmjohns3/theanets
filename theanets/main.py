@@ -161,7 +161,7 @@ class Experiment:
 
         Returns
         -------
-        trainer : :class:`trainer.Trainer`
+        trainer : :class:`Trainer <trainer.Trainer>`
             A trainer instance to alter the parameters of our network.
         '''
         args = (self.network, ) + args
@@ -204,14 +204,14 @@ class Experiment:
         ----------
         data : ndarray, (ndarray, ndarray), or callable
             The values that you provide for data will be encapsulated inside a
-            :class:`dataset.Dataset` instance; see that class for documentation
-            on the types of things it needs. In particular, you can currently
-            pass in either a list/array/etc. of data, or a callable that
-            generates data dynamically.
+            :class:`Dataset <dataset.Dataset>` instance; see that class for
+            documentation on the types of things it needs. In particular, you
+            can currently pass in either a list/array/etc. of data, or a
+            callable that generates data dynamically.
 
         Returns
         -------
-        data : :class:`dataset.Dataset`
+        data : :class:`Dataset <dataset.Dataset>`
             A dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
@@ -351,6 +351,9 @@ class Experiment:
     def load(self, path, **kwargs):
         '''Load a saved network from a pickle file on disk.
 
+        This method sets the ``network`` attribute of the experiment to the
+        loaded network model.
+
         Parameters
         ----------
         filename : str
@@ -361,7 +364,7 @@ class Experiment:
 
         Returns
         -------
-        network : :class:`feedforward.Network`
+        network : :class:`Network <feedforward.Network>`
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''

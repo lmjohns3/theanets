@@ -311,7 +311,6 @@ class Experiment:
 
         # set up training algorithm(s)
         optimize = optimize or self.kwargs.get('optimize') or 'rmsprop'
-
         if isinstance(optimize, str):
             optimize = optimize.split()
 

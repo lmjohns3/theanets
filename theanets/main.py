@@ -309,8 +309,7 @@ class Experiment:
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
 
         # set up training algorithm(s)
-        optimize = optimize or self.kwargs.get('optimize', 'rmsprop')
-
+        optimize = optimize or self.kwargs.get('optimize') or 'rmsprop'
         if isinstance(optimize, str):
             optimize = optimize.split()
 

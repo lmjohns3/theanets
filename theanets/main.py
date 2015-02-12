@@ -312,9 +312,6 @@ class Experiment:
         # set up training algorithm(s)
         optimize = optimize or self.kwargs.get('optimize') or 'rmsprop'
 
-        if isinstance(optimize, str):
-            optimize = optimize.split()
-
         # set up auto-saving if enabled
         progress = self.kwargs.get('save_progress')
         timeout = self.kwargs.get('save_every', 0)

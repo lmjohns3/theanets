@@ -251,6 +251,7 @@ class Experiment:
             A dictionary of monitor values computed using the validation
             dataset, at the conclusion of training.
         '''
+        monitors = None
         for monitors in self.itertrain(*args, **kwargs):
             pass
         return monitors

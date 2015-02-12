@@ -944,4 +944,7 @@ class Bidirectional(Layer):
         '''
         fx, fm, fu = self.forward.transform(inputs)
         bx, bm, bu = self.backward.transform(inputs)
-        return TT.concatenate([fx, bx], axis=2), fm + bm, fu + bu
+        x = TT.zeros((fx.shape[0], fx.shape[1], fx.shape[2] + bx.shape[2]), FLOAT)
+        TT.set_subtensor(x[:, :, :fx.shape[2]], fx, inplace=True)
+        TT.set_subtensor(x[:, :, fx.shape[2]:], bx, inplace=True)
+        return x, fm + bm, fu + bu

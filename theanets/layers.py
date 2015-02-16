@@ -541,7 +541,18 @@ class Feedforward(Layer):
         self.log_setup(count)
 
 
-class Tied(Feedforward):
+class Classifier(Feedforward):
+    '''A classifier layer performs a softmax over a linear input transform.
+
+    Classifier layers are typically the "output" layer of a classifier network.
+    '''
+
+    def __init__(self, **kwargs):
+        kwargs['activation'] = 'softmax'
+        super(Classifier, self).__init__(**kwargs)
+
+
+class Tied(Layer):
     '''A tied-weights feedforward layer shadows weights from another layer.
 
     Tied weights are typically featured in some types of autoencoder models
@@ -592,15 +603,71 @@ class Tied(Feedforward):
         self.log_setup(self.add_bias('b'))
 
 
-class Classifier(Feedforward):
-    '''A classifier layer performs a softmax over a linear input transform.
+class Maxout(Layer):
+    '''A maxout layer computes a piecewise linear activation function.
 
-    Classifier layers are typically the "output" layer of a classifier network.
     '''
 
     def __init__(self, **kwargs):
-        kwargs['activation'] = 'softmax'
-        super(Classifier, self).__init__(**kwargs)
+        self.pieces = kwargs.pop('pieces')
+        super(Maxout, self).__init__(**kwargs)
+
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
+        count = self.add_weights('xh') + self.add_bias('b')
+        logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
+                     self.name, self.nin, self.nout, self.pieces,
+                     self.activate.__theanets_name__, count)
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : sequence of theano expressions
+            The inputs to this layer. There must be exactly one input.
+
+        Returns
+        -------
+        output : theano expression
+            Theano expression representing the output from the layer.
+        monitors : sequence of (name, expression) tuples
+            Outputs that can be used to monitor the state of this layer.
+        updates : sequence of update tuples
+            A sequence of updates to apply inside a theano function.
+        '''
+        output = self.activate(
+            TT.dot(_only(inputs), self.find('xh')).max(axis=2)
+            + self.find('b'))
+        return output, self._monitors(output), ()
+
+    def add_weights(self, name, mean=0, std=None):
+        '''Helper method to create a new weight matrix.
+
+        Parameters
+        ----------
+        name : str
+            Name of the parameter to add.
+        mean : float, optional
+            Mean value for randomly-initialized weights. Defaults to 0.
+        std : float, optional
+            Standard deviation of initial matrix values. Defaults to
+            :math:`1 / sqrt(n_i + n_o)`.
+
+        Returns
+        -------
+        count : int
+            The number of values in this weight parameter.
+        '''
+        def rm():
+            return random_matrix(
+                self.nin, self.nout, mean,
+                std or 1 / np.sqrt(self.nin + self.nout),
+                sparsity=self.kwargs.get('sparsity', 0))[:, :, None]
+        # stack up weight matrices for the pieces in our maxout.
+        arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
+        self.params.append(theano.shared(arr, name=self._fmt(name)))
+        return self.nin * self.nout * self.pieces
 
 
 class Recurrent(Layer):

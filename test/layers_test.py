@@ -62,6 +62,20 @@ class TestClassifier(Base):
         assert not upd
 
 
+class TestMaxout(Base):
+    def _build(self):
+        return theanets.layers.Maxout(nin=2, nout=4, pieces=3, name='l')
+
+    def test_create(self):
+        self.assert_param_names(['b', 'xh'])
+
+    def test_transform(self):
+        out, mon, upd = self._build().transform(self.x)
+        assert out is not None
+        assert len(mon) == 2
+        assert not upd
+
+
 class TestRNN(Base):
     def _build(self):
         return theanets.layers.RNN(nin=2, nout=4, name='l')

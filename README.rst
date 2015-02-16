@@ -20,11 +20,10 @@ Several optimization algorithms are also included:
 - Many algorithms from ``scipy.optimize.minimize``
 - Greedy layerwise_ pre-training
 
-At present there are no RBMs, convolutions, or maxout in ``theanets`` -- for
-those, you might want to look at Morb_, Lasagne_, or pylearn2_. There are many
-other neural networks toolkits out there as well, in many other languages; see
-`this stackoverflow question`_ for a few additional pointers, or just search for
-them.
+At present there are no RBMs or convolutions in ``theanets`` -- for those, you
+might want to look at Morb_, Lasagne_, or pylearn2_. There are many other neural
+networks toolkits out there as well, in many other languages; see `this
+stackoverflow question`_ for a few additional pointers, or just search for them.
 
 .. _Theano: http://deeplearning.net/software/theano/
 

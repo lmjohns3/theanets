@@ -55,9 +55,10 @@ Feedforward layers
 .. autosummary::
    :toctree: generated/
 
-   Feedforward
-   Tied
    Classifier
+   Feedforward
+   Maxout
+   Tied
 
 Recurrent layers
 ----------------

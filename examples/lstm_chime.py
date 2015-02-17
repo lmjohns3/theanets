@@ -61,5 +61,5 @@ e = theanets.Experiment(
     input_noise=0.6,
     max_gradient_norm=10,
 )
-e.train(batches(scipy.io.netcdf_file(open(TRAIN_NC))),
-        batches(scipy.io.netcdf_file(open(VALID_NC))))
+e.train(batches(scipy.io.netcdf_file(TRAIN_NC)),
+        batches(scipy.io.netcdf_file(VALID_NC)))

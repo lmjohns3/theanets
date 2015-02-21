@@ -162,6 +162,13 @@ class Network(object):
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
         which decodes from just the last layer.
+    mask : bool, optional
+        If True, the network will require an additional input that provides a
+        mask for the target output of the network; the mask will be the first
+        input argument to the network, and it must be the same shape as the
+        target output. This can be particularly useful for recurrent networks,
+        where the length of each sequence is not necessarily the same number of
+        time steps. The default is not to use masked outputs.
 
     Attributes
     ----------
@@ -195,7 +202,12 @@ class Network(object):
         '''
         # x is a proxy for our network's input, and y for its output.
         self.x = TT.matrix('x')
-        return [self.x]
+
+        # the mask is provided to ensure that only some target values are
+        # taken into account during optimization.
+        self.mask = TT.imatrix('mask')
+
+        return [self.x, self.mask] if self.kwargs.get('mask') else [self.x]
 
     def setup_layers(self):
         '''Set up a computation graph for our network.
@@ -725,7 +737,9 @@ class Autoencoder(Network):
     def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.x
-        return TT.mean((err * err).sum(axis=1))
+        if self.kwargs.get('mask'):
+            return (self.mask * err * err).sum() / self.mask.sum()
+        return (err * err).mean()
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.
@@ -816,13 +830,17 @@ class Regressor(Network):
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
 
+        if self.kwargs.get('mask'):
+            return [self.x, self.targets, self.mask]
         return [self.x, self.targets]
 
     @property
     def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.targets
-        return TT.mean((err * err).sum(axis=1))
+        if self.kwargs.get('mask'):
+            return (self.mask * err * err).sum() / self.mask.sum()
+        return (err * err).mean()
 
 
 class Classifier(Network):
@@ -859,6 +877,13 @@ class Classifier(Network):
         # for a classifier, this specifies the correct labels for a given input.
         self.labels = TT.ivector('labels')
 
+        # and the mask is reshaped to be just a vector ... this isn't
+        # particularly useful (i.e., it will just ignore the entire example if
+        # any are masked), but it's included here for consistency in the api.
+        self.mask = TT.ivector('mask')
+
+        if self.kwargs.get('mask'):
+            return [self.x, self.labels, self.mask]
         return [self.x, self.labels]
 
     @property
@@ -870,14 +895,19 @@ class Classifier(Network):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]
         prob = out[TT.arange(self.labels.shape[0]), self.labels]
-        return -TT.mean(TT.log(prob))
+        if self.kwargs.get('mask'):
+            return -self.mask * TT.log(prob) / self.mask.sum()
+        return -TT.log(prob).mean()
 
     @property
     def accuracy(self):
         '''Returns a theano computation of percent correct classifications.'''
         out = self.outputs[-1]
         predict = TT.argmax(out, axis=1)
-        return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
+        acc = TT.eq(predict, self.labels).mean()
+        if self.kwargs.get('mask'):
+            acc = (self.mask * TT.eq(predict, self.labels)).sum() / self.mask.sum()
+        return TT.cast(100, FLOAT) * acc
 
     @property
     def monitors(self):

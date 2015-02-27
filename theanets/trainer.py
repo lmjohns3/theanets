@@ -31,6 +31,8 @@ import theano
 import theano.tensor as TT
 import sys
 
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+
 from . import feedforward
 from . import layers
 
@@ -452,7 +454,7 @@ class RmsProp(SGD):
     all gradient-based methods make small parameter adjustments using local
     derivative information. The difference here is that as gradients are
     computed during each parameter update, an exponential moving average of
-    gradient magnitudes is maintained as well. At each update, the EMA is used
+    gradient magnitudes is maintained as well. At each update, the EWMA is used
     to compute the root-mean-square (RMS) gradient value that's been seen in the
     recent past. The actual gradient is normalized by this RMS scaling factor
     before being applied to update the parameters.
@@ -465,13 +467,13 @@ class RmsProp(SGD):
         p_{t+1} &=& p_t + v_{t+1}
         \end{eqnarray*}
 
-    Like Rprop, this learning method effectively maintains a sort of
+    Like :class:`Rprop`, this learning method effectively maintains a sort of
     parameter-specific momentum value, but this method takes into account both
     the sign and the magnitude of the gradient for each parameter.
 
-    In this implementation, :math:`\epsilon = 0.0001`, and the weight parameter
-    :math:`\gamma` for the EMA window is computed from the ``rms_halflife``
-    keyword argument, such that the actual EMA weight varies inversely with the
+    In this implementation, :math:`\epsilon = 1e-4`, and the weight parameter
+    :math:`\gamma` for the EWMA window is computed from the ``rms_halflife``
+    keyword argument, such that the actual EWMA weight varies inversely with the
     halflife :math:`h`: :math:`\gamma = e^{\frac{-\ln 2}{h}}`.
 
     The implementation here is taken from Graves, "Generating Sequences With
@@ -487,13 +489,14 @@ class RmsProp(SGD):
         super(RmsProp, self).__init__(network, **kwargs)
 
     def learning_updates(self):
+        eps = 1e-4
         for param, grad in zip(self.params, self.clipped_gradients()):
             g1_tm1 = self.shared_like(param, 'g1_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
             vel_tm1 = self.shared_like(param, 'vel')
             g1_t = self.ewma * g1_tm1 + (1 - self.ewma) * grad
             g2_t = self.ewma * g2_tm1 + (1 - self.ewma) * grad * grad
-            rms = TT.sqrt(g2_t - g1_t * g1_t + 1e-4)
+            rms = TT.sqrt(g2_t - g1_t * g1_t + eps)
             vel_t = self.momentum * vel_tm1 - grad * self.learning_rate / rms
             yield g1_tm1, g1_t
             yield g2_tm1, g2_t
@@ -520,24 +523,24 @@ class ADADELTA(RmsProp):
         p_{t+1} &=& p_t + v_{t+1}
         \end{eqnarray*}
 
-    Like :class:`Rprop` and :class:`RmsProp`, this learning method effectively
-    maintains a sort of parameter-specific momentum value. The primary
-    difference between this method and :class:`RmsProp` is that ADADELTA
-    additionally incorporates a sliding window of RMS parameter steps, obviating
-    the need for a learning rate parameter.
+    Like :class:`Rprop` and the :class:`RmsProp`--:class:`ESGD` family, this
+    learning method effectively maintains a sort of parameter-specific momentum
+    value. The primary difference between this method and :class:`RmsProp` is
+    that ADADELTA additionally incorporates a sliding window of RMS parameter
+    steps, obviating the need for a learning rate parameter.
 
-    In this implementation, :math:`\epsilon` is taken from the ``learning_rate``
-    keyword argument. The weight parameter :math:`\gamma` for the EMA window is
-    computed from the ``rms_halflife`` keyword argument, such that the actual
-    EMA weight varies inversely with the halflife :math:`h`: :math:`\gamma =
-    e^{\frac{-\ln 2}{h}}`.
+    In this implementation, :math:`\epsilon` is set to 1e-4. The weight
+    parameter :math:`\gamma` for the EWMA window is computed from the
+    ``rms_halflife`` keyword argument, such that the actual EWMA weight varies
+    inversely with the halflife :math:`h`: :math:`\gamma = e^{\frac{-\ln
+    2}{h}}`.
 
     The implementation is modeled after Zeiler (2012), "ADADELTA: An adaptive
     learning rate method," available at http://arxiv.org/abs/1212.5701.
     '''
 
     def learning_updates(self):
-        eps = self.learning_rate
+        eps = 1e-4
         for param, grad in zip(self.params, self.clipped_gradients()):
             x2_tm1 = self.shared_like(param, 'x2_ewma')
             g2_tm1 = self.shared_like(param, 'g2_ewma')
@@ -547,6 +550,64 @@ class ADADELTA(RmsProp):
             yield g2_tm1, g2_t
             yield x2_tm1, x2_t
             yield param, param - delta
+
+
+class ESGD(RmsProp):
+    '''Equilibrated SGD computes a diagonal preconditioner for gradient descent.
+
+    The ESGD method uses the same general strategy as SGD, in the sense that all
+    gradient-based methods make small parameter adjustments using local
+    derivative information. The difference here is that as gradients are
+    computed during each parameter update, an exponential moving average of
+    diagonal preconditioner values is maintained as well. At each update, the
+    EWMA is used to compute the root-mean-square (RMS) diagonal preconditioner
+    value that's been seen in the recent past. The actual gradient is normalized
+    by this preconditioner before being applied to update the parameters.
+
+    .. math::
+        \begin{eqnarray*}
+        r &\sim& \mathcal{N}(0, 1) \\
+        Hr &=& \frac{\partial^2 \mathcal{L}}{\partial^2 p}r \\
+        D_{t+1} &=& \gamma D_t + (1 - \gamma) (Hr)^2 \\
+        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{D_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
+        p_{t+1} &=& p_t + v_{t+1}
+        \end{eqnarray*}
+
+    Like :class:`Rprop` and the :class:`ADADELTA`--:class:`RmsProp` family, this
+    learning method effectively maintains a sort of parameter-specific momentum
+    value. The primary difference between this method and :class:`RmsProp` is
+    that ESGD treats the normalizing fraction explicitly as a preconditioner for
+    the diaonal of the Hessian, and estimates this diagonal by drawing a vector
+    of standard normal values at every training step. The primary difference
+    between this implementation and the algorithm described in the paper (see
+    below) is the use of an EWMA to decay the diagonal values over time, while
+    in the paper the diagonal is divided by the training iteration.
+
+    In this implementation, :math:`\epsilon` is set to 1e-4. The weight
+    parameter :math:`\gamma` for the EWMA window is computed from the
+    ``rms_halflife`` keyword argument, such that the actual EWMA weight varies
+    inversely with the halflife :math:`h`: :math:`\gamma = e^{\frac{-\ln
+    2}{h}}`.
+
+    The implementation here is modeled after Dauphin, de Vries, Chung & Bengio
+    (2014), "RMSProp and equilibrated adaptive learning rates for non-convex
+    optimization," http://arxiv.org/pdf/1502.04390.pdf.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        self.rng = RandomStreams()
+        super(ESGD, self).__init__(*args, **kwargs)
+
+    def learning_updates(self):
+        eps = 1e-4  # more or less from the paper
+        for param, grad in zip(self.params, self.clipped_gradients()):
+            D_tm1 = self.shared_like(param, 'D_ewma')
+            vel_tm1 = self.shared_like(param, 'vel')
+            Hv = TT.Rop(grad, param, self.rng.normal(param.shape))
+            D_t = self.ewma * D_tm1 + (1 - self.ewma) * Hv * Hv
+            vel_t = self.momentum * vel_tm1 - grad * self.learning_rate / TT.sqrt(D_t + eps)
+            yield D_tm1, D_t
+            yield param, param + vel_t
 
 
 class Scipy(Trainer):

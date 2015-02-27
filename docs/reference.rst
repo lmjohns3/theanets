@@ -96,6 +96,7 @@ Stochastic gradient trainers
    Rprop
    RmsProp
    ADADELTA
+   ESGD
    HF
 
 Scipy optimizers

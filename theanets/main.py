@@ -182,6 +182,7 @@ class Experiment:
             else:
                 factory = dict(
                     adadelta=trainer.ADADELTA,
+                    esgd=trainer.ESGD,
                     hf=trainer.HF,
                     nag=trainer.NAG,
                     rmsprop=trainer.RmsProp,

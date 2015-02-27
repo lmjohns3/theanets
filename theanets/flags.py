@@ -64,8 +64,6 @@ g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
-g.add_argument('--gradient-clip', type=float, default=1e6, metavar='V',
-               help='clip elementwise gradient values outside [-V, V]')
 g.add_argument('--max-gradient-norm', type=float, default=1e6, metavar='V',
                help='clip gradients with norms outside [-V, V]')
 

@@ -288,7 +288,6 @@ class SGD(Trainer):
     def __init__(self, network, **kwargs):
         super(SGD, self).__init__(network, **kwargs)
 
-        self.clip = TT.cast(kwargs.get('gradient_clip', 1e6), FLOAT)
         self.max_norm = TT.cast(kwargs.get('max_gradient_norm', 1e6), FLOAT)
         self.momentum = TT.cast(kwargs.get('momentum', 0.9), FLOAT)
         self.learning_rate = TT.cast(kwargs.get('learning_rate', 1e-4), FLOAT)
@@ -307,9 +306,8 @@ class SGD(Trainer):
 
     def clipped_gradients(self, params=None):
         for grad in TT.grad(self.loss, params or self.params):
-            clip = TT.clip(grad, -self.clip, self.clip)
             norm = TT.sqrt((grad * grad).sum())
-            yield clip * TT.minimum(1, self.max_norm / norm)
+            yield grad * TT.minimum(1, self.max_norm / norm)
 
     @staticmethod
     def shared_like(param, name, init=0):

@@ -115,6 +115,18 @@ ADADELTA is a training method that incorporates an exponentially weighted moving
 average of both the recent gradient values as well as the recent update sizes
 for each parameter. It is very similar to RmsProp.
 
+:class:`esgd <theanets.trainer.ESGD>`
+
+  --learning-rate
+  --momentum
+  --rms-halflife
+
+Equilibrated SGD takes a step in the direction of the current gradient, but it
+scales the step inversely by a preconditioner, in this case an estimate of the
+absolute value of the diagonal of the Hessian. The preconditioner is maintained
+using an exponentially weighted moving average of :math:`Hv` (Hessian-vector)
+products.
+
 bfgs, cg, dogleg, newton-cg, trust-ncg (:class:`theanets.trainer.Scipy`)
 
 These trainers use the implementations in `scipy.optimize.minimize`_: the loss

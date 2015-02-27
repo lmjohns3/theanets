@@ -77,6 +77,11 @@ rmsprop: RMS-scaled Backpropagation
 adadelta: ADADELTA
   --rms-halflife
 
+esgd: ESGD
+  --learning-rate
+  --momentum
+  --rms-halflife
+
 bfgs, cg, dogleg, newton-cg, trust-ncg
   These use the implementations in scipy.optimize.minimize.
 

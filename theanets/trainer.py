@@ -553,7 +553,7 @@ class ADADELTA(RmsProp):
 
 
 class ESGD(RmsProp):
-    '''Equilibrated SGD computes a diagonal preconditioner for gradient descent.
+    r'''Equilibrated SGD computes a diagonal preconditioner for gradient descent.
 
     The ESGD method uses the same general strategy as SGD, in the sense that all
     gradient-based methods make small parameter adjustments using local

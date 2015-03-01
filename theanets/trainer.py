@@ -309,7 +309,7 @@ class SGD(Trainer):
     def clipped_gradients(self, params=None):
         for grad in TT.grad(self.loss, params or self.params):
             norm = TT.sqrt((grad * grad).sum())
-            yield grad * TT.minimum(1, self.max_norm / norm)
+            yield grad * TT.minimum(TT.cast(1, FLOAT), self.max_norm / norm)
 
     @staticmethod
     def shared_like(param, name, init=0):

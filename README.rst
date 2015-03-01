@@ -20,33 +20,23 @@ Several optimization algorithms are also included:
 - Many algorithms from ``scipy.optimize.minimize``
 - Greedy layerwise_ pre-training
 
-At present there are no RBMs or convolutions in ``theanets`` -- for those, you
-might want to look at Morb_, Lasagne_, or pylearn2_. There are many other neural
-networks toolkits out there as well, in many other languages; see `this
-stackoverflow question`_ for a few additional pointers, or just search for them.
-
 .. _Theano: http://deeplearning.net/software/theano/
 
-.. _classification: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Classifier.html
-.. _autoencoding: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Autoencoder.html
-.. _regression: http://theanets.readthedocs.org/en/latest/generated/theanets.feedforward.Regressor.html
-.. _prediction: http://theanets.readthedocs.org/en/latest/generated/theanets.recurrent.Predictor.html
+.. _classification: http://theanets.readthedocs.org/en/stable/generated/theanets.feedforward.Classifier.html
+.. _autoencoding: http://theanets.readthedocs.org/en/stable/generated/theanets.feedforward.Autoencoder.html
+.. _regression: http://theanets.readthedocs.org/en/stable/generated/theanets.feedforward.Regressor.html
+.. _prediction: http://theanets.readthedocs.org/en/stable/generated/theanets.recurrent.Predictor.html
 
-.. _feedforward: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Feedforward.html
-.. _recurrent: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.Recurrent.html
-.. _layers: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers
+.. _feedforward: http://theanets.readthedocs.org/en/stable/generated/theanets.layers.Feedforward.html
+.. _recurrent: http://theanets.readthedocs.org/en/stable/generated/theanets.layers.Recurrent.html
+.. _layers: http://theanets.readthedocs.org/en/stable/reference.html#module-theanets.layers
 
-.. _SGD: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.SGD.html
-.. _NAG: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.NAG.html
-.. _Rprop: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.Rprop.html
-.. _RmsProp: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.RmsProp.html
-.. _ADADELTA: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.ADADELTA.html
-.. _layerwise: http://theanets.readthedocs.org/en/latest/generated/theanets.trainer.Layerwise.html
-
-.. _Morb: https://github.com/benanne/morb
-.. _Lasagne: https://github.com/benanne/Lasagne
-.. _pylearn2: http://deeplearning.net/software/pylearn2
-.. _this stackoverflow question: http://stackoverflow.com/questions/11477145/open-source-neural-network-library
+.. _SGD: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.SGD.html
+.. _NAG: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.NAG.html
+.. _Rprop: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.Rprop.html
+.. _RmsProp: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.RmsProp.html
+.. _ADADELTA: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.ADADELTA.html
+.. _layerwise: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.Layerwise.html
 
 Installation
 ------------

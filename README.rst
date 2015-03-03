@@ -36,7 +36,7 @@ Several optimization algorithms are also included:
 .. _Rprop: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.Rprop.html
 .. _RmsProp: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.RmsProp.html
 .. _ADADELTA: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.ADADELTA.html
-.. _layerwise: http://theanets.readthedocs.org/en/stable/generated/theanets.trainer.Layerwise.html
+.. _layerwise: http://theanets.readthedocs.org/en/stable/training.html#layerwise-pretraining
 
 Installation
 ------------

@@ -104,7 +104,7 @@ class Dataset:
         axis) for 3-dimensional datasets (e.g., for recurrent networks).
     '''
 
-    def __init__(self, samples, labels=None, mask=None, name=None,
+    def __init__(self, samples, labels=None, weights=None, name=None,
                  batch_size=32, iteration_size=None, axis=None):
         '''Create a minibatch dataset from data arrays or a callable.'''
         self.name = name or 'dataset'
@@ -116,7 +116,7 @@ class Dataset:
         if isinstance(samples, collections.Callable):
             self._init_callable(samples)
         else:
-            self._init_arrays(samples, labels, mask, axis)
+            self._init_arrays(samples, labels, weights, axis)
 
     @property
     def number_batches(self):
@@ -132,7 +132,7 @@ class Dataset:
         logging.info('%s: %d mini-batches from callable',
                      self.name, self.iteration_size)
 
-    def _init_arrays(self, samples, labels, mask, axis):
+    def _init_arrays(self, samples, labels, weights, axis):
         self._index = 0  # index for iteration.
 
         if axis is None:
@@ -143,8 +143,8 @@ class Dataset:
             batch = [samples[tuple(slices)]]
             if labels is not None:
                 batch.append(labels[tuple(slices)])
-            if mask is not None:
-                batch.append(mask[tuple(slices)])
+            if weights is not None:
+                batch.append(weights[tuple(slices)])
             self.batches.append(batch)
         self.shuffle()
 
@@ -152,13 +152,13 @@ class Dataset:
             self.iteration_size = len(self.batches)
 
         shapes = str(self.batches[0][0].shape)
-        if labels is not None and mask is not None:
+        if labels is not None and weights is not None:
             x, y, z = self.batches[0]
             shapes = '{} -> {} @ {}'.format(x.shape, y.shape, z.shape)
         elif labels is not None:
             x, y = self.batches[0]
             shapes = '{} -> {}'.format(x.shape, y.shape)
-        elif mask is not None:
+        elif weights is not None:
             x, y = self.batches[0]
             shapes = '{} @ {}'.format(x.shape, y.shape)
         logging.info('%s: %d of %d mini-batches of %s',

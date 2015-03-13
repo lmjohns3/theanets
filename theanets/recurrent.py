@@ -109,11 +109,13 @@ class Network(feedforward.Network):
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
-        # the mask is the same shape as the output and specifies which entries
-        # are to be included in the error computation.
-        self.mask = TT.itensor3('mask')
+        # the weights are the same shape as the output and specify the strength
+        # of each entries in the error computation.
+        self.weights = TT.tensor3('weights')
 
-        return [self.x, self.mask] if self.kwargs.get('mask') else [self.x]
+        if self.kwargs.get('weighted'):
+            return [self.x, self.weights]
+        return [self.x]
 
 
 class Autoencoder(Network, feedforward.Autoencoder):
@@ -123,8 +125,8 @@ class Autoencoder(Network, feedforward.Autoencoder):
     @property
     def error(self):
         err = self.outputs[-1] - self.targets
-        if self.kwargs.get('mask'):
-            return (self.mask * err * err).sum() / self.mask.sum()
+        if self.kwargs.get('weighted'):
+            return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
 
@@ -139,8 +141,8 @@ class Predictor(Autoencoder):
         # prediction, then we want f(y)[0] to match x[1], f(y)[1] to match x[2],
         # and so forth.
         err = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
-        if self.kwargs.get('mask'):
-            return (self.mask[1:] * err * err) / self.mask[1:].sum()
+        if self.kwargs.get('weighted'):
+            return (self.weights[1:] * err * err) / self.weights[1:].sum()
         return (err * err).mean()
 
     def generate_prediction(self, y):
@@ -181,15 +183,15 @@ class Regressor(Network, feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
-        if self.kwargs.get('mask'):
-            return [self.x, self.targets, self.mask]
+        if self.kwargs.get('weighted'):
+            return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
     @property
     def error(self):
         err = self.outputs[-1] - self.targets
-        if self.kwargs.get('mask'):
-            return (self.mask * err * err).sum() / self.mask.sum()
+        if self.kwargs.get('weighted'):
+            return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
 
@@ -210,12 +212,12 @@ class Classifier(Network, feedforward.Classifier):
         # the labels array for a recurrent network is (time_steps, batch_size).
         self.labels = TT.imatrix('labels')
 
-        # the mask is the same shape as the output and specifies which entries
-        # are to be included in the error computation.
-        self.mask = TT.imatrix('mask')
+        # the weights are the same shape as the output and specify the strength
+        # of each entry in the error computation.
+        self.weights = TT.matrix('weights')
 
-        if self.kwargs.get('mask'):
-            return [self.mask, self.x, self.labels]
+        if self.kwargs.get('weighted'):
+            return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
     @property
@@ -226,8 +228,8 @@ class Classifier(Network, feedforward.Classifier):
         prob = TT.reshape(out, (count, out.shape[2]))
         correct = TT.reshape(self.labels, (count, ))
         logp = TT.log(prob[TT.arange(count), correct])
-        if self.kwargs.get('mask'):
-            return -(self.mask * logp).sum() / self.mask.sum()
+        if self.kwargs.get('weighted'):
+            return -(self.weights * logp).sum() / self.weights.sum()
         return -logp.mean()
 
     @property
@@ -237,6 +239,6 @@ class Classifier(Network, feedforward.Classifier):
         predict = TT.argmax(out, axis=-1)
         correct = TT.eq(predict, self.labels)
         acc = correct.mean()
-        if self.kwargs.get('mask'):
-            return (self.mask * correct).sum() / self.mask.sum()
+        if self.kwargs.get('weighted'):
+            acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc

@@ -695,11 +695,27 @@ class Recurrent(Layer):
         so that past states influence the current state of the layer.
     '''
 
-    def __init__(self, batch_size=64, **kwargs):
+    def __init__(self, **kwargs):
         super(Recurrent, self).__init__(**kwargs)
 
-        zeros = np.zeros((batch_size, self.nout), FLOAT)
-        self.zeros = lambda s='h': theano.shared(zeros, name=self._fmt('{}0'.format(s)))
+    def initial_state(self, name, batch_size):
+        '''Return an array of suitable for representing initial state.
+
+        Parameters
+        ----------
+        name : str
+            Name of the variable to return.
+        batch_size : int
+            Number of elements in a batch. This can be symbolic.
+
+        Returns
+        -------
+        initial : theano shared variable
+            A variable containing the initial state of some recurrent variable.
+        '''
+        values = theano.shared(
+            np.zeros((1, self.nout), FLOAT), name=self._fmt('{}0'.format(name)))
+        return TT.repeat(values, batch_size, axis=0)
 
     def add_weights(self, name, nin=None, nout=None, mean=0, std=None):
         '''Helper method to create a new weight matrix.
@@ -742,6 +758,16 @@ class Recurrent(Layer):
             The callable to apply in the loop.
         inputs : sequence of theano expressions
             Inputs to the scan operation.
+        inits : sequence of None, tensor, tuple, or scan output specifier
+            Specifiers for the outputs of the scan operation. This should be a
+            list containing:
+            - None for values that are output by the scan but not tapped as
+              inputs,
+            - a theano tensor variable with a 'shape' attribute, or
+            - a tuple containing a string and an integer for output values that
+              are also tapped as inputs, or
+            - a dictionary containing a full output specifier.
+            See "outputs_info" in the Theano documentation for ``scan``.
         name : str, optional
             Name of the scan variable to create. Defaults to 'scan'.
 
@@ -752,11 +778,20 @@ class Recurrent(Layer):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
+        outputs = []
+        for i, x in enumerate(inits or inputs):
+            if hasattr(x, 'shape'):
+                x = self.initial_state(str(i), x.shape[1])
+            elif isinstance(x, int):
+                x = self.initial_state(str(i), x)
+            elif isinstance(x, tuple):
+                x = self.initial_state(*x)
+            outputs.append(x)
         return theano.scan(
             fn,
             name=self._fmt(name),
             sequences=inputs,
-            outputs_info=inits or [self.zeros()],
+            outputs_info=outputs,
             go_backwards='back' in self.kwargs.get('direction', '').lower(),
         )
 
@@ -773,8 +808,8 @@ class RNN(Recurrent):
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         self.log_setup(self.add_weights('xh') +
-                        self.add_weights('hh', self.nout) +
-                        self.add_bias('b'))
+                       self.add_weights('hh', self.nout) +
+                       self.add_bias('b'))
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -896,7 +931,7 @@ class MRNN(Recurrent):
         x = _only(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
-        output, updates = self._scan(fn, [h, f])
+        output, updates = self._scan(fn, [h, f], [x])
         monitors = self._monitors(output) + self._monitors(f, 'fact')
         return output, monitors, updates
 
@@ -949,10 +984,11 @@ class LSTM(Recurrent):
             h_t = o_t * TT.tanh(c_t)
             return h_t, c_t
         x = _only(inputs)
+        bs = x.shape[1]
         (output, cell), updates = self._scan(
             fn,
             [TT.dot(x, self.find('xh')) + self.find('b')],
-            inits=[self.zeros('h'), self.zeros('c')])
+            [('h', bs), ('c', bs)])
         monitors = self._monitors(output) + self._monitors(cell, 'cell')
         return output, monitors, updates
 

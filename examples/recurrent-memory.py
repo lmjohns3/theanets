@@ -15,8 +15,7 @@ BATCH_SIZE = 32
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
     layers=(1, ('rnn', 10), 1),
-    recurrent_error_start=TIME - BITS,
-    batch_size=BATCH_SIZE)
+    recurrent_error_start=TIME - BITS)
 
 def generate():
     s, t = np.random.randn(2, TIME, BATCH_SIZE, 1).astype('f')

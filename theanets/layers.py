@@ -881,7 +881,7 @@ class ARRNN(Recurrent):
         x = _only(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
-        output, updates = self._scan(fn, [h, r])
+        output, updates = self._scan(fn, [h, r], [x])
         monitors = self._monitors(output) + self._monitors(r, 'rate')
         return output, monitors, updates
 

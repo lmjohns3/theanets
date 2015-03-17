@@ -902,10 +902,10 @@ class Classifier(Network):
     def error(self):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]
-        prob = out[TT.arange(self.labels.shape[0]), self.labels]
+        nlp = -TT.log(out[TT.arange(self.labels.shape[0]), self.labels])
         if self.is_weighted:
-            return -self.weights * TT.log(prob) / self.weights.sum()
-        return -TT.log(prob).mean()
+            return (self.weights * nlp).sum() / self.weights.sum()
+        return nlp.mean()
 
     @property
     def accuracy(self):

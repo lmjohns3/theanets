@@ -330,25 +330,27 @@ class Network(object):
 
     @property
     def is_weighted(self):
+        '''True iff the network uses explicit target weights.'''
         return bool(self.kwargs.get('weighted'))
 
     @property
     def output_activation(self):
+        '''String naming the output activation function for the network.'''
         return self.kwargs.get('output_activation', 'linear')
 
     @property
     def encoding_layers(self):
-        '''Determine the layers that will be part of the network encoder.
+        '''List of layers that will be part of the network encoder.
 
-        This method is used by the default implementation of
+        This property is used by the default implementation of
         :func:`setup_layers` to determine which layers in the network will be
         treated as "encoding" layers. The default is to treat all but the last
         layer as encoders.
 
         Returns
         -------
-        layers : list of int
-            A list of integers specifying sizes of the encoder network layers.
+        layers : list of int, dict, etc.
+            A list of specifications for encoder layers of the network.
         '''
         return self.kwargs['layers'][:-1]
 

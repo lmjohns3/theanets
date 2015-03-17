@@ -113,7 +113,7 @@ class Network(feedforward.Network):
         # of each entries in the error computation.
         self.weights = TT.tensor3('weights')
 
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return [self.x, self.weights]
         return [self.x]
 
@@ -125,7 +125,7 @@ class Autoencoder(Network, feedforward.Autoencoder):
     @property
     def error(self):
         err = self.outputs[-1] - self.targets
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -141,7 +141,7 @@ class Predictor(Autoencoder):
         # prediction, then we want f(y)[0] to match x[1], f(y)[1] to match x[2],
         # and so forth.
         err = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return (self.weights[1:] * err * err) / self.weights[1:].sum()
         return (err * err).mean()
 
@@ -183,14 +183,14 @@ class Regressor(Network, feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
     @property
     def error(self):
         err = self.outputs[-1] - self.targets
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -216,7 +216,7 @@ class Classifier(Network, feedforward.Classifier):
         # of each entry in the error computation.
         self.weights = TT.matrix('weights')
 
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
@@ -228,7 +228,7 @@ class Classifier(Network, feedforward.Classifier):
         prob = TT.reshape(out, (count, out.shape[2]))
         correct = TT.reshape(self.labels, (count, ))
         logp = TT.log(prob[TT.arange(count), correct])
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return -(self.weights * logp).sum() / self.weights.sum()
         return -logp.mean()
 
@@ -239,6 +239,6 @@ class Classifier(Network, feedforward.Classifier):
         predict = TT.argmax(out, axis=-1)
         correct = TT.eq(predict, self.labels)
         acc = correct.mean()
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc

@@ -165,10 +165,12 @@ class Network(object):
     weighted : bool, optional
         If True, the network will require an additional input that provides
         weights for the target outputs of the network; the weights will be the
-        last input argument to the network, and it must be the same shape as the
-        target output. This can be particularly useful for recurrent networks,
-        where the length of each sequence is not necessarily the same number of
-        time steps. The default is not to use weighted outputs.
+        last input argument to the network, and they must be the same shape as
+        the target output. This can be particularly useful for recurrent
+        networks, where the length of each sequence is not necessarily the same
+        number of time steps, or for classifier networks where the prior
+        proabibility of one class is significantly different than another. The
+        default is not to use weighted outputs.
 
     Attributes
     ----------
@@ -325,6 +327,10 @@ class Network(object):
             nin=sizes[-1] if back <= 1 else sizes[-back:],
             nout=self.kwargs['layers'][-1],
             activation=self.output_activation))
+
+    @property
+    def is_weighted(self):
+        return bool(self.kwargs.get('weighted'))
 
     @property
     def output_activation(self):
@@ -739,7 +745,7 @@ class Autoencoder(Network):
     def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.x
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -832,7 +838,7 @@ class Regressor(Network):
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
 
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
@@ -840,7 +846,7 @@ class Regressor(Network):
     def error(self):
         '''Returns a theano expression for computing the mean squared error.'''
         err = self.outputs[-1] - self.targets
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -882,7 +888,7 @@ class Classifier(Network):
         # and the weights are reshaped to be just a vector.
         self.weights = TT.vector('weights')
 
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
@@ -895,7 +901,7 @@ class Classifier(Network):
         '''Returns a theano computation of cross entropy.'''
         out = self.outputs[-1]
         prob = out[TT.arange(self.labels.shape[0]), self.labels]
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             return -self.weights * TT.log(prob) / self.weights.sum()
         return -TT.log(prob).mean()
 
@@ -906,7 +912,7 @@ class Classifier(Network):
         predict = TT.argmax(out, axis=1)
         eq = TT.eq(predict, self.labels)
         acc = eq.mean()
-        if self.kwargs.get('weighted'):
+        if self.is_weighted:
             acc = (self.weights * eq).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc
 

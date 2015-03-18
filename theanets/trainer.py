@@ -460,10 +460,12 @@ class RmsProp(SGD):
     before being applied to update the parameters.
 
     Formally, RmsProp is parameterized by:
+
     - :math:`\alpha` -- learning rate,
     - :math:`\mu` -- momentum,
     - :math:`\epsilon` -- RMS regularizer, and
     - :math:`\gamma` -- EWMA decay rate.
+
     Given these, RmsProp computes updates for model parameter :math:`\theta`
     to optimize loss :math:`\mathcal{L}` using the following equations:
 
@@ -524,8 +526,10 @@ class ADADELTA(RmsProp):
     ratio of the parameter step RMS values to the gradient RMS values.
 
     Formally, ADADELTA is parameterized by:
+
     - :math:`\epsilon` -- RMS regularizer, and
     - :math:`\gamma` -- EWMA decay rate.
+
     Given these, ADADELTA computes updates for model parameter :math:`\theta`
     to optimize loss :math:`\mathcal{L}` using the following equations:
 

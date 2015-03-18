@@ -57,7 +57,6 @@ e = theanets.Experiment(
     theanets.recurrent.Classifier,
     layers=(39, layer(156), layer(300), layer(102), 51),
     recurrent_error_start=0,
-    batch_size=BATCH_SIZE,
     input_noise=0.6,
     max_gradient_norm=10,
 )

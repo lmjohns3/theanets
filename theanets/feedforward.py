@@ -236,7 +236,6 @@ class Network(object):
                 name='hid{}'.format(len(self.layers)),
                 noise=self.kwargs.get('hidden_noise', 0),
                 dropout=self.kwargs.get('hidden_dropouts', 0),
-                batch_size=self.kwargs.get('batch_size', 64),
                 activation=self.kwargs.get('hidden_activation', 'logistic'),
             )
 

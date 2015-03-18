@@ -307,12 +307,9 @@ Defining the model
 We'll set up a recurrent model by creating an :class:`Experiment
 <theanets.main.Experiment>` with the appropriate model class and layers::
 
-  BATCH_SIZE = 32
-
   exp = theanets.Experiment(
       theanets.recurrent.Regressor,
-      layers=(1, ('lstm', 10), 1),
-      batch_size=BATCH_SIZE)
+      layers=(1, ('lstm', 10), 1))
 
 Here we've specified that we're using a :class:`recurrent regression
 <theanets.recurrent.Regressor>` model. Our network has three layers: the first
@@ -336,6 +333,7 @@ output are set to the first :math:`k` time steps of the input::
 
   T = 20
   K = 3
+  BATCH_SIZE = 32
 
   def generate():
       s, t = np.random.randn(2, T, BATCH_SIZE, 1).astype('f')

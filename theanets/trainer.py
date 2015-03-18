@@ -269,22 +269,22 @@ class SGD(Trainer):
     r'''Optimize using stochastic gradient descent with momentum.
 
     A stochastic gradient trainer with momentum :math:`\mu` and learning rate
-    :math:`\alpha` updates parameter :math:`p` at step :math:`t` by blending the
-    current "velocity" :math:`v` with the current gradient
-    :math:`\frac{\partial\mathcal{L}}{\partial p}`:
+    :math:`\alpha` updates parameter :math:`\theta` at step :math:`t` by
+    blending the current "velocity" :math:`v` with the current gradient
+    :math:`\frac{\partial\mathcal{L}}{\partial\theta}`:
 
     .. math::
         \begin{eqnarray*}
-        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial p} \\
-        p_{t+1} &=& p_t + v_{t+1}
+        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial\theta} \\
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     Without momentum (or when :math:`\mu = 0`), these updates reduce to
-    :math:`p_{t+1} = p_t - \alpha \frac{\partial\mathcal{L}}{\partial p}`, which
-    just takes steps downhill according to the the local gradient. Adding the
-    momentum term permits the algorithm to incorporate information from previous
-    steps as well, which in practice has the effect of incorporating some
-    information about second-order derivatives of the loss surface.
+    :math:`\theta_{t+1} = \theta_t - \alpha \frac{\partial\mathcal{L}}{\partial\theta}`,
+    which just takes steps downhill according to the the local gradient. Adding
+    the momentum term permits the algorithm to incorporate information from
+    previous steps as well, which in practice has the effect of incorporating
+    some information about second-order derivatives of the loss surface.
     '''
 
     def __init__(self, network, **kwargs):
@@ -341,14 +341,14 @@ class NAG(SGD):
     optimization approaches is that NAG computes the gradients at the position
     in parameter space where "classical" momentum would put us at the *next*
     step. In classical :class:`SGD` with momentum :math:`\mu` and learning rate
-    :math:`\alpha`, updates to parameter :math:`p` at step :math:`t` are
+    :math:`\alpha`, updates to parameter :math:`\theta` at step :math:`t` are
     computed by blending the current "velocity" :math:`v` with the current
-    gradient :math:`\frac{\partial\mathcal{L}}{\partial p}`:
+    gradient :math:`\frac{\partial\mathcal{L}}{\partial\theta}`:
 
     .. math::
         \begin{eqnarray*}
-        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial p} \\
-        p_{t+1} &=& p_t + v_{t+1}
+        v_{t+1} &=& \mu v_t - \alpha \frac{\partial\mathcal{L}}{\partial\theta} \\
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     In contrast, NAG adjusts the update by blending the current "velocity" with
@@ -357,8 +357,8 @@ class NAG(SGD):
 
     .. math::
         \begin{eqnarray*}
-        v_{t+1} &=& \mu v_t - \alpha \left.\frac{\partial\mathcal{L}}{\partial p}\right|_{p_t + \mu v_t} \\
-        p_{t+1} &=& p_t + v_{t+1}
+        v_{t+1} &=& \mu v_t - \alpha \left.\frac{\partial\mathcal{L}}{\partial\theta}\right|_{\theta_t + \mu v_t} \\
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     Again, the difference here is that the gradient is computed at the place in
@@ -385,30 +385,30 @@ class NAG(SGD):
 class Rprop(SGD):
     r'''Trainer for neural nets using resilient backpropagation.
 
-    The Rprop method uses the same general strategy as SGD (both methods are
-    make small parameter adjustments using local derivative information). The
-    difference is that in Rprop, only the signs of the partial derivatives are
-    taken into account when making parameter updates. That is, the step size for
-    each parameter is independent of the magnitude of the gradient for that
-    parameter.
+    The Rprop method uses the same general strategy as :class:`SGD` (both
+    methods make small parameter adjustments using local derivative
+    information). The difference is that in Rprop, only the signs of the partial
+    derivatives are taken into account when making parameter updates. That is,
+    the step size for each parameter is independent of the magnitude of the
+    gradient for that parameter.
 
-    To accomplish this, Rprop maintains a separate learning rate for every
-    parameter in the model, and adjusts this learning rate based on the
-    consistency of the sign of the gradient of the loss with respect to that
-    parameter over time. Whenever two consecutive gradients for a parameter have
-    the same sign, the learning rate for that parameter increases, and whenever
-    the signs disagree, the learning rate decreases. This has a similar effect
-    to momentum-based SGD methods but effectively maintains parameter-specific
-    learning rates.
+    To accomplish this, Rprop maintains a separate learning rate :math:`\Delta`
+    for every parameter :math:`\theta` in the model, and adjusts this learning
+    rate based on the consistency of the sign of the gradient of the loss
+    :math:`\mathcal{L}` with respect to that parameter over time. Whenever two
+    consecutive gradients for a parameter have the same sign, the learning rate
+    for that parameter increases, and whenever the signs disagree, the learning
+    rate decreases. This has a similar effect to momentum-based SGD methods but
+    effectively maintains parameter-specific learning rates.
 
     .. math::
         \begin{eqnarray*}
-        && \mbox{if } \frac{\partial\mathcal{L}}{\partial p}_{t-1}\frac{\partial\mathcal{L}}{\partial p} > 0 \\
+        && \mbox{if } \frac{\partial\mathcal{L}}{\partial\theta}_{t-1}\frac{\partial\mathcal{L}}{\partial\theta} > 0 \\
         && \qquad \Delta_t = \min (\eta_+\Delta_{t−1}, \Delta_+) \\
-        && \mbox{if } \frac{\partial\mathcal{L}}{\partial p}_{t-1}\frac{\partial\mathcal{L}}{\partial p} < 0 \\
+        && \mbox{if } \frac{\partial\mathcal{L}}{\partial\theta}_{t-1}\frac{\partial\mathcal{L}}{\partial\theta} < 0 \\
         && \qquad \Delta_t = \max (\eta_-\Delta_{t−1}, \Delta_-) \\
-        && \qquad \frac{\partial\mathcal{L}}{\partial p} = 0 \\
-        && p_{t+1} = p_t − \mbox{sgn}\left(\frac{\partial\mathcal{L}}{\partial p}\right) \Delta_t
+        && \qquad \frac{\partial\mathcal{L}}{\partial\theta} = 0 \\
+        && \theta_{t+1} = \theta_t − \mbox{sgn}\left(\frac{\partial\mathcal{L}}{\partial\theta}\right) \Delta_t
         \end{eqnarray*}
 
     Here, :math:`s(\cdot)` is the sign function (i.e., returns -1 if its
@@ -450,21 +450,29 @@ class Rprop(SGD):
 class RmsProp(SGD):
     r'''RmsProp trains neural network models using scaled SGD.
 
-    The RmsProp method uses the same general strategy as SGD, in the sense that
-    all gradient-based methods make small parameter adjustments using local
-    derivative information. The difference here is that as gradients are
+    The RmsProp method uses the same general strategy as :class:`SGD`, in the
+    sense that all gradient-based methods make small parameter adjustments using
+    local derivative information. The difference here is that as gradients are
     computed during each parameter update, an exponential moving average of
     gradient magnitudes is maintained as well. At each update, the EWMA is used
     to compute the root-mean-square (RMS) gradient value that's been seen in the
     recent past. The actual gradient is normalized by this RMS scaling factor
     before being applied to update the parameters.
 
+    Formally, RmsProp is parameterized by:
+    - :math:`\alpha` -- learning rate,
+    - :math:`\mu` -- momentum,
+    - :math:`\epsilon` -- RMS regularizer, and
+    - :math:`\gamma` -- EWMA decay rate.
+    Given these, RmsProp computes updates for model parameter :math:`\theta`
+    to optimize loss :math:`\mathcal{L}` using the following equations:
+
     .. math::
         \begin{eqnarray*}
-        f_{t+1} &=& \gamma a_t + (1 - \gamma) \frac{\partial\mathcal{L}}{\partial p} \\
-        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial p}\right)^2 \\
-        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - f_{t+1}^2 + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
-        p_{t+1} &=& p_t + v_{t+1}
+        f_{t+1} &=& \gamma f_t + (1 - \gamma) \frac{\partial\mathcal{L}}{\partial\theta} \\
+        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial\theta}\right)^2 \\
+        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{g_{t+1} - f_{t+1}^2 + \epsilon}} \frac{\partial\mathcal{L}}{\partial\theta} \\
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     Like :class:`Rprop`, this learning method effectively maintains a sort of
@@ -515,12 +523,19 @@ class ADADELTA(RmsProp):
     steps, are maintained as well. The actual gradient is normalized by the
     ratio of the parameter step RMS values to the gradient RMS values.
 
+    Formally, ADADELTA is parameterized by:
+    - :math:`\epsilon` -- RMS regularizer, and
+    - :math:`\gamma` -- EWMA decay rate.
+    Given these, ADADELTA computes updates for model parameter :math:`\theta`
+    to optimize loss :math:`\mathcal{L}` using the following equations:
+
+    .. math::
     .. math::
         \begin{eqnarray*}
-        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial p}\right)^2 \\
-        v_{t+1} &=& -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
+        g_{t+1} &=& \gamma g_t + (1 - \gamma) \left(\frac{\partial\mathcal{L}}{\partial\theta}\right)^2 \\
+        v_{t+1} &=& -\frac{\sqrt{x_t + \epsilon}}{\sqrt{g_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial\theta} \\
         x_{t+1} &=& \gamma x_t + (1 - \gamma) v_{t+1}^2 \\
-        p_{t+1} &=& p_t + v_{t+1}
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     Like :class:`Rprop` and the :class:`RmsProp`--:class:`ESGD` family, this
@@ -567,10 +582,10 @@ class ESGD(RmsProp):
     .. math::
         \begin{eqnarray*}
         r &\sim& \mathcal{N}(0, 1) \\
-        Hr &=& \frac{\partial^2 \mathcal{L}}{\partial^2 p}r \\
+        Hr &=& \frac{\partial^2 \mathcal{L}}{\partial^2\theta}r \\
         D_{t+1} &=& \gamma D_t + (1 - \gamma) (Hr)^2 \\
-        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{D_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial p} \\
-        p_{t+1} &=& p_t + v_{t+1}
+        v_{t+1} &=& \mu v_t - \frac{\alpha}{\sqrt{D_{t+1} + \epsilon}} \frac{\partial\mathcal{L}}{\partial\theta} \\
+        \theta_{t+1} &=& \theta_t + v_{t+1}
         \end{eqnarray*}
 
     Like :class:`Rprop` and the :class:`ADADELTA`--:class:`RmsProp` family, this
@@ -611,7 +626,7 @@ class ESGD(RmsProp):
 
 
 class Scipy(Trainer):
-    '''General trainer for neural nets using ``scipy``.
+    '''General trainer for neural nets using ``scipy`` optimization routines.
 
     This class serves as a wrapper for the optimization algorithms provided in
     `scipy.optimize.minimize`_. The following algorithms are available in this

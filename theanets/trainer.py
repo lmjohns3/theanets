@@ -121,16 +121,16 @@ class Trainer(object):
         self._best_iter = self._curr_iter = 0
         self._best_params = [p.get_value().copy() for p in self.params]
 
-        self.loss = network.loss(**kwargs)
+        self.loss, monitors, updates = network.loss(**kwargs)
         self._monitor_exprs = [self.loss]
         self._monitor_names = ['loss']
-        for name, monitor in network.monitors:
+        for name, monitor in monitors:
             self._monitor_names.append(name)
             self._monitor_exprs.append(monitor)
 
         logging.info('compiling evaluation function')
         self.f_eval = theano.function(
-            network.inputs, self._monitor_exprs, updates=network.updates)
+            network.inputs, self._monitor_exprs, updates=updates)
 
     def set_params(self, targets):
         '''Set the values of the parameters to the given target values.
@@ -294,8 +294,9 @@ class SGD(Trainer):
         self.momentum = TT.cast(kwargs.get('momentum', 0.9), FLOAT)
         self.learning_rate = TT.cast(kwargs.get('learning_rate', 1e-4), FLOAT)
 
+        _, _, updates = network.loss(**kwargs)
         logging.info('compiling %s learning function', self.__class__.__name__)
-        updates = list(network.updates) + list(self.learning_updates())
+        updates = list(updates) + list(self.learning_updates())
         self.f_learn = theano.function(
             network.inputs, self._monitor_exprs, updates=updates)
 
@@ -799,12 +800,13 @@ class HF(Trainer):
             logging.info('downloaded hf code to %s', path)
             import hf
 
+        loss, monitors = network.loss(**kwargs)
         self.params = network.params
         self.opt = hf.hf_optimizer(
             self.params,
             network.inputs,
             network.outputs[0],
-            [network.loss(**kwargs)] + [mon for _, mon in network.monitors],
+            [loss] + [mon for _, mon in monitors],
             None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer

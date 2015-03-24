@@ -539,10 +539,15 @@ class Network(object):
 
         Returns
         -------
-        loss : theano variable
-            A variable representing the loss of this network.
+        loss : theano expression
+            A theano expression representing the loss of this network.
+        monitors : list of (name, expression) pairs
+            A list of named monitor expressions to compute for this network.
+        updates : list of (parameter, expression) pairs
+            A list of named parameter update expressions for this network.
         '''
-        hiddens = self.outputs[1:-1]
+        outputs, monitors, updates = self._connect(**kwargs)
+        hiddens = outputs[1:-1]
         regularizers = dict(
             weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
             weight_l2=((w * w).sum() for l in self.layers for w in l.params),
@@ -551,9 +556,10 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        return self.error + sum(TT.cast(kwargs[weight], FLOAT) * sum(expr)
-                                for weight, expr in regularizers.items()
-                                if kwargs.get(weight, 0) > 0)
+        return self.error(outputs[-1]) + sum(
+            TT.cast(kwargs[weight], FLOAT) * sum(expr)
+            for weight, expr in regularizers.items()
+            if kwargs.get(weight, 0) > 0), monitors, updates
 
 
 class Autoencoder(Network):

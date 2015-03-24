@@ -572,7 +572,7 @@ class Network(object):
         '''
         outputs, monitors, updates = self.build_graph(**kwargs)
         err = self.error(outputs[-1])
-        monitors.append(('err', err))
+        monitors.insert(0, ('err', err))
         monitors.extend(self.extra_monitors(outputs))
         hiddens = outputs[1:-1]
         regularizers = dict(

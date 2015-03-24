@@ -74,15 +74,6 @@ class Network(feedforward.Network):
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-    input_noise : float, optional
-        Standard deviation of desired noise to inject into input.
-    hidden_noise : float, optional
-        Standard deviation of desired noise to inject into hidden unit
-        activation output.
-    input_dropouts : float in [0, 1], optional
-        Proportion of input units to randomly set to 0.
-    hidden_dropouts : float in [0, 1], optional
-        Proportion of hidden unit activations to randomly set to 0.
     decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,

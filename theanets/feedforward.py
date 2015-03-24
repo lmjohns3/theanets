@@ -149,15 +149,6 @@ class Network(object):
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-    input_noise : float, optional
-        Standard deviation of desired noise to inject into input.
-    hidden_noise : float, optional
-        Standard deviation of desired noise to inject into hidden unit
-        activation output.
-    input_dropouts : float in [0, 1], optional
-        Proportion of input units to randomly set to 0.
-    hidden_dropouts : float in [0, 1], optional
-        Proportion of hidden unit activations to randomly set to 0.
     decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
@@ -215,11 +206,8 @@ class Network(object):
         rng = self.kwargs.get('rng') or RandomStreams()
 
         # setup input layer.
-        self.layers.append(layers.build('input', specs.pop(0),
-            rng=rng,
-            name='in',
-            dropout=self.kwargs.get('input_dropouts', 0),
-            noise=self.kwargs.get('input_noise', 0)))
+        self.layers.append(
+            layers.build('input', specs.pop(0), rng=rng, name='in'))
 
         # setup "encoder" layers.
         for i, spec in enumerate(specs):
@@ -234,8 +222,6 @@ class Network(object):
                 nin=self.layers[-1].nout,
                 rng=rng,
                 name='hid{}'.format(len(self.layers)),
-                noise=self.kwargs.get('hidden_noise', 0),
-                dropout=self.kwargs.get('hidden_dropouts', 0),
                 activation=self.kwargs.get('hidden_activation', 'logistic'),
             )
 
@@ -331,8 +317,20 @@ class Network(object):
         '''
         return self.kwargs['layers'][:-1]
 
-    def _connect(self):
+    def _connect(self, **kwargs):
         '''Connect the layers in this network to form a computation graph.
+
+        Parameters
+        ----------
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
 
         Returns
         -------
@@ -348,35 +346,27 @@ class Network(object):
         monitors = []
         updates = []
         for i, layer in enumerate(self.layers):
+            noise = dropout = 0
             if i == 0:
                 # input to first layer is data.
                 inputs = self.x
+                noise = kwargs.get('input_noise', 0)
+                dropout = kwargs.get('input_dropouts', 0)
             elif i == len(self.layers) - 1:
                 # inputs to last layer is output of layers to decode.
                 inputs = outputs[-self.kwargs.get('decode_from', 1):]
+                noise = kwargs.get('hidden_noise', 0)
+                dropout = kwargs.get('hidden_dropouts', 0)
             else:
                 # inputs to other layers are outputs of previous layer.
                 inputs = outputs[-1]
-            out, mon, upd = layer.output(inputs)
+            out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
             outputs.append(out)
             monitors.extend(mon)
             updates.extend(upd)
         return outputs, monitors, updates
 
-    @property
-    def outputs(self):
-        return self._connect()[0]
-
-    @property
-    def _monitors(self):
-        return self._connect()[1]
-
-    @property
-    def updates(self):
-        return self._connect()[2]
-
-    @property
-    def monitors(self):
+    def monitors(self, **kwargs):
         '''A sequence of name-value pairs for monitoring the network.
 
         Names in this sequence are strings, and values are theano variables
@@ -391,7 +381,7 @@ class Network(object):
         - X<0.9: percent of units in layer X such that :math:`|a_i| < 0.9`
         '''
         yield 'err', self.error
-        for name, value in self._monitors:
+        for name, value in self._connect(**kwargs)[1]:
             yield name, value
 
     @property
@@ -645,15 +635,6 @@ class Autoencoder(Network):
 
         Parameters
         ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
         tied_weights : bool, optional
             If True, use decoding weights that are "tied" to the encoding
             weights. This only makes sense for a limited set of "autoencoder"
@@ -673,8 +654,6 @@ class Autoencoder(Network):
             return super(Autoencoder, self).setup_decoder()
         kw = {}
         kw.update(self.kwargs)
-        kw.update(noise=self.kwargs.get('hidden_noise', 0),
-                  dropout=self.kwargs.get('hidden_dropouts', 0))
         for i in range(len(self.layers) - 1, 1, -1):
             self.layers.append(layers.build('tied', self.layers[i], **kw))
         kw = {}

@@ -76,6 +76,7 @@ this is not required.
 
 import climate
 import gzip
+import hashlib
 import numpy as np
 import pickle
 import theano
@@ -164,6 +165,8 @@ class Network(object):
     '''
 
     def __init__(self, **kwargs):
+        self._graphs = {}     # cache of symbolic computation graphs
+        self._functions = {}  # cache of callable feedforward functions
         self.layers = []
         self.kwargs = kwargs
         self.inputs = list(self.setup_vars())
@@ -318,7 +321,26 @@ class Network(object):
         '''
         return self.kwargs['layers'][:-1]
 
-    def _connect(self, **kwargs):
+    def _hash(self, **kwargs):
+        '''Construct a string key for representing a computation graph.
+
+        This key will be unique for a given network topology and set of keyword
+        arguments.
+
+        Returns
+        -------
+        key : str
+            A hash representing the computation graph for the current network.
+        '''
+        def add(s):
+            h.update(str(s).encode('utf-8'))
+        h = hashlib.md5()
+        add(kwargs)
+        for l in self.layers:
+            add('{}{}{}'.format(l.__class__.__name__, l.name, l.nout))
+        return h.hexdigest()
+
+    def build_graph(self, **kwargs):
         '''Connect the layers in this network to form a computation graph.
 
         Parameters
@@ -343,47 +365,30 @@ class Network(object):
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
-        outputs = []
-        monitors = []
-        updates = []
-        for i, layer in enumerate(self.layers):
-            noise = dropout = 0
-            if i == 0:
-                # input to first layer is data.
-                inputs = self.x
-                noise = kwargs.get('input_noise', 0)
-                dropout = kwargs.get('input_dropouts', 0)
-            elif i == len(self.layers) - 1:
-                # inputs to last layer is output of layers to decode.
-                inputs = outputs[-self.kwargs.get('decode_from', 1):]
-                noise = kwargs.get('hidden_noise', 0)
-                dropout = kwargs.get('hidden_dropouts', 0)
-            else:
-                # inputs to other layers are outputs of previous layer.
-                inputs = outputs[-1]
-            out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
-            outputs.append(out)
-            monitors.extend(mon)
-            updates.extend(upd)
-        return outputs, monitors, updates
-
-    def monitors(self, **kwargs):
-        '''A sequence of name-value pairs for monitoring the network.
-
-        Names in this sequence are strings, and values are theano variables
-        describing how to compute the relevant quantity.
-
-        These monitor expressions are used by network trainers to compute
-        quantities of interest during training. The default set of monitors
-        consists of:
-
-        - err: the unregularized error of the network
-        - X<0.1: percent of units in layer X such that :math:`|a_i| < 0.1`
-        - X<0.9: percent of units in layer X such that :math:`|a_i| < 0.9`
-        '''
-        yield 'err', self.error
-        for name, value in self._connect(**kwargs)[1]:
-            yield name, value
+        key = self._hash(**kwargs)
+        if key not in self._graphs:
+            outputs, monitors, updates = [], [], []
+            for i, layer in enumerate(self.layers):
+                noise = dropout = 0
+                if i == 0:
+                    # input to first layer is data.
+                    inputs = self.x
+                    noise = kwargs.get('input_noise', 0)
+                    dropout = kwargs.get('input_dropouts', 0)
+                elif i == len(self.layers) - 1:
+                    # inputs to last layer is output of layers to decode.
+                    inputs = outputs[-self.kwargs.get('decode_from', 1):]
+                    noise = kwargs.get('hidden_noise', 0)
+                    dropout = kwargs.get('hidden_dropouts', 0)
+                else:
+                    # inputs to other layers are outputs of previous layer.
+                    inputs = outputs[-1]
+                out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
+                outputs.append(out)
+                monitors.extend(mon)
+                updates.extend(upd)
+            self._graphs[key] = outputs, monitors, updates
+        return self._graphs[key]
 
     @property
     def params(self):
@@ -435,7 +440,7 @@ class Network(object):
                 return l.find(param)
         raise KeyError(layer)
 
-    def feed_forward(self, x):
+    def feed_forward(self, x, **kwargs):
         '''Compute a forward pass of all layers from the given input.
 
         Parameters
@@ -454,10 +459,12 @@ class Network(object):
             correspond to units in the respective layer. The "output" of the
             network is the last element of this list.
         '''
-        if not hasattr(self, '_compute'):
-            outputs, _, updates = self._connect()
-            self._compute = theano.function([self.x], outputs, updates=updates)
-        return self._compute(x)
+        key = self._hash(**kwargs)
+        if key not in self._functions:
+            outputs, _, updates = self.build_graph(**kwargs)
+            self._functions[key] = theano.function(
+                [self.x], outputs, updates=updates)
+        return self._functions[key](x)
 
     def predict(self, x):
         '''Compute a forward pass of the inputs, returning the network output.
@@ -791,7 +798,7 @@ class Autoencoder(Network):
             self._decoders = {}
         layer = layer or len(self.layers) // 2
         if layer not in self._decoders:
-            outputs, _, updates = self._connect()
+            outputs, _, updates = self.build_graph()
             self._decoders[layer] = theano.function(
                 [outputs[layer]], [outputs[-1]], updates=updates)
         return self._decoders[layer](z)[0]

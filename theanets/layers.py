@@ -271,13 +271,6 @@ class Layer(Base):
         A theano random number generator to use for creating noise and dropout
         values. If not provided, a new generator will be produced for this
         layer.
-    noise : positive float, optional
-        Add isotropic gaussian noise with the given standard deviation to the
-        output of this layer. Defaults to 0, which does not add any noise to the
-        output.
-    dropout : float in (0, 1), optional
-        Set the given fraction of outputs in this layer randomly to zero.
-        Defaults to 0, which does not drop out any units.
     activation : str, optional
         The name of an activation function to use for units in this layer. See
         :func:`build_activation`.
@@ -309,7 +302,7 @@ class Layer(Base):
         self.params = []
         self.setup()
 
-    def output(self, inputs):
+    def output(self, inputs, noise=0, dropout=0):
         '''Create theano variables representing the output of this layer.
 
         Parameters
@@ -317,6 +310,13 @@ class Layer(Base):
         inputs : sequence of theano expressions
             Symbolic inputs to this layer. Usually layers have only one input,
             but layers in general are allowed to have many inputs.
+        noise : positive float, optional
+            Add isotropic gaussian noise with the given standard deviation to
+            the output of this layer. Defaults to 0, which does not add any
+            noise to the output.
+        dropout : float in (0, 1), optional
+            Set the given fraction of outputs in this layer randomly to zero.
+            Defaults to 0, which does not drop out any units.
 
         Returns
         -------
@@ -329,8 +329,6 @@ class Layer(Base):
             something using this layer.
         '''
         rng = self.kwargs.get('rng') or RandomStreams()
-        noise = self.kwargs.get('noise', 0)
-        dropout = self.kwargs.get('dropout', 0)
         out, mon, upd = self.transform(inputs)
         return add_dropout(add_noise(out, noise, rng), dropout, rng), mon, upd
 

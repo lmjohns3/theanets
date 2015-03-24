@@ -699,10 +699,9 @@ class Autoencoder(Network):
         '''A boolean indicating whether this network uses tied weights.'''
         return self.kwargs.get('tied_weights', False)
 
-    @property
-    def error(self):
+    def error(self, output):
         '''Returns a theano expression for computing the mean squared error.'''
-        err = self.outputs[-1] - self.x
+        err = output - self.x
         return TT.mean((err * err).sum(axis=1))
 
     def encode(self, x, layer=None, sample=False):
@@ -796,10 +795,9 @@ class Regressor(Network):
 
         return [self.x, self.targets]
 
-    @property
-    def error(self):
+    def error(self, output):
         '''Returns a theano expression for computing the mean squared error.'''
-        err = self.outputs[-1] - self.targets
+        err = output - self.targets
         return TT.mean((err * err).sum(axis=1))
 
 
@@ -843,22 +841,17 @@ class Classifier(Network):
     def output_activation(self):
         return 'softmax'
 
-    @property
-    def error(self):
+    def error(self, output):
         '''Returns a theano computation of cross entropy.'''
-        out = self.outputs[-1]
-        prob = out[TT.arange(self.labels.shape[0]), self.labels]
+        prob = output[TT.arange(self.labels.shape[0]), self.labels]
         return -TT.mean(TT.log(prob))
 
-    @property
-    def accuracy(self):
+    def accuracy(self, output):
         '''Returns a theano computation of percent correct classifications.'''
-        out = self.outputs[-1]
-        predict = TT.argmax(out, axis=1)
+        predict = TT.argmax(output, axis=1)
         return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
 
-    @property
-    def monitors(self):
+    def monitors(self, **kwargs):
         '''A sequence of name-value pairs for monitoring the network.
 
         Names in this sequence are strings, and values are theano variables
@@ -870,9 +863,10 @@ class Classifier(Network):
 
         - acc: the classification `accuracy` of the network
         '''
-        for name, value in super(Classifier, self).monitors:
+        outputs, monitors, _ = self._connect(**kwargs)
+        for name, value in super(Classifier, self).monitors(**kwargs):
             yield name, value
-        yield 'acc', self.accuracy
+        yield 'acc', self.accuracy(outputs[-1])
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

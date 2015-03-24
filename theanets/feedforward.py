@@ -299,11 +299,12 @@ class Network(object):
 
     @property
     def output_activation(self):
+        '''A string describing the output activation for this network.'''
         return self.kwargs.get('output_activation', 'linear')
 
     @property
     def encoding_layers(self):
-        '''Determine the layers that will be part of the network encoder.
+        '''Get the layers that will be part of the network encoder.
 
         This method is used by the default implementation of
         :func:`setup_layers` to determine which layers in the network will be
@@ -706,7 +707,18 @@ class Autoencoder(Network):
         return self.kwargs.get('tied_weights', False)
 
     def error(self, output):
-        '''Returns a theano expression for computing the mean squared error.'''
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
         err = output - self.x
         return TT.mean((err * err).sum(axis=1))
 
@@ -802,7 +814,18 @@ class Regressor(Network):
         return [self.x, self.targets]
 
     def error(self, output):
-        '''Returns a theano expression for computing the mean squared error.'''
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
         err = output - self.targets
         return TT.mean((err * err).sum(axis=1))
 
@@ -845,15 +868,38 @@ class Classifier(Network):
 
     @property
     def output_activation(self):
+        '''A string representing the output activation for this network.'''
         return 'softmax'
 
     def error(self, output):
-        '''Returns a theano computation of cross entropy.'''
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
         prob = output[TT.arange(self.labels.shape[0]), self.labels]
         return -TT.mean(TT.log(prob))
 
     def accuracy(self, output):
-        '''Returns a theano computation of percent correct classifications.'''
+        '''Build a theano expression for computing the network accuracy.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        acc : theano expression
+            A theano expression representing the network accuracy.
+        '''
         predict = TT.argmax(output, axis=1)
         return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
 

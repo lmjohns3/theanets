@@ -800,7 +800,7 @@ class HF(Trainer):
             logging.info('downloaded hf code to %s', path)
             import hf
 
-        loss, monitors = network.loss(**kwargs)
+        loss, monitors, _ = network.loss(**kwargs)
         self.params = network.params
         self.opt = hf.hf_optimizer(
             self.params,

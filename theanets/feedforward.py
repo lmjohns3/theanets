@@ -519,6 +519,22 @@ class Network(object):
                 p.set_value(v)
         logging.info('%s: loaded model parameters', filename)
 
+    def extra_monitors(self, outputs):
+        '''Construct extra monitors for this network.
+
+        Parameters
+        ----------
+        outputs : list of theano expressions
+            A list of theano expressions describing the activations of each
+            layer in the network.
+
+        Returns
+        -------
+        monitors : sequence of (name, expression) tuples
+            A sequence of named monitor quantities.
+        '''
+        return []
+
     def loss(self, **kwargs):
         '''Return a variable representing the loss for this network.
 
@@ -547,7 +563,10 @@ class Network(object):
         updates : list of (parameter, expression) pairs
             A list of named parameter update expressions for this network.
         '''
-        outputs, monitors, updates = self._connect(**kwargs)
+        outputs, monitors, updates = self.build_graph(**kwargs)
+        err = self.error(outputs[-1])
+        monitors.append(('err', err))
+        monitors.extend(self.extra_monitors(outputs))
         hiddens = outputs[1:-1]
         regularizers = dict(
             weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
@@ -557,10 +576,10 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        return self.error(outputs[-1]) + sum(
-            TT.cast(kwargs[weight], FLOAT) * sum(expr)
-            for weight, expr in regularizers.items()
-            if kwargs.get(weight, 0) > 0), monitors, updates
+        regularization = (TT.cast(kwargs[weight], FLOAT) * sum(expr)
+                          for weight, expr in regularizers.items()
+                          if kwargs.get(weight, 0) > 0)
+        return err + sum(regularization), monitors, updates
 
 
 class Autoencoder(Network):
@@ -851,6 +870,27 @@ class Classifier(Network):
     model and :math:`R` is a regularization function.
     '''
 
+    @property
+    def output_activation(self):
+        '''A string representing the output activation for this network.'''
+        return 'softmax'
+
+    def extra_monitors(self, outputs):
+        '''Construct extra monitors for this network.
+
+        Parameters
+        ----------
+        outputs : list of theano expressions
+            A list of theano expressions describing the activations of each
+            layer in the network.
+
+        Returns
+        -------
+        monitors : sequence of (name, expression) tuples
+            A sequence of named monitor quantities.
+        '''
+        return [('acc', self.accuracy(outputs[-1]))]
+
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -865,11 +905,6 @@ class Classifier(Network):
         self.labels = TT.ivector('labels')
 
         return [self.x, self.labels]
-
-    @property
-    def output_activation(self):
-        '''A string representing the output activation for this network.'''
-        return 'softmax'
 
     def error(self, output):
         '''Build a theano expression for computing the network error.
@@ -902,23 +937,6 @@ class Classifier(Network):
         '''
         predict = TT.argmax(output, axis=1)
         return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
-
-    def monitors(self, **kwargs):
-        '''A sequence of name-value pairs for monitoring the network.
-
-        Names in this sequence are strings, and values are theano variables
-        describing how to compute the relevant quantity.
-
-        These monitor expressions are used by network trainers to compute
-        quantities of interest during training. The default set of monitors
-        consists of everything from :func:`Network.monitors`, plus:
-
-        - acc: the classification `accuracy` of the network
-        '''
-        outputs, monitors, _ = self._connect(**kwargs)
-        for name, value in super(Classifier, self).monitors(**kwargs):
-            yield name, value
-        yield 'acc', self.accuracy(outputs[-1])
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

@@ -275,7 +275,66 @@ the class are callable by defining the ``__call__`` method::
 
   exp.train(Loader())
 
-.. _training:
+.. _training-specifying-regularizers:
+
+Specifying Regularizers
+=======================
+
+One heuristic that can prevent models from overtraining on small datasets is
+based on the observation that "good" parameter values are typically small: large
+parameter values often indicate overfitting.
+
+One way to encourage a model to use small parameter values is to assume that the
+parameter values are sampled from a posterior distribution over parameters,
+conditioned on observed data. In this way of thinking about parameters, we can
+manipulate the prior distribution of the parameter values to express our
+knowledge as modelers of the problem at hand.
+
+If you want to set up a more sophisticated model like a classifier with sparse
+hidden representations, you can add regularization hyperparameters when you
+create your experiment::
+
+  exp = theanets.Experiment(
+      theanets.Classifier,
+      layers=(784, 1000, 784),
+  )
+  exp.train(dataset, hidden_l1=0.1)
+
+Here we've specified that our model has a single, overcomplete hidden layer, and
+then when we train it, we specify that the activity of the hidden units in the
+network will be penalized with a 0.1 coefficient.
+
+Decay
+-----
+
+In "weight decay," we assume that parameters are drawn from a zero-mean Gaussian
+distribution with an isotropic, modeler-specified standard deviation. In terms
+of loss functions, this equates to adding a term to the loss function that
+computes the :math:`L_2` norm of the parameter values in the model:
+
+.. math::
+   J(\cdot) = \dots + \frac{\lambda}{2} \| \theta \|_2^2
+
+If the loss :math:`J(\cdot)` represents some approximation to the log-posterior
+distribution of the model parameters given the data
+
+.. math::
+   J(\cdot) = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
+
+then the term with the :math:`L_2` norm on the parameters is like an unscaled
+Gaussian distribution.
+
+Sparsity
+--------
+
+Sparse models have been shown to capture regularities seen in the mammalian
+visual cortex [Ols94]_. In addition, sparse models in machine learning are often
+more performant than "dense" models (i.e., models without restriction on the
+hidden representation) [Lee08]_. Furthermore, sparse models tend to yield latent
+representations that are more interpretable to humans than dense models
+[Tib96]_.
+
+.. _training-training:
 
 Training
 ========

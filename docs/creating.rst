@@ -11,34 +11,39 @@ Often, this can be done fairly easily by combining:
 
 .. _creating-predefined-models:
 
-Predefined Models
-=================
+Feedforward Models
+==================
 
-There are three basic types of models in the neural networks literature; while
-other types of models are certainly possible, ``theanets`` only tries to handle
-the common cases with built-in model classes. To define a new type of model, see
-:ref:`creating-customizing`.
+There are three major types of neural network models, each defined primarily by
+the loss function that the model attempts to optimize. While other types of
+models are certainly possible, ``theanets`` only tries to handle the common
+cases with built-in model classes. (If you want to define a new type of model,
+see :ref:`creating-customizing`.)
 
 In ``theanets``, a network model is a subclass of :class:`Network
 <theanets.feedforward.Network>`. Its primary defining characteristics are the
 ``error`` property and the implementation of :func:`Network.setup_vars()
-<theanets.feedforward.Network.setup_vars>`. The ``error`` property defines the
-error function for the model, which is an important (and sometimes the only)
-component of the loss that model trainers attempt to minimize during the
-learning process. The ``setup_vars`` method defines the variables that the
-network requires for computing an error value.
+<theanets.feedforward.Network.setup_vars>`.
+
+The ``error`` property defines the error function for the model, which is an
+important (and sometimes the only) component of the loss that model trainers
+attempt to minimize during the learning process.
+
+The ``setup_vars`` method defines the variables that the network requires for
+computing an error value. All variables that are required to compute the loss
+must be defined in this method.
 
 In the brief discussion below, we assume that the network has some set of
-parameters :math:`\theta`. The network computes some function of its inputs
-using these parameters, which we represent using the notation
-:math:`F_\theta(x)`.
+parameters :math:`\theta`. In the feedforward pass, the network computes some
+function of its inputs :math:`x` using these parameters; we represent this
+feedforward function using the notation :math:`F_\theta(x)`.
 
 Autoencoder
 -----------
 
 An :class:`autoencoder <theanets.feedforward.Autoencoder>` takes an array of
-arbitrary data :math:`x` as input. It attempts to recreate that same input at
-its output layer.
+arbitrary data :math:`x` as input, transforms it in some way, and then attempts
+to recreate the original input as the output of the network.
 
 To evaluate the loss for an autoencoder, only the input data is required. The
 model computes the loss using the mean squared error between the network's
@@ -55,6 +60,12 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
 
   exp = theanets.Experiment(theanets.Autoencoder)
   net = exp.network
+
+An autoencoder requires the following inputs at training time:
+
+- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
+  be one data item. Each column of ``x`` holds the measurements of a particular
+  input variable across all data items.
 
 Regression
 ----------
@@ -78,6 +89,20 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
   exp = theanets.Experiment(theanets.Regressor)
   net = exp.network
 
+A regression model requires the following inputs at training time:
+
+- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
+  be one data item. Each column of ``x`` holds the measurements of a particular
+  input variable across all data items.
+- ``targets``: A two-dimensional array of target output data. Each row of
+  ``targets`` is expected to be the target values for a single data item. Each
+  column of ``targets`` holds the measurements of a particular output variable
+  across all data items.
+
+The number of rows in ``x`` must be equal to the number of rows of ``targets``,
+but the number of columns in these two arrays may be whatever is required for
+the inputs and outputs of the problem.
+
 Classification
 --------------
 
@@ -100,6 +125,20 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
 
   exp = theanets.Experiment(theanets.Classifier)
   net = exp.network
+
+A classifier model requires the following inputs at training time:
+
+- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
+  be one data item. Each column of ``x`` holds the measurements of a particular
+  input variable across all data items.
+- ``labels``: A one-dimensional array of target labels. Each element of
+  ``labels`` is expected to be the class index for a single data item.
+
+The number of rows in ``x`` must match the number of elements in the ``labels``
+vector. Additionally, the values in ``labels`` are expected to range from 0 to
+the number of classes in the data being modeled. For example, for the MNIST
+digits dataset, which represents digits 0 through 9, the labels array contains
+integer class labels 0 through 9.
 
 .. _creating-recurrent-models:
 

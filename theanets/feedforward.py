@@ -76,6 +76,7 @@ this is not required.
 
 import climate
 import gzip
+import hashlib
 import numpy as np
 import pickle
 import theano
@@ -149,15 +150,6 @@ class Network(object):
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-    input_noise : float, optional
-        Standard deviation of desired noise to inject into input.
-    hidden_noise : float, optional
-        Standard deviation of desired noise to inject into hidden unit
-        activation output.
-    input_dropouts : float in [0, 1], optional
-        Proportion of input units to randomly set to 0.
-    hidden_dropouts : float in [0, 1], optional
-        Proportion of hidden unit activations to randomly set to 0.
     decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
@@ -173,6 +165,8 @@ class Network(object):
     '''
 
     def __init__(self, **kwargs):
+        self._graphs = {}     # cache of symbolic computation graphs
+        self._functions = {}  # cache of callable feedforward functions
         self.layers = []
         self.kwargs = kwargs
         self.inputs = list(self.setup_vars())
@@ -215,11 +209,8 @@ class Network(object):
         rng = self.kwargs.get('rng') or RandomStreams()
 
         # setup input layer.
-        self.layers.append(layers.build('input', specs.pop(0),
-            rng=rng,
-            name='in',
-            dropout=self.kwargs.get('input_dropouts', 0),
-            noise=self.kwargs.get('input_noise', 0)))
+        self.layers.append(
+            layers.build('input', specs.pop(0), rng=rng, name='in'))
 
         # setup "encoder" layers.
         for i, spec in enumerate(specs):
@@ -234,8 +225,6 @@ class Network(object):
                 nin=self.layers[-1].nout,
                 rng=rng,
                 name='hid{}'.format(len(self.layers)),
-                noise=self.kwargs.get('hidden_noise', 0),
-                dropout=self.kwargs.get('hidden_dropouts', 0),
                 activation=self.kwargs.get('hidden_activation', 'logistic'),
             )
 
@@ -313,11 +302,12 @@ class Network(object):
 
     @property
     def output_activation(self):
+        '''A string describing the output activation for this network.'''
         return self.kwargs.get('output_activation', 'linear')
 
     @property
     def encoding_layers(self):
-        '''Determine the layers that will be part of the network encoder.
+        '''Get the layers that will be part of the network encoder.
 
         This method is used by the default implementation of
         :func:`setup_layers` to determine which layers in the network will be
@@ -331,8 +321,39 @@ class Network(object):
         '''
         return self.kwargs['layers'][:-1]
 
-    def _connect(self):
+    def _hash(self, **kwargs):
+        '''Construct a string key for representing a computation graph.
+
+        This key will be unique for a given network topology and set of keyword
+        arguments.
+
+        Returns
+        -------
+        key : str
+            A hash representing the computation graph for the current network.
+        '''
+        def add(s):
+            h.update(str(s).encode('utf-8'))
+        h = hashlib.md5()
+        add(kwargs)
+        for l in self.layers:
+            add('{}{}{}'.format(l.__class__.__name__, l.name, l.nout))
+        return h.hexdigest()
+
+    def build_graph(self, **kwargs):
         '''Connect the layers in this network to form a computation graph.
+
+        Parameters
+        ----------
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
 
         Returns
         -------
@@ -344,55 +365,30 @@ class Network(object):
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
-        outputs = []
-        monitors = []
-        updates = []
-        for i, layer in enumerate(self.layers):
-            if i == 0:
-                # input to first layer is data.
-                inputs = self.x
-            elif i == len(self.layers) - 1:
-                # inputs to last layer is output of layers to decode.
-                inputs = outputs[-self.kwargs.get('decode_from', 1):]
-            else:
-                # inputs to other layers are outputs of previous layer.
-                inputs = outputs[-1]
-            out, mon, upd = layer.output(inputs)
-            outputs.append(out)
-            monitors.extend(mon)
-            updates.extend(upd)
-        return outputs, monitors, updates
-
-    @property
-    def outputs(self):
-        return self._connect()[0]
-
-    @property
-    def _monitors(self):
-        return self._connect()[1]
-
-    @property
-    def updates(self):
-        return self._connect()[2]
-
-    @property
-    def monitors(self):
-        '''A sequence of name-value pairs for monitoring the network.
-
-        Names in this sequence are strings, and values are theano variables
-        describing how to compute the relevant quantity.
-
-        These monitor expressions are used by network trainers to compute
-        quantities of interest during training. The default set of monitors
-        consists of:
-
-        - err: the unregularized error of the network
-        - X<0.1: percent of units in layer X such that :math:`|a_i| < 0.1`
-        - X<0.9: percent of units in layer X such that :math:`|a_i| < 0.9`
-        '''
-        yield 'err', self.error
-        for name, value in self._monitors:
-            yield name, value
+        key = self._hash(**kwargs)
+        if key not in self._graphs:
+            outputs, monitors, updates = [], [], []
+            for i, layer in enumerate(self.layers):
+                noise = dropout = 0
+                if i == 0:
+                    # input to first layer is data.
+                    inputs = self.x
+                    noise = kwargs.get('input_noise', 0)
+                    dropout = kwargs.get('input_dropouts', 0)
+                elif i == len(self.layers) - 1:
+                    # inputs to last layer is output of layers to decode.
+                    inputs = outputs[-self.kwargs.get('decode_from', 1):]
+                    noise = kwargs.get('hidden_noise', 0)
+                    dropout = kwargs.get('hidden_dropouts', 0)
+                else:
+                    # inputs to other layers are outputs of previous layer.
+                    inputs = outputs[-1]
+                out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
+                outputs.append(out)
+                monitors.extend(mon)
+                updates.extend(upd)
+            self._graphs[key] = outputs, monitors, updates
+        return self._graphs[key]
 
     @property
     def params(self):
@@ -444,7 +440,7 @@ class Network(object):
                 return l.find(param)
         raise KeyError(layer)
 
-    def feed_forward(self, x):
+    def feed_forward(self, x, **kwargs):
         '''Compute a forward pass of all layers from the given input.
 
         Parameters
@@ -463,10 +459,12 @@ class Network(object):
             correspond to units in the respective layer. The "output" of the
             network is the last element of this list.
         '''
-        if not hasattr(self, '_compute'):
-            outputs, _, updates = self._connect()
-            self._compute = theano.function([self.x], outputs, updates=updates)
-        return self._compute(x)
+        key = self._hash(**kwargs)
+        if key not in self._functions:
+            outputs, _, updates = self.build_graph(**kwargs)
+            self._functions[key] = theano.function(
+                [self.x], outputs, updates=updates)
+        return self._functions[key](x)
 
     def predict(self, x):
         '''Compute a forward pass of the inputs, returning the network output.
@@ -528,6 +526,22 @@ class Network(object):
                 p.set_value(v)
         logging.info('%s: loaded model parameters', filename)
 
+    def extra_monitors(self, outputs):
+        '''Construct extra monitors for this network.
+
+        Parameters
+        ----------
+        outputs : list of theano expressions
+            A list of theano expressions describing the activations of each
+            layer in the network.
+
+        Returns
+        -------
+        monitors : sequence of (name, expression) tuples
+            A sequence of named monitor quantities.
+        '''
+        return []
+
     def loss(self, **kwargs):
         '''Return a variable representing the loss for this network.
 
@@ -549,10 +563,18 @@ class Network(object):
 
         Returns
         -------
-        loss : theano variable
-            A variable representing the loss of this network.
+        loss : theano expression
+            A theano expression representing the loss of this network.
+        monitors : list of (name, expression) pairs
+            A list of named monitor expressions to compute for this network.
+        updates : list of (parameter, expression) pairs
+            A list of named parameter update expressions for this network.
         '''
-        hiddens = self.outputs[1:-1]
+        outputs, monitors, updates = self.build_graph(**kwargs)
+        err = self.error(outputs[-1])
+        monitors.insert(0, ('err', err))
+        monitors.extend(self.extra_monitors(outputs))
+        hiddens = outputs[1:-1]
         regularizers = dict(
             weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
             weight_l2=((w * w).sum() for l in self.layers for w in l.params),
@@ -561,9 +583,10 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        return self.error + sum(TT.cast(kwargs[weight], FLOAT) * sum(expr)
-                                for weight, expr in regularizers.items()
-                                if kwargs.get(weight, 0) > 0)
+        regularization = (TT.cast(kwargs[weight], FLOAT) * sum(expr)
+                          for weight, expr in regularizers.items()
+                          if kwargs.get(weight, 0) > 0)
+        return err + sum(regularization), monitors, updates
 
 
 class Autoencoder(Network):
@@ -645,15 +668,6 @@ class Autoencoder(Network):
 
         Parameters
         ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
         tied_weights : bool, optional
             If True, use decoding weights that are "tied" to the encoding
             weights. This only makes sense for a limited set of "autoencoder"
@@ -673,8 +687,6 @@ class Autoencoder(Network):
             return super(Autoencoder, self).setup_decoder()
         kw = {}
         kw.update(self.kwargs)
-        kw.update(noise=self.kwargs.get('hidden_noise', 0),
-                  dropout=self.kwargs.get('hidden_dropouts', 0))
         for i in range(len(self.layers) - 1, 1, -1):
             self.layers.append(layers.build('tied', self.layers[i], **kw))
         kw = {}
@@ -720,10 +732,20 @@ class Autoencoder(Network):
         '''A boolean indicating whether this network uses tied weights.'''
         return self.kwargs.get('tied_weights', False)
 
-    @property
-    def error(self):
-        '''Returns a theano expression for computing the mean squared error.'''
-        err = self.outputs[-1] - self.x
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        err = output - self.x
         return TT.mean((err * err).sum(axis=1))
 
     def encode(self, x, layer=None, sample=False):
@@ -776,7 +798,7 @@ class Autoencoder(Network):
             self._decoders = {}
         layer = layer or len(self.layers) // 2
         if layer not in self._decoders:
-            outputs, _, updates = self._connect()
+            outputs, _, updates = self.build_graph()
             self._decoders[layer] = theano.function(
                 [outputs[layer]], [outputs[-1]], updates=updates)
         return self._decoders[layer](z)[0]
@@ -817,10 +839,20 @@ class Regressor(Network):
 
         return [self.x, self.targets]
 
-    @property
-    def error(self):
-        '''Returns a theano expression for computing the mean squared error.'''
-        err = self.outputs[-1] - self.targets
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        err = output - self.targets
         return TT.mean((err * err).sum(axis=1))
 
 
@@ -845,6 +877,27 @@ class Classifier(Network):
     model and :math:`R` is a regularization function.
     '''
 
+    @property
+    def output_activation(self):
+        '''A string representing the output activation for this network.'''
+        return 'softmax'
+
+    def extra_monitors(self, outputs):
+        '''Construct extra monitors for this network.
+
+        Parameters
+        ----------
+        outputs : list of theano expressions
+            A list of theano expressions describing the activations of each
+            layer in the network.
+
+        Returns
+        -------
+        monitors : sequence of (name, expression) tuples
+            A sequence of named monitor quantities.
+        '''
+        return [('acc', self.accuracy(outputs[-1]))]
+
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -860,40 +913,37 @@ class Classifier(Network):
 
         return [self.x, self.labels]
 
-    @property
-    def output_activation(self):
-        return 'softmax'
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
 
-    @property
-    def error(self):
-        '''Returns a theano computation of cross entropy.'''
-        out = self.outputs[-1]
-        prob = out[TT.arange(self.labels.shape[0]), self.labels]
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        prob = output[TT.arange(self.labels.shape[0]), self.labels]
         return -TT.mean(TT.log(prob))
 
-    @property
-    def accuracy(self):
-        '''Returns a theano computation of percent correct classifications.'''
-        out = self.outputs[-1]
-        predict = TT.argmax(out, axis=1)
-        return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
+    def accuracy(self, output):
+        '''Build a theano expression for computing the network accuracy.
 
-    @property
-    def monitors(self):
-        '''A sequence of name-value pairs for monitoring the network.
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
 
-        Names in this sequence are strings, and values are theano variables
-        describing how to compute the relevant quantity.
-
-        These monitor expressions are used by network trainers to compute
-        quantities of interest during training. The default set of monitors
-        consists of everything from :func:`Network.monitors`, plus:
-
-        - acc: the classification `accuracy` of the network
+        Returns
+        -------
+        acc : theano expression
+            A theano expression representing the network accuracy.
         '''
-        for name, value in super(Classifier, self).monitors:
-            yield name, value
-        yield 'acc', self.accuracy
+        predict = TT.argmax(output, axis=1)
+        return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

@@ -53,7 +53,6 @@ and train it using a few lines of code::
   exp = theanets.Experiment(
       theanets.Classifier,
       layers=(100, 200, 100, 10),
-      hidden_l1=0.1,
   )
 
   exp.train(
@@ -62,6 +61,7 @@ and train it using a few lines of code::
       optimize='sgd',
       learning_rate=0.01,
       momentum=0.5,
+      hidden_l1=0.1,
   )
 
   exp.network.predict(my_data_set.test_data)

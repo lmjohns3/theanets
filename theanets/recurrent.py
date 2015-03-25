@@ -74,15 +74,6 @@ class Network(feedforward.Network):
     rng : theano RandomStreams object, optional
         Use a specific Theano random number generator. A new one will be created
         if this is None.
-    input_noise : float, optional
-        Standard deviation of desired noise to inject into input.
-    hidden_noise : float, optional
-        Standard deviation of desired noise to inject into hidden unit
-        activation output.
-    input_dropouts : float in [0, 1], optional
-        Proportion of input units to randomly set to 0.
-    hidden_dropouts : float in [0, 1], optional
-        Proportion of hidden unit activations to randomly set to 0.
     decode_from : positive int, optional
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
@@ -125,13 +116,23 @@ class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
     '''
 
-    @property
-    def error(self):
-        # we want the network to predict the next time step. if y =
-        # self.outputs[-1] is output of the network and f(y) gives the
-        # prediction, then we want f(y)[0] to match x[1], f(y)[1] to match x[2],
-        # and so forth.
-        error = self.x[1:] - self.generate_prediction(self.outputs[-1])[:-1]
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        # we want the network to predict the next time step. if y = outputs[-1]
+        # is output of the network and f(y) gives the prediction, then we want
+        # f(y)[0] to match x[1], f(y)[1] to match x[2], and so forth.
+        error = self.x[1:] - self.generate_prediction(output)[:-1]
         err = error[self.error_start:]
         return TT.mean((err * err).sum(axis=-1))
 
@@ -175,9 +176,20 @@ class Regressor(Network, feedforward.Regressor):
 
         return [self.x, self.targets]
 
-    @property
-    def error(self):
-        err = (self.outputs[-1] - self.targets)[self.error_start:]
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        err = (output - self.targets)[self.error_start:]
         return TT.mean((err * err).sum(axis=-1))
 
 
@@ -199,20 +211,38 @@ class Classifier(Network, feedforward.Classifier):
 
         return [self.x, self.labels]
 
-    @property
-    def error(self):
-        '''Returns a theano computation of cross entropy.'''
-        out = self.outputs[-1]
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
         # flatten all but last components of the output and labels
-        count = (out.shape[0] - self.error_start) * out.shape[1]
+        count = (output.shape[0] - self.error_start) * output.shape[1]
         correct = TT.reshape(self.labels[self.error_start:], (count, ))
-        prob = TT.reshape(out[self.error_start:], (count, out.shape[2]))
+        prob = TT.reshape(output[self.error_start:], (count, output.shape[2]))
         return -TT.mean(TT.log(prob[TT.arange(count), correct]))
 
-    @property
-    def accuracy(self):
-        '''Returns a theano computation of percent correct classifications.'''
-        out = self.outputs[-1]
-        predict = TT.argmax(out, axis=-1)
+    def accuracy(self, output):
+        '''Build a theano expression for computing the network accuracy.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        acc : theano expression
+            A theano expression representing the network accuracy.
+        '''
+        predict = TT.argmax(output, axis=-1)
         correct = TT.eq(predict, self.labels)
         return TT.cast(100, FLOAT) * TT.mean(correct.flatten())

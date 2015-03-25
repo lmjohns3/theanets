@@ -33,6 +33,7 @@ class TestNetwork(util.MNIST):
         assert hs[2].shape == (self.NUM_DIGITS, 14)
         assert hs[3].shape == (self.NUM_DIGITS, 15)
 
+
 class TestClassifier(util.MNIST):
     def _build(self, *hiddens, **kwargs):
         return theanets.Classifier(

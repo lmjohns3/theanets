@@ -46,10 +46,9 @@ def main(args):
     e = theanets.Experiment(
         theanets.Autoencoder,
         layers=(K, feat ** 2, K),
-        input_noise=1,
     )
 
-    e.train(whiten(train), whiten(valid))
+    e.train(whiten(train), whiten(valid), input_noise=1)
 
     plot_layers([
         color(e.network.find(1, 0).get_value().T).T,

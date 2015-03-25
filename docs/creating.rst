@@ -10,7 +10,7 @@ This basically involves two parts:
 
 In ``theanets``, a network model is a subclass of :class:`Network
 <theanets.feedforward.Network>`. Its primary defining characteristics are the
-implementations of the :func:`Network.error
+implementations of the :func:`Network.error()
 <theanets.feedforward.Network.error>` and :func:`Network.setup_vars()
 <theanets.feedforward.Network.setup_vars>` methods.
 

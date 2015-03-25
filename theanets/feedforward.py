@@ -187,9 +187,25 @@ class Network(object):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        # x is a proxy for our network's input, and y for its output.
+        # x represents our network's input.
         self.x = TT.matrix('x')
         return [self.x]
+
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
+
+        Parameters
+        ----------
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
+        '''
+        err = output - self.x
+        return TT.mean((err * err).sum(axis=1))
 
     def setup_layers(self):
         '''Set up a computation graph for our network.
@@ -442,6 +458,8 @@ class Network(object):
 
     def feed_forward(self, x, **kwargs):
         '''Compute a forward pass of all layers from the given input.
+
+        All keyword arguments are passed directly to :func:`build_graph`.
 
         Parameters
         ----------
@@ -731,22 +749,6 @@ class Autoencoder(Network):
     def tied_weights(self):
         '''A boolean indicating whether this network uses tied weights.'''
         return self.kwargs.get('tied_weights', False)
-
-    def error(self, output):
-        '''Build a theano expression for computing the network error.
-
-        Parameters
-        ----------
-        output : theano expression
-            A theano expression representing the output of the network.
-
-        Returns
-        -------
-        error : theano expression
-            A theano expression representing the network error.
-        '''
-        err = output - self.x
-        return TT.mean((err * err).sum(axis=1))
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.

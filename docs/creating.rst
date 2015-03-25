@@ -3,11 +3,30 @@ Creating a Network
 ==================
 
 The first step in using ``theanets`` is creating a model to train and use.
-Often, this can be done fairly easily by combining:
+This basically involves two parts:
 
-- one of the three broad classes of network models,
-- a series of layers that map inputs to outputs, and, optionally,
-- regularizers to encourage the model to learn differently.
+- one of the three broad classes of network models, and
+- a series of layers that map inputs to outputs.
+
+In ``theanets``, a network model is a subclass of :class:`Network
+<theanets.feedforward.Network>`. Its primary defining characteristics are the
+implementations of the :func:`Network.error
+<theanets.feedforward.Network.error>` and :func:`Network.setup_vars()
+<theanets.feedforward.Network.setup_vars>` methods.
+
+The ``error`` method defines the error function for the model, as a function of
+the output of the network, and any internal symbolic variables that the model
+defines. The error is an important (and sometimes the only) component of the
+loss that model trainers attempt to minimize during the learning process.
+
+The ``setup_vars`` method defines the variables that the network requires for
+computing an error value. All variables that are required to compute the error
+must be defined in this method.
+
+In the brief discussion below, we assume that the network has some set of
+parameters :math:`\theta`. In the feedforward pass, the network computes some
+function of its inputs :math:`x` using these parameters; we represent this
+feedforward function using the notation :math:`F_\theta(x)`.
 
 .. _creating-predefined-models:
 
@@ -19,25 +38,6 @@ the loss function that the model attempts to optimize. While other types of
 models are certainly possible, ``theanets`` only tries to handle the common
 cases with built-in model classes. (If you want to define a new type of model,
 see :ref:`creating-customizing`.)
-
-In ``theanets``, a network model is a subclass of :class:`Network
-<theanets.feedforward.Network>`. Its primary defining characteristics are the
-``error`` property and the implementation of :func:`Network.setup_vars()
-<theanets.feedforward.Network.setup_vars>`.
-
-The ``error`` method defines the error function for the model, as a function of
-the output of the network (and any internal symbolic variables that the model
-defines). The error is an important (and sometimes the only) component of the
-loss that model trainers attempt to minimize during the learning process.
-
-The ``setup_vars`` method defines the variables that the network requires for
-computing an error value. All variables that are required to compute the loss
-must be defined in this method.
-
-In the brief discussion below, we assume that the network has some set of
-parameters :math:`\theta`. In the feedforward pass, the network computes some
-function of its inputs :math:`x` using these parameters; we represent this
-feedforward function using the notation :math:`F_\theta(x)`.
 
 Autoencoder
 -----------
@@ -143,7 +143,7 @@ integer class labels 0 through 9.
 
 .. _creating-recurrent-models:
 
-Recurrent models
+Recurrent Models
 ================
 
 The three types of feedforward models described above also exist in recurrent

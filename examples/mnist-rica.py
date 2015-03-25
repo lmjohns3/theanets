@@ -14,11 +14,11 @@ climate.enable_default_logging()
 
 class RICA(theanets.Autoencoder):
     def J(self, weight_inverse=0, **kwargs):
-        cost = super(RICA, self).J(**kwargs)
+        cost, mon, upd = super(RICA, self).J(**kwargs)
         if weight_inverse > 0:
             cost += sum((weight_inverse / (w * w).sum(axis=0)).sum()
                         for l in self.layers for w in l.weights)
-        return cost
+        return cost, mon, upd
 
 
 train, valid, _ = load_mnist()
@@ -51,13 +51,15 @@ e = theanets.Experiment(
     RICA,
     layers=(K, N * N, K),
     activation='linear',
-    hidden_l1=0.2,
-    no_learn_biases=True,
     tied_weights=True,
     train_batches=100,
+)
+e.train(
+    whiten(train),
+    whiten(valid),
+    hidden_l1=0.2,
     weight_inverse=0.01,
 )
-e.train(whiten(train), whiten(valid))
 
 # color the network weights so they are viewable as digits.
 plot_layers(

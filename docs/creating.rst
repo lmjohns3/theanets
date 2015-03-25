@@ -434,12 +434,12 @@ another penalty to prevent feature weights from going to zero::
 
   class RICA(theanets.Autoencoder):
       def loss(self, **kwargs):
-          loss = super(RICA, self).loss(**kwargs)
+          loss, monitors, updates = super(RICA, self).loss(**kwargs)
           w = kwargs.get('weight_inverse', 0)
           if w > 0:
               loss += w * sum((1 / (p * p).sum(axis=0)).sum()
                               for l in self.layers for p in l.params)
-          return loss
+          return loss, monitors, updates
 
 This code adds a new regularizer that penalizes the inverse of the squared
 length of each of the weights in the model's layers.

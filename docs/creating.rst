@@ -25,9 +25,10 @@ In ``theanets``, a network model is a subclass of :class:`Network
 ``error`` property and the implementation of :func:`Network.setup_vars()
 <theanets.feedforward.Network.setup_vars>`.
 
-The ``error`` property defines the error function for the model, which is an
-important (and sometimes the only) component of the loss that model trainers
-attempt to minimize during the learning process.
+The ``error`` method defines the error function for the model, as a function of
+the output of the network (and any internal symbolic variables that the model
+defines). The error is an important (and sometimes the only) component of the
+loss that model trainers attempt to minimize during the learning process.
 
 The ``setup_vars`` method defines the variables that the network requires for
 computing an error value. All variables that are required to compute the loss
@@ -46,8 +47,8 @@ arbitrary data :math:`x` as input, transforms it in some way, and then attempts
 to recreate the original input as the output of the network.
 
 To evaluate the loss for an autoencoder, only the input data is required. The
-model computes the loss using the mean squared error between the network's
-output and the input:
+default autoencoder model computes the loss using the mean squared error between
+the network's output and the input:
 
 .. math::
    \mathcal{L}(X, \theta) = \frac{1}{m} \sum_{i=1}^m \left\| F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
@@ -143,13 +144,105 @@ integer class labels 0 through 9.
 .. _creating-recurrent-models:
 
 Recurrent models
-----------------
+================
 
-The three types of models described above also exist in recurrent formulations,
-where time is an explicit part of the data being modeled. In ``theanets``, if
-you wish to include recurrent layers in your model, you must use a model class
-from the :mod:`theanets.recurrent` module; this is because recurrent models
-require data matrices with an additional dimension to represent time.
+The three types of feedforward models described above also exist in recurrent
+formulations, but in recurrent networks, time is an explicit part of the model.
+In ``theanets``, if you wish to include recurrent layers in your model, you must
+use a model class from the :mod:`theanets.recurrent` module; this is because
+recurrent models require data matrices with an additional dimension to represent
+time. In general,
+
+- the data shapes required for a recurrent layer are all one
+  dimension larger than the corresponding shapes for a feedforward network, and
+- the extra dimension is always the 0 axis, and
+- the extra dimension represents time.
+
+In addition to the three vanilla model types described above, recurrent networks
+also allow for the possibility of *predicting future outputs*. This task is
+handled by prediction networks.
+
+Autoencoder
+-----------
+
+A :class:`recurrent autoencoder <theanets.recurrent.Autoencoder>`, just like its
+feedforward counterpart, takes as input a single array of data :math:`X` and
+attempts to recreate the same data at the output, under a squared-error loss.
+
+A recurrent autoencoder thus requires the following inputs:
+
+- ``x``: A three-dimensional array of input data. Each element of axis 0 of
+  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
+  holds a single data sample. Each element of axis 2 of ``x`` represents the
+  measurements of a particular input variable across all times and all data
+  items.
+
+Prediction
+----------
+
+An interesting subclass of autoencoders is models that attempt to predict future
+states based on past data. :class:`Prediction <theanets.recurrent.Predictor>`
+models are like autoencoders in that they require only a data array as input,
+and they train under a squared-error loss. Unlike a recurrent autoencoder,
+however, a prediction model is explicitly required to produce a future output,
+rather than the output from the same time step.
+
+A recurrent prediction model takes the following inputs:
+
+- ``x``: A three-dimensional array of input data. Each element of axis 0 of
+  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
+  holds a single data sample. Each element of axis 2 of ``x`` represents the
+  measurements of a particular input variable across all times and all data
+  items.
+
+Regression
+----------
+
+A recurrent regression model is also just like its feedforward counterpart. It
+requires two inputs at training time: an array of input data :math:`X` and a
+corresponding array of output data :math:`Y`. Like the feedforward regression
+models, the recurrent version attempts to produce the target outputs under a
+squared-error loss.
+
+A recurrent regression model takes the following inputs:
+
+- ``x``: A three-dimensional array of input data. Each element of axis 0 of
+  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
+  holds a single data sample. Each element of axis 2 of ``x`` represents the
+  measurements of a particular input variable across all times and all data
+  items.
+
+- ``targets``: A three-dimensional array of target output data. Each element of
+  axis 0 of ``targets`` is expected to be one sample in time. Each element of
+  axis 1 of ``targets`` holds a single data sample. Each element of axis 2 of
+  ``targets`` represents the measurements of a particular output variable across
+  all times and all data items.
+
+Classification
+--------------
+
+A :class:`recurrent classification <theanets.recurrent.Classifier>` model is
+like a feedforward classifier in that it takes as input some piece of data that
+you want to classify (e.g., the pixels of an image, word counts from a document,
+etc.) and outputs a probability distribution over available labels. Computing
+the error for this type of model requires an input dataset :math:`X` and a
+corresponding set of integer labels :math:`Y`; the error is then computed as the
+cross-entropy between the network output and the target labels.
+
+Unlike a feedforward classifier, where the target labels are provided as a
+single vector, a recurrent classifier requires a vector of target labels for
+each time step in the input data. So a recurrent classifier model requires the
+following inputs for training:
+
+- ``x``: A three-dimensional array of input data. Each element of axis 0 of
+  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
+  holds a single data sample. Each element of axis 2 of ``x`` represents the
+  measurements of a particular input variable across all times and all data
+  items.
+
+- ``labels``: A two-dimensional array of integer target labels. Each element of
+  ``labels`` is expected to be the class index for a single data item. Axis 0 of
+  this array represents time, and axis 1 represents data samples.
 
 .. _creating-specifying-layers:
 

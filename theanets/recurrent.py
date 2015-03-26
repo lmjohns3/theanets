@@ -229,7 +229,8 @@ class Classifier(Network, feedforward.Classifier):
         correct = TT.reshape(self.labels, (count, ))
         logp = TT.log(prob[TT.arange(count), correct])
         if self.is_weighted:
-            return -(self.weights * logp).sum() / self.weights.sum()
+            w = TT.reshape(self.weights, (count, ))
+            return -(w * logp).sum() / w.sum()
         return -logp.mean()
 
     @property

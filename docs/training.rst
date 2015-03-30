@@ -160,7 +160,7 @@ https://github.com/lmjohns3/theanets/issues/62 for details.
 Other Training Methods
 ======================
 
-Sampling from data
+Sampling from Data
 ------------------
 
 :class:`sample <theanets.trainer.Sample>`
@@ -170,7 +170,7 @@ data. This is a very fast "training" algorithm since all updates take place at
 once; however, often features derived directly from the training data require
 further tuning to perform well.
 
-Layerwise pretraining
+Layerwise Pretraining
 ---------------------
 
 :class:`layerwise <theanets.trainer.SupervisedPretrainer>`
@@ -194,7 +194,7 @@ assembling data to use when training your model.
 
 .. _training-using-arrays:
 
-Using arrays
+Using Arrays
 ------------
 
 A fairly typical use case for training a neural network in Python is to
@@ -228,7 +228,7 @@ provide data to the training algorithm.
 
 .. _training-using-callables:
 
-Using callables
+Using Callables
 ---------------
 
 You can provide a callable for a dataset. This callable must take no arguments
@@ -318,7 +318,7 @@ then when we train it, we specify that the activity of the hidden units in the
 network will be penalized with a 0.1 coefficient. The rest of this section
 details the built-in regularizers that are available in ``theanets``.
 
-Input regularization
+Input Regularization
 --------------------
 
 One way of regularizing a model to prevent overfitting is to add noise to the
@@ -432,7 +432,7 @@ Training
 
 .. _training-iteration:
 
-Training as iteration
+Training as Iteration
 ---------------------
 
 The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
@@ -455,7 +455,7 @@ contains the percent accuracy of the classifier model.
 
 .. _training-saving-progress:
 
-Saving progress
+Saving Progress
 ---------------
 
 The :class:`Experiment <theanets.main.Experiment>` class can snapshot your model

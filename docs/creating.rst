@@ -260,7 +260,7 @@ When you create a network model, the ``layers`` keyword argument is used to
 specify the layers for your network. This keyword argument must be a sequence
 of values that specify the configuration of network layers.
 
-Input layer
+Input Layer
 -----------
 
 The first element in the ``layers`` tuple should always be an integer; the
@@ -271,7 +271,7 @@ element in the list.
 During training, the input layer can also inject noise into the input data; see
 :ref:`training-specifying-regularizers` for more information.
 
-Hidden layers
+Hidden Layers
 -------------
 
 For all hidden layers (i.e., layers that are neither the first nor the last in
@@ -332,7 +332,7 @@ sequence.
 - Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, this
   layer is simply added to the network model as-is.
 
-Output layer
+Output Layer
 ------------
 
 The output layer in ``theanets`` is the final element of the ``layers`` tuple.
@@ -343,7 +343,7 @@ specified using the ``output_activation`` keyword argument, which defaults to
 ``'linear'`` for :class:`regressors <theanets.feedforward.Regressor>` or
 :class:`autoencoder <theanets.feedforward.Autoencoder>` models.
 
-Activation functions
+Activation Functions
 --------------------
 
 An activation function (sometimes also called a transfer function) specifies how

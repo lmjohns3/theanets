@@ -280,19 +280,32 @@ the class are callable by defining the ``__call__`` method::
 Specifying Regularizers
 =======================
 
-One heuristic that can prevent models from overtraining on small datasets is
-based on the observation that "good" parameter values are typically small: large
-parameter values often indicate overfitting.
+The goal of training a model is to minimize the loss function by making
+adjustments to the model parameters. In most practical applications, the loss is
+not known a priori, but an estimate of it is computed using a set of data (the
+"training data") that has been gathered from the problem being modeled.
+
+If a model has many parameters compared with the size of the training dataset,
+then many machine learning models exhibit a phenomenon called *overfitting*: the
+model may learn to predict the training data with no measurable error, but then
+if it is applied to a new dataset, it makes lots of mistakes. In such a case,
+the model has essentially memorized the training data at the cost of not being
+able to *generalize* to new and unseen, yet similar, datasets. The risk of
+overfitting usually increases with the size of the model (as measured by the
+number of parameters) and decreases with the size of the training dataset.
+
+Another heuristic that can prevent models from overfitting on small datasets is
+based on the observation that "good" parameter values in most models are
+typically small: large parameter values often indicate overfitting.
 
 One way to encourage a model to use small parameter values is to assume that the
-parameter values are sampled from a posterior distribution over parameters,
-conditioned on observed data. In this way of thinking about parameters, we can
-manipulate the prior distribution of the parameter values to express our
-knowledge as modelers of the problem at hand.
+parameter values are sampled from some prior distribution, rather than assuming
+that all parameter values in the model are equally likely. In this way of
+thinking about parameters, we can manipulate the prior distribution of the
+parameter values to express our knowledge as modelers of the problem at hand.
 
-If you want to set up a more sophisticated model like a classifier with sparse
-hidden representations, you can add regularization hyperparameters when you
-create your experiment::
+In ``theanets``, regularization hyperparameters are provided when you train your
+model::
 
   exp = theanets.Experiment(
       theanets.Classifier,
@@ -302,7 +315,33 @@ create your experiment::
 
 Here we've specified that our model has a single, overcomplete hidden layer, and
 then when we train it, we specify that the activity of the hidden units in the
-network will be penalized with a 0.1 coefficient.
+network will be penalized with a 0.1 coefficient. The rest of this section
+details the built-in regularizers that are available in ``theanets``.
+
+Input regularization
+--------------------
+
+One way of regularizing a model to prevent overfitting is to add noise to the
+data during training. While noise could be added in the training batches,
+``theanets`` provides two types of input noise regularizers: Gaussian noise and
+dropouts.
+
+In one method, zero-mean Gaussian noise is added to the input data; this is
+specified during training using the ``input_noise`` keyword argument::
+
+  exp.train(dataset, input_noise=0.1)
+
+The value of the argument specifies the standard deviation of the noise.
+
+In the other input regularization method, some of the inputs are randomly set to
+zero during training (this is sometimes called "dropout" or "masking noise").
+This type of input noise is specified using the ``input_dropout`` keyword
+argument::
+
+  exp.train(dataset, input_dropout=0.3)
+
+The value of the argument specifies the fraction of values in each input vector
+that are randomly set to zero.
 
 Decay
 -----
@@ -313,16 +352,24 @@ of loss functions, this equates to adding a term to the loss function that
 computes the :math:`L_2` norm of the parameter values in the model:
 
 .. math::
-   J(\cdot) = \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   \mathcal{L}(\cdot) = \dots + \frac{\lambda}{2} \| \theta \|_2^2
 
-If the loss :math:`J(\cdot)` represents some approximation to the log-posterior
-distribution of the model parameters given the data
+If the loss :math:`\mathcal{L}(\cdot)` represents some approximation to the
+log-posterior distribution of the model parameters given the data
 
 .. math::
-   J(\cdot) = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   \mathcal{L}(\cdot) = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
 
 then the term with the :math:`L_2` norm on the parameters is like an unscaled
 Gaussian distribution.
+
+This type of regularization is specified using the ``weight_l2`` keyword
+argument during training::
+
+  exp.train(dataset, weight_l2=1e-4)
+
+The value of the argument is the strength of the regularizer in the loss for the
+model. Smaller values create less pressure for small model weights.
 
 Sparsity
 --------
@@ -333,6 +380,50 @@ more performant than "dense" models (i.e., models without restriction on the
 hidden representation) [Lee08]_. Furthermore, sparse models tend to yield latent
 representations that are more interpretable to humans than dense models
 [Tib96]_.
+
+There are two main types of sparsity provided with ``theanets``: parameter
+sparsity and representation sparsity.
+
+The first type of sparse regularizer is just like weight decay, but instead of
+assuming that weights are drawn from a Gaussian distribution, here we assume
+that weights in the model are drawn from a distribution with a taller peak at
+zero, like a Laplace distribution. In terms of loss function, this regularizer
+adds a term with an :math:`L_1` norm to the model:
+
+.. math::
+   \mathcal{L}(\cdot) = \dots + \lambda \| \theta \|_1
+
+If the loss :math:`\mathcal{L}(\cdot)` represents some approximation to the
+log-posterior distribution of the model parameters given the data
+
+.. math::
+   \mathcal{L}(\cdot) = \log p(\theta|x) \propto \dots + \lambda \| \theta \|_1
+
+then this term is like an unscaled Laplace distribution. In practice, this
+regularizer encourages many of the model parameters to be zeros.
+
+In ``theanets``, this sparse parameter regularization is specified using the
+``weight_l1`` keyword argument during training::
+
+  exp.train(dataset, weight_l1=1e-4)
+
+The value of the argument is the strength of the regularizer in the loss for the
+model. Smaller values create less pressure for sparse model weights.
+
+The second type of sparsity regularization puts pressure on the model to develop
+hidden representations that use as few nonzero values as possible. In this type
+of regularization, the model weights are penalized indirectly, since the hidden
+representation (i.e., the values of the hidden layer neurons in the network) are
+functions of both the model weights and the input data.
+
+Sparse hidden activations have shown much promise in computational neural
+networks. In ``theanets`` this type of regularization is specified using the
+``hidden_l1`` keyword argument during training::
+
+  exp.train(dataset, hidden_l1=0.1)
+
+The value of the argument is the strength of the regularizer in the loss for the
+model. Smaller values create less pressure for sparse hidden representations.
 
 .. _training-training:
 

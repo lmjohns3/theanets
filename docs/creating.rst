@@ -269,7 +269,7 @@ method creates an :class:`Input <theanets.layers.Input>` layer from the first
 element in the list.
 
 During training, the input layer can also inject noise into the input data; see
-:ref:`training-input-regularization` for more information.
+:ref:`training-specifying-regularizers` for more information.
 
 Hidden layers
 -------------

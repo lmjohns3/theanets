@@ -251,39 +251,52 @@ Specifying Layers
 
 One of the most critical bits of creating a neural network model is specifying
 how the layers of the network are configured. There are very few limits to the
-complexity of possible neural network architectures, so it will never be
-possible to specify all combinations using a single, easy-to-use markup.
-However, ``theanets`` tries to make it easy to create networks with a single
-"stack" of many common types of layers.
+complexity of possible neural network architectures, so it would be difficult to
+create a single, easy-to-use markup that makes it equally easy to specify all
+combinations. However, ``theanets`` tries to make it easy to create networks
+with a single "stack" of many common types of layers.
 
 When you create a network model, the ``layers`` keyword argument is used to
 specify the layers for your network. This keyword argument must be a sequence
-specifying the layers; there are four options for the values in this sequence.
+of values that specify the configuration of network layers.
+
+Input layer
+-----------
+
+The first element in the ``layers`` tuple should always be an integer; the
+:class:`Network.setup_layers() <theanets.feedforward.Network.setup_layers>`
+method creates an :class:`Input <theanets.layers.Input>` layer from the first
+element in the list.
+
+During training, the input layer can also inject noise into the input data; see
+:ref:`training-input-regularization` for more information.
+
+Hidden layers
+-------------
+
+For all hidden layers (i.e., layers that are neither the first nor the last in
+the network stack), there are four options for the values of the ``layers``
+sequence.
 
 - If a value is an integer, it is interpreted as the size of a vanilla,
   fully-connected feedforward layer. All options for the layer are set to their
   defaults (e.g., the activation for a hidden layer will be given by the
-  ``hidden_activation`` configuration parameter, which defaults to a logistic
-  sigmoid).
+  ``hidden_activation`` network-wide configuration parameter, which defaults to
+  a logistic sigmoid).
 
   For example, to create a network with an input layer containing 4 units,
   hidden layers with 5 and 6 units, and an output layer with 2 units, you can
-  just use integers to specify your layers::
+  just use integers to specify all of your layers::
 
     net = theanets.Experiment(theanets.Classifier, layers=(4, 5, 6, 2))
 
-  The first element in the ``layers`` tuple should always be an integer; the
-  :class:`Network.setup_layers() <theanets.feedforward.Network.setup_layers>`
-  method creates an :class:`Input <theanets.layers.Input>` layer from the first
-  element in the list.
-
-- If a value is a tuple, it must contain an integer and may contain a string.
-  The integer in the tuple specifies the size of the layer. If there is a
-  string, and the string names a valid layer type (e.g., ``'tied'``, ``'rnn'``,
-  etc.), then this type of layer will be created. Otherwise, the string is
-  assumed to name an activation function (e.g., ``'logistic'``, ``'relu'``,
-  etc.) and a standard feedforward layer will be created with that activation.
-  (See below for a list of predefined activation functions.)
+- If a value in this sequence is a tuple, it must contain an integer and may
+  contain a string. The integer in the tuple specifies the size of the layer. If
+  there is a string, and the string names a valid layer type (e.g., ``'tied'``,
+  ``'rnn'``, etc.), then this type of layer will be created. Otherwise, the
+  string is assumed to name an activation function (e.g., ``'logistic'``,
+  ``'relu'``, etc.) and a standard feedforward layer will be created with that
+  activation. (See below for a list of predefined activation functions.)
 
   For example, to create a model with a rectified linear activation in the
   middle layer::
@@ -311,8 +324,24 @@ specifying the layers; there are four options for the values in this sequence.
 
     net = theanets.Regressor(layers=(4, dict(size=5, activation='tanh'), 2))
 
-- Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, it
-  is simply added to the network model as-is.
+  You could also create a layer with a sparsely-initialized weight matrix by
+  providing the ``sparsity`` key::
+
+    net = theanets.Regressor(layers=(4, dict(size=5, sparsity=0.9), 2))
+
+- Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, this
+  layer is simply added to the network model as-is.
+
+Output layer
+------------
+
+The output layer in ``theanets`` is the final element of the ``layers`` tuple.
+Like the input, this layer must be given as an integer, which specifies the
+number of output units in the network. The activation of the output layer is
+specified using the ``output_activation`` keyword argument, which defaults to
+``'softmax'`` for :class:`classifiers <theanets.feedforward.Classifier>` or
+``'linear'`` for :class:`regressors <theanets.feedforward.Regressor>` or
+:class:`autoencoder <theanets.feedforward.Autoencoder>` models.
 
 Activation functions
 --------------------

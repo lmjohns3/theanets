@@ -18,12 +18,18 @@ class Base:
         assert (sorted(p.name for p in self._build().params) ==
                 sorted('l_{}'.format(n) for n in expected))
 
+    def assert_count(self, expected):
+        real = self._build().num_params
+        assert real == expected, 'got {}, expected {}'.format(real, expected)
+
+
 class TestFeedforward(Base):
     def _build(self):
         return theanets.layers.Feedforward(nin=2, nout=4, name='l')
 
     def test_create(self):
         self.assert_param_names(['0', 'b'])
+        self.assert_count(12)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -40,6 +46,7 @@ class TestTied(Base):
     def test_create(self):
         l = self._build()
         assert sorted(p.name for p in l.params) == [l.name + '_b']
+        self.assert_count(2)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -54,6 +61,7 @@ class TestClassifier(Base):
 
     def test_create(self):
         self.assert_param_names(['0', 'b'])
+        self.assert_count(12)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -68,6 +76,7 @@ class TestMaxout(Base):
 
     def test_create(self):
         self.assert_param_names(['b', 'xh'])
+        self.assert_count(28)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -82,6 +91,7 @@ class TestRNN(Base):
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'xh'])
+        self.assert_count(28)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -96,6 +106,7 @@ class TestARRNN(Base):
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'r', 'xh', 'xr'])
+        self.assert_count(40)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -110,6 +121,7 @@ class TestMRNN(Base):
 
     def test_create(self):
         self.assert_param_names(['b', 'fh', 'hf', 'xf', 'xh'])
+        self.assert_count(42)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)
@@ -124,6 +136,7 @@ class TestLSTM(Base):
 
     def test_create(self):
         self.assert_param_names(['b', 'cf', 'ci', 'co', 'hh', 'xh'])
+        self.assert_count(124)
 
     def test_transform(self):
         out, mon, upd = self._build().transform(self.x)

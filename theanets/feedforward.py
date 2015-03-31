@@ -418,9 +418,13 @@ class Network(object):
         -------
         params : list of theano variables
             A list of parameters that can be learned in this model.
-
         '''
         return [p for l in self.layers for p in l.params]
+
+    @property
+    def num_params(self):
+        '''Number of parameters in the entire network model.'''
+        return sum(l.num_params for l in self.layers)
 
     def find(self, layer, param):
         '''Get a parameter from a layer in the network.

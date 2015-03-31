@@ -287,6 +287,8 @@ class Layer(Base):
         The activation function to use on this layer's output units.
     params : list of Params
         A list of the parameters in this layer.
+    num_params : int
+        Count of number of parameters in the layer.
     '''
 
     count = 0
@@ -300,6 +302,7 @@ class Layer(Base):
         self.nout = kwargs['nout']
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
         self.params = []
+        self.num_params = 0
         self.setup()
 
     def output(self, inputs, noise=0, dropout=0):
@@ -453,7 +456,9 @@ class Layer(Base):
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity),
             name=self._fmt(name)))
-        return nin * nout
+        count = nin * nout
+        self.num_params += count
+        return count
 
     def add_bias(self, name, nout=None, mean=0, std=1):
         '''Helper method to create a new bias vector.
@@ -477,6 +482,7 @@ class Layer(Base):
         nout = nout or self.nout
         self.params.append(theano.shared(
             random_vector(nout, mean, std), name=self._fmt(name)))
+        self.num_params += nout
         return nout
 
 
@@ -665,7 +671,9 @@ class Maxout(Layer):
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
-        return self.nin * self.nout * self.pieces
+        count = self.nin * self.nout * self.pieces
+        self.num_params += count
+        return count
 
 
 class Recurrent(Layer):
@@ -745,7 +753,9 @@ class Recurrent(Layer):
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
             name=self._fmt(name)))
-        return nin * nout
+        count = nin * nout
+        self.num_params += count
+        return count
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.

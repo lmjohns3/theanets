@@ -1000,6 +1000,41 @@ class LSTM(Recurrent):
         monitors = self._monitors(output) + self._monitors(cell, 'cell')
         return output, monitors, updates
 
+class GRU(Recurrent):
+    ''' Gated Recurrent Unit layer.
+        The implementation from paper
+        "Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling" (page 4)
+        http://arxiv.org/pdf/1412.3555v1.pdf
+    '''
+    def setup(self):
+        self.add_weights('wh', self.nin, self.nout)
+        self.add_weights('uh', self.nout, self.nout)
+        self.add_weights('wx', self.nin, self.nout)
+        self.add_weights('ux', self.nout, self.nout)
+        self.add_weights('wz', self.nin,  self.nout)
+        self.add_weights('uz', self.nout, self.nout)
+        self.add_bias('bh', self.nout)
+        self.add_bias('bx', self.nout)
+        self.add_bias('bz', self.nout)
+
+    def transform(self, inputs):
+        def fn(x_t1, x_t2, x_t3, h_prev):
+            #update gate
+            z = TT.nnet.sigmoid(x_t1 + TT.dot(h_prev, self.find('uz')))
+            #reset gate
+            r = TT.nnet.sigmoid(x_t2 + TT.dot(h_prev, self.find('uh')))
+            #candidate activation
+            h_c = TT.tanh(x_t3 + TT.dot((r * h_prev), self.find('ux')))
+            #activation
+            return (1 - z) * h_prev + z * h_c
+        x = _only(inputs)
+        x1 = TT.dot(x, self.find('wh'))
+        x2 = TT.dot(x, self.find('wx'))
+        x3 = TT.dot(x, self.find('wz'))
+        h, updates = self._scan(fn, [x1, x2, x3])
+        monitors = self._monitors(h)
+        return h, monitors, updates
+
 
 class Bidirectional(Layer):
     '''A bidirectional recurrent layer runs worker models forward and backward.

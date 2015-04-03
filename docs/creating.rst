@@ -484,15 +484,14 @@ error functions from the predefined :class:`Classifier
 :class:`Autoencoder <theanets.feedforward.Autoencoder>` and :class:`Regressor
 <theanets.feedforward.Regressor>` (which both use mean squared error, MSE). To
 define by a model with a new cost function, just create a new :class:`Network
-<theanets.feedforward.Network>` subclass and override the ``error`` property.
+<theanets.feedforward.Network>` subclass and override the ``error`` method.
 
 For example, to create a regression model that uses mean absolute error (MAE)
 instead of MSE::
 
   class MaeRegressor(theanets.Regressor):
-      @property
-      def error(self):
-          return TT.mean(abs(self.outputs[-1] - self.targets))
+      def error(self, output):
+          return TT.mean(abs(output - self.targets))
 
 Your cost function must return a theano expression that reflects the cost for
 your model.

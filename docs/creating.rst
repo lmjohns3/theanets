@@ -491,7 +491,7 @@ instead of MSE::
 
   class MaeRegressor(theanets.Regressor):
       def error(self, output):
-          return TT.mean(abs(output - self.targets))
+          return abs(output - self.targets).mean()
 
 Your cost function must return a theano expression that reflects the cost for
 your model.

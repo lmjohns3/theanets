@@ -482,11 +482,11 @@ It's pretty straightforward to create models in ``theanets`` that use different
 error functions from the predefined :class:`Classifier
 <theanets.feedforward.Classifier>` (which uses categorical cross-entropy) and
 :class:`Autoencoder <theanets.feedforward.Autoencoder>` and :class:`Regressor
-<theanets.feedforward.Regressor>` (which both use mean squared error, MSE). To
-define by a model with a new cost function, just create a new :class:`Network
-<theanets.feedforward.Network>` subclass and override the ``error`` method.
+<theanets.feedforward.Regressor>` (which both use mean squared error, MSE).
 
-For example, to create a regression model that uses mean absolute error (MAE)
+To define by a model with a new cost function, just create a new :class:`Network
+<theanets.feedforward.Network>` subclass and override the ``error`` method. For
+example, to create a regression model that uses mean absolute error (MAE)
 instead of MSE::
 
   class MaeRegressor(theanets.Regressor):

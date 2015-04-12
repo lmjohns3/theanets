@@ -89,7 +89,7 @@ def softmax(x):
     Returns
     -------
     y : theano variable
-        A theano expression computing the log-softmax of each row of `x`.
+        A theano expression computing the softmax of each row of `x`.
     '''
     z = TT.exp(x - x.max(axis=-1, keepdims=True))
     return z / z.sum(axis=-1, keepdims=True)

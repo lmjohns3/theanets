@@ -221,16 +221,18 @@ class Experiment:
             A dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
-        samples, labels = data, None
+        samples, labels, weights = data, None, None
         if isinstance(data, (tuple, list)):
             if len(data) > 0:
                 samples = data[0]
             if len(data) > 1:
                 labels = data[1]
+            if len(data) > 2:
+                weights = data[2]
         name = kwargs.get('name', 'dataset')
         b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
         return dataset.Dataset(
-            samples, labels=labels, name=name,
+            samples, labels=labels, weights=weights, name=name,
             batch_size=kwargs.get(b, self.kwargs.get(b, 32)),
             iteration_size=kwargs.get(i, kwargs.get(s, self.kwargs.get(s))),
             axis=kwargs.get('axis'))

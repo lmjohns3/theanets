@@ -154,6 +154,15 @@ class Network(object):
         Any of the hidden layers can be tapped at the output. Just specify a
         value greater than 1 to tap the last N hidden layers. The default is 1,
         which decodes from just the last layer.
+    weighted : bool, optional
+        If True, the network will require an additional input that provides
+        weights for the target outputs of the network; the weights will be the
+        last input argument to the network, and they must be the same shape as
+        the target output. This can be particularly useful for recurrent
+        networks, where the length of each sequence is not necessarily the same
+        number of time steps, or for classifier networks where the prior
+        proabibility of one class is significantly different than another. The
+        default is not to use weighted outputs.
 
     Attributes
     ----------
@@ -189,6 +198,13 @@ class Network(object):
         '''
         # x represents our network's input.
         self.x = TT.matrix('x')
+
+        # the weight array is provided to ensure that different target values
+        # are taken into account with different weights during optimization.
+        self.weights = TT.matrix('weights')
+
+        if self.kwargs.get('weighted'):
+            return [self.x, self.weights]
         return [self.x]
 
     def error(self, output):
@@ -205,7 +221,9 @@ class Network(object):
             A theano expression representing the network error.
         '''
         err = output - self.x
-        return TT.mean((err * err).sum(axis=1))
+        if self.is_weighted:
+            return (self.weights * err * err).sum() / self.weights.sum()
+        return (err * err).mean()
 
     def setup_layers(self):
         '''Set up a computation graph for our network.
@@ -317,23 +335,28 @@ class Network(object):
             activation=self.output_activation))
 
     @property
+    def is_weighted(self):
+        '''True iff the network uses explicit target weights.'''
+        return bool(self.kwargs.get('weighted'))
+
+    @property
     def output_activation(self):
         '''A string describing the output activation for this network.'''
         return self.kwargs.get('output_activation', 'linear')
 
     @property
     def encoding_layers(self):
-        '''Get the layers that will be part of the network encoder.
+        '''List of layers that will be part of the network encoder.
 
-        This method is used by the default implementation of
+        This property is used by the default implementation of
         :func:`setup_layers` to determine which layers in the network will be
         treated as "encoding" layers. The default is to treat all but the last
         layer as encoders.
 
         Returns
         -------
-        layers : list of int
-            A list of integers specifying sizes of the encoder network layers.
+        layers : list of int, dict, etc.
+            A list of specifications for encoder layers of the network.
         '''
         return self.kwargs['layers'][:-1]
 
@@ -843,6 +866,8 @@ class Regressor(Network):
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
 
+        if self.is_weighted:
+            return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
     def error(self, output):
@@ -859,7 +884,9 @@ class Regressor(Network):
             A theano expression representing the network error.
         '''
         err = output - self.targets
-        return TT.mean((err * err).sum(axis=1))
+        if self.is_weighted:
+            return (self.weights * err * err).sum() / self.weights.sum()
+        return (err * err).mean()
 
 
 class Classifier(Network):
@@ -902,7 +929,7 @@ class Classifier(Network):
         monitors : sequence of (name, expression) tuples
             A sequence of named monitor quantities.
         '''
-        return [('acc', self.accuracy(outputs[-1]))]
+        yield 'acc', self.accuracy(outputs[-1])
 
     def setup_vars(self):
         '''Setup Theano variables for our network.
@@ -917,7 +944,16 @@ class Classifier(Network):
         # for a classifier, this specifies the correct labels for a given input.
         self.labels = TT.ivector('labels')
 
+        # and the weights are reshaped to be just a vector.
+        self.weights = TT.vector('weights')
+
+        if self.is_weighted:
+            return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
+
+    @property
+    def output_activation(self):
+        return 'softmax'
 
     def error(self, output):
         '''Build a theano expression for computing the network error.
@@ -932,8 +968,13 @@ class Classifier(Network):
         error : theano expression
             A theano expression representing the network error.
         '''
+        lo = TT.cast(1e-5, FLOAT)
+        hi = TT.cast(1, FLOAT)
         prob = output[TT.arange(self.labels.shape[0]), self.labels]
-        return -TT.mean(TT.log(prob))
+        nlp = -TT.log(TT.clip(prob, lo, hi))
+        if self.is_weighted:
+            return (self.weights * nlp).sum() / self.weights.sum()
+        return nlp.mean()
 
     def accuracy(self, output):
         '''Build a theano expression for computing the network accuracy.
@@ -948,8 +989,11 @@ class Classifier(Network):
         acc : theano expression
             A theano expression representing the network accuracy.
         '''
-        predict = TT.argmax(output, axis=1)
-        return TT.cast(100, FLOAT) * TT.mean(TT.eq(predict, self.labels))
+        correct = TT.eq(TT.argmax(output, axis=1), self.labels)
+        acc = correct.mean()
+        if self.is_weighted:
+            acc = (self.weights * correct).sum() / self.weights.sum()
+        return TT.cast(100, FLOAT) * acc
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

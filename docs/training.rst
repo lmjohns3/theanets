@@ -220,8 +220,8 @@ then load another part and train on it::
 
   exp = theanets.Experiment()
   for filename in data_files:
-    dataset = np.load(filename)
-    exp.train(dataset)
+      dataset = np.load(filename)
+      exp.train(dataset)
 
 Finally, you can potentially handle large datasets by using a callable to
 provide data to the training algorithm.

@@ -15,8 +15,7 @@ logging = climate.get_logger('lstm-chime')
 climate.enable_default_logging()
 
 # do fixed segments for now (warning: each segment does not correspond to real utterances!)
-SEQLEN = 100
-BATCH_SIZE = 50
+BATCH_SIZE = 32
 TRAIN_NC = os.path.join(tempfile.gettempdir(), 'chime1_train.nc')
 VALID_NC = os.path.join(tempfile.gettempdir(), 'chime1_valid.nc')
 
@@ -31,24 +30,31 @@ if not os.path.isfile(TRAIN_NC) or not os.path.isfile(VALID_NC):
         savefile.write(z.read('lstm_benchmarks-master/data/val_1_speaker.nc'))
     z.close()
 
-def batch_at(data, start):
-    dtype, shape = 'int32', (SEQLEN, BATCH_SIZE)
-    if len(data.shape) > 1:
-        dtype, shape = 'f', (SEQLEN, BATCH_SIZE, data.shape[-1])
-    X = np.zeros(shape, dtype=dtype)
-    for b in range(BATCH_SIZE):
-        s = start + SEQLEN * b
-        X[:, b] = data[s:s + SEQLEN]
-    return X
 
+def batch_at(features, labels, seq_begins, seq_lengths):
+    length = seq_lengths.max()
+    feat = np.zeros((length, BATCH_SIZE, features.shape[-1]), 'f')
+    labl = np.zeros((length, BATCH_SIZE), 'int32')
+    mask = np.zeros((length, BATCH_SIZE), 'f')
+    for b, (begin, length) in enumerate(zip(seq_begins, seq_lengths)):
+        feat[:length, b] = features[begin:begin+length]
+        labl[:length, b] = labels[begin:begin+length]
+        mask[:length, b] = 1
+    return [feat, labl, mask]
+
+# returns a callable that chooses sequences from netcdf data
 def batches(dataset):
-    steps = dataset.dimensions['numTimesteps']
+    seq_lengths = dataset.variables['seqLengths'].data
+    seq_begins = np.concatenate(([0], np.cumsum(seq_lengths)[:-1]))
     def sample():
-        i = np.random.randint(steps - SEQLEN * BATCH_SIZE)
-        s = batch_at(dataset.variables['inputs'].data, i)
-        t = batch_at(dataset.variables['targetClasses'].data, i)
-        return [s, t]
+        chosen = np.random.choice(
+            list(range(len(seq_lengths))), BATCH_SIZE, replace=False)
+        return batch_at(dataset.variables['inputs'].data,
+                        dataset.variables['targetClasses'].data,
+                        seq_begins[chosen],
+                        seq_lengths[chosen])
     return sample
+
 
 def layer(n):
     return dict(form='bidirectional', worker='lstm', size=n)
@@ -56,10 +62,14 @@ def layer(n):
 e = theanets.Experiment(
     theanets.recurrent.Classifier,
     layers=(39, layer(156), layer(300), layer(102), 51),
-    recurrent_error_start=0,
+    weighted=True,
 )
-e.train(batches(scipy.io.netcdf_file(TRAIN_NC)),
-        batches(scipy.io.netcdf_file(VALID_NC)),
-        input_noise=0.6,
-        max_gradient_norm=10,
+
+e.train(
+    batches(scipy.io.netcdf_file(TRAIN_NC)),
+    batches(scipy.io.netcdf_file(VALID_NC)),
+    input_noise=0.6,
+    train_batches=30,
+    valid_batches=3,
+    batch_size=BATCH_SIZE,
 )

@@ -12,20 +12,23 @@ TIME = 10
 BITS = 3
 BATCH_SIZE = 32
 
+mask = np.ones((TIME, BATCH_SIZE, 1), bool)
+mask[:TIME - BITS] = 0
+
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
     layers=(1, ('rnn', 10), 1),
-    recurrent_error_start=TIME - BITS)
+    weighted=True)
 
 def generate():
     s, t = np.random.randn(2, TIME, BATCH_SIZE, 1).astype('f')
     s[:BITS] = t[-BITS:] = np.random.randn(BITS, BATCH_SIZE, 1)
-    return [s, t]
+    return s, t, mask
 
-src, tgt = generate()
-logging.info('data batches: %s -> %s', src.shape, tgt.shape)
+src, tgt, msk = generate()
+logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
 
-e.train(generate, momentum=0.99)
+e.train(generate, batch_size=BATCH_SIZE)
 
 predict = e.network.predict(src)[:, :, 0]
 vm = max(abs(src[:BITS]).max(), abs(predict[-BITS]).max())

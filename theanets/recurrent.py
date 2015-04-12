@@ -88,10 +88,6 @@ class Network(feedforward.Network):
         network.
     '''
 
-    @property
-    def error_start(self):
-        return self.kwargs.get('recurrent_error_start', 3)
-
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -104,12 +100,25 @@ class Network(feedforward.Network):
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
 
+        # the weights are the same shape as the output and specify the strength
+        # of each entries in the error computation.
+        self.weights = TT.tensor3('weights')
+
+        if self.is_weighted:
+            return [self.x, self.weights]
         return [self.x]
 
 
 class Autoencoder(Network, feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
+
+    @property
+    def error(self):
+        err = self.outputs[-1] - self.targets
+        if self.is_weighted:
+            return (self.weights * err * err).sum() / self.weights.sum()
+        return (err * err).mean()
 
 
 class Predictor(Autoencoder):
@@ -129,12 +138,13 @@ class Predictor(Autoencoder):
         error : theano expression
             A theano expression representing the network error.
         '''
-        # we want the network to predict the next time step. if y = outputs[-1]
-        # is output of the network and f(y) gives the prediction, then we want
-        # f(y)[0] to match x[1], f(y)[1] to match x[2], and so forth.
-        error = self.x[1:] - self.generate_prediction(output)[:-1]
-        err = error[self.error_start:]
-        return TT.mean((err * err).sum(axis=-1))
+        # we want the network to predict the next time step. if y is the output
+        # of the network and f(y) gives the prediction, then we want f(y)[0] to
+        # match x[1], f(y)[1] to match x[2], and so forth.
+        err = self.x[1:] - self.generate_prediction(output)[:-1]
+        if self.is_weighted:
+            return (self.weights[1:] * err * err) / self.weights[1:].sum()
+        return (err * err).mean()
 
     def generate_prediction(self, y):
         '''Given outputs from each time step, map them to subsequent inputs.
@@ -174,6 +184,8 @@ class Regressor(Network, feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
+        if self.is_weighted:
+            return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
     def error(self, output):
@@ -189,8 +201,10 @@ class Regressor(Network, feedforward.Regressor):
         error : theano expression
             A theano expression representing the network error.
         '''
-        err = (output - self.targets)[self.error_start:]
-        return TT.mean((err * err).sum(axis=-1))
+        err = output - self.targets
+        if self.is_weighted:
+            return (self.weights * err * err).sum() / self.weights.sum()
+        return (err * err).mean()
 
 
 class Classifier(Network, feedforward.Classifier):
@@ -207,8 +221,15 @@ class Classifier(Network, feedforward.Classifier):
         super(Classifier, self).setup_vars()
 
         # for a classifier, this specifies the correct labels for a given input.
+        # the labels array for a recurrent network is (time_steps, batch_size).
         self.labels = TT.imatrix('labels')
 
+        # the weights are the same shape as the output and specify the strength
+        # of each entry in the error computation.
+        self.weights = TT.matrix('weights')
+
+        if self.is_weighted:
+            return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
     def error(self, output):
@@ -224,11 +245,17 @@ class Classifier(Network, feedforward.Classifier):
         error : theano expression
             A theano expression representing the network error.
         '''
+        lo = TT.cast(1e-5, FLOAT)
+        hi = TT.cast(1, FLOAT)
         # flatten all but last components of the output and labels
-        count = (output.shape[0] - self.error_start) * output.shape[1]
-        correct = TT.reshape(self.labels[self.error_start:], (count, ))
-        prob = TT.reshape(output[self.error_start:], (count, output.shape[2]))
-        return -TT.mean(TT.log(prob[TT.arange(count), correct]))
+        n = output.shape[0] * output.shape[1]
+        correct = TT.reshape(self.labels, (n, ))
+        weights = TT.reshape(self.weights, (n, ))
+        prob = TT.reshape(output, (n, output.shape[2]))
+        nlp = -TT.log(TT.clip(prob[TT.arange(n), correct], lo, hi))
+        if self.is_weighted:
+            return (weights * nlp).sum() / weights.sum()
+        return nlp.mean()
 
     def accuracy(self, output):
         '''Build a theano expression for computing the network accuracy.
@@ -243,6 +270,8 @@ class Classifier(Network, feedforward.Classifier):
         acc : theano expression
             A theano expression representing the network accuracy.
         '''
-        predict = TT.argmax(output, axis=-1)
-        correct = TT.eq(predict, self.labels)
-        return TT.cast(100, FLOAT) * TT.mean(correct.flatten())
+        correct = TT.eq(TT.argmax(output, axis=-1), self.labels)
+        acc = correct.mean()
+        if self.is_weighted:
+            acc = (self.weights * correct).sum() / self.weights.sum()
+        return TT.cast(100, FLOAT) * acc

@@ -146,46 +146,48 @@ def create_activation(activation):
         raise KeyError('unknown activation {}'.format(activation))
 
 
-def add_noise(input, level, rng):
-    '''Add noise to elements of the input variable as needed.
+def add_noise(expr, level, rng):
+    '''Add noise to elements of the input expression as needed.
 
     Parameters
     ----------
-    input : theano variable
-        Input variable to add noise to.
+    expr : theano expression
+        Input expression to add noise to.
     level : float
-        Standard deviation of gaussian noise to add to the input. If this is
-        0, then no gaussian noise is added to the input.
+        Standard deviation of gaussian noise to add to the expression. If this
+        is 0, then no gaussian noise is added.
 
     Returns
     -------
-    output : theano variable
-        The input variable, plus additional noise as specified.
+    expr : theano expression
+        The input expression, plus additional noise as specified.
     '''
     if level == 0:
-        return input
-    return input + rng.normal(size=input.shape, std=TT.cast(level, FLOAT), dtype=FLOAT)
+        return expr
+    return expr + rng.normal(
+        size=expr.shape, std=TT.cast(level, FLOAT), dtype=FLOAT)
 
 
-def add_dropout(input, probability, rng):
-    '''Add dropouts to elements of the input variable as needed.
+def add_dropout(expr, probability, rng):
+    '''Add dropouts to elements of the input expression as needed.
 
     Parameters
     ----------
-    input : theano variable
-        Input variable to add dropouts to.
+    expr : theano expression
+        Input expression to add dropouts to.
     probability : float, in [0, 1]
         Probability of dropout for each element of the input. If this is 0,
         then no elements of the input are set randomly to 0.
 
     Returns
     -------
-    output : theano variable
-        The input variable, plus additional dropouts as specified.
+    expr : theano expression
+        The input expression, plus additional dropouts as specified.
     '''
     if probability == 0:
-        return input
-    return input * rng.binomial(size=input.shape, n=1, p=TT.cast(1, FLOAT)-probability, dtype=FLOAT)
+        return expr
+    return expr * rng.binomial(
+        size=expr.shape, n=1, p=TT.cast(1, FLOAT)-probability, dtype=FLOAT)
 
 
 def build(layer, *args, **kwargs):

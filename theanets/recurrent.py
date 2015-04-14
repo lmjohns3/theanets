@@ -6,10 +6,7 @@ import numpy.random as rng
 import theano
 import theano.tensor as TT
 
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from . import feedforward
-from . import layers
 
 logging = climate.get_logger(__name__)
 
@@ -57,35 +54,8 @@ def batches(samples, labels=None, steps=100, batch_size=64):
     return unlabeled_sample if labels is None else labeled_sample
 
 
-class Network(feedforward.Network):
-    '''A fully connected recurrent network with one input and one output layer.
-
-    Parameters
-    ----------
-    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
-        A sequence of values specifying the layer configuration for the network.
-        For more information, please see :ref:`creating-specifying-layers`.
-    hidden_activation : str, optional
-        The name of an activation function to use on hidden network layers by
-        default. Defaults to 'logistic'.
-    output_activation : str, optional
-        The name of an activation function to use on the output layer by
-        default. Defaults to 'linear'.
-    rng : theano RandomStreams object, optional
-        Use a specific Theano random number generator. A new one will be created
-        if this is None.
-    decode_from : positive int, optional
-        Any of the hidden layers can be tapped at the output. Just specify a
-        value greater than 1 to tap the last N hidden layers. The default is 1,
-        which decodes from just the last layer.
-
-    Attributes
-    ----------
-    layers : list of :class:`Layer <layers.Layer>`
-        A list of the layers in this network model.
-    kwargs : dict
-        A dictionary containing the keyword arguments used to construct the
-        network.
+class Autoencoder(feedforward.Autoencoder):
+    '''An autoencoder network attempts to reproduce its input.
     '''
 
     def setup_vars(self):
@@ -108,14 +78,8 @@ class Network(feedforward.Network):
             return [self.x, self.weights]
         return [self.x]
 
-
-class Autoencoder(Network, feedforward.Autoencoder):
-    '''An autoencoder network attempts to reproduce its input.
-    '''
-
-    @property
-    def error(self):
-        err = self.outputs[-1] - self.targets
+    def error(self, output):
+        err = self.output - self.targets
         if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
@@ -168,7 +132,7 @@ class Predictor(Autoencoder):
         return y
 
 
-class Regressor(Network, feedforward.Regressor):
+class Regressor(feedforward.Regressor):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
@@ -207,7 +171,7 @@ class Regressor(Network, feedforward.Regressor):
         return (err * err).mean()
 
 
-class Classifier(Network, feedforward.Classifier):
+class Classifier(feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
 
     def setup_vars(self):

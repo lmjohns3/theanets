@@ -3,7 +3,6 @@
 import climate
 import functools
 import numpy as np
-import sys
 import theano
 import theano.tensor as TT
 

@@ -113,9 +113,8 @@ class Autoencoder(Network, feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
 
-    @property
-    def error(self):
-        err = self.outputs[-1] - self.targets
+    def error(self, output):
+        err = output - self.targets
         if self.is_weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()

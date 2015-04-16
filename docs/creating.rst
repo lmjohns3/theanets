@@ -25,8 +25,8 @@ must be defined in this method.
 
 In the brief discussion below, we assume that the network has some set of
 parameters :math:`\theta`. In the feedforward pass, the network computes some
-function of its inputs :math:`x` using these parameters; we represent this
-feedforward function using the notation :math:`F_\theta(x)`.
+function of its inputs :math:`x \in \mathbb{R}^n` using these parameters; we
+represent this feedforward function using the notation :math:`F_\theta(x)`.
 
 .. _creating-predefined-models:
 
@@ -51,7 +51,7 @@ default autoencoder model computes the loss using the mean squared error between
 the network's output and the input:
 
 .. math::
-   \mathcal{L}(X, \theta) = \frac{1}{m} \sum_{i=1}^m \left\| F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
+   \mathcal{L}(X, \theta) = \frac{1}{m}\frac{1}{n} \sum_{i=1}^m \left\| F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
 
 To create an autoencoder in theanets, you can create a network class directly::
 
@@ -72,13 +72,14 @@ Regression
 ----------
 
 A :class:`regression <theanets.feedforward.Regressor>` model is much like an
-autoencoder, except that at training time, the expected output :math:`Y` must be
-provided to the model. Like an autoencoder, a regression model takes as input an
-array of arbitrary data :math:`X`, and the difference between the network's
-output and the target is computed using the mean squared error:
+autoencoder, except that at training time, the expected output :math:`Y \in
+\mathbb{R}^{m \times o}` must be provided to the model. Like an autoencoder, a
+regression model takes as input an array of arbitrary data :math:`X \in
+\mathbb{R}^{m \times n}`, and the difference between the network's output and
+the target is computed using the mean squared error:
 
 .. math::
-   \mathcal{L}(X, Y, \theta) = \frac{1}{m} \sum_{i=1}^m \left\| F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
+   \mathcal{L}(X, Y, \theta) = \frac{1}{m}\frac{1}{o} \sum_{i=1}^m \left\| F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
 
 To create a regression model in theanets, you can create a network class
 directly::
@@ -111,8 +112,9 @@ A :class:`classification <theanets.feedforward.Classifier>` model takes as input
 some piece of data that you want to classify (e.g., the pixels of an image, word
 counts from a document, etc.) and outputs a probability distribution over
 available labels. The error for this type of model takes an input dataset
-:math:`X` and a corresponding set of integer labels :math:`Y`; the error is then
-computed as the cross-entropy between the network output and the target labels:
+:math:`X \in \mathbb{R}^{m \times n}` and a corresponding set of integer labels
+:math:`Y \in \mathbb{Z}^m`; the error is then computed as the cross-entropy
+between the network output and the target labels:
 
 .. math::
    \mathcal{L}(X, Y, \theta) = \frac{1}{m} \sum_{i=1}^m - \log F_\theta(x_i)_{y_i} + R(x, \theta)
@@ -166,8 +168,9 @@ Autoencoder
 -----------
 
 A :class:`recurrent autoencoder <theanets.recurrent.Autoencoder>`, just like its
-feedforward counterpart, takes as input a single array of data :math:`X` and
-attempts to recreate the same data at the output, under a squared-error loss.
+feedforward counterpart, takes as input a single array of data :math:`X \in
+\mathbb{R}^{t \times m \times n}` and attempts to recreate the same data at the
+output, under a squared-error loss.
 
 A recurrent autoencoder thus requires the following inputs:
 
@@ -199,8 +202,9 @@ Regression
 ----------
 
 A recurrent regression model is also just like its feedforward counterpart. It
-requires two inputs at training time: an array of input data :math:`X` and a
-corresponding array of output data :math:`Y`. Like the feedforward regression
+requires two inputs at training time: an array of input data :math:`X \in
+\mathbb{R}^{t \times m \times n}` and a corresponding array of output data
+:math:`Y \in \mathbb{R}^{t \times m \times o}`. Like the feedforward regression
 models, the recurrent version attempts to produce the target outputs under a
 squared-error loss.
 
@@ -225,8 +229,9 @@ A :class:`recurrent classification <theanets.recurrent.Classifier>` model is
 like a feedforward classifier in that it takes as input some piece of data that
 you want to classify (e.g., the pixels of an image, word counts from a document,
 etc.) and outputs a probability distribution over available labels. Computing
-the error for this type of model requires an input dataset :math:`X` and a
-corresponding set of integer labels :math:`Y`; the error is then computed as the
+the error for this type of model requires an input dataset :math:`X \in
+\mathbb{R}^{t \times m \times n}` and a corresponding set of integer labels
+:math:`Y \in \mathbb{Z}^{t \times m}`; the error is then computed as the
 cross-entropy between the network output and the target labels.
 
 Unlike a feedforward classifier, where the target labels are provided as a

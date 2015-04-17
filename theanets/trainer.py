@@ -8,7 +8,7 @@ neural networks. Other methods --- :class:`Sample`,
 :class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are
 specific to neural networks. Despite the difference in generality, all of the
 training routines implemented here assume that a :class:`Network
-<theanets.feedforward.Network>` is being optimized.
+<theanets.graph.Network>` is being optimized.
 
 Most of the general-purpose optimization routines in this module are based on
 the :class:`SGD` parent and optimize the loss function at hand by taking small
@@ -980,7 +980,7 @@ class SupervisedPretrainer(Trainer):
     By using layers from the original network whenever possible, we preserve all
     of the relevant settings of noise, dropouts, loss function and the like, in
     addition to removing the need for copying trained weights around between
-    different :class:`Network <feedforward.Network>` instances.
+    different :class:`Network <theanets.graph.Network>` instances.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):

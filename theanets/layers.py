@@ -14,7 +14,7 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
-def myDot(x, y):
+def _dot(x, y):
     if isinstance(x, SS.SparseVariable):
         return SS.structured_dot(x,y)
     else:
@@ -535,7 +535,7 @@ class Feedforward(Layer):
         '''
         if not hasattr(inputs, '__len__'):
             inputs = (inputs, )
-        xs = (myDot(x, self.find(str(i))) for i, x in enumerate(inputs))
+        xs = (_dot(x, self.find(str(i))) for i, x in enumerate(inputs))
         output = self.activate(sum(xs) + self.find('b'))
         return output, self._monitors(output), ()
 

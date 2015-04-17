@@ -81,6 +81,7 @@ import numpy as np
 import pickle
 import theano
 import theano.tensor as TT
+import theano.sparse as SS
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
@@ -163,6 +164,9 @@ class Network(object):
         number of time steps, or for classifier networks where the prior
         proabibility of one class is significantly different than another. The
         default is not to use weighted outputs.
+    sparse_input : bool, optional
+        If True, the network will expect input represented as a sparse (csr)
+        matrix. Currently only supported for feedforward networks.
 
     Attributes
     ----------
@@ -197,7 +201,10 @@ class Network(object):
             A list of the variables that this network requires as inputs.
         '''
         # x represents our network's input.
-        self.x = TT.matrix('x')
+        if self.is_sparse_input:
+            self.x = SS.csr_matrix('x',dtype=FLOAT)
+        else:
+            self.x = TT.matrix('x')
 
         # the weight array is provided to ensure that different target values
         # are taken into account with different weights during optimization.
@@ -333,6 +340,11 @@ class Network(object):
             nin=sizes[-1] if back <= 1 else sizes[-back:],
             nout=self.kwargs['layers'][-1],
             activation=self.output_activation))
+
+    @property
+    def is_sparse_input(self):
+        '''True iff the network expects sparse input vectors.'''
+        return bool(self.kwargs.get('sparse_input'))
 
     @property
     def is_weighted(self):

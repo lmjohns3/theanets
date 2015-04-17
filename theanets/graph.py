@@ -14,6 +14,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import layers
 
+logging = climate.get_logger(__name__)
+
 FLOAT = theano.config.floatX
 
 

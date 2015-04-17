@@ -163,7 +163,7 @@ class Trainer(object):
         label = label or self.__class__.__name__
         fields = []
         for name, value in monitors.items():
-            width = '{:.2f}'
+            width = '{:.3f}'
             if name == 'loss':
                 width = '{:.6f}'
             elif '<' in name or '>' in name:

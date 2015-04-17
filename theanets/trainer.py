@@ -40,7 +40,6 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
-
 def default_mapper(f, dataset, *args, **kwargs):
     '''Apply (map) a function to each element of a dataset.'''
     return [f(x, *args, **kwargs) for x in dataset]

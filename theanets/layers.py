@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import theano
 import theano.tensor as TT
+import theano.sparse as SS
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
@@ -13,6 +14,11 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
+def _dot(x, y):
+    if isinstance(x, SS.SparseVariable):
+        return SS.structured_dot(x,y)
+    else:
+        return TT.dot(x,y)
 
 def random_matrix(nin, nout, mean=0, std=1, sparsity=0, radius=0):
     '''Create a matrix of randomly-initialized weights.
@@ -529,7 +535,7 @@ class Feedforward(Layer):
         '''
         if not hasattr(inputs, '__len__'):
             inputs = (inputs, )
-        xs = (TT.dot(x, self.find(str(i))) for i, x in enumerate(inputs))
+        xs = (_dot(x, self.find(str(i))) for i, x in enumerate(inputs))
         output = self.activate(sum(xs) + self.find('b'))
         return output, self._monitors(output), ()
 

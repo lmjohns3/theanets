@@ -169,11 +169,6 @@ class Autoencoder(Network):
             If True, use decoding weights that are "tied" to the encoding
             weights. This only makes sense for a limited set of "autoencoder"
             layer configurations. Defaults to False.
-        decode_from : int, optional
-            For networks without tied weights, compute the activation of the
-            output vector using the activations of the last N hidden layers in
-            the network. Defaults to 1, which results in a traditional setup
-            that decodes only from the penultimate layer in the network.
 
         Returns
         -------

@@ -207,11 +207,11 @@ class Autoencoder(Network):
         sizes = []
         for layer in self.kwargs['layers']:
             if isinstance(layer, layers.Layer):
-                sizes.append(layer.nout)
+                sizes.append(layer.size)
             if isinstance(layer, int):
                 sizes.append(layer)
             if isinstance(layer, dict):
-                sizes.append(layer.get('size', layer.get('nout', -1)))
+                sizes.append(layer.get('size', -1))
         assert len(sizes) % 2 == 1, error
         k = len(sizes) // 2
         encode = np.asarray(sizes[:k])

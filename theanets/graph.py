@@ -169,7 +169,7 @@ class Network(object):
 
         # setup input layer.
         self.layers.append(
-            layers.build('input', specs.pop(0), rng=rng, name='in'))
+            layers.build('input', outputs=specs.pop(0), rng=rng, name='in'))
 
         # setup "encoder" layers.
         for i, spec in enumerate(specs):
@@ -182,7 +182,7 @@ class Network(object):
             form = 'feedforward'
             kwargs = dict(
                 name='hid{}'.format(len(self.layers)),
-                inputs={'{}.out'.format(self.layers[-1].name): self.layers[-1].outputs['out']},
+                inputs=dict(out=self.layers[-1].outputs['out']),
                 activation=self.kwargs.get('hidden_activation', 'logistic'),
                 rng=rng,
             )
@@ -190,7 +190,7 @@ class Network(object):
             # by default, spec is assumed to be a lowly integer, giving the
             # number of units in the layer.
             if isinstance(spec, int):
-                kwargs['size'] = spec
+                kwargs['outputs'] = spec
 
             # if spec is a tuple, assume that it contains one or more of the following:
             # - the type of layer to construct (layers.Layer subclass)
@@ -210,7 +210,7 @@ class Network(object):
                         else:
                             kwargs['activation'] = el
                     if isinstance(el, int):
-                        kwargs['size'] = el
+                        kwargs['outputs'] = el
                 kwargs['name'] = '{}{}'.format(form, len(self.layers))
 
             # if spec is a dictionary, try to extract a form for the layer, and
@@ -248,13 +248,11 @@ class Network(object):
             results in a traditional setup that decodes only from the
             penultimate layer in the network.
         '''
-        sizes = [l.size for l in self.layers]
-        back = self.kwargs.get('decode_from', 1)
         self.layers.append(layers.build(
             'feedforward',
             name='out',
-            nin=sizes[-1] if back <= 1 else sizes[-back:],
-            size=self.kwargs['layers'][-1],
+            inputs=dict(out=self.layers[-1].outputs['out']),
+            outputs=self.kwargs['layers'][-1],
             activation=self.output_activation))
 
     @property
@@ -299,7 +297,8 @@ class Network(object):
         h = hashlib.md5()
         add(kwargs)
         for l in self.layers:
-            add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
+            add('{}{}{}'.format(
+                l.__class__.__name__, l.name, sorted(l.outputs.items())))
         return h.hexdigest()
 
     def build_graph(self, **kwargs):
@@ -329,24 +328,21 @@ class Network(object):
         '''
         key = self._hash(**kwargs)
         if key not in self._graphs:
-            outputs, monitors, updates = [], [], []
+            inputs = dict(out=self.x)
+            outputs, monitors, updates = {}, [], []
             for i, layer in enumerate(self.layers):
                 noise = dropout = 0
                 if i == 0:
-                    # input to first layer is data.
-                    inputs = self.x
                     noise = kwargs.get('input_noise', 0)
                     dropout = kwargs.get('input_dropouts', 0)
                 elif i == len(self.layers) - 1:
-                    # inputs to last layer is output of layers to decode.
-                    inputs = outputs[-self.kwargs.get('decode_from', 1):]
                     noise = kwargs.get('hidden_noise', 0)
                     dropout = kwargs.get('hidden_dropouts', 0)
-                else:
-                    # inputs to other layers are outputs of previous layer.
-                    inputs = outputs[-1]
-                out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
-                outputs.append(out)
+                out, mon, upd = layer.connect(inputs, noise=noise, dropout=dropout)
+                inputs.update(out)
+                scoped = {'.'.join((layer.name, n)): e for n, e in out.items()}
+                inputs.update(scoped)
+                outputs.update(scoped)
                 monitors.extend(mon)
                 updates.extend(upd)
             self._graphs[key] = outputs, monitors, updates
@@ -494,22 +490,6 @@ class Network(object):
                 p.set_value(v)
         logging.info('%s: loaded model parameters', filename)
 
-    def extra_monitors(self, outputs):
-        '''Construct extra monitors for this network.
-
-        Parameters
-        ----------
-        outputs : list of theano expressions
-            A list of theano expressions describing the activations of each
-            layer in the network.
-
-        Returns
-        -------
-        monitors : sequence of (name, expression) tuples
-            A sequence of named monitor quantities.
-        '''
-        return []
-
     def loss(self, **kwargs):
         '''Return a variable representing the loss for this network.
 
@@ -528,30 +508,55 @@ class Network(object):
             Regularize the L2 norm of hidden unit activations by this constant.
         contractive : float, optional
             Regularize model using the Frobenius norm of the hidden Jacobian.
+        input_noise : float, optional
+            Standard deviation of desired noise to inject into input.
+        hidden_noise : float, optional
+            Standard deviation of desired noise to inject into hidden unit
+            activation output.
+        input_dropouts : float in [0, 1], optional
+            Proportion of input units to randomly set to 0.
+        hidden_dropouts : float in [0, 1], optional
+            Proportion of hidden unit activations to randomly set to 0.
 
         Returns
         -------
         loss : theano expression
             A theano expression representing the loss of this network.
-        monitors : list of (name, expression) pairs
-            A list of named monitor expressions to compute for this network.
-        updates : list of (parameter, expression) pairs
-            A list of named parameter update expressions for this network.
         '''
-        outputs, monitors, updates = self.build_graph(**kwargs)
-        err = self.error(outputs[-1])
-        monitors.insert(0, ('err', err))
-        monitors.extend(self.extra_monitors(outputs))
-        hiddens = outputs[1:-1]
+        outputs, _, _ = self.build_graph(**kwargs)
+        hiddens = [outputs['{}.out'.format(l.name)] for l in self.layers[1:-1]]
         regularizers = dict(
-            weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
-            weight_l2=((w * w).sum() for l in self.layers for w in l.params),
+            weight_l1=(abs(w).sum() for l in self.layers for w in l.params if w.ndim > 1),
+            weight_l2=((w * w).sum() for l in self.layers for w in l.params if w.ndim > 1),
             hidden_l1=(abs(h).mean(axis=0).sum() for h in hiddens),
             hidden_l2=((h * h).mean(axis=0).sum() for h in hiddens),
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        regularization = (TT.cast(kwargs[weight], FLOAT) * sum(expr)
-                          for weight, expr in regularizers.items()
-                          if kwargs.get(weight, 0) > 0)
-        return err + sum(regularization), monitors, updates
+        out = outputs['{}.out'.format(self.layers[-1].name)]
+        return self.error(out) + sum(TT.cast(kwargs[weight], FLOAT) * sum(expr)
+                                     for weight, expr in regularizers.items()
+                                     if kwargs.get(weight, 0) > 0)
+
+    def monitors(self, **kwargs):
+        '''Return expressions that should be computed to monitor training.
+
+        Returns
+        -------
+        monitors : list of (name, expression) pairs
+            A list of named monitor expressions to compute for this network.
+        '''
+        outputs, monitors, _ = self.build_graph(**kwargs)
+        out = outputs['{}.out'.format(self.layers[-1].name)]
+        return [('err', self.error(out))] + monitors
+
+    def updates(self, **kwargs):
+        '''Return expressions to run as updates during network training.
+
+        Returns
+        -------
+        updates : list of (parameter, expression) pairs
+            A list of named parameter update expressions for this network.
+        '''
+        _, _, updates = self.build_graph(**kwargs)
+        return updates

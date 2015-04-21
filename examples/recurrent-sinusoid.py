@@ -14,18 +14,15 @@ T = np.linspace(0, 1, 100)
 
 concat = lambda a, b: np.concatenate([a, b], axis=2).astype('f')
 
-mask = np.ones((len(T), BATCH_SIZE, 2), bool)
-mask[:3] = 0
-
 def sines():
     f = np.exp(rng.uniform(0, 1, size=BATCH_SIZE))
     time = np.outer(T, np.ones(BATCH_SIZE))[..., None]
     freq = np.outer(np.ones_like(T), f)[..., None]
     z = 2 * np.pi * freq * time
-    return concat(time, freq), concat(np.sin(z), np.cos(z)), mask
+    return concat(time, freq), concat(np.sin(z), np.cos(z))
 
-src, tgt, msk = sines()
-logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
+src, tgt = sines()
+logging.info('data batches: %s -> %s', src.shape, tgt.shape)
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,

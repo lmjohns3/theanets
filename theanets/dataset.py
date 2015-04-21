@@ -139,7 +139,7 @@ class Dataset:
             axis = 1 if len(samples.shape) == 3 else 0
         slices = [slice(None), slice(None)][:axis + 1]
         for i in range(0, samples.shape[axis], self.batch_size):
-            slices[axis] = slice(i, min(i + self.batch_size, samples.shape[0]))
+            slices[axis] = slice(i, min(i + self.batch_size, samples.shape[axis]))
             batch = [samples[tuple(slices)]]
             if labels is not None:
                 batch.append(labels[tuple(slices)])

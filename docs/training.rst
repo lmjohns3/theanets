@@ -231,11 +231,22 @@ provide data to the training algorithm.
 Using Callables
 ---------------
 
-You can provide a callable for a dataset. This callable must take no arguments
-and must return a ``numpy`` array of the proper shape for your model.
+Instead of an array of data, you can provide a callable for a dataset. This
+callable must take no arguments and must return one or more ``numpy`` arrays of
+the proper shape for your model.
 
-For example, this code defines a ``batch()`` helper that chooses a random
-dataset and a random offset for each batch::
+During training, the callable will be invoked every time the training algorithm
+requires a batch of training (or validation) data. Therefore, your callable
+should return at least one array containing a batch of data; if your model
+requires multiple arrays per batch (e.g., if you are training a
+:class:`classification <theanets.feedforward.Classifier>` or :class:`regression
+<theanets.feedforward.Regressor>` model), then your callable should return a
+list containing the correct number of arrays (e.g., a training array and the
+corresponding labels).
+
+For example, this code defines a ``batch()`` helper that could be used when
+training a plain :class:`autoencoder <theanets.feedforward.Autoencoder>` model.
+The callable chooses a random dataset and a random offset for each batch::
 
   SOURCES = 'foo.npy', 'bar.npy', 'baz.npy'
   BATCH_SIZE = 64
@@ -251,7 +262,9 @@ dataset and a random offset for each batch::
 
 If you need to maintain more state than is reasonable from a single closure, you
 can also encapsulate the callable inside a class. Just make sure instances of
-the class are callable by defining the ``__call__`` method::
+the class are callable by defining the ``__call__`` method. For example, this
+class loads data from a series of ``numpy`` arrays on disk, but only loads one
+of the on-disk arrays into memory at a given time::
 
   class Loader:
       def __init__(sources=('foo.npy', 'bar.npy', 'baz.npy'), batch_size=64):
@@ -274,6 +287,9 @@ the class are callable by defining the ``__call__`` method::
   # ...
 
   exp.train(Loader())
+
+There are almost limitless possibilities for using callables to interface with
+the training process.
 
 .. _training-specifying-regularizers:
 

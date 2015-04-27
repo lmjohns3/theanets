@@ -13,7 +13,7 @@ BITS = 3
 BATCH_SIZE = 32
 
 mask = np.ones((TIME, BATCH_SIZE, 1), bool)
-mask[:TIME - BITS] = 0
+mask[:TIME - BITS - 1] = 0
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
@@ -33,18 +33,22 @@ e.train(generate, batch_size=BATCH_SIZE)
 predict = e.network.predict(src)[:, :, 0]
 vm = max(abs(src[:BITS]).max(), abs(predict[-BITS]).max())
 
-def plot(n, z, label):
+def plot(n, z, label, rectangle):
     ax = plt.subplot(2, 1, n)
     ax.set_frame_on(False)
     for loc, spine in ax.spines.items():
         spine.set_color('none')
     ax.imshow(z, cmap='gray', vmin=-vm, vmax=vm)
+    ax.fill_between([-0.5, BATCH_SIZE - 0.5],
+                    rectangle - 0.5,
+                    rectangle + BITS - 0.5,
+                    lw=0, color='#17becf', alpha=0.3)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xlabel('Example')
-    ax.set_ylabel('{} Time'.format(label))
+    ax.set_ylabel(label)
 
-plot(1, src[:, :, 0], 'Source')
-plot(2, predict, 'Prediction')
+plot(1, src[:, :, 0], 'Input', 0)
+plot(2, predict, 'Prediction', TIME - BITS)
 
 plt.show()

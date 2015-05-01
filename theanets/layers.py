@@ -821,10 +821,10 @@ class RNN(Recurrent):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(x_t, _, h_tm1):
+        def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             return [pre, self.activate(pre)]
-        x = TT.dot(_find_input(inputs, 'out'), self.find('xh')) + self.find('b')
+        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [x], [None, x])
         return dict(preact=pre, out=out), updates
 
@@ -872,7 +872,7 @@ class ARRNN(Recurrent):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(x_t, r_t, unused_pre, unused_h, h_tm1):
+        def fn(x_t, r_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
@@ -924,7 +924,7 @@ class MRNN(Recurrent):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(x_t, f_t, _, h_tm1):
+        def fn(x_t, f_t, h_tm1):
             pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
             return [pre, self.activate(pre)]
         x = inputs['out']

@@ -589,7 +589,7 @@ class Tied(Layer):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        x = inputs['{}.out'.format(self.partner.name)]
+        x = inputs['out']
         pre = TT.dot(x, self.partner.find('w_out').T) + self.find('b')
         return dict(preact=pre, out=self.activate(pre)), []
 

@@ -712,7 +712,8 @@ class Recurrent(Layer):
             A variable containing the initial state of some recurrent variable.
         '''
         values = theano.shared(
-            np.zeros((1, self.size), FLOAT), name=self._fmt('{}0'.format(name)))
+            np.zeros((1, self.outputs['out']), FLOAT),
+            name=self._fmt('{}0'.format(name)))
         return TT.repeat(values, batch_size, axis=0)
 
     def add_weights(self, name, nin, nout, mean=0, std=None, sparsity=0, radius=0):
@@ -979,7 +980,7 @@ class LSTM(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def split(z):
-            n = self.size
+            n = self.outputs['out']
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         def fn(x_t, h_tm1, c_tm1):
             xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))

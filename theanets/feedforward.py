@@ -163,10 +163,11 @@ class Autoencoder(graph.Network):
             A dataset to encode. Rows of this dataset capture individual data
             points, while columns represent the variables in each data point.
 
-        layer : int, optional
-            The index of the hidden layer activation to use. By default, we use
+        layer : str, optional
+            The name of the hidden layer output to use. By default, we use
             the "middle" hidden layer---for example, for a 4,2,4 or 4,3,2,3,4
-            autoencoder, we use the "2" layer (index 1 or 2, respectively).
+            autoencoder, we use the "2" layer (typically named "hid1" or "hid2",
+            respectively).
 
         sample : bool, optional
             If True, then draw a sample using the hidden activations as
@@ -179,7 +180,13 @@ class Autoencoder(graph.Network):
             The given dataset, encoded by the appropriate hidden layer
             activation.
         '''
-        enc = self.feed_forward(x)[(layer or len(self.layers) // 2)]
+        if layer is None:
+            layer = self.layers[len(self.layers) // 2].name
+        if isinstance(layer, layers.Layer):
+            layer = layer.output_name
+        if '.' not in layer:
+            layer = '{}.out'.format(layer)
+        enc = self.feed_forward(x)[layer]
         if sample:
             return np.random.binomial(n=1, p=enc).astype(np.uint8)
         return enc
@@ -202,15 +209,22 @@ class Autoencoder(graph.Network):
         '''
         if not hasattr(self, '_decoders'):
             self._decoders = {}
-        layer = layer or len(self.layers) // 2
+        if layer is None:
+            layer = self.layers[len(self.layers) // 2].name
+        if isinstance(layer, layers.Layer):
+            layer = layer.output_name
+        if '.' not in layer:
+            layer = '{}.out'.format(layer)
         if layer not in self._decoders:
             outputs, _, updates = self.build_graph()
             self._decoders[layer] = theano.function(
-                [outputs[layer]], [outputs[-1]], updates=updates)
+                [outputs[layer]],
+                [outputs['{}.out'.format(self.layers[-1].name)]],
+                updates=updates)
         return self._decoders[layer](z)[0]
 
 
-class Regressor(Network):
+class Regressor(graph.Network):
     r'''A regression model attempts to produce a target output.
 
     Regression models are trained by optimizing a (possibly regularized) loss

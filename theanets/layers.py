@@ -1145,18 +1145,28 @@ class Bidirectional(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            Theano expression representing the output from the layer. This layer
+            type produces "pre" and "hid" outputs that concatenates the outputs
+            from its underlying workers. It also passes along the individual
+            outputs from its workers using "fw_" and "bw_" prefixes for forward
+            and backward directions.
+        updates : list of update pairs
+            A list of state updates to apply inside a theano function.
         '''
-        fx, fm, fu = self.forward.transform(inputs)
-        bx, bm, bu = self.backward.transform(inputs)
-        return TT.concatenate([fx, bx], axis=2), fm + bm, fu + bu
+        fout, fupd = self.forward.transform(inputs)
+        bout, bupd = self.backward.transform(inputs)
+        out = TT.concatenate([fout['out'], bout['out']], axis=2)
+        pre = TT.concatenate([fout['pre'], bout['pre']], axis=2)
+        outputs = dict(out=out, pre=pre)
+        for k, v in fout.items():
+            outputs['fw_{}'.format(k)] = v
+        for k, v in bout.items():
+            outputs['bw_{}'.format(k)] = v
+        return outputs, fupd + bupd

@@ -419,15 +419,14 @@ class Layer(Base):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions.
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
         output : theano expression
-            Output for this layer.
+            The output for this layer is the same as the input.
         updates : list
-            Updates that should be performed by a theano function that computes
-            something using this layer.
+            An empty updates list.
         '''
         return inputs['out'], []
 
@@ -561,19 +560,23 @@ class Feedforward(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from this layer.
-        updates : list
-            Updates to apply based on this layer.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty list of updates to apply from this layer.
         '''
         xws = ((inputs[n], self.find('w_{}'.format(n))) for n in self.inputs)
         pre = sum(TT.dot(x, w) for x, w in xws) + self.find('b')
-        return dict(preact=pre, out=self.activate(pre)), []
+        return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -588,6 +591,9 @@ class Classifier(Feedforward):
     '''A classifier layer performs a softmax over a linear input transform.
 
     Classifier layers are typically the "output" layer of a classifier network.
+
+    This layer type really only wraps the output activation of a standard
+    :class:`Feedforward` layer.
     '''
 
     def __init__(self, **kwargs):
@@ -624,19 +630,23 @@ class Tied(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
         '''
         x = inputs['out']
         pre = TT.dot(x, self.partner.find('w_out').T) + self.find('b')
-        return dict(preact=pre, out=self.activate(pre)), []
+        return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -672,18 +682,22 @@ class Maxout(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of state updates.
         '''
         pre = TT.dot(inputs['out'], self.find('xh')).max(axis=2) + self.find('b')
-        return dict(preact=pre, out=self.activate(pre)), []
+        return dict(pre=pre, out=self.activate(pre)), []
 
     def add_weights(self, name, mean=0, std=None, sparsity=0):
         '''Helper method to create a new weight matrix.
@@ -861,16 +875,18 @@ class RNN(Recurrent):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, h_tm1):
@@ -878,7 +894,7 @@ class RNN(Recurrent):
             return [pre, self.activate(pre)]
         x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [x], [None, x])
-        return dict(preact=pre, out=out), updates
+        return dict(pre=pre, out=out), updates
 
 
 class ARRNN(Recurrent):
@@ -912,16 +928,19 @@ class ARRNN(Recurrent):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : theano expression
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            a "hid" output that gives the rate-independent, post-activation
+            hidden state, and an "out" output that gives the hidden output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, r_t, h_tm1):
@@ -932,7 +951,7 @@ class ARRNN(Recurrent):
         h = TT.dot(x, self.find('xh')) + self.find('b')
         r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
         (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
-        return dict(preact=pre, hid=hid, out=out), updates
+        return dict(pre=pre, hid=hid, out=out), updates
 
 
 class MRNN(Recurrent):
@@ -964,16 +983,21 @@ class MRNN(Recurrent):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "factors" output that
+            gives the activation of the hidden weight factors given the input
+            data (but not incorporating influence from the hidden states), a
+            "pre" output that gives the unit activity before applying the
+            layer's activation function, and an "out" output that gives the
+            post-activation output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, f_t, h_tm1):
@@ -1012,16 +1036,18 @@ class LSTM(Recurrent):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "cell" output that
+            gives the value of each hidden cell in the layer, and an "out"
+            output that gives the actual gated output from the layer.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def split(z):

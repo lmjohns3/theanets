@@ -308,6 +308,8 @@ class Layer(Base):
         super(Layer, self).__init__()
         self.kwargs = kwargs
         self.inputs = kwargs['inputs']
+        if isinstance(self.inputs, int):
+            self.inputs = dict(out=self.inputs)
         self.outputs = kwargs['outputs']
         if isinstance(self.outputs, int):
             self.outputs = dict(out=self.outputs)

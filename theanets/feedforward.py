@@ -8,14 +8,15 @@ import numpy as np
 import theano
 import theano.tensor as TT
 
-from .graph import Network
+from . import graph
+from . import layers
 
 logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
 
-class Autoencoder(Network):
+class Autoencoder(graph.Network):
     r'''An autoencoder attempts to reproduce its input.
 
     Some types of neural network models have been shown to learn useful features
@@ -72,9 +73,9 @@ class Autoencoder(Network):
           theanets.Autoencoder,
           layers=(A, B, C, ..., A))
 
-    Autoencoders retain all attributes of the parent :class:`Network` class,
-    but additionally can have "tied weights", if the layer configuration is
-    palindromic.
+    Autoencoders retain all attributes of the parent :class:`Network
+    <graph.Network>` class, but additionally can have "tied weights", if the
+    layer configuration is palindromic.
 
     Attributes
     ----------
@@ -89,8 +90,8 @@ class Autoencoder(Network):
 
         This implementation allows for decoding weights to be tied to encoding
         weights. If `tied_weights` is False, the decoder is set up using
-        :func:`Network.setup_decoder`; if True, then the decoder is set up to be
-        a mirror of the encoding layers, using transposed weights.
+        :func:`graph.Network.setup_decoder`; if True, then the decoder is set up
+        to be a mirror of the encoding layers, using transposed weights.
 
         Parameters
         ----------
@@ -265,7 +266,7 @@ class Regressor(Network):
         return (err * err).mean()
 
 
-class Classifier(Network):
+class Classifier(graph.Network):
     r'''A classifier attempts to match a 1-hot target output.
 
     Classification models in ``theanets`` are trained by optimizing a (possibly

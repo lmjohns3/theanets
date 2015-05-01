@@ -12,7 +12,7 @@ import theano.tensor as TT
 import warnings
 
 from . import dataset
-from . import feedforward
+from . import graph
 from . import trainer
 
 logging = climate.get_logger(__name__)
@@ -147,7 +147,7 @@ class Experiment:
             self.load(progress)
         else:
             assert network_class, 'network class must be provided!'
-            assert network_class is not feedforward.Network, \
+            assert network_class is not graph.Network, \
                 'use a concrete theanets.Network subclass ' \
                 'like theanets.{Autoencoder,Regressor,...}'
             self.network = network_class(**self.kwargs)
@@ -370,10 +370,10 @@ class Experiment:
 
         Returns
         -------
-        network : :class:`Network <feedforward.Network>`
+        network : :class:`Network <graph.Network>`
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''
         logging.info('loading model from %s', path)
-        self.network = feedforward.load(path, **kwargs)
+        self.network = graph.load(path, **kwargs)
         return self.network

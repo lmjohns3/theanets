@@ -414,6 +414,10 @@ class Network(object):
         '''Number of parameters in the entire network model.'''
         return sum(l.num_params for l in self.layers)
 
+    @property
+    def output_name(self):
+        return self.layers[-1].output_name
+
     def find(self, layer, param):
         '''Get a parameter from a layer in the network.
 
@@ -472,9 +476,13 @@ class Network(object):
         key = self._hash(**kwargs)
         if key not in self._functions:
             outputs, _, updates = self.build_graph(**kwargs)
-            self._functions[key] = theano.function(
-                [self.x], outputs, updates=updates)
-        return self._functions[key](x)
+            labels, exprs = list(outputs.keys()), list(outputs.values())
+            self._functions[key] = (
+                labels,
+                theano.function([self.x], exprs, updates=updates),
+            )
+        labels, f = self._functions[key]
+        return dict(zip(labels, f(x)))
 
     def predict(self, x):
         '''Compute a forward pass of the inputs, returning the network output.
@@ -493,7 +501,7 @@ class Network(object):
             Rows in this array correspond to examples, and columns to output
             variables.
         '''
-        return self.feed_forward(x)[-1]
+        return self.feed_forward(x)[self.output_name]
 
     __call__ = predict
 
@@ -570,7 +578,7 @@ class Network(object):
             A theano expression representing the loss of this network.
         '''
         outputs, _, _ = self.build_graph(**kwargs)
-        hiddens = [outputs['{}.out'.format(l.name)] for l in self.layers[1:-1]]
+        hiddens = [outputs[l.output_name] for l in self.layers[1:-1]]
         regularizers = dict(
             weight_l1=(abs(w).sum() for l in self.layers for w in l.params if w.ndim > 1),
             weight_l2=((w * w).sum() for l in self.layers for w in l.params if w.ndim > 1),
@@ -579,10 +587,10 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        out = outputs['{}.out'.format(self.layers[-1].name)]
-        return self.error(out) + sum(TT.cast(kwargs[weight], FLOAT) * sum(expr)
-                                     for weight, expr in regularizers.items()
-                                     if kwargs.get(weight, 0) > 0)
+        return self.error(outputs[self.output_name]) + sum(
+            TT.cast(kwargs[weight], FLOAT) * sum(expr)
+            for weight, expr in regularizers.items()
+            if kwargs.get(weight, 0) > 0)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.
@@ -593,8 +601,7 @@ class Network(object):
             A list of named monitor expressions to compute for this network.
         '''
         outputs, monitors, _ = self.build_graph(**kwargs)
-        out = outputs['{}.out'.format(self.layers[-1].name)]
-        return [('err', self.error(out))] + monitors
+        return [('err', self.error(outputs[self.output_name]))] + monitors
 
     def updates(self, **kwargs):
         '''Return expressions to run as updates during network training.

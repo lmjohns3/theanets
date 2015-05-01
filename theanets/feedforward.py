@@ -218,9 +218,7 @@ class Autoencoder(graph.Network):
         if layer not in self._decoders:
             outputs, _, updates = self.build_graph()
             self._decoders[layer] = theano.function(
-                [outputs[layer]],
-                [outputs['{}.out'.format(self.layers[-1].name)]],
-                updates=updates)
+                [outputs[layer]], [outputs[self.output_name]], updates=updates)
         return self._decoders[layer](z)[0]
 
 

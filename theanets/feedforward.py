@@ -180,13 +180,7 @@ class Autoencoder(graph.Network):
             The given dataset, encoded by the appropriate hidden layer
             activation.
         '''
-        if layer is None:
-            layer = self.layers[len(self.layers) // 2].name
-        if isinstance(layer, layers.Layer):
-            layer = layer.output_name
-        if '.' not in layer:
-            layer = '{}.out'.format(layer)
-        enc = self.feed_forward(x)[layer]
+        enc = self.feed_forward(x)[self._find_layer(layer)]
         if sample:
             return np.random.binomial(n=1, p=enc).astype(np.uint8)
         return enc
@@ -198,28 +192,33 @@ class Autoencoder(graph.Network):
         ----------
         z : ndarray
             A matrix containing encoded data from this autoencoder.
-
-        layer : int, optional
-            The index of the hidden layer that was used to encode `z`.
+        layer : int or str or :class:`Layer <layers.Layer>`, optional
+            The index or name of the hidden layer that was used to encode `z`.
 
         Returns
         -------
-        ndarray :
+        decoded : ndarray
             The decoded dataset.
         '''
-        if not hasattr(self, '_decoders'):
-            self._decoders = {}
+        key = self._find_layer(layer)
+        if key not in self._functions:
+            outputs, _, updates = self.build_graph()
+            self._decoders[key] = theano.function(
+                [outputs[key]], [outputs[self.output_name]], updates=updates)
+        return self._functions[key](z)[0]
+
+    def _find_layer(self, layer):
+        '''
+        '''
         if layer is None:
-            layer = self.layers[len(self.layers) // 2].name
+            layer = len(self.layers) // 2
+        if isinstance(layer, int):
+            layer = self.layers[layer]
         if isinstance(layer, layers.Layer):
             layer = layer.output_name
         if '.' not in layer:
             layer = '{}.out'.format(layer)
-        if layer not in self._decoders:
-            outputs, _, updates = self.build_graph()
-            self._decoders[layer] = theano.function(
-                [outputs[layer]], [outputs[self.output_name]], updates=updates)
-        return self._decoders[layer](z)[0]
+        return layer
 
 
 class Regressor(graph.Network):

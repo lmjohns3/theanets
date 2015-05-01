@@ -37,8 +37,8 @@ class TestExperiment(util.MNIST):
             assert exp.network.kwargs['layers'] == (10, 3, 4, 10)
             for lo, ln in zip(net.layers, exp.network.layers):
                 assert lo.name == ln.name
-                assert lo.nin == ln.nin
-                assert lo.nout == ln.nout
+                assert lo.inputs == ln.inputs
+                assert lo.outputs == ln.outputs
         finally:
             if os.path.exists(p):
                 os.unlink(p)

@@ -320,6 +320,10 @@ class Layer(Base):
         self.num_params = 0
         self.setup()
 
+    @property
+    def output_name(self):
+        return '{}.out'.format(self.name)
+
     def connect(self, inputs, noise=0, dropout=0):
         '''Create theano variables representing the outputs of this layer.
 

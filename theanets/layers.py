@@ -1,4 +1,33 @@
-'''This module contains classes for different types of network layers.'''
+# -*- coding: utf-8 -*-
+
+r'''This module contains classes for different types of network layers.
+
+.. image:: _static/feedforward_neuron.svg
+
+In a standard feedforward network layer, each node :math:`i` in layer :math:`k`
+receives inputs from all nodes in layer :math:`k-1`, then transforms the
+weighted sum of these inputs:
+
+.. math::
+   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
+
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function."
+Although many functions will work, typical choices of the activation function
+are:
+
+:linear: :math:`\sigma(z) = z`
+:rectified linear: :math:`\sigma(z) = \max(0, z)`
+:logistic sigmoid: :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
+
+Most activation functions are chosen to incorporate a nonlinearity, since a
+model with even multiple linear layers cannot capture nonlinear phenomena. Nodes
+in the input layer are assumed to have linear activation (i.e., the input nodes
+simply represent the state of the input data), and nodes in the output layer
+might have linear or nonlinear activations depending on the modeling task.
+
+Usually all hidden nodes in a network share the same activation function, but
+this is not required.
+'''
 
 import climate
 import functools

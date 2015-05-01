@@ -1,6 +1,52 @@
 # -*- coding: utf-8 -*-
 
-r'''
+r'''This module contains a base class for modeling computation graphs.
+
+Neural networks are really just a concise, computational way of describing a
+mathematical model of a computation graph that operates on a particular set of
+data.
+
+At a high level, a neural network is a computation graph that describes a
+parametric mapping
+
+.. math::
+   F_\theta: \mathcal{S} \to \mathcal{T}
+
+between a source space :math:`\mathcal{S}` and a target space
+:math:`\mathcal{T}`, using parameters :math:`\theta`. For example, suppose we
+are processing vectors representing the MNIST handwritten digits. We could think
+of :math:`\mathcal{S} = \mathbb{R}^{28 \times 28} = \mathbb{R}^{784}` (i.e., the
+space of all 28×28 images), and for classifying the MNIST digits we could think
+of :math:`\mathcal{T} = \mathbb{R}^{10}`.
+
+This mapping is assumed to be fairly complex. If it were not -- if you could
+capture the mapping using a simple expression like :math:`F_{\{a\}}(x) = ax^2`
+-- then we would just use the expression directly and not need to deal with an
+entire network. So if the mapping is complex, we will do a couple of things to
+make our problem tractable. First, we will assume some structure for
+:math:`F_\theta`. Second, we will fit our model to some set of data that we have
+obtained, so that our parameters :math:`\theta` are tuned to the problem at
+hand.
+
+Graph structure
+---------------
+
+.. image:: _static/feedforward_layers.svg
+
+The mapping :math:`F_\theta` is implemented in neural networks by assuming a
+specific, layered form. Computation nodes -- also called units or (sometimes)
+neurons -- are arranged in a :math:`k+1` partite graph, with layer :math:`k`
+containing :math:`n_k` nodes. The number of input nodes in the graph is referred
+to as :math:`n_0`.
+
+Most layers are connected together using a set of weights. A **weight matrix**
+:math:`W^k \in \mathbb{R}^{n_{k-1} \times n_k}` specifies the strength of the
+connection between nodes in layer :math:`k` and those in layer :math:`k-1` --
+all other pairs of nodes are typically not connected. Each layer of nodes also
+typically has a **bias vector** that determines the offset of each node from the
+origin. Together, the parameters :math:`\theta` of the model are these :math:`k`
+weight matrices and :math:`k` bias vectors (there are no weights or biases for
+the input nodes in the graph).
 '''
 
 import climate

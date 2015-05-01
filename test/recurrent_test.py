@@ -43,7 +43,6 @@ class TestNetwork(Base):
         return theanets.recurrent.Regressor(
             layers=(INS, ) + hiddens + (OUTS, ),
             hidden_activation='logistic',
-            batch_size=BATCH,
             **kwargs)
 
     def test_predict(self):
@@ -76,7 +75,6 @@ class TestPredictor(Base):
         return theanets.recurrent.Predictor(
             layers=(INS, ) + hiddens + (INS, ),
             hidden_activation='logistic',
-            batch_size=10,
             **kwargs)
 
     def test_predict_onelayer(self):
@@ -90,7 +88,6 @@ class TestClassifier(Base):
         return theanets.recurrent.Classifier(
             layers=(INS, ) + hiddens + (OUTS, ),
             hidden_activation='logistic',
-            batch_size=BATCH,
             **kwargs)
 
     def test_classify_onelayer(self):
@@ -109,7 +106,6 @@ class TestAutoencoder(Base):
         return theanets.recurrent.Autoencoder(
             layers=(INS, ) + hiddens + (INS, ),
             hidden_activation='logistic',
-            batch_size=BATCH,
             **kwargs)
 
     def test_encode_onelayer(self):

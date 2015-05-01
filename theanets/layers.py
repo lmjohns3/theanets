@@ -1006,8 +1006,8 @@ class MRNN(Recurrent):
         x = inputs['out']
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
-        (pre, out), updates = self._scan(fn, [h, f], [None, x])
-        return dict(preact=pre, out=out), updates
+        (pre, factors, out), updates = self._scan(fn, [h, f], [None, x])
+        return dict(pre=pre, factors=f, out=out), updates
 
 
 class LSTM(Recurrent):

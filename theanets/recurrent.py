@@ -74,13 +74,13 @@ class Autoencoder(feedforward.Autoencoder):
         # of each entries in the error computation.
         self.weights = TT.tensor3('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.weights]
         return [self.x]
 
     def error(self, output):
         err = self.output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -106,7 +106,7 @@ class Predictor(Autoencoder):
         # of the network and f(y) gives the prediction, then we want f(y)[0] to
         # match x[1], f(y)[1] to match x[2], and so forth.
         err = self.x[1:] - self.generate_prediction(output)[:-1]
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights[1:] * err * err) / self.weights[1:].sum()
         return (err * err).mean()
 
@@ -148,7 +148,7 @@ class Regressor(feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
@@ -166,7 +166,7 @@ class Regressor(feedforward.Regressor):
             A theano expression representing the network error.
         '''
         err = output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -192,7 +192,7 @@ class Classifier(feedforward.Classifier):
         # of each entry in the error computation.
         self.weights = TT.matrix('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
@@ -217,7 +217,7 @@ class Classifier(feedforward.Classifier):
         weights = TT.reshape(self.weights, (n, ))
         prob = TT.reshape(output, (n, output.shape[2]))
         nlp = -TT.log(TT.clip(prob[TT.arange(n), correct], lo, hi))
-        if self.is_weighted:
+        if self.weighted:
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()
 
@@ -236,6 +236,6 @@ class Classifier(feedforward.Classifier):
         '''
         correct = TT.eq(TT.argmax(output, axis=-1), self.labels)
         acc = correct.mean()
-        if self.is_weighted:
+        if self.weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc

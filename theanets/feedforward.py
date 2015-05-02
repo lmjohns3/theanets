@@ -183,7 +183,7 @@ class Regressor(graph.Network):
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
@@ -201,7 +201,7 @@ class Regressor(graph.Network):
             A theano expression representing the network error.
         '''
         err = output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -227,27 +227,6 @@ class Classifier(graph.Network):
     model and :math:`R` is a regularization function.
     '''
 
-    @property
-    def output_activation(self):
-        '''A string representing the output activation for this network.'''
-        return 'softmax'
-
-    def extra_monitors(self, outputs):
-        '''Construct extra monitors for this network.
-
-        Parameters
-        ----------
-        outputs : list of theano expressions
-            A list of theano expressions describing the activations of each
-            layer in the network.
-
-        Returns
-        -------
-        monitors : sequence of (name, expression) tuples
-            A sequence of named monitor quantities.
-        '''
-        yield 'acc', self.accuracy(outputs[-1])
-
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -264,13 +243,9 @@ class Classifier(graph.Network):
         # and the weights are reshaped to be just a vector.
         self.weights = TT.vector('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
-
-    @property
-    def output_activation(self):
-        return 'softmax'
 
     def error(self, output):
         '''Build a theano expression for computing the network error.
@@ -289,9 +264,21 @@ class Classifier(graph.Network):
         hi = TT.cast(1, FLOAT)
         prob = output[TT.arange(self.labels.shape[0]), self.labels]
         nlp = -TT.log(TT.clip(prob, lo, hi))
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * nlp).sum() / self.weights.sum()
         return nlp.mean()
+
+    def monitors(self, **kwargs):
+        '''Return expressions that should be computed to monitor training.
+
+        Returns
+        -------
+        monitors : list of (name, expression) pairs
+            A list of named monitor expressions to compute for this network.
+        '''
+        outputs, monitors, _ = self.build_graph(**kwargs)
+        out = outputs[self.output_name]
+        return [('err', self.error(out)), ('acc', self.accuracy(out))] + monitors
 
     def accuracy(self, output):
         '''Build a theano expression for computing the network accuracy.
@@ -308,7 +295,7 @@ class Classifier(graph.Network):
         '''
         correct = TT.eq(TT.argmax(output, axis=1), self.labels)
         acc = correct.mean()
-        if self.is_weighted:
+        if self.weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc
 

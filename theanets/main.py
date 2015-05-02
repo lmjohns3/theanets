@@ -150,7 +150,8 @@ class Experiment:
             assert network_class is not graph.Network, \
                 'use a concrete theanets.Network subclass ' \
                 'like theanets.{Autoencoder,Regressor,...}'
-            self.network = network_class(**self.kwargs)
+            self.network = network_class(layers=self.kwargs['layers'],
+                                         weighted=self.kwargs.get('weighted'))
 
     def create_trainer(self, factory, *args, **kwargs):
         '''Create a trainer.

@@ -139,18 +139,19 @@ class Network(object):
     ----------
     layers : list of :class:`Layer <layers.Layer>`
         A list of the layers in this network model.
-    kwargs : dict
-        A dictionary containing the keyword arguments used to construct the
-        network.
+    weighted : bool
+        True iff this network expects additional target weight inputs during
+        training.
     '''
 
-    def __init__(self, **kwargs):
+    def __init__(self, layers, weighted=False):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
-        self.kwargs = kwargs
+        self.weighted = weighted
+        logging.info('constructing network')
         self.inputs = list(self.setup_vars())
-        self.layers = []
-        self.setup_layers()
+        self.layers = self.setup_layers(layers)
+        logging.info('network has %d total parameters', self.num_params)
 
     def setup_vars(self):
         '''Setup Theano variables required by our network.
@@ -292,14 +293,9 @@ class Network(object):
             A theano expression representing the network error.
         '''
         err = output - self.x
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
-
-    @property
-    def is_weighted(self):
-        '''True iff the network uses explicit target weights.'''
-        return bool(self.kwargs.get('weighted'))
 
     def _hash(self, **kwargs):
         '''Construct a string key for representing a computation graph.

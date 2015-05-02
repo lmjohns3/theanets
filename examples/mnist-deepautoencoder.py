@@ -10,14 +10,13 @@ train, valid, _ = load_mnist()
 
 e = theanets.Experiment(
     theanets.Autoencoder,
-    layers=(784, 256, 64, 36, 64, 256, 784),
+    layers=(784, 256, 64, 36, ('tied', 64), ('tied', 256), ('tied', 784)),
     train_batches=100,
-    tied_weights=True,
 )
 e.train(train, valid, optimize='layerwise', patience=1, min_improvement=0.1)
 e.train(train, valid)
 
-plot_layers([e.network.find(i, 0) for i in (1, 2, 3)], tied_weights=True)
+plot_layers([e.network.find(i, 'w') for i in (1, 2, 3)], tied_weights=True)
 plt.tight_layout()
 plt.show()
 

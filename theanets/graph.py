@@ -56,8 +56,6 @@ import pickle
 import theano
 import theano.tensor as TT
 
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from . import layers
 
 logging = climate.get_logger(__name__)
@@ -116,15 +114,6 @@ class Network(object):
     layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
-    hidden_activation : str, optional
-        The name of an activation function to use on hidden network layers by
-        default. Defaults to 'logistic'.
-    output_activation : str, optional
-        The name of an activation function to use on the output layer by
-        default. Defaults to 'linear'.
-    rng : theano RandomStreams object, optional
-        Use a specific Theano random number generator. A new one will be created
-        if this is None.
     weighted : bool, optional
         If True, the network will require an additional input that provides
         weights for the target outputs of the network; the weights will be the
@@ -175,47 +164,50 @@ class Network(object):
         # are taken into account with different weights during optimization.
         self.weights = TT.matrix('weights')
 
-        if self.kwargs.get('weighted'):
+        if self.weighted:
             return [self.x, self.weights]
         return [self.x]
 
-    def setup_layers(self):
+    def setup_layers(self, specs):
         '''Set up a computation graph for our network.
 
         Subclasses may override this method to construct alternative network
         topologies.
+
+        Parameters
+        ----------
+        specs : list of layer specifications
+            A sequence of values specifying the layer configuration for the
+            network.  For more information, please see
+            :ref:`creating-specifying-layers`.
+
+        Returns
+        -------
+        layers : list of :class:`Layer <layers.Layer>`
+            A list of the layers for this network model.
         '''
-        rng = self.kwargs.get('rng') or RandomStreams()
-        specs = list(self.kwargs.get('layers', ()))
-        if not specs:
-            return
-
-        logging.info('constructing network layers...')
-
-        assert isinstance(specs[0], int), \
-            'layers {} must start with an int'.format(specs)
-        self.layers.append(
-            layers.build('input', outputs=specs.pop(0), rng=rng, name='in'))
-
+        model = []
         for i, spec in enumerate(specs):
             # if spec is a Layer instance, just add it and move on.
             if isinstance(spec, layers.Layer):
-                self.layers.append(spec)
+                model.append(spec)
+                continue
+
+            # for the first layer, create an 'input' layer.
+            if i == 0:
+                model.append(layers.build('input', outputs=spec, name='in'))
                 continue
 
             # here we set up some defaults for constructing a new layer.
             form = 'feedforward'
-            prev = self.layers[-1]
-            inputs = {'{}.out'.format(prev.name): prev.outputs['out']}
-            act = self.kwargs.get('hidden_activation', 'logistic')
-            if i == len(specs) - 1:
-                act = self.kwargs.get('output_activation', 'linear')
+            prev = model[-1]
+            last = i == len(specs) - 1
             kwargs = dict(
-                name='hid{}'.format(len(self.layers)),
-                inputs=inputs,
-                activation=act,
+                name='out' if last else 'hid{}'.format(len(model)),
+                activation='linear' if last else 'logistic',
+                inputs={'{}.out'.format(prev.name): prev.outputs['out']},
                 outputs=spec,
-                rng=rng)
+            )
 
             # if spec is a tuple, assume that it contains one or more of the following:
             # - the type of layer to construct (layers.Layer subclass)
@@ -236,25 +228,25 @@ class Network(object):
                             kwargs['activation'] = el
                     if isinstance(el, int):
                         kwargs['outputs'] = el
-                kwargs['name'] = '{}{}'.format(form, len(self.layers))
+                kwargs['name'] = '{}{}'.format(form, len(model))
 
             # if spec is a dictionary, try to extract a form for the layer, and
             # override our default keyword arguments with the rest.
             if isinstance(spec, dict):
                 if 'form' in spec:
                     form = spec['form'].lower()
-                    kwargs['name'] = '{}{}'.format(form, len(self.layers))
+                    kwargs['name'] = '{}{}'.format(form, len(model))
                 kwargs.update(spec)
 
             if isinstance(form, str) and form.lower() == 'bidirectional':
                 kwargs['name'] = 'bd{}{}'.format(
-                    kwargs.get('worker', 'rnn'), len(self.layers))
+                    kwargs.get('worker', 'rnn'), len(model))
 
             if isinstance(form, str) and form.lower() == 'tied':
                 partner = kwargs.get('partner')
                 if isinstance(partner, str):
                     # if the partner is named, just get that layer.
-                    partner = [l for l in self.layers if l.name == partner][0]
+                    partner = [l for l in model if l.name == partner][0]
                 else:
                     # to find an unnamed partner for this tied layer, we look
                     # backwards through our list of layers. any "tied" layer
@@ -266,7 +258,7 @@ class Network(object):
                     # (possibly deep) tied-weights autoencoder.
                     tied = 0
                     partner = None
-                    for l in self.layers[::-1]:
+                    for l in model[::-1]:
                         tied += 1 if isinstance(l, layers.Tied) else -1
                         if tied == 0:
                             partner = l
@@ -275,9 +267,8 @@ class Network(object):
                         'could not find tied layer partner: {}'.format(specs)
                 kwargs['partner'] = partner
 
-            self.layers.append(layers.build(form, **kwargs))
-
-        logging.info('constructed graph with %d parameters', self.num_params)
+            model.append(layers.build(form, **kwargs))
+        return model
 
     def error(self, output):
         '''Build a theano expression for computing the network error.

@@ -297,9 +297,8 @@ class SGD(Trainer):
 
         logging.info('compiling %s learning function', self.__class__.__name__)
         updates = list(network.updates(**kwargs)) + list(self.learning_updates())
-        self.f_learn = theano.function(network.inputs,
-                                       self._monitor_exprs,
-                                       updates=network.updates(**kwargs))
+        self.f_learn = theano.function(
+            network.inputs, self._monitor_exprs, updates=updates)
 
     def learning_updates(self):
         for param, grad in zip(self.params, self.clipped_gradients()):

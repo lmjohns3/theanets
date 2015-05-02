@@ -15,134 +15,30 @@ from . import trainer
 logging = climate.get_logger(__name__)
 
 
-HELP_ACTIVATION = '''\
-Available Activation Functions
-==============================
-
-The names on the left show the possible values for the --hidden-activation and
---output-activation configuration parameters. They can be chained together by
-combining multiple names with a + (plus); for example, tanh+relu will result in
-the rectified tanh activation function g(z) = max(0, tanh(z)).
-
-linear     g(z) = z                     plain linear
-
-sigmoid    g(z) = 1 / (1 + e^-z)        logistic sigmoid
-logistic   g(z) = 1 / (1 + e^-z)        logistic sigmoid
-tanh       g(z) = tanh(z)               hyperbolic tangent
-
-softplus   g(z) = log(1 + exp(z))       smooth approximation to relu
-
-softmax    g(z) = e^z / sum(e^z)        categorical distribution
-
-relu       g(z) = max(0, z)             rectified linear
-trel       g(z) = max(0, min(1, z))     truncated rectified linear
-trec       g(z) = z if z > 1 else 0     thresholded rectified linear
-tlin       g(z) = z if |z| > 1 else 0   thresholded linear
-
-rect:max   g(z) = min(1, z)             truncation operator
-rect:min   g(z) = max(0, z)             rectification operator
-
-norm:dc    g(z) = z - mean(z)           mean-normalization operator
-norm:max   g(z) = z - max(abs(z))       max-normalization operator
-norm:std   g(z) = z - std(z)            variance-normalization operator
-'''
-
-HELP_OPTIMIZE = '''\
-Available Optimizers
-====================
-
-First-Order Gradient Descent
-----------------------------
-sgd: Stochastic Gradient Descent
-  --learning-rate
-  --momentum
-
-nag: Nesterov's Accelerated Gradient
-  --learning-rate
-  --momentum
-
-rprop: Resilient Backpropagation
-  --learning-rate (sets initial learning rate)
-  --rprop-increase, --rprop-decrease
-  --rprop-min-step, --rprop-max-step
-
-rmsprop: RMS-scaled Backpropagation
-  --learning-rate
-  --momentum
-  --rms-halflife
-
-adadelta: ADADELTA
-  --rms-halflife
-
-esgd: ESGD
-  --learning-rate
-  --momentum
-  --rms-halflife
-
-bfgs, cg, dogleg, newton-cg, trust-ncg
-  These use the implementations in scipy.optimize.minimize.
-
-Second-Order Gradient Descent
------------------------------
-hf: Hessian-Free
-  --cg-batches
-  --initial-lambda
-  --global-backtracking
-  --preconditioner
-
-Miscellaneous
--------------
-sample: Set model parameters to training data samples
-
-layerwise: Greedy supervised layerwise pre-training
-  This trainer applies RmsProp to each layer sequentially.
-
-pretrain: Greedy unsupervised layerwise pre-training.
-  This trainer applies RmsProp to a tied-weights "shadow" autoencoder using an
-  unlabeled dataset, and then transfers the learned autoencoder weights to the
-  model being trained.
-'''
-
-
 class Experiment:
-    '''This class encapsulates tasks for training and evaluating a network.'''
+    '''This class encapsulates tasks for training and evaluating a network.
 
-    def __init__(self, network_class=None, **overrides):
-        '''Set up an experiment by parsing arguments and building a network.
+    Parameters
+    ----------
+    model : :class:`Network <graph.Network>` or str
+        A specification for obtaining a model. If a string is given, it is
+        assumed to name a file containing a pickled model; this file will be
+        loaded and used. If a network instance is provided, it will be used
+        as the model. If a callable (such as a subclass) is provided, it
+        will be invoked using the provided keyword arguments to create a
+        network instance.
+    '''
 
-        The only input this constructor needs is the Python class of the network
-        to build. Other configuration---for example, creating the appropriate
-        trainer class---typically takes place by parsing command-line argument
-        values, or by a call to :func:`train`.
-
-        Any keyword arguments provided to the constructor will be used to
-        override values passed on the command line. (Typically this is used to
-        provide experiment-specific default values for command line arguments
-        that have no global defaults, e.g., network architecture.)
-        '''
-        args, _ = climate.parse_known_args(**overrides)
-
-        self.kwargs = vars(args)
-
-        if self.kwargs.get('help_activation'):
-            print(HELP_ACTIVATION)
-            sys.exit(0)
-
-        if self.kwargs.get('help_optimize'):
-            print(HELP_OPTIMIZE)
-            sys.exit(0)
-
-        # load an existing model if so configured
-        progress = self.kwargs.get('save_progress')
-        if progress and os.path.exists(progress):
-            self.load(progress)
+    def __init__(self, network, *args, **kwargs):
+        if isinstance(network, str) and os.path.isfile(network):
+            self.load(network)
+        elif isinstance(network, graph.Network):
+            self.network = network
         else:
-            assert network_class, 'network class must be provided!'
-            assert network_class is not graph.Network, \
+            assert network is not graph.Network, \
                 'use a concrete theanets.Network subclass ' \
                 'like theanets.{Autoencoder,Regressor,...}'
-            self.network = network_class(layers=self.kwargs['layers'],
-                                         weighted=self.kwargs.get('weighted'))
+            self.network = network(*args, **kwargs)
 
     def create_trainer(self, factory, *args, **kwargs):
         '''Create a trainer.
@@ -187,13 +83,10 @@ class Experiment:
                     sample=trainer.Sample,
                     sgd=trainer.SGD,
                 )[factory.lower()]
-        kw = {}
-        kw.update(self.kwargs)
-        kw.update(kwargs)
         logging.info('creating trainer %s', factory)
-        for k in sorted(kw):
-            logging.info('--%s = %s', k, kw[k])
-        return factory(*args, **kw)
+        for k in sorted(kwargs):
+            logging.info('--%s = %s', k, kwargs[k])
+        return factory(*args, **kwargs)
 
     def create_dataset(self, data, **kwargs):
         '''Create a dataset for this experiment.
@@ -225,8 +118,8 @@ class Experiment:
         b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
         return dataset.Dataset(
             samples, labels=labels, weights=weights, name=name,
-            batch_size=kwargs.get(b, self.kwargs.get(b, 32)),
-            iteration_size=kwargs.get(i, kwargs.get(s, self.kwargs.get(s))),
+            batch_size=kwargs.get(b, 32),
+            iteration_size=kwargs.get(i, kwargs.get(s)),
             axis=kwargs.get('axis'))
 
     def train(self, *args, **kwargs):
@@ -304,13 +197,13 @@ class Experiment:
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
 
         # set up training algorithm(s)
-        optimize = optimize or self.kwargs.get('optimize') or 'rmsprop'
+        optimize = optimize or 'rmsprop'
         if isinstance(optimize, str):
             optimize = optimize.split()
 
         # set up auto-saving if enabled
-        progress = self.kwargs.get('save_progress')
-        timeout = self.kwargs.get('save_every', 0)
+        progress = kwargs.get('save_progress')
+        timeout = kwargs.get('save_every', 0)
         if timeout < 0:  # timeout < 0 is in minutes instead of iterations.
             timeout *= 60
 

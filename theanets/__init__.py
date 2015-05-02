@@ -4,7 +4,6 @@ from .feedforward import Autoencoder, Regressor, Classifier
 from .graph import load, Network
 from .main import Experiment
 
-from . import flags
 from . import layers
 from . import recurrent
 from . import trainer

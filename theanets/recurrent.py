@@ -143,7 +143,9 @@ class Regressor(feedforward.Regressor):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Regressor, self).setup_vars()
+        # the first dimension indexes time, the second indexes the elements of
+        # each minibatch, and the third indexes the variables in a given frame.
+        self.x = TT.tensor3('x')
 
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
@@ -182,7 +184,9 @@ class Classifier(feedforward.Classifier):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Classifier, self).setup_vars()
+        # the first dimension indexes time, the second indexes the elements of
+        # each minibatch, and the third indexes the variables in a given frame.
+        self.x = TT.tensor3('x')
 
         # for a classifier, this specifies the correct labels for a given input.
         # the labels array for a recurrent network is (time_steps, batch_size).

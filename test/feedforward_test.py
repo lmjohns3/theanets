@@ -5,11 +5,8 @@ import util
 
 
 class TestNetwork(util.MNIST):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.Regressor(
-            layers=(self.DIGIT_SIZE, ) + hiddens,
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.Regressor((self.DIGIT_SIZE, ) + hiddens)
 
     def test_predict(self):
         net = self._build(15, 13)
@@ -35,11 +32,8 @@ class TestNetwork(util.MNIST):
 
 
 class TestClassifier(util.MNIST):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.Classifier(
-            layers=(self.DIGIT_SIZE, ) + hiddens + (10, ),
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.Classifier((self.DIGIT_SIZE, ) + hiddens + (10, ))
 
     def test_classify_onelayer(self):
         net = self._build(13)
@@ -53,11 +47,9 @@ class TestClassifier(util.MNIST):
 
 
 class TestAutoencoder(util.MNIST):
-    def _build(self, *hiddens, **kwargs):
+    def _build(self, *hiddens):
         return theanets.Autoencoder(
-            layers=(self.DIGIT_SIZE, ) + hiddens + (self.DIGIT_SIZE, ),
-            hidden_activation='logistic',
-            **kwargs)
+            (self.DIGIT_SIZE, ) + hiddens + (self.DIGIT_SIZE, ))
 
     def test_encode_onelayer(self):
         net = self._build(13)
@@ -88,4 +80,3 @@ class TestAutoencoder(util.MNIST):
         net = self._build(13, 14, 15)
         x = net.decode(net.encode(self.images))
         assert x.shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
-        #err = ((valid - xhat) ** 2).sum(axis=1).mean()

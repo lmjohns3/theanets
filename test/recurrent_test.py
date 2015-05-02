@@ -39,11 +39,8 @@ class Base:
 
 
 class TestNetwork(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Regressor(
-            layers=(INS, ) + hiddens + (OUTS, ),
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Regressor(layers=(INS, ) + hiddens + (OUTS, ))
 
     def test_predict(self):
         net = self._build(15, 13)
@@ -60,7 +57,7 @@ class TestNetwork(Base):
         self.assert_shape(hs[3].shape, (STEPS, BATCH, OUTS))
 
     def test_multiple_recurrent(self):
-        net = self._build(13, 14, 15, recurrent_layers={0, 1})
+        net = self._build(13, 14, 15)
         hs = net.feed_forward(self.probe)
         assert len(hs) == 5
         self.assert_shape(hs[0].shape, (STEPS, BATCH, INS))
@@ -71,11 +68,8 @@ class TestNetwork(Base):
 
 
 class TestPredictor(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Predictor(
-            layers=(INS, ) + hiddens + (INS, ),
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Predictor((INS, ) + hiddens + (INS, ))
 
     def test_predict_onelayer(self):
         net = self._build(13)
@@ -84,11 +78,8 @@ class TestPredictor(Base):
 
 
 class TestClassifier(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Classifier(
-            layers=(INS, ) + hiddens + (OUTS, ),
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Classifier((INS, ) + hiddens + (OUTS, ))
 
     def test_classify_onelayer(self):
         net = self._build(13)
@@ -102,11 +93,8 @@ class TestClassifier(Base):
 
 
 class TestAutoencoder(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Autoencoder(
-            layers=(INS, ) + hiddens + (INS, ),
-            hidden_activation='logistic',
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Autoencoder((INS, ) + hiddens + (INS, ))
 
     def test_encode_onelayer(self):
         net = self._build(13)

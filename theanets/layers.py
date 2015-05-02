@@ -1120,6 +1120,7 @@ class LSTM(Recurrent):
             [('h', batch_size), ('c', batch_size)])
         return dict(out=out, cell=cell), updates
 
+
 class GRU(Recurrent):
     ''' Gated Recurrent Unit layer.
         The implementation from paper
@@ -1127,33 +1128,45 @@ class GRU(Recurrent):
         http://arxiv.org/pdf/1412.3555v1.pdf
     '''
     def setup(self):
-        self.add_weights('wh')
-        self.add_weights('uh', self.size)
-        self.add_weights('wx')
-        self.add_weights('ux', self.size)
-        self.add_weights('wz')
-        self.add_weights('uz', self.size)
-        self.add_bias('bh')
-        self.add_bias('bx')
-        self.add_bias('bz')
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, 3 * nout)
+        self.add_weights('hh', nout, 3 * nout)
+        self.add_bias('b', 3 * nout)
 
     def transform(self, inputs):
-        def fn(x_t1, x_t2, x_t3, h_prev):
-            #update gate
-            z = TT.nnet.sigmoid(x_t1 + TT.dot(h_prev, self.find('uz')))
-            #reset gate
-            r = TT.nnet.sigmoid(x_t2 + TT.dot(h_prev, self.find('uh')))
-            #candidate activation
-            h_c = TT.tanh(x_t3 + TT.dot((r * h_prev), self.find('ux')))
-            #activation
-            return (1 - z) * h_prev + z * h_c
-        x = _only(inputs)
-        x1 = TT.dot(x, self.find('wh'))
-        x2 = TT.dot(x, self.find('wx'))
-        x3 = TT.dot(x, self.find('wz'))
-        h, updates = self._scan(fn, [x1, x2, x3])
-        monitors = self._monitors(h)
-        return h, monitors, updates
+        '''Transform inputs to this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function, a
+            "hid" output that gives the post-activation values before applying
+            the rate mixing, and an "out" output that gives the overall output.
+        updates : sequence of update pairs
+            A sequence of updates to apply to this layer's state inside a theano
+            function.
+        '''
+        def split(z):
+            n = self.outputs['out']
+            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n]
+        def fn(x_t, h_tm1):
+            xh, xz, xr = split(x_t + TT.dot(h_tm1, self.find('hh')))
+            z = TT.nnet.sigmoid(xz)
+            pre = xh + TT.nnet.sigmoid(xr) * h_tm1
+            h_t = self.activate(pre)
+            return [pre, h_t, (1 - z) * h_tm1 + z * h_t]
+        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
+        (pre, hid, out), updates = self._scan(fn, [x], [None, None, x])
+        return dict(pre=pre, hid=hid, out=out), updates
 
 
 class Bidirectional(Layer):

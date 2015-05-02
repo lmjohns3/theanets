@@ -1087,7 +1087,7 @@ class UnsupervisedPretrainer(Trainer):
             'tied', partner=layers_[1], activation='linear'))
 
         logging.info('creating shadow network')
-        ae = feedforward.Autoencoder(tied_weights=True, layers=layers_)
+        ae = feedforward.Autoencoder(layers=layers_)
 
         # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(ae, *self.args, **self.kwargs)

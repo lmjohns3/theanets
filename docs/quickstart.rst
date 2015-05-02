@@ -150,7 +150,7 @@ construct your model::
 
   exp = theanets.Experiment(
       theanets.Classifier,
-      layers=(784, 100, 10))
+      layers=(784, 100, (10, 'softmax')))
 
 This is all that's required to get started. There are many different
 hyperparameters that can also be useful when constructing a model; see
@@ -264,7 +264,7 @@ the model was trained using the MNIST digits, you can reshape the learned
 features and visualize them as though they were 28×28 images::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
-  for i, pix in enumerate(exp.network.find(1, 0).get_value().T):
+  for i, pix in enumerate(exp.network.find('hid1', 'w').get_value().T):
       r, c = divmod(i, 10)
       img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
   plt.imshow(img, cmap=plt.cm.gray)

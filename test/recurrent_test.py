@@ -50,21 +50,21 @@ class TestNetwork(Base):
     def test_feed_forward(self):
         net = self._build(15, 13)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 4
-        self.assert_shape(hs[0].shape, (STEPS, BATCH, INS))
-        self.assert_shape(hs[1].shape, (STEPS, BATCH, 15))
-        self.assert_shape(hs[2].shape, (STEPS, BATCH, 13))
-        self.assert_shape(hs[3].shape, (STEPS, BATCH, OUTS))
+        assert len(hs) == 7
+        self.assert_shape(hs['in.out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1.out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['hid2.out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['out.out'].shape, (STEPS, BATCH, OUTS))
 
     def test_multiple_recurrent(self):
         net = self._build(13, 14, 15)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 5
-        self.assert_shape(hs[0].shape, (STEPS, BATCH, INS))
-        self.assert_shape(hs[1].shape, (STEPS, BATCH, 13))
-        self.assert_shape(hs[2].shape, (STEPS, BATCH, 14))
-        self.assert_shape(hs[3].shape, (STEPS, BATCH, 15))
-        self.assert_shape(hs[4].shape, (STEPS, BATCH, OUTS))
+        assert len(hs) == 9
+        self.assert_shape(hs['in.out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1.out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['hid2.out'].shape, (STEPS, BATCH, 14))
+        self.assert_shape(hs['hid3.out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['out.out'].shape, (STEPS, BATCH, OUTS))
 
 
 class TestPredictor(Base):

@@ -16,10 +16,10 @@ class TestNetwork(util.MNIST):
     def test_feed_forward(self):
         net = self._build(15, 13)
         hs = net.feed_forward(self.images)
-        assert len(hs) == 3
-        assert hs[0].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
-        assert hs[1].shape == (self.NUM_DIGITS, 15)
-        assert hs[2].shape == (self.NUM_DIGITS, 13)
+        assert len(hs) == 5
+        assert hs['in.out'].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+        assert hs['hid1.out'].shape == (self.NUM_DIGITS, 15)
+        assert hs['out.out'].shape == (self.NUM_DIGITS, 13)
 
     def test_decode_from(self):
         net = self._build(13, 14, 15, decode_from=2)

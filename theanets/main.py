@@ -7,8 +7,6 @@ and, especially, training a neural network model.
 import climate
 import datetime
 import os
-import sys
-import theano.tensor as TT
 
 from . import dataset
 from . import graph

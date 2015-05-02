@@ -558,6 +558,16 @@ class Input(Layer):
         kwargs['activation'] = 'linear'
         super(Input, self).__init__(**kwargs)
 
+    def to_spec(self):
+        '''Create a specification for this layer.
+
+        Returns
+        -------
+        spec : int
+            A single integer specifying the size of this layer.
+        '''
+        return self.outputs['out']
+
 
 class Feedforward(Layer):
     '''A feedforward neural network layer performs a transform of its input.

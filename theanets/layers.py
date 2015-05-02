@@ -531,11 +531,19 @@ class Layer(Base):
         self.num_params += nout
 
     def to_spec(self):
-        return dict(name=self.name,
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = dict(**self.kwargs)
+        spec.update(name=self.name,
                     form=self.__class__.__name__.lower(),
                     inputs=self.inputs,
-                    outputs=self.outputs,
-                    activation=self.activation)
+                    outputs=self.outputs)
+        return spec
 
 
 class Input(Layer):
@@ -662,6 +670,13 @@ class Tied(Layer):
         self.log_setup()
 
     def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
         spec = super(Tied, self).to_spec()
         spec['partner'] = self.partner.name
         return spec
@@ -739,6 +754,13 @@ class Maxout(Layer):
         self.num_params += nin * nout * self.pieces
 
     def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
         spec = super(Maxout, self).to_spec()
         spec['pieces'] = self.pieces
         return spec
@@ -1027,6 +1049,13 @@ class MRNN(Recurrent):
         return dict(pre=pre, factors=f, out=out), updates
 
     def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
         spec = super(MRNN, self).to_spec()
         spec['factors'] = self.factors
         return spec

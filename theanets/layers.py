@@ -600,14 +600,19 @@ class Feedforward(Layer):
             An empty list of updates to apply from this layer.
         '''
         xws = ((inputs[n], self.find('w_{}'.format(n))) for n in self.inputs)
+        if len(self.inputs) == 1:
+            xws = ((inputs[n], self.find('w')) for n in self.inputs)
         pre = sum(TT.dot(x, w) for x, w in xws) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         nout = self.outputs['out']
-        for name, size in self.inputs.items():
-            self.add_weights('w_{}'.format(name), size, nout)
+        if len(self.inputs) == 1:
+            self.add_weights('w', list(self.inputs.values())[0], nout)
+        else:
+            for name, size in self.inputs.items():
+                self.add_weights('w_{}'.format(name), size, nout)
         self.add_bias('b', nout)
         self.log_setup()
 
@@ -645,8 +650,8 @@ class Tied(Layer):
 
     def __init__(self, partner, **kwargs):
         self.partner = partner
-        kwargs['inputs'] = partner.outputs
-        kwargs['outputs'] = partner.inputs
+        kwargs['inputs'] = [n for _, n in partner.outputs.items()][0]
+        kwargs['outputs'] = [n for _, n in partner.inputs.items()][0]
         kwargs['name'] = 'tied-{}'.format(partner.name)
         super(Tied, self).__init__(**kwargs)
 
@@ -670,7 +675,7 @@ class Tied(Layer):
             An empty sequence of updates.
         '''
         x = inputs['out']
-        pre = TT.dot(x, self.partner.find('w_out').T) + self.find('b')
+        pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):

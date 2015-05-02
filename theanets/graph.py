@@ -248,15 +248,14 @@ class Network(object):
                     # if the partner is named, just get that layer.
                     partner = [l for l in model if l.name == partner][0]
                 else:
-                    # to find an unnamed partner for this tied layer, we look
-                    # backwards through our list of layers. any "tied" layer
-                    # that we find increases a counter by one, and any "untied"
-                    # layer decreases the counter by one. our partner is the
-                    # first layer we find with count zero.
+                    # otherwise, we look backwards through our list of layers.
+                    # any "tied" layer that we find increases a counter by one,
+                    # and any "untied" layer decreases the counter by one. our
+                    # partner is the first layer we find with count zero.
                     #
                     # this is intended to handle the hopefully common case of a
                     # (possibly deep) tied-weights autoencoder.
-                    tied = 0
+                    tied = 1
                     partner = None
                     for l in model[::-1]:
                         tied += 1 if isinstance(l, layers.Tied) else -1
@@ -264,7 +263,7 @@ class Network(object):
                             partner = l
                             break
                     assert partner is not None, \
-                        'could not find tied layer partner: {}'.format(specs)
+                        'could not find tied layer partner for {} in {}'.format(spec, model)
                 kwargs['partner'] = partner
 
             model.append(layers.build(form, **kwargs))

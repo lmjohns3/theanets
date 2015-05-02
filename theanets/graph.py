@@ -94,7 +94,7 @@ def load(filename, **kwargs):
     handle = opener(filename, 'rb')
     pkl = pickle.load(handle)
     handle.close()
-    kw = pkl['kwargs']
+    kw = dict(layers=pkl['layers'], weighted=pkl['weighted'])
     kw.update(kwargs)
     net = pkl['klass'](**kw)
     net.load_params(filename)
@@ -476,7 +476,9 @@ class Network(object):
             path. If this name ends in ".gz" then the output will automatically
             be gzipped; otherwise the output will be a "raw" pickle.
         '''
-        state = dict(klass=self.__class__, kwargs=self.kwargs)
+        state = dict(klass=self.__class__,
+                     layers=[l.to_spec() for l in self.layers],
+                     weighted=self.weighted)
         for layer in self.layers:
             key = '{}-values'.format(layer.name)
             state[key] = [p.get_value() for p in layer.params]

@@ -530,6 +530,13 @@ class Layer(Base):
             random_vector(nout, mean, std), name=self._fmt(name)))
         self.num_params += nout
 
+    def to_spec(self):
+        return dict(name=self.name,
+                    form=self.__class__.__name__.lower(),
+                    inputs=self.inputs,
+                    outputs=self.outputs,
+                    activation=self.activation)
+
 
 class Input(Layer):
     '''The input of a network is a special type of layer with no parameters.
@@ -654,6 +661,11 @@ class Tied(Layer):
         self.add_bias('b', self.outputs['out'])
         self.log_setup()
 
+    def to_spec(self):
+        spec = super(Tied, self).to_spec()
+        spec['partner'] = self.partner.name
+        return spec
+
 
 class Maxout(Layer):
     '''A maxout layer computes a piecewise linear activation function.
@@ -725,6 +737,11 @@ class Maxout(Layer):
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
         self.num_params += nin * nout * self.pieces
+
+    def to_spec(self):
+        spec = super(Maxout, self).to_spec()
+        spec['pieces'] = self.pieces
+        return spec
 
 
 class Recurrent(Layer):
@@ -1008,6 +1025,11 @@ class MRNN(Recurrent):
         f = TT.dot(x, self.find('xf'))
         (pre, out), updates = self._scan(fn, [h, f], [None, x])
         return dict(pre=pre, factors=f, out=out), updates
+
+    def to_spec(self):
+        spec = super(MRNN, self).to_spec()
+        spec['factors'] = self.factors
+        return spec
 
 
 class LSTM(Recurrent):

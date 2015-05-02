@@ -9,7 +9,6 @@ import datetime
 import os
 import sys
 import theano.tensor as TT
-import warnings
 
 from . import dataset
 from . import graph
@@ -127,12 +126,6 @@ class Experiment:
 
         self.kwargs = vars(args)
 
-        if self.kwargs.get('activation') and 'hidden_activation' not in overrides:
-            warnings.warn(
-                'please use --hidden-activation instead of --activation',
-                DeprecationWarning)
-            self.kwargs['hidden_activation'] = self.kwargs.pop('activation')
-
         if self.kwargs.get('help_activation'):
             print(HELP_ACTIVATION)
             sys.exit(0)
@@ -237,12 +230,6 @@ class Experiment:
             batch_size=kwargs.get(b, self.kwargs.get(b, 32)),
             iteration_size=kwargs.get(i, kwargs.get(s, self.kwargs.get(s))),
             axis=kwargs.get('axis'))
-
-    def run(self, *args, **kwargs):
-        warnings.warn(
-            'please use Experiment.train() instead of Experiment.run()',
-            DeprecationWarning)
-        return self.train(*args, **kwargs)
 
     def train(self, *args, **kwargs):
         '''Train the network until the trainer converges.

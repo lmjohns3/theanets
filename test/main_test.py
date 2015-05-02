@@ -34,7 +34,6 @@ class TestExperiment(util.MNIST):
             assert os.path.isfile(p)
             exp.load(p)
             assert exp.network is not net
-            assert exp.network.kwargs['layers'] == (10, 3, 4, 10)
             for lo, ln in zip(net.layers, exp.network.layers):
                 assert lo.name == ln.name
                 assert lo.inputs == ln.inputs

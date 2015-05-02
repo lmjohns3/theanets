@@ -76,83 +76,12 @@ class Autoencoder(graph.Network):
     Autoencoders retain all attributes of the parent :class:`Network
     <graph.Network>` class, but additionally can have "tied weights", if the
     layer configuration is palindromic.
-
-    Attributes
-    ----------
-    tied_weights : bool, optional
-        Construct decoding weights using the transpose of the encoding weights
-        on corresponding layers. Defaults to False, which means decoding weights
-        will be constructed using a separate weight matrix.
     '''
-
-    def setup_decoder(self):
-        '''Set up weights for the decoder layers of an autoencoder.
-
-        This implementation allows for decoding weights to be tied to encoding
-        weights. If `tied_weights` is False, the decoder is set up using
-        :func:`graph.Network.setup_decoder`; if True, then the decoder is set up
-        to be a mirror of the encoding layers, using transposed weights.
-
-        Parameters
-        ----------
-        tied_weights : bool, optional
-            If True, use decoding weights that are "tied" to the encoding
-            weights. This only makes sense for a limited set of "autoencoder"
-            layer configurations. Defaults to False.
-
-        Returns
-        -------
-        count : int
-            A count of the number of tunable decoder parameters.
-        '''
-        if not self.tied_weights:
-            return super(Autoencoder, self).setup_decoder()
-        kw = {}
-        kw.update(self.kwargs)
-        for i in range(len(self.layers) - 1, 1, -1):
-            self.layers.append(layers.build('tied', self.layers[i], **kw))
-        kw = {}
-        kw.update(self.kwargs)
-        kw.update(activation=self.output_activation)
-        self.layers.append(layers.build('tied', self.layers[1], **kw))
-
-    @property
-    def encoding_layers(self):
-        '''Compute the layers that will be part of the network encoder.
-
-        This implementation ensures that --layers is compatible with
-        --tied-weights; if so, and if the weights are tied, then the encoding
-        layers are the first half of the layers in the network. If not, or if
-        the weights are not to be tied, then all but the final layer is
-        considered an encoding layer.
-
-        Returns
-        -------
-        layers : list of int
-            A list of integers specifying sizes of the encoder network layers.
-        '''
-        if not self.tied_weights:
-            return super(Autoencoder, self).encoding_layers
-        error = 'with --tied-weights, --layers must be an odd-length palindrome'
-        sizes = []
-        for layer in self.kwargs['layers']:
-            if isinstance(layer, layers.Layer):
-                sizes.append(layer.size)
-            if isinstance(layer, int):
-                sizes.append(layer)
-            if isinstance(layer, dict):
-                sizes.append(layer.get('size', -1))
-        assert len(sizes) % 2 == 1, error
-        k = len(sizes) // 2
-        encode = np.asarray(sizes[:k])
-        decode = np.asarray(sizes[k+1:])
-        assert (encode == decode[::-1]).all(), error
-        return self.kwargs['layers'][:k+1]
 
     @property
     def tied_weights(self):
         '''A boolean indicating whether this network uses tied weights.'''
-        return self.kwargs.get('tied_weights', False)
+        return any('tied' in l.__class__.__name__.lower() for l in self.layers)
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.

@@ -147,9 +147,9 @@ class Network(object):
     def __init__(self, **kwargs):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
-        self.layers = []
         self.kwargs = kwargs
         self.inputs = list(self.setup_vars())
+        self.layers = []
         self.setup_layers()
 
     def setup_vars(self):
@@ -178,46 +178,24 @@ class Network(object):
             return [self.x, self.weights]
         return [self.x]
 
-    def error(self, output):
-        '''Build a theano expression for computing the network error.
-
-        Parameters
-        ----------
-        output : theano expression
-            A theano expression representing the output of the network.
-
-        Returns
-        -------
-        error : theano expression
-            A theano expression representing the network error.
-        '''
-        err = output - self.x
-        if self.is_weighted:
-            return (self.weights * err * err).sum() / self.weights.sum()
-        return (err * err).mean()
-
     def setup_layers(self):
         '''Set up a computation graph for our network.
-
-        The default implementation constructs a series of feedforward
-        layers---called the "encoder" layers---and then calls
-        :func:`setup_decoder` to construct the decoding apparatus in the
-        network.
 
         Subclasses may override this method to construct alternative network
         topologies.
         '''
-        if 'layers' not in self.kwargs:
+        rng = self.kwargs.get('rng') or RandomStreams()
+        specs = list(self.kwargs.get('layers', ()))
+        if not specs:
             return
 
-        specs = list(self.encoding_layers)
-        rng = self.kwargs.get('rng') or RandomStreams()
+        logging.info('constructing network layers...')
 
-        # setup input layer.
+        assert isinstance(specs[0], int), \
+            'layers {} must start with an int'.format(specs)
         self.layers.append(
             layers.build('input', outputs=specs.pop(0), rng=rng, name='in'))
 
-        # setup "encoder" layers.
         for i, spec in enumerate(specs):
             # if spec is a Layer instance, just add it and move on.
             if isinstance(spec, layers.Layer):
@@ -226,17 +204,17 @@ class Network(object):
 
             # here we set up some defaults for constructing a new layer.
             form = 'feedforward'
+            prev = self.layers[-1]
+            inputs = {'{}.out'.format(prev.name): prev.outputs['out']}
+            act = self.kwargs.get('hidden_activation', 'logistic')
+            if i == len(specs) - 1:
+                act = self.kwargs.get('output_activation', 'linear')
             kwargs = dict(
                 name='hid{}'.format(len(self.layers)),
-                inputs=dict(out=self.layers[-1].outputs['out']),
-                activation=self.kwargs.get('hidden_activation', 'logistic'),
-                rng=rng,
-            )
-
-            # by default, spec is assumed to be a lowly integer, giving the
-            # number of units in the layer.
-            if isinstance(spec, int):
-                kwargs['outputs'] = spec
+                inputs=inputs,
+                activation=act,
+                outputs=spec,
+                rng=rng)
 
             # if spec is a tuple, assume that it contains one or more of the following:
             # - the type of layer to construct (layers.Layer subclass)
@@ -271,61 +249,57 @@ class Network(object):
                 kwargs['name'] = 'bd{}{}'.format(
                     kwargs.get('worker', 'rnn'), len(self.layers))
 
+            if isinstance(form, str) and form.lower() == 'tied':
+                partner = kwargs.get('partner')
+                if isinstance(partner, str):
+                    # if the partner is named, just get that layer.
+                    partner = [l for l in self.layers if l.name == partner][0]
+                else:
+                    # to find an unnamed partner for this tied layer, we look
+                    # backwards through our list of layers. any "tied" layer
+                    # that we find increases a counter by one, and any "untied"
+                    # layer decreases the counter by one. our partner is the
+                    # first layer we find with count zero.
+                    #
+                    # this is intended to handle the hopefully common case of a
+                    # (possibly deep) tied-weights autoencoder.
+                    tied = 0
+                    partner = None
+                    for l in self.layers[::-1]:
+                        tied += 1 if isinstance(l, layers.Tied) else -1
+                        if tied == 0:
+                            partner = l
+                            break
+                    assert partner is not None, \
+                        'could not find tied layer partner: {}'.format(specs)
+                kwargs['partner'] = partner
+
             self.layers.append(layers.build(form, **kwargs))
 
-        # setup output layer.
-        self.setup_decoder()
+        logging.info('constructed graph with %d parameters', self.num_params)
 
-    def setup_decoder(self):
-        '''Set up the "decoding" computations from layer activations to output.
-
-        The default decoder constructs a single weight matrix for each of the
-        hidden layers in the network that should be used for decoding (see the
-        `decode_from` parameter) and outputs the sum of the decoders.
-
-        This method can be overridden by subclasses to implement alternative
-        decoding strategies.
+    def error(self, output):
+        '''Build a theano expression for computing the network error.
 
         Parameters
         ----------
-        decode_from : int, optional
-            Compute the activation of the output vector using the activations of
-            the last N hidden layers in the network. Defaults to 1, which
-            results in a traditional setup that decodes only from the
-            penultimate layer in the network.
+        output : theano expression
+            A theano expression representing the output of the network.
+
+        Returns
+        -------
+        error : theano expression
+            A theano expression representing the network error.
         '''
-        self.layers.append(layers.build(
-            'feedforward',
-            name='out',
-            inputs=dict(out=self.layers[-1].outputs['out']),
-            outputs=self.kwargs['layers'][-1],
-            activation=self.output_activation))
+        err = output - self.x
+        if self.is_weighted:
+            return (self.weights * err * err).sum() / self.weights.sum()
+        return (err * err).mean()
 
     @property
     def is_weighted(self):
         '''True iff the network uses explicit target weights.'''
         return bool(self.kwargs.get('weighted'))
-
-    @property
-    def output_activation(self):
-        '''A string describing the output activation for this network.'''
-        return self.kwargs.get('output_activation', 'linear')
-
-    @property
-    def encoding_layers(self):
-        '''List of layers that will be part of the network encoder.
-
-        This property is used by the default implementation of
-        :func:`setup_layers` to determine which layers in the network will be
-        treated as "encoding" layers. The default is to treat all but the last
-        layer as encoders.
-
-        Returns
-        -------
-        layers : list of int, dict, etc.
-            A list of specifications for encoder layers of the network.
-        '''
-        return self.kwargs['layers'][:-1]
 
     def _hash(self, **kwargs):
         '''Construct a string key for representing a computation graph.

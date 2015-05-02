@@ -273,21 +273,20 @@ The first element in the ``layers`` tuple should always be an integer; the
 method creates an :class:`Input <theanets.layers.Input>` layer from the first
 element in the list.
 
-During training, the input layer can also inject noise into the input data; see
+During training, the input layer can also inject noise into the input
+data. If you are using an autoencoder model, adding noise at the input
+creates a model known as a denoising autoencoder. See
 :ref:`training-specifying-regularizers` for more information.
 
 Hidden Layers
 -------------
 
-For all hidden layers (i.e., layers that are neither the first nor the last in
-the network stack), there are four options for the values of the ``layers``
-sequence.
+For all subsequent layers (i.e., layers other than the input), there
+are four options for each of the the values in the ``layers`` sequence.
 
-- If a value is an integer, it is interpreted as the size of a vanilla,
+- If a layer value is an integer, it is interpreted as the size of a vanilla,
   fully-connected feedforward layer. All options for the layer are set to their
-  defaults (e.g., the activation for a hidden layer will be given by the
-  ``hidden_activation`` network-wide configuration parameter, which defaults to
-  a logistic sigmoid).
+  defaults (e.g., the activation function defaults to the logistic sigmoid).
 
   For example, to create a network with an input layer containing 4 units,
   hidden layers with 5 and 6 units, and an output layer with 2 units, you can
@@ -295,16 +294,16 @@ sequence.
 
     net = theanets.Experiment(theanets.Classifier, layers=(4, 5, 6, 2))
 
-- If a value in this sequence is a tuple, it must contain an integer and may
-  contain a string. The integer in the tuple specifies the size of the layer. If
+- If a layer value is a tuple, it must contain an integer and may contain one or
+  more strings. The integer in the tuple specifies the size of the layer. If
   there is a string, and the string names a valid layer type (e.g., ``'tied'``,
   ``'rnn'``, etc.), then this type of layer will be created. Otherwise, the
   string is assumed to name an activation function (e.g., ``'logistic'``,
   ``'relu'``, etc.) and a standard feedforward layer will be created with that
   activation. (See below for a list of predefined activation functions.)
 
-  For example, to create a model with a rectified linear activation in the
-  middle layer::
+  For example, to create a classification model with a rectified linear
+  activation in the middle layer::
 
     net = theanets.Classifier(layers=(4, (5, 'relu'), 6))
 
@@ -316,8 +315,8 @@ sequence.
   bit different from feedforward ones; please see
   :ref:`creating-recurrent-models` for more details.
 
-- If a value in this sequence is a dictionary, it must contain either a ``size``
-  or an ``nout`` key, which specify the number of units in the layer. It can
+- If a layer value is a dictionary, it must contain either a ``size`` or an
+  ``outputs`` key, which specify the number of units in the layer. It can
   additionally contain an ``activation`` key to specify the activation function
   for the layer (see below), and a ``form`` key to specify the type of layer to
   be constructed (e.g., ``'tied'``, ``'rnn'``, etc.). Additional keys in this
@@ -337,22 +336,11 @@ sequence.
 - Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, this
   layer is simply added to the network model as-is.
 
-Output Layer
-------------
-
-The output layer in ``theanets`` is the final element of the ``layers`` tuple.
-Like the input, this layer must be given as an integer, which specifies the
-number of output units in the network. The activation of the output layer is
-specified using the ``output_activation`` keyword argument, which defaults to
-``'softmax'`` for :class:`classifiers <theanets.feedforward.Classifier>` or
-``'linear'`` for :class:`regressors <theanets.feedforward.Regressor>` or
-:class:`autoencoder <theanets.feedforward.Autoencoder>` models.
-
 Activation Functions
 --------------------
 
 An activation function (sometimes also called a transfer function) specifies how
-the output of a layer is computed from the weighted sums of the inputs. By
+the final output of a layer is computed from the weighted sums of the inputs. By
 default, hidden layers in ``theanets`` use a logistic sigmoid activation
 function. Output layers in :class:`Regressor <theanets.feedforward.Regressor>`
 and :class:`Autoencoder <theanets.feedforward.Autoencoder>` models use linear
@@ -501,24 +489,19 @@ appropriate model and provide an implementation of the
 Let's keep going with the example above. Suppose you created a linear autoencoder
 model that had a larger hidden layer than your dataset::
 
-  net = theanets.Autoencoder(layers=(4, ('linear', 8), 4), tied_weights=True)
+  net = theanets.Autoencoder(layers=(4, (8, 'linear'), (4, 'tied')))
 
 Then, at least in theory, you risk learning an uninteresting "identity" model
 such that some hidden units are never used, and the ones that are have weights
 equal to the identity matrix. To prevent this from happening, you can impose a
 sparsity penalty::
 
-  net = theanets.Autoencoder(
-      layers=(4, ('linear', 8), 4),
-      tied_weights=True,
-      hidden_l1=0.1,
-  )
+  net = theanets.Autoencoder((4, (8, 'linear'), ('tied', 4)))
 
 But then you might run into a situation where the sparsity penalty drives some
 of the hidden units in the model to zero, to "save" loss during training.
 Zero-valued features are probably not so interesting, so we can introduce
 another penalty to prevent feature weights from going to zero::
-
 
   class RICA(theanets.Autoencoder):
       def loss(self, **kwargs):

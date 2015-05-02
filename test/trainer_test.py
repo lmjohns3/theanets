@@ -12,8 +12,10 @@ class TestTrainer(util.MNIST):
 
     def assert_progress(self, algo, **kwargs):
         trainer = self.exp.itertrain(self.images, optimize=algo, **kwargs)
-        train, valid = next(trainer)
-        assert train['loss'] < valid['loss']
+        train0, valid0 = next(trainer)
+        train1, valid1 = next(trainer)
+        assert train1['loss'] < valid0['loss']   # should have made progress!
+        assert valid1['loss'] == valid0['loss']  # no new validation occurred
 
     def test_sgd(self):
         self.assert_progress('sgd', learning_rate=1e-4)

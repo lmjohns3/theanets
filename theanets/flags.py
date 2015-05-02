@@ -16,8 +16,6 @@ g.add_argument('--output-activation', default='linear', metavar='FUNC',
                help='function for output unit activations')
 g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
-g.add_argument('--decode-from', type=int, default=1, metavar='N',
-               help='decode from the final N layers of the net')
 
 g = climate.add_group('Training')
 g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',

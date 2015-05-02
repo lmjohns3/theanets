@@ -8,7 +8,7 @@ neural networks. Other methods --- :class:`Sample`,
 :class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are
 specific to neural networks. Despite the difference in generality, all of the
 training routines implemented here assume that a :class:`Network
-<theanets.feedforward.Network>` is being optimized.
+<theanets.graph.Network>` is being optimized.
 
 Most of the general-purpose optimization routines in this module are based on
 the :class:`SGD` parent and optimize the loss function at hand by taking small
@@ -120,16 +120,17 @@ class Trainer(object):
         self._best_iter = self._curr_iter = 0
         self._best_params = [p.get_value().copy() for p in self.params]
 
-        self.loss, monitors, updates = network.loss(**kwargs)
+        self.loss = network.loss(**kwargs)
         self._monitor_exprs = [self.loss]
         self._monitor_names = ['loss']
-        for name, monitor in monitors:
+        for name, monitor in network.monitors(**kwargs):
             self._monitor_names.append(name)
             self._monitor_exprs.append(monitor)
 
         logging.info('compiling evaluation function')
-        self.f_eval = theano.function(
-            network.inputs, self._monitor_exprs, updates=updates)
+        self.f_eval = theano.function(network.inputs,
+                                      self._monitor_exprs,
+                                      updates=network.updates(**kwargs))
 
     def set_params(self, targets):
         '''Set the values of the parameters to the given target values.
@@ -159,14 +160,7 @@ class Trainer(object):
             A suffix to add to the end of the log line, if any.
         '''
         label = label or self.__class__.__name__
-        fields = []
-        for name, value in monitors.items():
-            width = '{:.2f}'
-            if name == 'loss':
-                width = '{:.6f}'
-            elif '<' in name or '>' in name:
-                width = '{:.1f}'
-            fields.append(('{}=' + width).format(name, value))
+        fields = (('{}={:.6f}').format(k, v) for k, v in monitors.items())
         logging.info('%s %i %s%s', label, iteration, ' '.join(fields), suffix)
 
     def evaluate(self, dataset):
@@ -293,9 +287,8 @@ class SGD(Trainer):
         self.momentum = TT.cast(kwargs.get('momentum', 0.9), FLOAT)
         self.learning_rate = TT.cast(kwargs.get('learning_rate', 1e-4), FLOAT)
 
-        _, _, updates = network.loss(**kwargs)
         logging.info('compiling %s learning function', self.__class__.__name__)
-        updates = list(updates) + list(self.learning_updates())
+        updates = list(network.updates(**kwargs)) + list(self.learning_updates())
         self.f_learn = theano.function(
             network.inputs, self._monitor_exprs, updates=updates)
 
@@ -818,13 +811,12 @@ class HF(Trainer):
             logging.info('downloaded hf code to %s', path)
             import hf
 
-        loss, monitors, _ = network.loss(**kwargs)
         self.params = network.params
         self.opt = hf.hf_optimizer(
             self.params,
             network.inputs,
             network.outputs[0],
-            [loss] + [mon for _, mon in monitors],
+            [network.loss(**kwargs)] + [mon for _, mon in network.monitors(**kwargs)],
             None)
 
         # fix mapping from kwargs into a dict to send to the hf optimizer
@@ -979,7 +971,7 @@ class SupervisedPretrainer(Trainer):
     By using layers from the original network whenever possible, we preserve all
     of the relevant settings of noise, dropouts, loss function and the like, in
     addition to removing the need for copying trained weights around between
-    different :class:`Network <feedforward.Network>` instances.
+    different :class:`Network <theanets.graph.Network>` instances.
     '''
 
     def __init__(self, network, factory, *args, **kwargs):
@@ -1028,8 +1020,8 @@ class SupervisedPretrainer(Trainer):
                 net.layers = original[:i+1] + [layers.build(
                     'feedforward',
                     name='lwout',
-                    nin=original[i].nout,
-                    nout=original[-1].nout,
+                    inputs=original[i].outputs,
+                    outputs=original[-1].outputs,
                     activation=original[-1].kwargs['activation'])]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
@@ -1094,7 +1086,7 @@ class UnsupervisedPretrainer(Trainer):
             'tied', partner=layers_[1], activation='linear'))
 
         logging.info('creating shadow network')
-        ae = feedforward.Autoencoder(tied_weights=True, layers=layers_)
+        ae = feedforward.Autoencoder(layers=layers_)
 
         # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(ae, *self.args, **self.kwargs)

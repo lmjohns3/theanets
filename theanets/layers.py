@@ -1,9 +1,37 @@
-'''This module contains classes for different types of network layers.'''
+# -*- coding: utf-8 -*-
+
+r'''This module contains classes for different types of network layers.
+
+.. image:: _static/feedforward_neuron.svg
+
+In a standard feedforward neural network layer, each node :math:`i` in layer
+:math:`k` receives inputs from all nodes in layer :math:`k-1`, then transforms
+the weighted sum of these inputs:
+
+.. math::
+   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
+
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function" or
+"transfer function."  Although many functions will work, typical choices of the
+activation function are:
+
+:linear: :math:`\sigma(z) = z`
+:rectified linear: :math:`\sigma(z) = \max(0, z)`
+:logistic sigmoid: :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
+
+Most activation functions are chosen to incorporate a nonlinearity, since a
+model with even multiple linear layers cannot capture nonlinear phenomena. Nodes
+in the input layer are assumed to have linear activation (i.e., the input nodes
+simply represent the state of the input data), and nodes in the output layer
+might have linear or nonlinear activations depending on the modeling task.
+
+Usually all hidden nodes in a network share the same activation function, but
+this is not required.
+'''
 
 import climate
 import functools
 import numpy as np
-import sys
 import theano
 import theano.tensor as TT
 import theano.sparse as SS
@@ -14,11 +42,6 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
-def _dot(x, y):
-    if isinstance(x, SS.SparseVariable):
-        return SS.structured_dot(x,y)
-    else:
-        return TT.dot(x,y)
 
 def random_matrix(nin, nout, mean=0, std=1, sparsity=0, radius=0):
     '''Create a matrix of randomly-initialized weights.
@@ -153,46 +176,48 @@ def create_activation(activation):
         raise KeyError('unknown activation {}'.format(activation))
 
 
-def add_noise(input, level, rng):
-    '''Add noise to elements of the input variable as needed.
+def add_noise(expr, level, rng):
+    '''Add noise to elements of the input expression as needed.
 
     Parameters
     ----------
-    input : theano variable
-        Input variable to add noise to.
+    expr : theano expression
+        Input expression to add noise to.
     level : float
-        Standard deviation of gaussian noise to add to the input. If this is
-        0, then no gaussian noise is added to the input.
+        Standard deviation of gaussian noise to add to the expression. If this
+        is 0, then no gaussian noise is added.
 
     Returns
     -------
-    output : theano variable
-        The input variable, plus additional noise as specified.
+    expr : theano expression
+        The input expression, plus additional noise as specified.
     '''
     if level == 0:
-        return input
-    return input + rng.normal(size=input.shape, std=TT.cast(level, FLOAT), dtype=FLOAT)
+        return expr
+    return expr + rng.normal(
+        size=expr.shape, std=TT.cast(level, FLOAT), dtype=FLOAT)
 
 
-def add_dropout(input, probability, rng):
-    '''Add dropouts to elements of the input variable as needed.
+def add_dropout(expr, probability, rng):
+    '''Add dropouts to elements of the input expression as needed.
 
     Parameters
     ----------
-    input : theano variable
-        Input variable to add dropouts to.
+    expr : theano expression
+        Input expression to add dropouts to.
     probability : float, in [0, 1]
         Probability of dropout for each element of the input. If this is 0,
         then no elements of the input are set randomly to 0.
 
     Returns
     -------
-    output : theano variable
-        The input variable, plus additional dropouts as specified.
+    expr : theano expression
+        The input expression, plus additional dropouts as specified.
     '''
     if probability == 0:
-        return input
-    return input * rng.binomial(size=input.shape, n=1, p=TT.cast(1, FLOAT)-probability, dtype=FLOAT)
+        return expr
+    return expr * rng.binomial(
+        size=expr.shape, n=1, p=TT.cast(1, FLOAT)-probability, dtype=FLOAT)
 
 
 def build(layer, *args, **kwargs):
@@ -231,45 +256,25 @@ class Registrar(type):
 Base = Registrar(str('Base'), (), {})
 
 
-def _only(x):
-    '''Normalize the type of x to return one element.
-
-    Parameters
-    ----------
-    x : any
-        Either a sequence of elements containing one value, or a non-sequence.
-
-    Raises
-    ------
-    AssertionError :
-        If x is a sequence such that len(x) != 1.
-
-    Returns
-    -------
-    element : any
-        If x is a sequence, returns the first element from the sequence. If x is
-        not a sequence, returns x.
-    '''
-    if hasattr(x, '__len__'):
-        assert len(x) == 1
-        return x[0]
-    return x
-
-
 class Layer(Base):
     '''Layers in network graphs derive from this base class.
 
     In ``theanets``, a layer refers to a set of weights and biases, plus the
-    "output" units that produce some sort of signal for further layers to
-    consume. The first layer in a network, the input layer, is a special case
-    with linear activation and no weights or bias.
+    "output" units that produce a signal for further layers to consume. The
+    first layer in a network, the input layer, is a special case with linear
+    activation and no weights or bias.
 
     Parameters
     ----------
-    nin : int or tuple of int
-        Size of input vector(s) to this layer.
-    nout : int
-        Size of output vector produced by this layer.
+    inputs : dict or int
+        Size of input(s) to this layer. If one integer is provided, a single
+        input of the given size is expected. If a dictionary is provided, it
+        maps from output names to corresponding sizes.
+    outputs : dict or int
+        Size of output(s) from this layer. If one integer is provided, the
+        output from this layer will be called "out" and will have the given
+        size. If a dictionary is provided, it maps from string output names to
+        integer output sizes.
     name : str, optional
         The name of this layer. If not given, layers will be numbered
         sequentially based on the order in which they are created.
@@ -297,115 +302,153 @@ class Layer(Base):
         Count of number of parameters in the layer.
     '''
 
-    count = 0
+    _count = 0
 
     def __init__(self, **kwargs):
+        Layer._count += 1
         super(Layer, self).__init__()
-        Layer.count += 1
         self.kwargs = kwargs
-        self.name = kwargs.get('name', 'layer{}'.format(Layer.count))
-        self.nin = kwargs['nin']
-        self.nout = kwargs['nout']
+        self.inputs = kwargs['inputs']
+        if isinstance(self.inputs, int):
+            self.inputs = dict(out=self.inputs)
+        self.outputs = kwargs['outputs']
+        if isinstance(self.outputs, int):
+            self.outputs = dict(out=self.outputs)
+        self.name = kwargs.get('name', '{}{}'.format(
+            self.__class__.__name__.lower(), Layer._count))
         self.activate = create_activation(kwargs.get('activation', 'logistic'))
         self.params = []
         self.num_params = 0
         self.setup()
 
-    def output(self, inputs, noise=0, dropout=0):
-        '''Create theano variables representing the output of this layer.
+    @property
+    def output_name(self):
+        return '{}.out'.format(self.name)
+
+    def connect(self, inputs, noise=0, dropout=0, monitors=None):
+        '''Create theano variables representing the outputs of this layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer. Usually layers have only one input,
-            but layers in general are allowed to have many inputs.
-        noise : positive float, optional
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. Each string key is of the form
+            "{layer_name}.{output_name}" (these refer to a specific output from
+            a specific layer in the graph) or simply "{output_name}" (these
+            typically refer to the outputs from the "most recent" layer; see
+            :func:`theanets.graph.Network.setup_layers`).
+        noise : positive float or dict, optional
             Add isotropic gaussian noise with the given standard deviation to
-            the output of this layer. Defaults to 0, which does not add any
-            noise to the output.
-        dropout : float in (0, 1), optional
-            Set the given fraction of outputs in this layer randomly to zero.
-            Defaults to 0, which does not drop out any units.
+            the output of this layer. If this is a scalar, it is applied to the
+            default output from this layer; if it is a dictionary, then it
+            should map the names of outputs from this layer to the noise to add
+            to that layer. Defaults to 0, which does not add noise to any
+            outputs.
+        dropout : float in (0, 1) or dict, optional
+            Set the given fraction of outputs in this layer randomly to zero. If
+            this is a scalar, the given value applies to the default output from
+            this layer; if it is a dictionary, then it should map the names of
+            outputs in this layer to dropout values for that layer. Defaults to
+            0, which does not drop out any units in any outputs.
+        monitors : dict, optional
+            A dictionary mapping string output names to monitors for the given
+            output. Typically monitors are computed during training of a network
+            to provide insight into the dynamics of the model.
 
         Returns
         -------
-        output : theano expression
-            Theano expression specifying the output of this layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict
+            A dictionary mapping names to theano expressions for the outputs
+            from this layer.
+        monitors : sequence of (str, expression) tuples
+            A sequence of values to compute when "monitoring" the state of this
+            layer.
+        updates : sequence of (parameter, expression) tuples
             Updates that should be performed by a theano function that computes
             something using this layer.
         '''
+        # prepare monitors/noise/dropouts to be dict types.
+        if monitors is None:
+            monitors = {}
+        if not isinstance(monitors, dict):
+            monitors = dict(out=monitors)
+        if not isinstance(noise, dict):
+            noise = dict(out=noise)
+        if not isinstance(dropout, dict):
+            dropout = dict(out=dropout)
+
+        # compute output expressions for this layer given inputs. transform to
+        # be a list of ordered pairs if needed.
+        outputs, updates = self.transform(inputs)
+        if isinstance(outputs, dict):
+            outputs = sorted(outputs.items())
+        if isinstance(outputs, TT.TensorVariable):
+            outputs = [('out', outputs)]
+
+        # set up outputs, monitors, and updates for this layer.
         rng = self.kwargs.get('rng') or RandomStreams()
-        out, mon, upd = self.transform(inputs)
-        return add_dropout(add_noise(out, noise, rng), dropout, rng), mon, upd
+        outs = {}
+        monits = []
+        for name, expr in outputs:
+            # add noise and/or dropouts to this output.
+            outs[name] = add_dropout(
+                add_noise(expr, noise.get(name, 0), rng),
+                dropout.get(name, 0), rng)
+
+            # set up monitor expressions for this output.
+            levels = monitors.get(name)
+            if not levels:
+                continue
+            if isinstance(levels, dict):
+                levels = levels.items()
+            for level in levels:
+                if isinstance(level, (tuple, list)):
+                    label, call = level
+                    key = ':{}'.format(label)
+                    value = call(expr)
+                if isinstance(level, (int, float)):
+                    key = '<{}'.format(level)
+                    value = TT.cast(100, FLOAT) * (expr < TT.cast(level, FLOAT)).mean()
+                monits.append(('{}.{}{}'.format(self.name, name, key), value))
+
+        return outs, monits, updates
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
         output : theano expression
-            Theano expression representing the output from this layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+            The output for this layer is the same as the input.
+        updates : list
+            An empty updates list.
         '''
-        return _only(inputs), (), ()
+        return inputs['x'], []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         pass
 
-    def log_setup(self, count):
-        '''Log some information about this layer.
-
-        Parameters
-        ----------
-        count : int
-            Number of parameter values in this layer.
-        '''
+    def log_setup(self):
+        '''Log some information about this layer.'''
+        act = self.activate.__theanets_name__
+        fmt = lambda n, s: str(s) if n == 'out' else '{}:{}'.format(n, s)
+        ins = '+'.join(fmt(n, s) for n, s in self.inputs.items())
+        outs = '+'.join(fmt(n, s) for n, s in self.outputs.items())
         logging.info('layer %s: %s -> %s, %s, %d parameters',
-                     self.name, self.nin, self.nout,
-                     self.activate.__theanets_name__, count)
+                     self.name, ins, outs, act, self.num_params)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
         if '{' not in string:
             string = '{}_' + string
         return string.format(self.name)
-
-    def _monitors(self, expr, suffix='', levels=None):
-        '''Create a list of standard monitor tuples for a given expression.
-
-        Parameters
-        ----------
-        expr : theano expression
-            An expression from the network graph.
-        suffix : str, optional
-            A suffix to append to monitor names. Defaults to ''.
-        levels : sequence of float, optional
-            Activation level thresholds for computing monitor expressions.
-
-        Returns
-        -------
-        monitors : list of (name, expression) tuples
-            A list of named monitor expressions.
-        '''
-        def name(r):
-            return '{}{}<{}'.format(self.name, suffix, r)
-        def abspct(r):
-            return TT.cast(100, FLOAT) * (abs(expr) < TT.cast(r, FLOAT)).mean()
-        if levels is None:
-            levels = (0.1, 0.2, 0.5, 0.9) if suffix else (0.1, 0.9)
-        return [(name(l), abspct(l)) for l in levels]
 
     def find(self, key):
         '''Get a shared variable for a parameter by name.
@@ -433,63 +476,75 @@ class Layer(Base):
                 return p
         raise KeyError(key)
 
-    def add_weights(self, name, nin=None, nout=None, mean=0, std=None):
+    def add_weights(self, name, nin, nout, mean=0, std=None, sparsity=0):
         '''Helper method to create a new weight matrix.
 
         Parameters
         ----------
         name : str
             Name of the parameter to add.
-        nin : int, optional
-            Size of "input" for this weight matrix. Defaults to self.nin.
-        nout : int, optional
-            Size of "output" for this weight matrix. Defaults to self.nout.
+        nin : int
+            Size of "input" for this weight matrix.
+        nout : int
+            Size of "output" for this weight matrix.
         mean : float, optional
             Mean value for randomly-initialized weights. Defaults to 0.
         std : float, optional
             Standard deviation of initial matrix values. Defaults to
             :math:`1 / sqrt(n_i + n_o)`.
-
-        Returns
-        -------
-        count : int
-            The number of values in this weight parameter.
+        sparsity : float, optional
+            Fraction of weights to be set to zero. Defaults to 0.
         '''
-        nin = nin or self.nin
-        nout = nout or self.nout
-        std = std or 1 / np.sqrt(nin + nout)
-        sparsity = self.kwargs.get('sparsity', 0)
+        mean = self.kwargs.get(
+            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+        std = self.kwargs.get(
+            'std_{}'.format(name), self.kwargs.get(
+                'std', std or 1 / np.sqrt(nin + nout)))
+        sparsity = self.kwargs.get(
+            'sparsity_{}'.format(name),
+            self.kwargs.get('sparsity', sparsity))
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity),
             name=self._fmt(name)))
-        count = nin * nout
-        self.num_params += count
-        return count
+        self.num_params += nin * nout
 
-    def add_bias(self, name, nout=None, mean=0, std=1):
+    def add_bias(self, name, nout, mean=0, std=1):
         '''Helper method to create a new bias vector.
 
         Parameters
         ----------
         name : str
             Name of the parameter to add.
-        nout : int, optional
-            Size of the bias vector. Defaults to self.nout.
+        nout : int
+            Size of the bias vector.
         mean : float, optional
             Mean value for randomly-initialized biases. Defaults to 0.
         std : float, optional
             Standard deviation for randomly-initialized biases. Defaults to 1.
-
-        Returns
-        -------
-        count : int
-            The number of values in this bias parameter.
         '''
-        nout = nout or self.nout
+        mean = self.kwargs.get(
+            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+        std = self.kwargs.get(
+            'std_{}'.format(name), self.kwargs.get(
+                'std', std or 1 / np.sqrt(nin + nout)))
         self.params.append(theano.shared(
             random_vector(nout, mean, std), name=self._fmt(name)))
         self.num_params += nout
-        return nout
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = dict(**self.kwargs)
+        spec.update(name=self.name,
+                    form=self.__class__.__name__.lower(),
+                    inputs=self.inputs,
+                    outputs=self.outputs)
+        return spec
 
 
 class Input(Layer):
@@ -499,21 +554,31 @@ class Input(Layer):
     otherwise reproduce their inputs exactly.
     '''
 
-    def __init__(self, size, **kwargs):
-        kwargs['nin'] = 0
-        kwargs['nout'] = size
+    def __init__(self, **kwargs):
+        kwargs['inputs'] = dict(out=0)
         kwargs['activation'] = 'linear'
         super(Input, self).__init__(**kwargs)
+
+    def to_spec(self):
+        '''Create a specification for this layer.
+
+        Returns
+        -------
+        spec : int
+            A single integer specifying the size of this layer.
+        '''
+        return self.outputs['out']
 
 
 class Feedforward(Layer):
     '''A feedforward neural network layer performs a transform of its input.
 
-    More precisely, feedforward layers as implemented here perform a weighted
-    (affine) transformation of their input, followed by a potentially nonlinear
-    "activation" function performed on the transformed input. Feedforward layers
-    are the fundamental building block on which most neural network models are
-    built.
+    More precisely, feedforward layers as implemented here perform an affine
+    transformation of their input, followed by a potentially nonlinear
+    "activation" function performed elementwise on the transformed input.
+
+    Feedforward layers are the fundamental building block on which most neural
+    network models are built.
     '''
 
     def transform(self, inputs):
@@ -521,40 +586,50 @@ class Feedforward(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from this layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty list of updates to apply from this layer.
         '''
-        if not hasattr(inputs, '__len__'):
-            inputs = (inputs, )
-        xs = (_dot(x, self.find(str(i))) for i, x in enumerate(inputs))
-        output = self.activate(sum(xs) + self.find('b'))
-        return output, self._monitors(output), ()
+        def _dot(x, y):
+            if isinstance(x, SS.SparseVariable):
+                return SS.structured_dot(x,y)
+            else:
+                return TT.dot(x,y)
+        xws = ((inputs[n], self.find('w_{}'.format(n))) for n in self.inputs)
+        if len(self.inputs) == 1:
+            xws = ((inputs[n], self.find('w')) for n in self.inputs)
+        pre = sum(_dot(x, w) for x, w in xws) + self.find('b')
+        return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nins = self.nin
-        if isinstance(nins, int):
-            nins = (nins, )
-        count = 0
-        for i, nin in enumerate(nins):
-            count += self.add_weights(str(i), nin)
-        count += self.add_bias('b')
-        self.log_setup(count)
+        nout = self.outputs['out']
+        if len(self.inputs) == 1:
+            self.add_weights('w', list(self.inputs.values())[0], nout)
+        else:
+            for name, size in self.inputs.items():
+                self.add_weights('w_{}'.format(name), size, nout)
+        self.add_bias('b', nout)
+        self.log_setup()
 
 
 class Classifier(Feedforward):
     '''A classifier layer performs a softmax over a linear input transform.
 
     Classifier layers are typically the "output" layer of a classifier network.
+
+    This layer type really only wraps the output activation of a standard
+    :class:`Feedforward` layer.
     '''
 
     def __init__(self, **kwargs):
@@ -581,8 +656,8 @@ class Tied(Layer):
 
     def __init__(self, partner, **kwargs):
         self.partner = partner
-        kwargs['nin'] = partner.nout
-        kwargs['nout'] = partner.nin
+        kwargs['inputs'] = [n for _, n in partner.outputs.items()][0]
+        kwargs['outputs'] = [n for _, n in partner.inputs.items()][0]
         kwargs['name'] = 'tied-{}'.format(partner.name)
         super(Tied, self).__init__(**kwargs)
 
@@ -591,26 +666,41 @@ class Tied(Layer):
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            Symbolic inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from this layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
         '''
-        preact = TT.dot(_only(inputs), self.partner.find('0').T) + self.find('b')
-        output = self.activate(preact)
-        return output, self._monitors(output), ()
+        x = inputs['out']
+        pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
+        return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
-        self.log_setup(self.add_bias('b'))
+        self.add_bias('b', self.outputs['out'])
+        self.log_setup()
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Tied, self).to_spec()
+        spec['partner'] = self.partner.name
+        return spec
 
 
 class Maxout(Layer):
@@ -624,34 +714,40 @@ class Maxout(Layer):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        count = self.add_weights('xh') + self.add_bias('b')
+        nout = self.outputs['out']
+        self.add_weights('xh')
+        self.add_bias('b', nout)
         logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
-                     self.name, self.nin, self.nout, self.pieces,
-                     self.activate.__theanets_name__, count)
+                     self.name,
+                     self.inputs['out'],
+                     self.outputs['out'],
+                     self.pieces,
+                     self.activate.__theanets_name__,
+                     self.num_params)
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of state updates.
         '''
-        output = self.activate(
-            TT.dot(_only(inputs), self.find('xh')).max(axis=2)
-            + self.find('b'))
-        return output, self._monitors(output), ()
+        pre = TT.dot(inputs['out'], self.find('xh')).max(axis=2) + self.find('b')
+        return dict(pre=pre, out=self.activate(pre)), []
 
-    def add_weights(self, name, mean=0, std=None):
+    def add_weights(self, name, mean=0, std=None, sparsity=0):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -663,23 +759,32 @@ class Maxout(Layer):
         std : float, optional
             Standard deviation of initial matrix values. Defaults to
             :math:`1 / sqrt(n_i + n_o)`.
-
-        Returns
-        -------
-        count : int
-            The number of values in this weight parameter.
+        sparsity : float, optional
+            Fraction of weights to set to zero. Defaults to 0.
         '''
+        nin = self.inputs['out']
+        nout = self.outputs['out']
         def rm():
             return random_matrix(
-                self.nin, self.nout, mean,
-                std or 1 / np.sqrt(self.nin + self.nout),
-                sparsity=self.kwargs.get('sparsity', 0))[:, :, None]
+                nin, nout, mean, std or 1 / np.sqrt(nin + nout),
+                sparsity=self.kwargs.get('sparsity', sparsity),
+            )[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
-        count = self.nin * self.nout * self.pieces
-        self.num_params += count
-        return count
+        self.num_params += nin * nout * self.pieces
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Maxout, self).to_spec()
+        spec['pieces'] = self.pieces
+        return spec
 
 
 class Recurrent(Layer):
@@ -726,10 +831,11 @@ class Recurrent(Layer):
             A variable containing the initial state of some recurrent variable.
         '''
         values = theano.shared(
-            np.zeros((1, self.nout), FLOAT), name=self._fmt('{}0'.format(name)))
+            np.zeros((1, self.outputs['out']), FLOAT),
+            name=self._fmt('{}0'.format(name)))
         return TT.repeat(values, batch_size, axis=0)
 
-    def add_weights(self, name, nin=None, nout=None, mean=0, std=None):
+    def add_weights(self, name, nin, nout, mean=0, std=None, sparsity=0, radius=0):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -745,23 +851,19 @@ class Recurrent(Layer):
         std : float, optional
             Standard deviation of initial matrix values. Defaults to
             :math:`1 / sqrt(n_i + n_o)`.
-
-        Returns
-        -------
-        count : int
-            A count of the number of values in this parameter.
+        sparsity : float, optional
+            Fraction of weights to set randomly to zero. Defaults to 0.
+        radius : float, optional
+            If nonzero, rescale initial weights to have this spectral radius.
+            Defaults to 0.
         '''
-        nin = nin or self.nin
-        nout = nout or self.nout
         std = std or 1 / np.sqrt(nin + nout)
-        sparsity = self.kwargs.get('sparsity', 0)
-        radius = self.kwargs.get('radius', 0) if nin == nout else 0
+        sparsity = self.kwargs.get('sparsity', sparsity)
+        radius = self.kwargs.get('radius', radius) if nin == nout else 0
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
             name=self._fmt(name)))
-        count = nin * nout
-        self.num_params += count
-        return count
+        self.num_params += nin * nout
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.
@@ -821,32 +923,38 @@ class RNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.log_setup(self.add_weights('xh') +
-                       self.add_weights('hh', self.nout) +
-                       self.add_bias('b'))
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, nout)
+        self.add_weights('hh', nout, nout)
+        self.add_bias('b', nout)
+        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, h_tm1):
-            return self.activate(x_t + TT.dot(h_tm1, self.find('hh')))
-        x = TT.dot(_only(inputs), self.find('xh')) + self.find('b')
-        output, updates = self._scan(fn, [x])
-        return output, self._monitors(output), updates
+            pre = x_t + TT.dot(h_tm1, self.find('hh'))
+            return [pre, self.activate(pre)]
+        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
+        (pre, out), updates = self._scan(fn, [x], [None, x])
+        return dict(pre=pre, out=out), updates
 
 
 class ARRNN(Recurrent):
@@ -866,38 +974,44 @@ class ARRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.log_setup(self.add_weights('xh') +
-                        self.add_weights('xr') +
-                        self.add_weights('hh', self.nout) +
-                        self.add_bias('b') +
-                        self.add_bias('r', std=3))
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, nout)
+        self.add_weights('xr', nin, nout)
+        self.add_weights('hh', nout, nout)
+        self.add_bias('b', nout)
+        self.add_bias('r', nout, mean=2, std=1)
+        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : theano expression
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            a "hid" output that gives the rate-independent, post-activation
+            hidden state, and an "out" output that gives the hidden output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, r_t, h_tm1):
-            h_t = self.activate(x_t + TT.dot(h_tm1, self.find('hh')))
-            return r_t * h_tm1 + (1 - r_t) * h_t
-        x = _only(inputs)
+            pre = x_t + TT.dot(h_tm1, self.find('hh'))
+            h_t = self.activate(pre)
+            return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
+        x = inputs['out']
         h = TT.dot(x, self.find('xh')) + self.find('b')
         r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
-        output, updates = self._scan(fn, [h, r], [x])
-        monitors = self._monitors(output) + self._monitors(r, 'rate')
-        return output, monitors, updates
+        (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
+        return dict(pre=pre, hid=hid, out=out), updates
 
 
 class MRNN(Recurrent):
@@ -910,44 +1024,62 @@ class MRNN(Recurrent):
     '''
 
     def __init__(self, factors=None, **kwargs):
-        self.factors = factors or int(np.ceil(np.sqrt(kwargs['nout'])))
+        self.factors = factors or int(np.ceil(np.sqrt(kwargs['size'])))
         super(MRNN, self).__init__(**kwargs)
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.log_setup(
-            self.add_weights('xh', self.nin, self.nout) +
-            self.add_weights('xf', self.nin, self.factors) +
-            self.add_weights('hf', self.nout, self.factors) +
-            self.add_weights('fh', self.factors, self.nout) +
-            self.add_bias('b'))
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, nout)
+        self.add_weights('xf', nin, self.factors)
+        self.add_weights('hf', nout, self.factors)
+        self.add_weights('fh', self.factors, nout)
+        self.add_bias('b', nout)
+        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "factors" output that
+            gives the activation of the hidden weight factors given the input
+            data (but not incorporating influence from the hidden states), a
+            "pre" output that gives the unit activity before applying the
+            layer's activation function, and an "out" output that gives the
+            post-activation output.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def fn(x_t, f_t, h_tm1):
-            h_t = TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
-            return self.activate(x_t + h_t)
-        x = _only(inputs)
+            pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
+            return [pre, self.activate(pre)]
+        x = inputs['out']
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
-        output, updates = self._scan(fn, [h, f], [x])
-        monitors = self._monitors(output) + self._monitors(f, 'fact')
-        return output, monitors, updates
+        (pre, out), updates = self._scan(fn, [h, f], [None, x])
+        return dict(pre=pre, factors=f, out=out), updates
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(MRNN, self).to_spec()
+        spec['factors'] = self.factors
+        return spec
 
 
 class LSTM(Recurrent):
@@ -960,34 +1092,38 @@ class LSTM(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.log_setup(
-            self.add_weights('xh', self.nin, 4 * self.nout) +
-            self.add_weights('hh', self.nout, 4 * self.nout) +
-            self.add_bias('b', 4 * self.nout, mean=3) +
-            # the three "peephole" weight matrices are always diagonal.
-            self.add_bias('ci', self.nout) +
-            self.add_bias('cf', self.nout) +
-            self.add_bias('co', self.nout))
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, 4 * nout)
+        self.add_weights('hh', nout, 4 * nout)
+        self.add_bias('b', 4 * nout, mean=2)
+        # the three "peephole" weight matrices are always diagonal.
+        self.add_bias('ci', nout)
+        self.add_bias('cf', nout)
+        self.add_bias('co', nout)
+        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "cell" output that
+            gives the value of each hidden cell in the layer, and an "out"
+            output that gives the actual gated output from the layer.
+        updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
         def split(z):
-            n = self.nout
+            n = self.outputs['out']
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         def fn(x_t, h_tm1, c_tm1):
             xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
@@ -996,15 +1132,15 @@ class LSTM(Recurrent):
             c_t = f_t * c_tm1 + i_t * TT.tanh(xc)
             o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
             h_t = o_t * TT.tanh(c_t)
-            return h_t, c_t
-        x = _only(inputs)
-        bs = x.shape[1]
-        (output, cell), updates = self._scan(
+            return [h_t, c_t]
+        x = inputs['out']
+        batch_size = x.shape[1]
+        (out, cell), updates = self._scan(
             fn,
             [TT.dot(x, self.find('xh')) + self.find('b')],
-            [('h', bs), ('c', bs)])
-        monitors = self._monitors(output) + self._monitors(cell, 'cell')
-        return output, monitors, updates
+            [('h', batch_size), ('c', batch_size)])
+        return dict(out=out, cell=cell), updates
+
 
 class GRU(Recurrent):
     ''' Gated Recurrent Unit layer.
@@ -1013,33 +1149,45 @@ class GRU(Recurrent):
         http://arxiv.org/pdf/1412.3555v1.pdf
     '''
     def setup(self):
-        self.add_weights('wh', self.nin, self.nout)
-        self.add_weights('uh', self.nout, self.nout)
-        self.add_weights('wx', self.nin, self.nout)
-        self.add_weights('ux', self.nout, self.nout)
-        self.add_weights('wz', self.nin,  self.nout)
-        self.add_weights('uz', self.nout, self.nout)
-        self.add_bias('bh', self.nout)
-        self.add_bias('bx', self.nout)
-        self.add_bias('bz', self.nout)
+        nin = self.inputs['out']
+        nout = self.outputs['out']
+        self.add_weights('xh', nin, 3 * nout)
+        self.add_weights('hh', nout, 3 * nout)
+        self.add_bias('b', 3 * nout)
 
     def transform(self, inputs):
-        def fn(x_t1, x_t2, x_t3, h_prev):
-            #update gate
-            z = TT.nnet.sigmoid(x_t1 + TT.dot(h_prev, self.find('uz')))
-            #reset gate
-            r = TT.nnet.sigmoid(x_t2 + TT.dot(h_prev, self.find('uh')))
-            #candidate activation
-            h_c = TT.tanh(x_t3 + TT.dot((r * h_prev), self.find('ux')))
-            #activation
-            return (1 - z) * h_prev + z * h_c
-        x = _only(inputs)
-        x1 = TT.dot(x, self.find('wh'))
-        x2 = TT.dot(x, self.find('wx'))
-        x3 = TT.dot(x, self.find('wz'))
-        h, updates = self._scan(fn, [x1, x2, x3])
-        monitors = self._monitors(h)
-        return h, monitors, updates
+        '''Transform inputs to this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function, a
+            "hid" output that gives the post-activation values before applying
+            the rate mixing, and an "out" output that gives the overall output.
+        updates : sequence of update pairs
+            A sequence of updates to apply to this layer's state inside a theano
+            function.
+        '''
+        def split(z):
+            n = self.outputs['out']
+            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n]
+        def fn(x_t, h_tm1):
+            xh, xz, xr = split(x_t + TT.dot(h_tm1, self.find('hh')))
+            z = TT.nnet.sigmoid(xz)
+            pre = xh + TT.nnet.sigmoid(xr) * h_tm1
+            h_t = self.activate(pre)
+            return [pre, h_t, (1 - z) * h_tm1 + z * h_t]
+        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
+        (pre, hid, out), updates = self._scan(fn, [x], [None, None, x])
+        return dict(pre=pre, hid=hid, out=out), updates
 
 
 class Bidirectional(Layer):
@@ -1062,38 +1210,48 @@ class Bidirectional(Layer):
     '''
 
     def __init__(self, worker='rnn', **kwargs):
-        nout = kwargs.pop('nout')
+        size = kwargs.pop('size')
         name = kwargs.pop('name', 'layer{}'.format(Layer.count))
         if 'direction' in kwargs:
             kwargs.pop('direction')
         def make(suffix, direction):
             return build(worker,
                          direction=direction,
-                         nout=nout // 2,
+                         size=size // 2,
                          name='{}_{}'.format(name, suffix),
                          **kwargs)
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
         self.params = [self.forward.params, self.backward.params]
-        super(Bidirectional, self).__init__(nout=nout, name=name, **kwargs)
+        super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 
         Parameters
         ----------
-        inputs : sequence of theano expressions
-            The inputs to this layer. There must be exactly one input.
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
-            Theano expression representing the output from the layer.
-        monitors : sequence of (name, expression) tuples
-            Outputs that can be used to monitor the state of this layer.
-        updates : sequence of update tuples
-            A sequence of updates to apply inside a theano function.
+        outputs : dict of theano expressions
+            Theano expression representing the output from the layer. This layer
+            type produces "pre" and "hid" outputs that concatenates the outputs
+            from its underlying workers. It also passes along the individual
+            outputs from its workers using "fw_" and "bw_" prefixes for forward
+            and backward directions.
+        updates : list of update pairs
+            A list of state updates to apply inside a theano function.
         '''
-        fx, fm, fu = self.forward.transform(inputs)
-        bx, bm, bu = self.backward.transform(inputs)
-        return TT.concatenate([fx, bx], axis=2), fm + bm, fu + bu
+        fout, fupd = self.forward.transform(inputs)
+        bout, bupd = self.backward.transform(inputs)
+        out = TT.concatenate([fout['out'], bout['out']], axis=2)
+        pre = TT.concatenate([fout['pre'], bout['pre']], axis=2)
+        outputs = dict(out=out, pre=pre)
+        for k, v in fout.items():
+            outputs['fw_{}'.format(k)] = v
+        for k, v in bout.items():
+            outputs['bw_{}'.format(k)] = v
+        return outputs, fupd + bupd

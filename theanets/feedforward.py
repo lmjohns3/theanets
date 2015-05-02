@@ -1,652 +1,23 @@
 # -*- coding: utf-8 -*-
 
-r'''This module contains a number of classes for modeling neural nets in Theano.
-
-Neural networks are really just a concise, computational way of describing a
-mathematical model of some data. Before getting into the models below, we'll
-first set up the ideas and notation that are used on this page.
-
-At a high level, a feedforward neural network describes a parametric mapping
-
-.. math::
-   F_\theta: \mathcal{S} \to \mathcal{T}
-
-between a source space :math:`\mathcal{S}` and a target space
-:math:`\mathcal{T}`, using parameters :math:`\theta`. For the MNIST digits, for
-example we could think of :math:`\mathcal{S} = \mathbb{R}^{28 \times 28} =
-\mathbb{R}^{784}` (i.e., the space of all 28×28 images), and for classifying the
-MNIST digits we could think of :math:`\mathcal{T} = \mathbb{R}^{10}`.
-
-This mapping is assumed to be fairly complex. If it were not -- if you could
-capture the mapping using a simple expression like :math:`F_a(x) = ax^2` -- then
-we would just use the expression directly and not need to deal with an entire
-network. So if the mapping is complex, we will do a couple of things to make our
-problem tractable. First, we will assume some structure for :math:`F_\theta`.
-Second, we will fit our model to some set of data that we have obtained, so that
-our parameters :math:`\theta` are tuned to the problem at hand.
-
-Graph structure
----------------
-
-.. image:: _static/feedforward_layers.svg
-
-The mapping :math:`F_\theta` is implemented in neural networks by assuming a
-specific, layered form. Computation nodes -- also called units or (sometimes)
-neurons -- are arranged in a :math:`k+1` partite graph, with layer :math:`k`
-containing :math:`n_k` nodes. The number of input nodes in the graph is referred
-to below as :math:`n_0`.
-
-A **weight matrix** :math:`W^k \in \mathbb{R}^{n_{k-1} \times n_k}` specifies
-the strength of the connection between nodes in layer :math:`k` and those in
-layer :math:`k-1` -- all other pairs of nodes are typically not connected. Each
-layer of nodes also has a **bias vector** that determines the offset of each
-node from the origin. Together, the parameters :math:`\theta` of the model are
-these :math:`k` weight matrices and :math:`k` bias vectors (there are no weights
-or biases for the input nodes in the graph).
-
-Local computation
------------------
-
-.. image:: _static/feedforward_neuron.svg
-
-In a standard feedforward network, each node :math:`i` in layer :math:`k`
-receives inputs from all nodes in layer :math:`k-1`, then transforms the
-weighted sum of these inputs:
-
-.. math::
-   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
-
-where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function."
-Although many functions will work, typical choices of the activation function
-are:
-
-:linear: :math:`\sigma(z) = z`
-:rectified linear: :math:`\sigma(z) = \max(0, z)`
-:logistic sigmoid: :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
-
-Most activation functions are chosen to incorporate a nonlinearity, since a
-model with even multiple linear layers cannot capture nonlinear phenomena. Nodes
-in the input layer are assumed to have linear activation (i.e., the input nodes
-simply represent the state of the input data), and nodes in the output layer
-might have linear or nonlinear activations depending on the modeling task.
-
-Usually all hidden nodes in a network share the same activation function, but
-this is not required.
+r'''
 '''
 
 import climate
-import gzip
-import hashlib
 import numpy as np
-import pickle
 import theano
 import theano.tensor as TT
 import theano.sparse as SS
 
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from . import graph
+from . import layers
 
 logging = climate.get_logger(__name__)
-
-from . import layers
 
 FLOAT = theano.config.floatX
 
 
-def load(filename, **kwargs):
-    '''Load an entire network from a pickle file on disk.
-
-    If this function is called without extra keyword arguments, a new network
-    will be created using the keyword arguments that were originally used to
-    create the pickled network. If this helper function is called with extra
-    keyword arguments, they will override arguments that were originally used to
-    create the pickled network. This override allows one to, for example, load a
-    network that was created with one activation function, and apply a different
-    activation function to the existing weights. Some options will cause errors
-    if overridden, such as `layers` or `tied_weights`, since they change the
-    number of parameters in the model.
-
-    Parameters
-    ----------
-    filename : str
-        Load the keyword arguments and parameters of a network from a pickle
-        file at the named path. If this name ends in ".gz" then the input will
-        automatically be gunzipped; otherwise the input will be treated as a
-        "raw" pickle.
-
-    Returns
-    -------
-    network : :class:`Network`
-        A newly-constructed network, with topology and parameters loaded from
-        the given pickle file.
-    '''
-    opener = gzip.open if filename.lower().endswith('.gz') else open
-    handle = opener(filename, 'rb')
-    pkl = pickle.load(handle)
-    handle.close()
-    kw = pkl['kwargs']
-    kw.update(kwargs)
-    net = pkl['klass'](**kw)
-    net.load_params(filename)
-    return net
-
-
-class Network(object):
-    '''The network class encapsulates a fully-connected feedforward net.
-
-    In addition to defining standard functionality for feedforward nets, there
-    are also many options for specifying topology and regularization, several of
-    which must be provided to the constructor at initialization time.
-
-    Parameters
-    ----------
-    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
-        A sequence of values specifying the layer configuration for the network.
-        For more information, please see :ref:`creating-specifying-layers`.
-    hidden_activation : str, optional
-        The name of an activation function to use on hidden network layers by
-        default. Defaults to 'logistic'.
-    output_activation : str, optional
-        The name of an activation function to use on the output layer by
-        default. Defaults to 'linear'.
-    rng : theano RandomStreams object, optional
-        Use a specific Theano random number generator. A new one will be created
-        if this is None.
-    decode_from : positive int, optional
-        Any of the hidden layers can be tapped at the output. Just specify a
-        value greater than 1 to tap the last N hidden layers. The default is 1,
-        which decodes from just the last layer.
-    weighted : bool, optional
-        If True, the network will require an additional input that provides
-        weights for the target outputs of the network; the weights will be the
-        last input argument to the network, and they must be the same shape as
-        the target output. This can be particularly useful for recurrent
-        networks, where the length of each sequence is not necessarily the same
-        number of time steps, or for classifier networks where the prior
-        proabibility of one class is significantly different than another. The
-        default is not to use weighted outputs.
-    sparse_input : bool, optional
-        If True, the network will expect input represented as a sparse (csr)
-        matrix. Currently only supported for feedforward networks.
-
-    Attributes
-    ----------
-    layers : list of :class:`Layer <layers.Layer>`
-        A list of the layers in this network model.
-    kwargs : dict
-        A dictionary containing the keyword arguments used to construct the
-        network.
-    '''
-
-    def __init__(self, **kwargs):
-        self._graphs = {}     # cache of symbolic computation graphs
-        self._functions = {}  # cache of callable feedforward functions
-        self.layers = []
-        self.kwargs = kwargs
-        self.inputs = list(self.setup_vars())
-        self.setup_layers()
-
-    def setup_vars(self):
-        '''Setup Theano variables required by our network.
-
-        The default variable for a network is simply `x`, which represents the
-        input to the network.
-
-        Subclasses may override this method to specify additional variables. For
-        example, a supervised model might specify an additional variable that
-        represents the target output for a particular input.
-
-        Returns
-        -------
-        vars : list of theano variables
-            A list of the variables that this network requires as inputs.
-        '''
-        # x represents our network's input.
-        if self.is_sparse_input:
-            self.x = SS.csr_matrix('x',dtype=FLOAT)
-        else:
-            self.x = TT.matrix('x')
-
-        # the weight array is provided to ensure that different target values
-        # are taken into account with different weights during optimization.
-        self.weights = TT.matrix('weights')
-
-        if self.kwargs.get('weighted'):
-            return [self.x, self.weights]
-        return [self.x]
-
-    def error(self, output):
-        '''Build a theano expression for computing the network error.
-
-        Parameters
-        ----------
-        output : theano expression
-            A theano expression representing the output of the network.
-
-        Returns
-        -------
-        error : theano expression
-            A theano expression representing the network error.
-        '''
-        err = output - self.x
-        if self.is_weighted:
-            return (self.weights * err * err).sum() / self.weights.sum()
-        return (err * err).mean()
-
-    def setup_layers(self):
-        '''Set up a computation graph for our network.
-
-        The default implementation constructs a series of feedforward
-        layers---called the "encoder" layers---and then calls
-        :func:`setup_decoder` to construct the decoding apparatus in the
-        network.
-
-        Subclasses may override this method to construct alternative network
-        topologies.
-        '''
-        if 'layers' not in self.kwargs:
-            return
-
-        specs = list(self.encoding_layers)
-        rng = self.kwargs.get('rng') or RandomStreams()
-
-        # setup input layer.
-        self.layers.append(
-            layers.build('input', specs.pop(0), rng=rng, name='in'))
-
-        # setup "encoder" layers.
-        for i, spec in enumerate(specs):
-            # if spec is a Layer instance, just add it and move on.
-            if isinstance(spec, layers.Layer):
-                self.layers.append(spec)
-                continue
-
-            # here we set up some defaults for constructing a new layer.
-            form = 'feedforward'
-            kwargs = dict(
-                nin=self.layers[-1].nout,
-                rng=rng,
-                name='hid{}'.format(len(self.layers)),
-                activation=self.kwargs.get('hidden_activation', 'logistic'),
-            )
-
-            # by default, spec is assumed to be a lowly integer, giving the
-            # number of units in the layer.
-            if isinstance(spec, int):
-                kwargs['nout'] = spec
-
-            # if spec is a tuple, assume that it contains one or more of the following:
-            # - the type of layer to construct (layers.Layer subclass)
-            # - the name of a class for the layer (str; if layes.Layer subclass)
-            # - the name of an activation function (str; otherwise)
-            # - the number of units in the layer (int)
-            if isinstance(spec, (tuple, list)):
-                for el in spec:
-                    try:
-                        if issubclass(el, layers.Layer):
-                            form = el.__name__
-                    except TypeError:
-                        pass
-                    if isinstance(el, str):
-                        if el.lower() in layers.Layer._registry:
-                            form = el
-                        else:
-                            kwargs['activation'] = el
-                    if isinstance(el, int):
-                        kwargs['nout'] = el
-                kwargs['name'] = '{}{}'.format(form, len(self.layers))
-
-            # if spec is a dictionary, try to extract a form and size for the
-            # layer, and override our default keyword arguments with the rest.
-            if isinstance(spec, dict):
-                if 'form' in spec:
-                    form = spec['form'].lower()
-                    kwargs['name'] = '{}{}'.format(form, len(self.layers))
-                if 'size' in spec:
-                    kwargs['nout'] = spec['size']
-                kwargs.update(spec)
-
-            if isinstance(form, str) and form.lower() == 'bidirectional':
-                kwargs['name'] = 'bd{}{}'.format(
-                    kwargs.get('worker', 'rnn'), len(self.layers))
-
-            self.layers.append(layers.build(form, **kwargs))
-
-        # setup output layer.
-        self.setup_decoder()
-
-    def setup_decoder(self):
-        '''Set up the "decoding" computations from layer activations to output.
-
-        The default decoder constructs a single weight matrix for each of the
-        hidden layers in the network that should be used for decoding (see the
-        `decode_from` parameter) and outputs the sum of the decoders.
-
-        This method can be overridden by subclasses to implement alternative
-        decoding strategies.
-
-        Parameters
-        ----------
-        decode_from : int, optional
-            Compute the activation of the output vector using the activations of
-            the last N hidden layers in the network. Defaults to 1, which
-            results in a traditional setup that decodes only from the
-            penultimate layer in the network.
-        '''
-        sizes = [l.nout for l in self.layers]
-        back = self.kwargs.get('decode_from', 1)
-        self.layers.append(layers.build(
-            'feedforward',
-            name='out',
-            nin=sizes[-1] if back <= 1 else sizes[-back:],
-            nout=self.kwargs['layers'][-1],
-            activation=self.output_activation))
-
-    @property
-    def is_sparse_input(self):
-        '''True iff the network expects sparse input vectors.'''
-        return bool(self.kwargs.get('sparse_input'))
-
-    @property
-    def is_weighted(self):
-        '''True iff the network uses explicit target weights.'''
-        return bool(self.kwargs.get('weighted'))
-
-    @property
-    def output_activation(self):
-        '''A string describing the output activation for this network.'''
-        return self.kwargs.get('output_activation', 'linear')
-
-    @property
-    def encoding_layers(self):
-        '''List of layers that will be part of the network encoder.
-
-        This property is used by the default implementation of
-        :func:`setup_layers` to determine which layers in the network will be
-        treated as "encoding" layers. The default is to treat all but the last
-        layer as encoders.
-
-        Returns
-        -------
-        layers : list of int, dict, etc.
-            A list of specifications for encoder layers of the network.
-        '''
-        return self.kwargs['layers'][:-1]
-
-    def _hash(self, **kwargs):
-        '''Construct a string key for representing a computation graph.
-
-        This key will be unique for a given network topology and set of keyword
-        arguments.
-
-        Returns
-        -------
-        key : str
-            A hash representing the computation graph for the current network.
-        '''
-        def add(s):
-            h.update(str(s).encode('utf-8'))
-        h = hashlib.md5()
-        add(kwargs)
-        for l in self.layers:
-            add('{}{}{}'.format(l.__class__.__name__, l.name, l.nout))
-        return h.hexdigest()
-
-    def build_graph(self, **kwargs):
-        '''Connect the layers in this network to form a computation graph.
-
-        Parameters
-        ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
-
-        Returns
-        -------
-        outputs : list of theano variables
-            A list of expressions giving the output of each layer in the graph.
-        monitors : list of (name, expression) tuples
-            A list of expressions to use when monitoring the network.
-        updates : list of update tuples
-            A list of updates that should be performed by a theano function that
-            computes something using this graph.
-        '''
-        key = self._hash(**kwargs)
-        if key not in self._graphs:
-            outputs, monitors, updates = [], [], []
-            for i, layer in enumerate(self.layers):
-                noise = dropout = 0
-                if i == 0:
-                    # input to first layer is data.
-                    inputs = self.x
-                    noise = kwargs.get('input_noise', 0)
-                    dropout = kwargs.get('input_dropouts', 0)
-                elif i == len(self.layers) - 1:
-                    # inputs to last layer is output of layers to decode.
-                    inputs = outputs[-self.kwargs.get('decode_from', 1):]
-                    noise = kwargs.get('hidden_noise', 0)
-                    dropout = kwargs.get('hidden_dropouts', 0)
-                else:
-                    # inputs to other layers are outputs of previous layer.
-                    inputs = outputs[-1]
-                out, mon, upd = layer.output(inputs, noise=noise, dropout=dropout)
-                outputs.append(out)
-                monitors.extend(mon)
-                updates.extend(upd)
-            self._graphs[key] = outputs, monitors, updates
-        return self._graphs[key]
-
-    @property
-    def params(self):
-        '''Get a list of the learnable theano parameters for this network.
-
-        This attribute is mostly used by :class:`Trainer
-        <theanets.trainer.Trainer>` implementations to compute the set of
-        parameters that are tunable in a network.
-
-        Returns
-        -------
-        params : list of theano variables
-            A list of parameters that can be learned in this model.
-        '''
-        return [p for l in self.layers for p in l.params]
-
-    @property
-    def num_params(self):
-        '''Number of parameters in the entire network model.'''
-        return sum(l.num_params for l in self.layers)
-
-    def find(self, layer, param):
-        '''Get a parameter from a layer in the network.
-
-        Parameters
-        ----------
-        layer : int or str
-            The layer that owns the parameter to return.
-
-            If this is an integer, then 0 refers to the input layer, 1 refers
-            to the first hidden layer, 2 to the second, and so on.
-
-            If this is a string, the layer with the corresponding name, if any,
-            will be used.
-
-        param : int or str
-            Name of the parameter to retrieve from the specified layer, or its
-            index in the parameter list of the layer.
-
-        Raises
-        ------
-        KeyError
-            If there is no such layer, or if there is no such parameter in the
-            specified layer.
-
-        Returns
-        -------
-        param : theano shared variable
-            A shared parameter variable from the indicated layer.
-        '''
-        for i, l in enumerate(self.layers):
-            if layer == i or layer == l.name:
-                return l.find(param)
-        raise KeyError(layer)
-
-    def feed_forward(self, x, **kwargs):
-        '''Compute a forward pass of all layers from the given input.
-
-        All keyword arguments are passed directly to :func:`build_graph`.
-
-        Parameters
-        ----------
-        x : ndarray (num-examples, num-variables)
-            An array containing data to be fed into the network. Multiple
-            examples are arranged as rows in this array, with columns containing
-            the variables for each example.
-
-        Returns
-        -------
-        layers : list of ndarray (num-examples, num-units)
-            The activation values of each layer in the the network when given
-            input `x`. For each of the hidden layers, an array is returned
-            containing one row per input example; the columns of each array
-            correspond to units in the respective layer. The "output" of the
-            network is the last element of this list.
-        '''
-        key = self._hash(**kwargs)
-        if key not in self._functions:
-            outputs, _, updates = self.build_graph(**kwargs)
-            self._functions[key] = theano.function(
-                [self.x], outputs, updates=updates)
-        return self._functions[key](x)
-
-    def predict(self, x):
-        '''Compute a forward pass of the inputs, returning the network output.
-
-        Parameters
-        ----------
-        x : ndarray (num-examples, num-variables)
-            An array containing data to be fed into the network. Multiple
-            examples are arranged as rows in this array, with columns containing
-            the variables for each example.
-
-        Returns
-        -------
-        y : ndarray (num-examples, num-variables
-            Returns the values of the network output units when given input `x`.
-            Rows in this array correspond to examples, and columns to output
-            variables.
-        '''
-        return self.feed_forward(x)[-1]
-
-    __call__ = predict
-
-    def save(self, filename):
-        '''Save the state of this network to a pickle file on disk.
-
-        Parameters
-        ----------
-        filename : str
-            Save the parameters of this network to a pickle file at the named
-            path. If this name ends in ".gz" then the output will automatically
-            be gzipped; otherwise the output will be a "raw" pickle.
-        '''
-        state = dict(klass=self.__class__, kwargs=self.kwargs)
-        for layer in self.layers:
-            key = '{}-values'.format(layer.name)
-            state[key] = [p.get_value() for p in layer.params]
-        opener = gzip.open if filename.lower().endswith('.gz') else open
-        handle = opener(filename, 'wb')
-        pickle.dump(state, handle, -1)
-        handle.close()
-        logging.info('%s: saved model parameters', filename)
-
-    def load_params(self, filename):
-        '''Load the parameters for this network from disk.
-
-        Parameters
-        ----------
-        filename : str
-            Load the parameters of this network from a pickle file at the named
-            path. If this name ends in ".gz" then the input will automatically
-            be gunzipped; otherwise the input will be treated as a "raw" pickle.
-        '''
-        opener = gzip.open if filename.lower().endswith('.gz') else open
-        handle = opener(filename, 'rb')
-        saved = pickle.load(handle)
-        handle.close()
-        for layer in self.layers:
-            for p, v in zip(layer.params, saved['{}-values'.format(layer.name)]):
-                p.set_value(v)
-        logging.info('%s: loaded model parameters', filename)
-
-    def extra_monitors(self, outputs):
-        '''Construct extra monitors for this network.
-
-        Parameters
-        ----------
-        outputs : list of theano expressions
-            A list of theano expressions describing the activations of each
-            layer in the network.
-
-        Returns
-        -------
-        monitors : sequence of (name, expression) tuples
-            A sequence of named monitor quantities.
-        '''
-        return []
-
-    def loss(self, **kwargs):
-        '''Return a variable representing the loss for this network.
-
-        The loss includes both the error for the network as well as any
-        regularizers that are in place.
-
-        Parameters
-        ----------
-        weight_l1 : float, optional
-            Regularize the L1 norm of unit connection weights by this constant.
-        weight_l2 : float, optional
-            Regularize the L2 norm of unit connection weights by this constant.
-        hidden_l1 : float, optional
-            Regularize the L1 norm of hidden unit activations by this constant.
-        hidden_l2 : float, optional
-            Regularize the L2 norm of hidden unit activations by this constant.
-        contractive : float, optional
-            Regularize model using the Frobenius norm of the hidden Jacobian.
-
-        Returns
-        -------
-        loss : theano expression
-            A theano expression representing the loss of this network.
-        monitors : list of (name, expression) pairs
-            A list of named monitor expressions to compute for this network.
-        updates : list of (parameter, expression) pairs
-            A list of named parameter update expressions for this network.
-        '''
-        outputs, monitors, updates = self.build_graph(**kwargs)
-        err = self.error(outputs[-1])
-        monitors.insert(0, ('err', err))
-        monitors.extend(self.extra_monitors(outputs))
-        hiddens = outputs[1:-1]
-        regularizers = dict(
-            weight_l1=(abs(w).sum() for l in self.layers for w in l.params),
-            weight_l2=((w * w).sum() for l in self.layers for w in l.params),
-            hidden_l1=(abs(h).mean(axis=0).sum() for h in hiddens),
-            hidden_l2=((h * h).mean(axis=0).sum() for h in hiddens),
-            contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
-                         for h in hiddens),
-        )
-        regularization = (TT.cast(kwargs[weight], FLOAT) * sum(expr)
-                          for weight, expr in regularizers.items()
-                          if kwargs.get(weight, 0) > 0)
-        return err + sum(regularization), monitors, updates
-
-
-class Autoencoder(Network):
+class Autoencoder(graph.Network):
     r'''An autoencoder attempts to reproduce its input.
 
     Some types of neural network models have been shown to learn useful features
@@ -703,91 +74,15 @@ class Autoencoder(Network):
           theanets.Autoencoder,
           layers=(A, B, C, ..., A))
 
-    Autoencoders retain all attributes of the parent :class:`Network` class,
-    but additionally can have "tied weights", if the layer configuration is
-    palindromic.
-
-    Attributes
-    ----------
-    tied_weights : bool, optional
-        Construct decoding weights using the transpose of the encoding weights
-        on corresponding layers. Defaults to False, which means decoding weights
-        will be constructed using a separate weight matrix.
+    Autoencoders retain all attributes of the parent :class:`Network
+    <graph.Network>` class, but additionally can have "tied weights", if the
+    layer configuration is palindromic.
     '''
-
-    def setup_decoder(self):
-        '''Set up weights for the decoder layers of an autoencoder.
-
-        This implementation allows for decoding weights to be tied to encoding
-        weights. If `tied_weights` is False, the decoder is set up using
-        :func:`Network.setup_decoder`; if True, then the decoder is set up to be
-        a mirror of the encoding layers, using transposed weights.
-
-        Parameters
-        ----------
-        tied_weights : bool, optional
-            If True, use decoding weights that are "tied" to the encoding
-            weights. This only makes sense for a limited set of "autoencoder"
-            layer configurations. Defaults to False.
-        decode_from : int, optional
-            For networks without tied weights, compute the activation of the
-            output vector using the activations of the last N hidden layers in
-            the network. Defaults to 1, which results in a traditional setup
-            that decodes only from the penultimate layer in the network.
-
-        Returns
-        -------
-        count : int
-            A count of the number of tunable decoder parameters.
-        '''
-        if not self.tied_weights:
-            return super(Autoencoder, self).setup_decoder()
-        kw = {}
-        kw.update(self.kwargs)
-        for i in range(len(self.layers) - 1, 1, -1):
-            self.layers.append(layers.build('tied', self.layers[i], **kw))
-        kw = {}
-        kw.update(self.kwargs)
-        kw.update(activation=self.output_activation)
-        self.layers.append(layers.build('tied', self.layers[1], **kw))
-
-    @property
-    def encoding_layers(self):
-        '''Compute the layers that will be part of the network encoder.
-
-        This implementation ensures that --layers is compatible with
-        --tied-weights; if so, and if the weights are tied, then the encoding
-        layers are the first half of the layers in the network. If not, or if
-        the weights are not to be tied, then all but the final layer is
-        considered an encoding layer.
-
-        Returns
-        -------
-        layers : list of int
-            A list of integers specifying sizes of the encoder network layers.
-        '''
-        if not self.tied_weights:
-            return super(Autoencoder, self).encoding_layers
-        error = 'with --tied-weights, --layers must be an odd-length palindrome'
-        sizes = []
-        for layer in self.kwargs['layers']:
-            if isinstance(layer, layers.Layer):
-                sizes.append(layer.nout)
-            if isinstance(layer, int):
-                sizes.append(layer)
-            if isinstance(layer, dict):
-                sizes.append(layer.get('size', layer.get('nout', -1)))
-        assert len(sizes) % 2 == 1, error
-        k = len(sizes) // 2
-        encode = np.asarray(sizes[:k])
-        decode = np.asarray(sizes[k+1:])
-        assert (encode == decode[::-1]).all(), error
-        return self.kwargs['layers'][:k+1]
 
     @property
     def tied_weights(self):
         '''A boolean indicating whether this network uses tied weights.'''
-        return self.kwargs.get('tied_weights', False)
+        return any('tied' in l.__class__.__name__.lower() for l in self.layers)
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.
@@ -798,10 +93,11 @@ class Autoencoder(Network):
             A dataset to encode. Rows of this dataset capture individual data
             points, while columns represent the variables in each data point.
 
-        layer : int, optional
-            The index of the hidden layer activation to use. By default, we use
+        layer : str, optional
+            The name of the hidden layer output to use. By default, we use
             the "middle" hidden layer---for example, for a 4,2,4 or 4,3,2,3,4
-            autoencoder, we use the "2" layer (index 1 or 2, respectively).
+            autoencoder, we use the "2" layer (typically named "hid1" or "hid2",
+            respectively).
 
         sample : bool, optional
             If True, then draw a sample using the hidden activations as
@@ -814,7 +110,7 @@ class Autoencoder(Network):
             The given dataset, encoded by the appropriate hidden layer
             activation.
         '''
-        enc = self.feed_forward(x)[(layer or len(self.layers) // 2)]
+        enc = self.feed_forward(x)[self._find_layer(layer)]
         if sample:
             return np.random.binomial(n=1, p=enc).astype(np.uint8)
         return enc
@@ -826,26 +122,36 @@ class Autoencoder(Network):
         ----------
         z : ndarray
             A matrix containing encoded data from this autoencoder.
-
-        layer : int, optional
-            The index of the hidden layer that was used to encode `z`.
+        layer : int or str or :class:`Layer <layers.Layer>`, optional
+            The index or name of the hidden layer that was used to encode `z`.
 
         Returns
         -------
-        ndarray :
+        decoded : ndarray
             The decoded dataset.
         '''
-        if not hasattr(self, '_decoders'):
-            self._decoders = {}
-        layer = layer or len(self.layers) // 2
-        if layer not in self._decoders:
+        key = self._find_layer(layer)
+        if key not in self._functions:
             outputs, _, updates = self.build_graph()
-            self._decoders[layer] = theano.function(
-                [outputs[layer]], [outputs[-1]], updates=updates)
-        return self._decoders[layer](z)[0]
+            self._functions[key] = theano.function(
+                [outputs[key]], [outputs[self.output_name]], updates=updates)
+        return self._functions[key](z)[0]
+
+    def _find_layer(self, layer):
+        '''
+        '''
+        if layer is None:
+            layer = len(self.layers) // 2
+        if isinstance(layer, int):
+            layer = self.layers[layer]
+        if isinstance(layer, layers.Layer):
+            layer = layer.output_name
+        if '.' not in layer:
+            layer = '{}.out'.format(layer)
+        return layer
 
 
-class Regressor(Network):
+class Regressor(graph.Network):
     r'''A regression model attempts to produce a target output.
 
     Regression models are trained by optimizing a (possibly regularized) loss
@@ -878,7 +184,7 @@ class Regressor(Network):
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
@@ -896,12 +202,12 @@ class Regressor(Network):
             A theano expression representing the network error.
         '''
         err = output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
 
-class Classifier(Network):
+class Classifier(graph.Network):
     r'''A classifier attempts to match a 1-hot target output.
 
     Classification models in ``theanets`` are trained by optimizing a (possibly
@@ -922,27 +228,6 @@ class Classifier(Network):
     model and :math:`R` is a regularization function.
     '''
 
-    @property
-    def output_activation(self):
-        '''A string representing the output activation for this network.'''
-        return 'softmax'
-
-    def extra_monitors(self, outputs):
-        '''Construct extra monitors for this network.
-
-        Parameters
-        ----------
-        outputs : list of theano expressions
-            A list of theano expressions describing the activations of each
-            layer in the network.
-
-        Returns
-        -------
-        monitors : sequence of (name, expression) tuples
-            A sequence of named monitor quantities.
-        '''
-        yield 'acc', self.accuracy(outputs[-1])
-
     def setup_vars(self):
         '''Setup Theano variables for our network.
 
@@ -959,13 +244,9 @@ class Classifier(Network):
         # and the weights are reshaped to be just a vector.
         self.weights = TT.vector('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
-
-    @property
-    def output_activation(self):
-        return 'softmax'
 
     def error(self, output):
         '''Build a theano expression for computing the network error.
@@ -984,9 +265,21 @@ class Classifier(Network):
         hi = TT.cast(1, FLOAT)
         prob = output[TT.arange(self.labels.shape[0]), self.labels]
         nlp = -TT.log(TT.clip(prob, lo, hi))
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * nlp).sum() / self.weights.sum()
         return nlp.mean()
+
+    def monitors(self, **kwargs):
+        '''Return expressions that should be computed to monitor training.
+
+        Returns
+        -------
+        monitors : list of (name, expression) pairs
+            A list of named monitor expressions to compute for this network.
+        '''
+        outputs, monitors, _ = self.build_graph(**kwargs)
+        out = outputs[self.output_name]
+        return [('err', self.error(out)), ('acc', self.accuracy(out))] + monitors
 
     def accuracy(self, output):
         '''Build a theano expression for computing the network accuracy.
@@ -1003,7 +296,7 @@ class Classifier(Network):
         '''
         correct = TT.eq(TT.argmax(output, axis=1), self.labels)
         acc = correct.mean()
-        if self.is_weighted:
+        if self.weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc
 

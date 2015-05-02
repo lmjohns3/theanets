@@ -12,7 +12,7 @@ N = 10
 
 e = theanets.Experiment(
     theanets.Classifier,
-    layers=(784, N * N, 10),
+    layers=(784, N * N, ('softmax', 10)),
     train_batches=100,
 )
 e.train(train, valid)

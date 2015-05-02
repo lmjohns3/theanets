@@ -39,12 +39,8 @@ class Base:
 
 
 class TestNetwork(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Regressor(
-            layers=(INS, ) + hiddens + (OUTS, ),
-            hidden_activation='logistic',
-            batch_size=BATCH,
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Regressor(layers=(INS, ) + hiddens + (OUTS, ))
 
     def test_predict(self):
         net = self._build(15, 13)
@@ -54,30 +50,26 @@ class TestNetwork(Base):
     def test_feed_forward(self):
         net = self._build(15, 13)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 4
-        self.assert_shape(hs[0].shape, (STEPS, BATCH, INS))
-        self.assert_shape(hs[1].shape, (STEPS, BATCH, 15))
-        self.assert_shape(hs[2].shape, (STEPS, BATCH, 13))
-        self.assert_shape(hs[3].shape, (STEPS, BATCH, OUTS))
+        assert len(hs) == 7
+        self.assert_shape(hs['in.out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1.out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['hid2.out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['out.out'].shape, (STEPS, BATCH, OUTS))
 
     def test_multiple_recurrent(self):
-        net = self._build(13, 14, 15, recurrent_layers={0, 1})
+        net = self._build(13, 14, 15)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 5
-        self.assert_shape(hs[0].shape, (STEPS, BATCH, INS))
-        self.assert_shape(hs[1].shape, (STEPS, BATCH, 13))
-        self.assert_shape(hs[2].shape, (STEPS, BATCH, 14))
-        self.assert_shape(hs[3].shape, (STEPS, BATCH, 15))
-        self.assert_shape(hs[4].shape, (STEPS, BATCH, OUTS))
+        assert len(hs) == 9
+        self.assert_shape(hs['in.out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1.out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['hid2.out'].shape, (STEPS, BATCH, 14))
+        self.assert_shape(hs['hid3.out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['out.out'].shape, (STEPS, BATCH, OUTS))
 
 
 class TestPredictor(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Predictor(
-            layers=(INS, ) + hiddens + (INS, ),
-            hidden_activation='logistic',
-            batch_size=10,
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Predictor((INS, ) + hiddens + (INS, ))
 
     def test_predict_onelayer(self):
         net = self._build(13)
@@ -86,12 +78,8 @@ class TestPredictor(Base):
 
 
 class TestClassifier(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Classifier(
-            layers=(INS, ) + hiddens + (OUTS, ),
-            hidden_activation='logistic',
-            batch_size=BATCH,
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Classifier((INS, ) + hiddens + (OUTS, ))
 
     def test_classify_onelayer(self):
         net = self._build(13)
@@ -105,12 +93,8 @@ class TestClassifier(Base):
 
 
 class TestAutoencoder(Base):
-    def _build(self, *hiddens, **kwargs):
-        return theanets.recurrent.Autoencoder(
-            layers=(INS, ) + hiddens + (INS, ),
-            hidden_activation='logistic',
-            batch_size=BATCH,
-            **kwargs)
+    def _build(self, *hiddens):
+        return theanets.recurrent.Autoencoder((INS, ) + hiddens + (INS, ))
 
     def test_encode_onelayer(self):
         net = self._build(13)

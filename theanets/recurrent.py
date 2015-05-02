@@ -6,10 +6,7 @@ import numpy.random as rng
 import theano
 import theano.tensor as TT
 
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from . import feedforward
-from . import layers
 
 logging = climate.get_logger(__name__)
 
@@ -57,35 +54,8 @@ def batches(samples, labels=None, steps=100, batch_size=64):
     return unlabeled_sample if labels is None else labeled_sample
 
 
-class Network(feedforward.Network):
-    '''A fully connected recurrent network with one input and one output layer.
-
-    Parameters
-    ----------
-    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
-        A sequence of values specifying the layer configuration for the network.
-        For more information, please see :ref:`creating-specifying-layers`.
-    hidden_activation : str, optional
-        The name of an activation function to use on hidden network layers by
-        default. Defaults to 'logistic'.
-    output_activation : str, optional
-        The name of an activation function to use on the output layer by
-        default. Defaults to 'linear'.
-    rng : theano RandomStreams object, optional
-        Use a specific Theano random number generator. A new one will be created
-        if this is None.
-    decode_from : positive int, optional
-        Any of the hidden layers can be tapped at the output. Just specify a
-        value greater than 1 to tap the last N hidden layers. The default is 1,
-        which decodes from just the last layer.
-
-    Attributes
-    ----------
-    layers : list of :class:`Layer <layers.Layer>`
-        A list of the layers in this network model.
-    kwargs : dict
-        A dictionary containing the keyword arguments used to construct the
-        network.
+class Autoencoder(feedforward.Autoencoder):
+    '''An autoencoder network attempts to reproduce its input.
     '''
 
     def setup_vars(self):
@@ -104,18 +74,13 @@ class Network(feedforward.Network):
         # of each entries in the error computation.
         self.weights = TT.tensor3('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.weights]
         return [self.x]
 
-
-class Autoencoder(Network, feedforward.Autoencoder):
-    '''An autoencoder network attempts to reproduce its input.
-    '''
-
     def error(self, output):
         err = output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
@@ -141,7 +106,7 @@ class Predictor(Autoencoder):
         # of the network and f(y) gives the prediction, then we want f(y)[0] to
         # match x[1], f(y)[1] to match x[2], and so forth.
         err = self.x[1:] - self.generate_prediction(output)[:-1]
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights[1:] * err * err) / self.weights[1:].sum()
         return (err * err).mean()
 
@@ -167,7 +132,7 @@ class Predictor(Autoencoder):
         return y
 
 
-class Regressor(Network, feedforward.Regressor):
+class Regressor(feedforward.Regressor):
     '''A regressor attempts to produce a target output.'''
 
     def setup_vars(self):
@@ -178,12 +143,14 @@ class Regressor(Network, feedforward.Regressor):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Regressor, self).setup_vars()
+        # the first dimension indexes time, the second indexes the elements of
+        # each minibatch, and the third indexes the variables in a given frame.
+        self.x = TT.tensor3('x')
 
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
 
@@ -201,12 +168,12 @@ class Regressor(Network, feedforward.Regressor):
             A theano expression representing the network error.
         '''
         err = output - self.targets
-        if self.is_weighted:
+        if self.weighted:
             return (self.weights * err * err).sum() / self.weights.sum()
         return (err * err).mean()
 
 
-class Classifier(Network, feedforward.Classifier):
+class Classifier(feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
 
     def setup_vars(self):
@@ -217,7 +184,9 @@ class Classifier(Network, feedforward.Classifier):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Classifier, self).setup_vars()
+        # the first dimension indexes time, the second indexes the elements of
+        # each minibatch, and the third indexes the variables in a given frame.
+        self.x = TT.tensor3('x')
 
         # for a classifier, this specifies the correct labels for a given input.
         # the labels array for a recurrent network is (time_steps, batch_size).
@@ -227,7 +196,7 @@ class Classifier(Network, feedforward.Classifier):
         # of each entry in the error computation.
         self.weights = TT.matrix('weights')
 
-        if self.is_weighted:
+        if self.weighted:
             return [self.x, self.labels, self.weights]
         return [self.x, self.labels]
 
@@ -252,7 +221,7 @@ class Classifier(Network, feedforward.Classifier):
         weights = TT.reshape(self.weights, (n, ))
         prob = TT.reshape(output, (n, output.shape[2]))
         nlp = -TT.log(TT.clip(prob[TT.arange(n), correct], lo, hi))
-        if self.is_weighted:
+        if self.weighted:
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()
 
@@ -271,6 +240,6 @@ class Classifier(Network, feedforward.Classifier):
         '''
         correct = TT.eq(TT.argmax(output, axis=-1), self.labels)
         acc = correct.mean()
-        if self.is_weighted:
+        if self.weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
         return TT.cast(100, FLOAT) * acc

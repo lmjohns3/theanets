@@ -1,4 +1,4 @@
-'''This module contains an object encapsulating a "main" process.
+'''This module contains some glue code encapsulating a "main" process.
 
 The code here is aimed at wrapping the most common tasks involved in creating
 and, especially, training a neural network model.
@@ -230,7 +230,7 @@ class Experiment:
         path : str
             Location of the file to save the network.
         '''
-        logging.info('saving model to %s', path)
+        logging.info('%s: saving model', path)
         self.network.save(path)
 
     def load(self, path, **kwargs):
@@ -253,6 +253,6 @@ class Experiment:
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''
-        logging.info('loading model from %s', path)
+        logging.info('%s: loading model', path)
         self.network = graph.load(path, **kwargs)
         return self.network

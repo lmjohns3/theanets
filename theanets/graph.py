@@ -344,7 +344,7 @@ class Network(object):
         '''
         key = self._hash(**kwargs)
         if key not in self._graphs:
-            inputs = dict(out=self.x)
+            inputs = dict(x=self.x)
             outputs, monitors, updates = {}, [], []
             for i, layer in enumerate(self.layers):
                 noise = dropout = 0

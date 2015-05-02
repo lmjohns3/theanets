@@ -428,7 +428,7 @@ class Layer(Base):
         updates : list
             An empty updates list.
         '''
-        return inputs['out'], []
+        return inputs['x'], []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''

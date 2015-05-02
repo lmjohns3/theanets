@@ -132,7 +132,7 @@ class Autoencoder(graph.Network):
         key = self._find_layer(layer)
         if key not in self._functions:
             outputs, _, updates = self.build_graph()
-            self._decoders[key] = theano.function(
+            self._functions[key] = theano.function(
                 [outputs[key]], [outputs[self.output_name]], updates=updates)
         return self._functions[key](z)[0]
 

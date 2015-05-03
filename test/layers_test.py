@@ -46,9 +46,23 @@ class TestFeedforward(Base):
         assert not upd
 
 
+class TestMultiFeedforward(Base):
+    def _build(self):
+        return theanets.layers.Feedforward(inputs=dict(a=2, b=2), size=4, name='l')
+
+    def test_create(self):
+        self.assert_param_names(['w_a', 'w_b', 'b'])
+        self.assert_count(20)
+
+    def test_transform(self):
+        out, upd = self._build().transform(dict(a=self.x, b=self.x))
+        assert len(out) == 2
+        assert not upd
+
+
 class TestTied(Base):
     def _build(self):
-        l0 = theanets.layers.Feedforward(inputs=2, outputs=4, name='l0')
+        l0 = theanets.layers.Feedforward(inputs=2, size=4, name='l0')
         return theanets.layers.Tied(partner=l0, name='l')
 
     def test_create(self):

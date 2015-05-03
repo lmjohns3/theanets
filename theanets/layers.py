@@ -1241,19 +1241,22 @@ class Bidirectional(Layer):
         Returns
         -------
         outputs : dict of theano expressions
-            Theano expression representing the output from the layer. This layer
-            type produces "pre" and "hid" outputs that concatenates the outputs
-            from its underlying workers. It also passes along the individual
-            outputs from its workers using "fw_" and "bw_" prefixes for forward
-            and backward directions.
+            Theano expressions representing the output from the layer. This
+            layer type produces an "out" output that concatenates the outputs
+            from its underlying workers. If present, it also concatenates the
+            "pre" and "cell" outputs from the underlying workers. Finally, it
+            passes along the individual outputs from its workers using "fw_" and
+            "bw_" prefixes for forward and backward directions.
         updates : list of update pairs
             A list of state updates to apply inside a theano function.
         '''
         fout, fupd = self.forward.transform(inputs)
         bout, bupd = self.backward.transform(inputs)
-        out = TT.concatenate([fout['out'], bout['out']], axis=2)
-        pre = TT.concatenate([fout['pre'], bout['pre']], axis=2)
-        outputs = dict(out=out, pre=pre)
+        outputs = dict(out=TT.concatenate([fout['out'], bout['out']], axis=2))
+        if 'pre' in fout:
+            outputs['pre'] = TT.concatenate([fout['pre'], bout['pre']], axis=2)
+        if 'cell' in fout:
+            outputs['cell'] = TT.concatenate([fout['cell'], bout['cell']], axis=2)
         for k, v in fout.items():
             outputs['fw_{}'.format(k)] = v
         for k, v in bout.items():

@@ -1006,19 +1006,20 @@ class ARRNN(Recurrent):
             from this layer. This layer type generates a "pre" output that gives
             the unit activity before applying the layer's activation function,
             a "hid" output that gives the rate-independent, post-activation
-            hidden state, and an "out" output that gives the hidden output.
+            hidden state, a "rate" output that gives the rate value for each
+            hidden unit, and an "out" output that gives the hidden output.
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(x_t, r_t, h_tm1):
+        r = TT.nnet.sigmoid(self.find('r'))
+        x = inputs[list(self.inputs)[0]]
+        h = TT.dot(x, self.find('xh')) + self.find('b')
+        def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
-            return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
-        x = inputs['out']
-        h = TT.dot(x, self.find('xh')) + self.find('b')
-        r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
-        (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
-        return dict(pre=pre, hid=hid, out=out), updates
+            return [pre, h_t, r * h_tm1 + (1 - r) * h_t]
+        (pre, hid, out), updates = self._scan(fn, [h], [None, None, x])
+        return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
 
 class MRNN(Recurrent):

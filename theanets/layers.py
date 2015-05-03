@@ -508,28 +508,25 @@ class Layer(Base):
             name=self._fmt(name)))
         self.num_params += nin * nout
 
-    def add_bias(self, name, nout, mean=0, std=1):
+    def add_bias(self, name, size, mean=0, std=1):
         '''Helper method to create a new bias vector.
 
         Parameters
         ----------
         name : str
             Name of the parameter to add.
-        nout : int
+        size : int
             Size of the bias vector.
         mean : float, optional
             Mean value for randomly-initialized biases. Defaults to 0.
         std : float, optional
             Standard deviation for randomly-initialized biases. Defaults to 1.
         '''
-        mean = self.kwargs.get(
-            'mean_{}'.format(name), self.kwargs.get('mean', mean))
-        std = self.kwargs.get(
-            'std_{}'.format(name), self.kwargs.get(
-                'std', std or 1 / np.sqrt(nin + nout)))
+        mean = self.kwargs.get('mean_{}'.format(name), self.kwargs.get('mean', mean))
+        std = self.kwargs.get('std_{}'.format(name), self.kwargs.get('std', std))
         self.params.append(theano.shared(
-            random_vector(nout, mean, std), name=self._fmt(name)))
-        self.num_params += nout
+            random_vector(size, mean, std), name=self._fmt(name)))
+        self.num_params += size
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

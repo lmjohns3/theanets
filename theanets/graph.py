@@ -195,7 +195,7 @@ class Network(object):
 
             # for the first layer, create an 'input' layer.
             if i == 0:
-                model.append(layers.build('input', outputs=spec, name='in'))
+                model.append(layers.build('input', size=spec, name='in'))
                 continue
 
             # here we set up some defaults for constructing a new layer.
@@ -205,8 +205,8 @@ class Network(object):
             kwargs = dict(
                 name='out' if last else 'hid{}'.format(len(model)),
                 activation='linear' if last else 'logistic',
-                inputs={'{}.out'.format(prev.name): prev.outputs['out']},
-                outputs=spec,
+                inputs={prev.output_name: prev.size},
+                size=spec,
             )
 
             # if spec is a tuple, assume that it contains one or more of the following:
@@ -227,7 +227,7 @@ class Network(object):
                         else:
                             kwargs['activation'] = el
                     if isinstance(el, int):
-                        kwargs['outputs'] = el
+                        kwargs['size'] = el
                 kwargs['name'] = '{}{}'.format(form, len(model))
 
             # if spec is a dictionary, try to extract a form for the layer, and

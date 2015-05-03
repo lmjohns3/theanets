@@ -259,32 +259,42 @@ Base = Registrar(str('Base'), (), {})
 class Layer(Base):
     '''Layers in network graphs derive from this base class.
 
-    In ``theanets``, a layer refers to a set of weights and biases, plus the
-    "output" units that produce a signal for further layers to consume. The
-    first layer in a network, the input layer, is a special case with linear
-    activation and no weights or bias.
+    In ``theanets``, a layer refers to a logically grouped set of parameters and
+    computations. Typically this encompasses a set of weight matrix and bias
+    vector parameters, plus the "output" units that produce a signal for further
+    layers to consume.
+
+    Subclasses of this class can be created to implement many different forms of
+    layer-specific computation. For example, a vanilla :class:`Feedforward`
+    layer accepts input from the "preceding" layer in a network, computes an
+    affine transformation of that input and applies a pointwise transfer
+    function. On the other hand, a :class:`Recurrent` layer computes an affine
+    transformation of the current input, and combines that with information
+    about the state of the layer at previous time steps.
+
+    Most subclasses will need to provide an implementation of the :func:`setup`
+    method, which creates the parameters needed by the layer, and the
+    :func:`transform` method, which converts the theano input expressions coming
+    in to the layer into some output expression(s).
 
     Parameters
     ----------
+    size : int
+        Size of this layer.
     inputs : dict or int
         Size of input(s) to this layer. If one integer is provided, a single
         input of the given size is expected. If a dictionary is provided, it
         maps from output names to corresponding sizes.
-    outputs : dict or int
-        Size of output(s) from this layer. If one integer is provided, the
-        output from this layer will be called "out" and will have the given
-        size. If a dictionary is provided, it maps from string output names to
-        integer output sizes.
     name : str, optional
         The name of this layer. If not given, layers will be numbered
         sequentially based on the order in which they are created.
+    activation : str, optional
+        The name of an activation function to use for units in this layer. See
+        :func:`build_activation`.
     rng : random number generator, optional
         A theano random number generator to use for creating noise and dropout
         values. If not provided, a new generator will be produced for this
         layer.
-    activation : str, optional
-        The name of an activation function to use for units in this layer. See
-        :func:`build_activation`.
     sparsity : float in (0, 1), optional
         If given, create sparse connections in the layer's weight matrix, such
         that this fraction of the weights is set to zero. By default, this
@@ -292,10 +302,18 @@ class Layer(Base):
 
     Attributes
     ----------
+    name : str
+        Name of this layer.
+    size : int
+        Size of this layer.
+    inputs : dict
+        Dictionary mapping input names to their corresponding sizes.
+    activation : str
+        String representing the activation function for this layer.
     kwargs : dict
-        Keyword arguments that were used when constructing this layer.
+        Additional keyword arguments used when constructing this layer.
     activate : callable
-        The activation function to use on this layer's output units.
+        The activation function to use on this layer's outputs.
     params : list of Params
         A list of the parameters in this layer.
     num_params : int
@@ -304,25 +322,25 @@ class Layer(Base):
 
     _count = 0
 
-    def __init__(self, **kwargs):
+    def __init__(self, size, inputs, name=None, activation='logistic', **kwargs):
         Layer._count += 1
         super(Layer, self).__init__()
-        self.kwargs = kwargs
-        self.inputs = kwargs['inputs']
+        self.size = size
+        self.inputs = inputs
         if isinstance(self.inputs, int):
             self.inputs = dict(out=self.inputs)
-        self.outputs = kwargs['outputs']
-        if isinstance(self.outputs, int):
-            self.outputs = dict(out=self.outputs)
-        self.name = kwargs.get('name', '{}{}'.format(
-            self.__class__.__name__.lower(), Layer._count))
-        self.activate = create_activation(kwargs.get('activation', 'logistic'))
+        self.name = name or '{}{}'.format(
+            self.__class__.__name__.lower(), Layer._count)
+        self.activation = activation
+        self.activate = create_activation(activation)
+        self.kwargs = kwargs
         self.params = []
         self.num_params = 0
         self.setup()
 
     @property
     def output_name(self):
+        '''Fully-scoped name of the default output for this layer.'''
         return '{}.out'.format(self.name)
 
     def connect(self, inputs, noise=0, dropout=0, monitors=None):
@@ -377,8 +395,8 @@ class Layer(Base):
         if not isinstance(dropout, dict):
             dropout = dict(out=dropout)
 
-        # compute output expressions for this layer given inputs. transform to
-        # be a list of ordered pairs if needed.
+        # compute output expressions for this layer given the inputs. transform
+        # the outputs to be a list of ordered pairs if needed.
         outputs, updates = self.transform(inputs)
         if isinstance(outputs, dict):
             outputs = sorted(outputs.items())
@@ -438,11 +456,9 @@ class Layer(Base):
     def log_setup(self):
         '''Log some information about this layer.'''
         act = self.activate.__theanets_name__
-        fmt = lambda n, s: str(s) if n == 'out' else '{}:{}'.format(n, s)
-        ins = '+'.join(fmt(n, s) for n, s in self.inputs.items())
-        outs = '+'.join(fmt(n, s) for n, s in self.outputs.items())
+        ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
         logging.info('layer %s: %s -> %s, %s, %d parameters',
-                     self.name, ins, outs, act, self.num_params)
+                     self.name, ins, self.size, act, self.num_params)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
@@ -537,10 +553,13 @@ class Layer(Base):
             A dictionary specifying the configuration of this layer.
         '''
         spec = dict(**self.kwargs)
-        spec.update(name=self.name,
-                    form=self.__class__.__name__.lower(),
-                    inputs=self.inputs,
-                    outputs=self.outputs)
+        spec.update(
+            form=self.__class__.__name__.lower(),
+            name=self.name,
+            size=self.size,
+            inputs=self.inputs,
+            activation=self.activation,
+        )
         return spec
 
 
@@ -552,7 +571,7 @@ class Input(Layer):
     '''
 
     def __init__(self, **kwargs):
-        kwargs['inputs'] = dict(out=0)
+        kwargs['inputs'] = 0
         kwargs['activation'] = 'linear'
         super(Input, self).__init__(**kwargs)
 
@@ -564,7 +583,7 @@ class Input(Layer):
         spec : int
             A single integer specifying the size of this layer.
         '''
-        return self.outputs['out']
+        return self.size
 
 
 class Feedforward(Layer):
@@ -650,8 +669,8 @@ class Tied(Layer):
 
     def __init__(self, partner, **kwargs):
         self.partner = partner
-        kwargs['inputs'] = [n for _, n in partner.outputs.items()][0]
-        kwargs['outputs'] = [n for _, n in partner.inputs.items()][0]
+        kwargs['inputs'] = partner.size
+        kwargs['size'] = list(partner.inputs.values())[0]
         kwargs['name'] = 'tied-{}'.format(partner.name)
         super(Tied, self).__init__(**kwargs)
 
@@ -674,14 +693,14 @@ class Tied(Layer):
         updates : list of update pairs
             An empty sequence of updates.
         '''
-        x = inputs['out']
+        x = inputs[list(self.inputs)[0]]
         pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
-        self.add_bias('b', self.outputs['out'])
+        self.add_bias('b', self.size)
         self.log_setup()
 
     def to_spec(self):
@@ -708,13 +727,12 @@ class Maxout(Layer):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nout = self.outputs['out']
-        self.add_weights('xh')
-        self.add_bias('b', nout)
+        self.add_weights('w')
+        self.add_bias('b', self.size)
         logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
                      self.name,
-                     self.inputs['out'],
-                     self.outputs['out'],
+                     list(self.inputs.values())[0],
+                     self.size,
                      self.pieces,
                      self.activate.__theanets_name__,
                      self.num_params)
@@ -738,7 +756,8 @@ class Maxout(Layer):
         updates : list of update pairs
             An empty sequence of state updates.
         '''
-        pre = TT.dot(inputs['out'], self.find('xh')).max(axis=2) + self.find('b')
+        x = inputs[list(self.inputs)[0]]
+        pre = TT.dot(x, self.find('w')).max(axis=2) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
     def add_weights(self, name, mean=0, std=None, sparsity=0):
@@ -756,17 +775,16 @@ class Maxout(Layer):
         sparsity : float, optional
             Fraction of weights to set to zero. Defaults to 0.
         '''
-        nin = self.inputs['out']
-        nout = self.outputs['out']
+        nin = list(self.inputs.values())[0]
         def rm():
             return random_matrix(
-                nin, nout, mean, std or 1 / np.sqrt(nin + nout),
+                nin, self.size, mean, std or 1 / np.sqrt(nin + self.size),
                 sparsity=self.kwargs.get('sparsity', sparsity),
             )[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
-        self.num_params += nin * nout * self.pieces
+        self.num_params += nin * self.size * self.pieces
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -825,7 +843,7 @@ class Recurrent(Layer):
             A variable containing the initial state of some recurrent variable.
         '''
         values = theano.shared(
-            np.zeros((1, self.outputs['out']), FLOAT),
+            np.zeros((1, self.size), FLOAT),
             name=self._fmt('{}0'.format(name)))
         return TT.repeat(values, batch_size, axis=0)
 
@@ -917,11 +935,9 @@ class RNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nin = self.inputs['out']
-        nout = self.outputs['out']
-        self.add_weights('xh', nin, nout)
-        self.add_weights('hh', nout, nout)
-        self.add_bias('b', nout)
+        self.add_weights('xh', list(self.inputs.values())[0], self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_bias('b', self.size)
         self.log_setup()
 
     def transform(self, inputs):
@@ -946,7 +962,7 @@ class RNN(Recurrent):
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             return [pre, self.activate(pre)]
-        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
+        x = TT.dot(inputs[list(self.inputs)[0]], self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [x], [None, x])
         return dict(pre=pre, out=out), updates
 
@@ -968,13 +984,10 @@ class ARRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nin = self.inputs['out']
-        nout = self.outputs['out']
-        self.add_weights('xh', nin, nout)
-        self.add_weights('xr', nin, nout)
-        self.add_weights('hh', nout, nout)
-        self.add_bias('b', nout)
-        self.add_bias('r', nout, mean=2, std=1)
+        self.add_weights('xh', list(self.inputs.values())[0], self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_bias('b', self.size)
+        self.add_bias('r', self.size, mean=2, std=1)
         self.log_setup()
 
     def transform(self, inputs):
@@ -1023,13 +1036,12 @@ class MRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nin = self.inputs['out']
-        nout = self.outputs['out']
-        self.add_weights('xh', nin, nout)
+        nin = list(self.inputs.values())[0]
+        self.add_weights('xh', nin, self.size)
         self.add_weights('xf', nin, self.factors)
-        self.add_weights('hf', nout, self.factors)
-        self.add_weights('fh', self.factors, nout)
-        self.add_bias('b', nout)
+        self.add_weights('hf', self.size, self.factors)
+        self.add_weights('fh', self.factors, self.size)
+        self.add_bias('b', self.size)
         self.log_setup()
 
     def transform(self, inputs):
@@ -1057,7 +1069,7 @@ class MRNN(Recurrent):
         def fn(x_t, f_t, h_tm1):
             pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
             return [pre, self.activate(pre)]
-        x = inputs['out']
+        x = inputs[list(self.inputs)[0]]
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
         (pre, out), updates = self._scan(fn, [h, f], [None, x])
@@ -1086,15 +1098,13 @@ class LSTM(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nin = self.inputs['out']
-        nout = self.outputs['out']
-        self.add_weights('xh', nin, 4 * nout)
-        self.add_weights('hh', nout, 4 * nout)
-        self.add_bias('b', 4 * nout, mean=2)
+        self.add_weights('xh', list(self.inputs.values())[0], 4 * self.size)
+        self.add_weights('hh', self.size, 4 * self.size)
+        self.add_bias('b', 4 * self.size, mean=2)
         # the three "peephole" weight matrices are always diagonal.
-        self.add_bias('ci', nout)
-        self.add_bias('cf', nout)
-        self.add_bias('co', nout)
+        self.add_bias('ci', self.size)
+        self.add_bias('cf', self.size)
+        self.add_bias('co', self.size)
         self.log_setup()
 
     def transform(self, inputs):
@@ -1117,7 +1127,7 @@ class LSTM(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         def split(z):
-            n = self.outputs['out']
+            n = self.size
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         def fn(x_t, h_tm1, c_tm1):
             xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
@@ -1127,7 +1137,7 @@ class LSTM(Recurrent):
             o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
             h_t = o_t * TT.tanh(c_t)
             return [h_t, c_t]
-        x = inputs['out']
+        x = inputs[list(self.inputs)[0]]
         batch_size = x.shape[1]
         (out, cell), updates = self._scan(
             fn,
@@ -1137,17 +1147,16 @@ class LSTM(Recurrent):
 
 
 class GRU(Recurrent):
-    ''' Gated Recurrent Unit layer.
-        The implementation from paper
-        "Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling" (page 4)
-        http://arxiv.org/pdf/1412.3555v1.pdf
+    '''Gated Recurrent Unit layer.
+
+    The implementation is from J Chung, C Gulcehre, KH Cho, & Y Bengio (2014),
+    "Empirical Evaluation of Gated Recurrent Neural Networks on Sequence
+    Modeling" (page 4), available at http://arxiv.org/abs/1412.3555v1.
     '''
     def setup(self):
-        nin = self.inputs['out']
-        nout = self.outputs['out']
-        self.add_weights('xh', nin, 3 * nout)
-        self.add_weights('hh', nout, 3 * nout)
-        self.add_bias('b', 3 * nout)
+        self.add_weights('xh', list(self.inputs.values())[0], 3 * self.size)
+        self.add_weights('hh', self.size, 3 * self.size)
+        self.add_bias('b', 3 * self.size)
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.
@@ -1171,17 +1180,17 @@ class GRU(Recurrent):
             function.
         '''
         def split(z):
-            n = self.outputs['out']
+            n = self.size
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n]
         def fn(x_t, h_tm1):
             xh, xz, xr = split(x_t + TT.dot(h_tm1, self.find('hh')))
             z = TT.nnet.sigmoid(xz)
             pre = xh + TT.nnet.sigmoid(xr) * h_tm1
             h_t = self.activate(pre)
-            return [pre, h_t, (1 - z) * h_tm1 + z * h_t]
-        x = TT.dot(inputs['out'], self.find('xh')) + self.find('b')
-        (pre, hid, out), updates = self._scan(fn, [x], [None, None, x])
-        return dict(pre=pre, hid=hid, out=out), updates
+            return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
+        x = TT.dot(inputs[list(self.inputs)[0]], self.find('xh')) + self.find('b')
+        (pre, hid, rate, out), updates = self._scan(fn, [x], [None, None, None, x])
+        return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 
 class Bidirectional(Layer):

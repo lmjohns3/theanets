@@ -602,9 +602,9 @@ class Feedforward(Layer):
         '''
         def _dot(x, y):
             if isinstance(x, SS.SparseVariable):
-                return SS.structured_dot(x,y)
+                return SS.structured_dot(x, y)
             else:
-                return TT.dot(x,y)
+                return TT.dot(x, y)
         xws = ((inputs[n], self.find('w_{}'.format(n))) for n in self.inputs)
         if len(self.inputs) == 1:
             xws = ((inputs[n], self.find('w')) for n in self.inputs)

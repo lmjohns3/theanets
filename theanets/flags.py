@@ -18,7 +18,7 @@ g.add_argument('-t', '--tied-weights', action='store_true',
                help='tie encoding and decoding weights')
 
 g = climate.add_group('Training')
-g.add_argument('-O', '--optimize', default=(), nargs='+', metavar='ALGO',
+g.add_argument('-a', '--algorithm', default=(), nargs='+', metavar='ALGO',
                help='train with the given optimization algorithm(s)')
 g.add_argument('-p', '--patience', type=int, default=4, metavar='N',
                help='stop training if less than --min-improvement for N validations')

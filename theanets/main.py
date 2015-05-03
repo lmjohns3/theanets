@@ -7,6 +7,7 @@ and, especially, training a neural network model.
 import climate
 import datetime
 import os
+import warnings
 
 from . import dataset
 from . import graph
@@ -143,7 +144,7 @@ class Experiment:
             pass
         return monitors
 
-    def itertrain(self, train_set=None, valid_set=None, optimize=None, **kwargs):
+    def itertrain(self, train_set=None, valid_set=None, algorithm=None, **kwargs):
         '''Train our network, one batch at a time.
 
         This method yields a series of ``(train, valid)`` monitor pairs. The
@@ -171,10 +172,9 @@ class Experiment:
             If this is provided, it will be used as a validation dataset. If not
             provided, the training set will be used for validation. (This is not
             recommended!)
-        optimize : any, optional
+        algorithm : any, optional
             One or more optimization algorithms to use for training our network.
-            If this is not provided, then optimizers will be created based on
-            command-line arguments. If neither are provided, NAG will be used.
+            If not provided, NAG will be used.
 
         Returns
         -------
@@ -197,9 +197,14 @@ class Experiment:
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
 
         # set up training algorithm(s)
-        optimize = optimize or 'rmsprop'
-        if isinstance(optimize, str):
-            optimize = optimize.split()
+        algorithm = algorithm or 'rmsprop'
+        if 'optimize' in kwargs:
+            warnings.warn(
+                'please use the "algorithm" keyword arg instead of "optimize"',
+                DeprecationWarning)
+            algorithm = kwargs.pop('optimize')
+        if isinstance(algorithm, str):
+            algorithm = algorithm.split()
 
         # set up auto-saving if enabled
         progress = kwargs.get('save_progress')
@@ -208,11 +213,11 @@ class Experiment:
             timeout *= 60
 
         # loop over trainers, saving every N minutes/iterations if enabled
-        for opt in optimize:
-            if not callable(getattr(opt, 'train', None)):
-                opt = self.create_trainer(opt, **kwargs)
+        for algo in algorithm:
+            if not callable(getattr(algo, 'train', None)):
+                algo = self.create_trainer(algo, **kwargs)
             start = datetime.datetime.now()
-            for i, monitors in enumerate(opt.itertrain(**sets)):
+            for i, monitors in enumerate(algo.itertrain(**sets)):
                 yield monitors
                 now = datetime.datetime.now()
                 elapsed = (now - start).total_seconds()

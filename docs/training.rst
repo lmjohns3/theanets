@@ -22,13 +22,13 @@ The easiest way train a model with ``theanets`` is to use the :class:`Experiment
   exp = theanets.Experiment(theanets.Classifier, layers=(10, 5, 2))
   exp.train(training_data,
             validation_data,
-            optimize='nag',
+            algorithm='nag',
             learning_rate=0.01)
 
 Here, a classifier model is being trained using Nesterov's accelerated gradient,
 with a learning rate of 0.01. The training and validation datasets must be
 provided to any of the available training algorithms. The algorithm itself is
-selected using the ``optimize`` keyword argument, and any other keyword
+selected using the ``algorithm`` keyword argument, and any other keyword
 arguments provided to ``train()`` are passed to the algorithm implementation.
 
 Multiple calls to ``train()`` are possible and can be used to implement things
@@ -37,17 +37,17 @@ like custom annealing schedules::
   exp = theanets.Experiment(theanets.Classifier, layers=(10, 5, 2))
   exp.train(training_data,
             validation_data,
-            optimize='nag',
+            algorithm='nag',
             learning_rate=0.01,
             momentum=0.9)
   exp.train(training_data,
             validation_data,
-            optimize='nag',
+            algorithm='nag',
             learning_rate=0.001,
             momentum=0.99)
   exp.train(training_data,
             validation_data,
-            optimize='sgd',
+            algorithm='sgd',
             learning_rate=0.0001,
             momentum=0.999)
 

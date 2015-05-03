@@ -95,7 +95,7 @@ The skeleton of your code will usually look something like this::
   exp.train(
       training_data,
       validation_data,
-      optimize='foo',
+      algorithm='foo',
       # ...
   )
 
@@ -232,7 +232,7 @@ naturally accomplished using the :func:`Experiment.train()
 
   exp.train(train,
             valid,
-            optimize='nag',
+            algorithm='nag',
             learning_rate=1e-3,
             momentum=0.9)
 
@@ -243,8 +243,8 @@ using the ``train_set`` and ``valid_set`` keywords, respectively.) If a
 validation dataset is not provided, the training dataset will be used for
 validation.
 
-The ``optimize`` keyword argument specifies an algorithm to use for training. If
-you do not provide a value for this argument, :class:`RmsProp
+The ``algorithm`` keyword argument specifies an algorithm to use for training.
+If you do not provide a value for this argument, :class:`RmsProp
 <theanets.trainer.RmsProp>` is used as the default training algorithm. Any
 subsequent keyword arguments will be passed to the training algorithm; these
 arguments typically specify hyperparameters of the algorithm like the learning
@@ -347,7 +347,7 @@ used a callable that generates batches of data for us. See
 Having set up a way to create training data, we just need to pass this along to
 our training algorithm::
 
-  exp.train(generate, optimize='rmsprop')
+  exp.train(generate, algorithm='rmsprop')
 
 This process will adjust the weights in the model so that the outputs of the
 model, given the inputs, will be closer and closer to the targets that we

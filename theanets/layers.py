@@ -43,15 +43,15 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def random_matrix(nin, nout, mean=0, std=1, sparsity=0, radius=0):
+def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
     ----------
-    nin : int
+    rows : int
         Number of rows of the weight matrix -- equivalently, the number of
         "input" units that the weight matrix connects.
-    nout : int
+    cols : int
         Number of columns of the weight matrix -- equivalently, the number
         of "output" units that the weight matrix connects.
     mean : float, optional
@@ -72,11 +72,11 @@ def random_matrix(nin, nout, mean=0, std=1, sparsity=0, radius=0):
         An array containing random values. These often represent the weights
         connecting each "input" unit to each "output" unit in a layer.
     '''
-    arr = mean + std * np.random.randn(nin, nout)
+    arr = mean + std * np.random.randn(rows, cols)
     if 1 > sparsity > 0:
-        k = min(nin, nout)
-        mask = np.random.binomial(n=1, p=1 - sparsity, size=(nin, nout)).astype(bool)
-        mask[:k, :k] |= np.random.permutation(np.eye(k).astype(bool))
+        k = min(rows, cols)
+        mask = np.random.binomial(n=1, p=1 - sparsity, size=(rows, cols)).astype(bool)
+        mask[:k, :k] |= np.eye(k).astype(bool)
         arr *= mask
     if radius > 0:
         # rescale weights to have the appropriate spectral radius.

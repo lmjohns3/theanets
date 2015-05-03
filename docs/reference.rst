@@ -2,6 +2,19 @@
 Reference
 =========
 
+Computation graphs
+==================
+
+.. automodule:: theanets.graph
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   load
+   Network
+
 Feedforward networks
 ====================
 
@@ -71,6 +84,7 @@ Recurrent layers
    ARRNN
    MRNN
    LSTM
+   GRU
    Bidirectional
 
 Training strategies

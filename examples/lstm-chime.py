@@ -14,7 +14,7 @@ logging = climate.get_logger('lstm-chime')
 
 climate.enable_default_logging()
 
-# do fixed segments for now (warning: each segment does not correspond to real utterances!)
+
 BATCH_SIZE = 32
 TRAIN_NC = os.path.join(tempfile.gettempdir(), 'chime1_train.nc')
 VALID_NC = os.path.join(tempfile.gettempdir(), 'chime1_valid.nc')

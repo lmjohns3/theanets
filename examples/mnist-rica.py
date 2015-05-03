@@ -13,12 +13,13 @@ climate.enable_default_logging()
 
 
 class RICA(theanets.Autoencoder):
-    def J(self, weight_inverse=0, **kwargs):
-        cost, mon, upd = super(RICA, self).J(**kwargs)
+    def loss(self, weight_inverse=0, **kwargs):
+        loss = super(RICA, self).loss(**kwargs)
         if weight_inverse > 0:
-            cost += sum((weight_inverse / (w * w).sum(axis=0)).sum()
-                        for l in self.layers for w in l.weights)
-        return cost, mon, upd
+            loss += sum((weight_inverse / (w * w).sum(axis=0)).sum()
+                        for l in self.layers for w in l.params
+                        if w.ndim > 1)
+        return loss
 
 
 train, valid, _ = load_mnist()
@@ -45,32 +46,27 @@ def color(z):
 
 # now train our model on the whitened dataset.
 
-N = 16
+N = 32
 
 e = theanets.Experiment(
     RICA,
-    layers=(K, N * N, K),
-    activation='linear',
-    tied_weights=True,
-    train_batches=100,
+    layers=(K, (N * N, 'linear'), (K, 'tied')),
 )
 e.train(
     whiten(train),
     whiten(valid),
-    hidden_l1=0.2,
-    weight_inverse=0.01,
+    hidden_l1=0.001,
+    weight_inverse=0,
+    train_batches=300,
+    monitors={'hid1.out': (-0.9, -0.1, 0.1, 0.9)}
 )
 
 # color the network weights so they are viewable as digits.
-plot_layers(
-    [color(e.network.find('hid1', 0).get_value().T).T],
-    tied_weights=True)
+plot_layers([color(e.network.find('hid1', 'w').get_value().T).T], tied_weights=True)
 plt.tight_layout()
 plt.show()
 
 plot_images(valid[:N*N], 121, 'Sample data')
-plot_images(
-    color(e.network.predict(whiten(valid[:N*N]))),
-    122, 'Reconstructed data')
+plot_images(color(e.network.predict(whiten(valid[:N*N]))), 122, 'Reconstructed data')
 plt.tight_layout()
 plt.show()

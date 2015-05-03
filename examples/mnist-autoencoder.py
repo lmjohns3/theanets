@@ -18,9 +18,9 @@ def main(args):
         theanets.Autoencoder,
         layers=(784, args.features ** 2, 784))
 
-    e.train(train, valid)
+    e.train(train, valid, min_improvement=0.1)
 
-    plot_layers([e.network.find(1, 0), e.network.find(2, 0)])
+    plot_layers([e.network.find('hid1', 'w'), e.network.find('out', 'w')])
     plt.tight_layout()
     plt.show()
 

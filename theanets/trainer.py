@@ -100,7 +100,7 @@ class Trainer(object):
         meaning that any improvement to the validation loss counts.
     patience : int, optional
         Maximum number of validations that can pass before the validation loss
-        must improve by `min_improvement` relative. Defaults to 10.
+        must improve by `min_improvement` relative. Defaults to 4.
     '''
 
     def __init__(self, network, **kwargs):
@@ -108,7 +108,7 @@ class Trainer(object):
 
         self.validate_every = kwargs.get('validate_every', 10)
         self.min_improvement = kwargs.get('min_improvement', 0.)
-        self.patience = kwargs.get('patience', 10)
+        self.patience = kwargs.get('patience', 4)
 
         self.params = network.params
         self._shapes = [p.get_value(borrow=True).shape for p in self.params]

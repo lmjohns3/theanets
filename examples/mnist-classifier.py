@@ -13,10 +13,9 @@ N = 10
 e = theanets.Experiment(
     theanets.Classifier,
     layers=(784, N * N, ('softmax', 10)),
-    train_batches=100,
 )
-e.train(train, valid)
+e.train(train, valid, min_improvement=0.001)
 
-plot_layers([e.network.find(1, 0), e.network.find(2, 0)])
+plot_layers([e.network.find('hid1', 'w'), e.network.find('out', 'w')])
 plt.tight_layout()
 plt.show()

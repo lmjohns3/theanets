@@ -23,7 +23,7 @@ class TestNetwork(util.MNIST):
 
     def test_decode_from_multiple_layers(self):
         net = self._build(13, 14, dict(
-            outputs=15, inputs={'hid2.out': 14, 'hid1.out': 13}))
+            size=15, inputs={'hid2.out': 14, 'hid1.out': 13}))
         hs = net.feed_forward(self.images)
         assert len(hs) == 7
         assert hs['in.out'].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)

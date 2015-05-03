@@ -303,8 +303,7 @@ class Network(object):
         h = hashlib.md5()
         add(kwargs)
         for l in self.layers:
-            add('{}{}{}'.format(
-                l.__class__.__name__, l.name, sorted(l.outputs.items())))
+            add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
         return h.hexdigest()
 
     def build_graph(self, **kwargs):

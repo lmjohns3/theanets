@@ -1020,9 +1020,9 @@ class SupervisedPretrainer(Trainer):
                 net.layers = original[:i+1] + [layers.build(
                     'feedforward',
                     name='lwout',
-                    inputs=original[i].outputs,
-                    outputs=original[-1].outputs,
-                    activation=original[-1].kwargs['activation'])]
+                    inputs=original[i].size,
+                    size=original[-1].size,
+                    activation=original[-1].activation)]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
             trainer = self.factory(net, *self.args, **self.kwargs)

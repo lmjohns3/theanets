@@ -37,7 +37,7 @@ class TestExperiment(util.MNIST):
             for lo, ln in zip(net.layers, exp.network.layers):
                 assert lo.name == ln.name
                 assert lo.inputs == ln.inputs
-                assert lo.outputs == ln.outputs
+                assert lo.size == ln.size
         finally:
             if os.path.exists(p):
                 os.unlink(p)

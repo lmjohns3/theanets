@@ -18,11 +18,11 @@ class Base:
 
 class TestLayer(Base):
     def _build(self):
-        return theanets.layers.Feedforward(inputs=2, outputs=4, name='l')
+        return theanets.layers.Feedforward(inputs=2, size=4, name='l')
 
     def test_build(self):
         for f in 'feedforward Feedforward classifier rnn lstm'.split():
-            l = theanets.layers.build(f, inputs=2, outputs=4)
+            l = theanets.layers.build(f, inputs=2, size=4)
             assert isinstance(l, theanets.layers.Layer)
 
     def test_connect(self):
@@ -34,10 +34,10 @@ class TestLayer(Base):
 
 class TestFeedforward(Base):
     def _build(self):
-        return theanets.layers.Feedforward(inputs=2, outputs=4, name='l')
+        return theanets.layers.Feedforward(inputs=2, size=4, name='l')
 
     def test_create(self):
-        self.assert_param_names(['w_out', 'b'])
+        self.assert_param_names(['w', 'b'])
         self.assert_count(12)
 
     def test_transform(self):
@@ -65,10 +65,10 @@ class TestTied(Base):
 
 class TestClassifier(Base):
     def _build(self):
-        return theanets.layers.Classifier(inputs=2, outputs=4, name='l')
+        return theanets.layers.Classifier(inputs=2, size=4, name='l')
 
     def test_create(self):
-        self.assert_param_names(['w_out', 'b'])
+        self.assert_param_names(['w', 'b'])
         self.assert_count(12)
 
     def test_transform(self):
@@ -79,10 +79,10 @@ class TestClassifier(Base):
 
 class TestMaxout(Base):
     def _build(self):
-        return theanets.layers.Maxout(inputs=2, outputs=4, pieces=3, name='l')
+        return theanets.layers.Maxout(inputs=2, size=4, pieces=3, name='l')
 
     def test_create(self):
-        self.assert_param_names(['b', 'xh'])
+        self.assert_param_names(['b', 'w'])
         self.assert_count(28)
 
     def test_transform(self):
@@ -93,7 +93,7 @@ class TestMaxout(Base):
 
 class TestRNN(Base):
     def _build(self):
-        return theanets.layers.RNN(inputs=2, outputs=4, name='l')
+        return theanets.layers.RNN(inputs=2, size=4, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'xh'])
@@ -107,21 +107,21 @@ class TestRNN(Base):
 
 class TestARRNN(Base):
     def _build(self):
-        return theanets.layers.ARRNN(inputs=2, outputs=4, name='l')
+        return theanets.layers.ARRNN(inputs=2, size=4, name='l')
 
     def test_create(self):
-        self.assert_param_names(['b', 'hh', 'r', 'xh', 'xr'])
-        self.assert_count(40)
+        self.assert_param_names(['b', 'hh', 'r', 'xh'])
+        self.assert_count(32)
 
     def test_transform(self):
         out, upd = self._build().transform(dict(out=self.x))
-        assert len(out) == 3
+        assert len(out) == 4
         assert not upd
 
 
 class TestMRNN(Base):
     def _build(self):
-        return theanets.layers.MRNN(inputs=2, outputs=4, factors=3, name='l')
+        return theanets.layers.MRNN(inputs=2, size=4, factors=3, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'fh', 'hf', 'xf', 'xh'])
@@ -135,7 +135,7 @@ class TestMRNN(Base):
 
 class TestLSTM(Base):
     def _build(self):
-        return theanets.layers.LSTM(inputs=2, outputs=4, name='l')
+        return theanets.layers.LSTM(inputs=2, size=4, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'cf', 'ci', 'co', 'hh', 'xh'])
@@ -149,7 +149,7 @@ class TestLSTM(Base):
 
 class TestGRU(Base):
     def _build(self):
-        return theanets.layers.GRU(inputs=2, outputs=4, name='l')
+        return theanets.layers.GRU(inputs=2, size=4, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'xh', 'hh'])
@@ -157,5 +157,5 @@ class TestGRU(Base):
 
     def test_transform(self):
         out, upd = self._build().transform(dict(out=self.x))
-        assert len(out) == 3
+        assert len(out) == 4
         assert not upd

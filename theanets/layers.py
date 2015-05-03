@@ -602,21 +602,18 @@ class Feedforward(Layer):
                 return SS.structured_dot(x, y)
             else:
                 return TT.dot(x, y)
-        xws = ((inputs[n], self.find('w_{}'.format(n))) for n in self.inputs)
-        if len(self.inputs) == 1:
-            xws = ((inputs[n], self.find('w')) for n in self.inputs)
+        def weight(n):
+            return 'w' if len(self.inputs) == 1 else 'w_{}'.format(n)
+        xws = ((inputs[n], self.find(weight(n))) for n in self.inputs)
         pre = sum(_dot(x, w) for x, w in xws) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nout = self.outputs['out']
-        if len(self.inputs) == 1:
-            self.add_weights('w', list(self.inputs.values())[0], nout)
-        else:
-            for name, size in self.inputs.items():
-                self.add_weights('w_{}'.format(name), size, nout)
-        self.add_bias('b', nout)
+        for name, size in self.inputs.items():
+            label = 'w' if len(self.inputs) == 1 else 'w_{}'.format(name)
+            self.add_weights(label, size, self.size)
+        self.add_bias('b', self.size)
         self.log_setup()
 
 

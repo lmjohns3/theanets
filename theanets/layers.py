@@ -466,6 +466,17 @@ class Layer(Base):
             string = '{}_' + string
         return string.format(self.name)
 
+    def _only_input(self, inputs):
+        '''Helper method to retrieve our layer's sole input expression.'''
+        assert len(self.inputs) == 1
+        return inputs[list(self.inputs)[0]]
+
+    @property
+    def input_size(self):
+        '''For networks with one input, get the input size.'''
+        assert len(self.inputs) == 1
+        return list(self.inputs.values())[0]
+
     def find(self, key):
         '''Get a shared variable for a parameter by name.
 
@@ -693,7 +704,7 @@ class Tied(Layer):
         updates : list of update pairs
             An empty sequence of updates.
         '''
-        x = inputs[list(self.inputs)[0]]
+        x = self._only_input(inputs)
         pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
@@ -731,7 +742,7 @@ class Maxout(Layer):
         self.add_bias('b', self.size)
         logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
                      self.name,
-                     list(self.inputs.values())[0],
+                     self.input_size,
                      self.size,
                      self.pieces,
                      self.activate.__theanets_name__,
@@ -756,7 +767,7 @@ class Maxout(Layer):
         updates : list of update pairs
             An empty sequence of state updates.
         '''
-        x = inputs[list(self.inputs)[0]]
+        x = self._only_input(inputs)
         pre = TT.dot(x, self.find('w')).max(axis=2) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
@@ -775,16 +786,18 @@ class Maxout(Layer):
         sparsity : float, optional
             Fraction of weights to set to zero. Defaults to 0.
         '''
-        nin = list(self.inputs.values())[0]
         def rm():
             return random_matrix(
-                nin, self.size, mean, std or 1 / np.sqrt(nin + self.size),
+                self.input_size,
+                self.size,
+                mean,
+                std or 1 / np.sqrt(self.input_size + self.size),
                 sparsity=self.kwargs.get('sparsity', sparsity),
             )[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
-        self.num_params += nin * self.size * self.pieces
+        self.num_params += self.input_size * self.size * self.pieces
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -935,7 +948,7 @@ class RNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('xh', list(self.inputs.values())[0], self.size)
+        self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.log_setup()
@@ -962,7 +975,7 @@ class RNN(Recurrent):
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             return [pre, self.activate(pre)]
-        x = TT.dot(inputs[list(self.inputs)[0]], self.find('xh')) + self.find('b')
+        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [x], [None, x])
         return dict(pre=pre, out=out), updates
 
@@ -984,7 +997,7 @@ class ARRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('xh', list(self.inputs.values())[0], self.size)
+        self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.add_bias('r', self.size, mean=2, std=1)
@@ -1012,7 +1025,7 @@ class ARRNN(Recurrent):
             A sequence of updates to apply inside a theano function.
         '''
         r = TT.nnet.sigmoid(self.find('r'))
-        x = inputs[list(self.inputs)[0]]
+        x = self._only_input(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
@@ -1037,9 +1050,8 @@ class MRNN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        nin = list(self.inputs.values())[0]
-        self.add_weights('xh', nin, self.size)
-        self.add_weights('xf', nin, self.factors)
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xf', self.input_size, self.factors)
         self.add_weights('hf', self.size, self.factors)
         self.add_weights('fh', self.factors, self.size)
         self.add_bias('b', self.size)
@@ -1070,7 +1082,7 @@ class MRNN(Recurrent):
         def fn(x_t, f_t, h_tm1):
             pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
             return [pre, self.activate(pre)]
-        x = inputs[list(self.inputs)[0]]
+        x = self._only_input(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
         (pre, out), updates = self._scan(fn, [h, f], [None, x])
@@ -1099,7 +1111,7 @@ class LSTM(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('xh', list(self.inputs.values())[0], 4 * self.size)
+        self.add_weights('xh', self.input_size, 4 * self.size)
         self.add_weights('hh', self.size, 4 * self.size)
         self.add_bias('b', 4 * self.size, mean=2)
         # the three "peephole" weight matrices are always diagonal.
@@ -1138,7 +1150,7 @@ class LSTM(Recurrent):
             o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
             h_t = o_t * TT.tanh(c_t)
             return [h_t, c_t]
-        x = inputs[list(self.inputs)[0]]
+        x = self._only_input(inputs)
         batch_size = x.shape[1]
         (out, cell), updates = self._scan(
             fn,
@@ -1155,7 +1167,7 @@ class GRU(Recurrent):
     Modeling" (page 4), available at http://arxiv.org/abs/1412.3555v1.
     '''
     def setup(self):
-        self.add_weights('xh', list(self.inputs.values())[0], 3 * self.size)
+        self.add_weights('xh', self.input_size, 3 * self.size)
         self.add_weights('hh', self.size, 3 * self.size)
         self.add_bias('b', 3 * self.size)
 
@@ -1189,7 +1201,7 @@ class GRU(Recurrent):
             pre = xh + TT.nnet.sigmoid(xr) * h_tm1
             h_t = self.activate(pre)
             return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
-        x = TT.dot(inputs[list(self.inputs)[0]], self.find('xh')) + self.find('b')
+        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, hid, rate, out), updates = self._scan(fn, [x], [None, None, None, x])
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 

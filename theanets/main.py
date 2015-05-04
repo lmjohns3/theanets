@@ -144,7 +144,7 @@ class Experiment:
             pass
         return monitors
 
-    def itertrain(self, train_set=None, valid_set=None, algorithm=None, **kwargs):
+    def itertrain(self, train_set=None, valid_set=None, algorithm='rmsprop', **kwargs):
         '''Train our network, one batch at a time.
 
         This method yields a series of ``(train, valid)`` monitor pairs. The
@@ -197,7 +197,6 @@ class Experiment:
         sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
 
         # set up training algorithm(s)
-        algorithm = algorithm or 'rmsprop'
         if 'optimize' in kwargs:
             warnings.warn(
                 'please use the "algorithm" keyword arg instead of "optimize"',

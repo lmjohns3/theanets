@@ -228,14 +228,12 @@ class Network(object):
                             kwargs['activation'] = el
                     if isinstance(el, int):
                         kwargs['size'] = el
-                kwargs['name'] = '{}{}'.format(form, len(model))
 
             # if spec is a dictionary, try to extract a form for the layer, and
             # override our default keyword arguments with the rest.
             if isinstance(spec, dict):
                 if 'form' in spec:
                     form = spec['form'].lower()
-                    kwargs['name'] = '{}{}'.format(form, len(model))
                 kwargs.update(spec)
 
             if isinstance(form, str) and form.lower() == 'bidirectional':

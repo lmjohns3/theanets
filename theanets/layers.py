@@ -426,7 +426,7 @@ class Layer(Base):
                     value = call(expr)
                 if isinstance(level, (int, float)):
                     key = '<{}'.format(level)
-                    value = TT.cast(100, FLOAT) * (expr < TT.cast(level, FLOAT)).mean()
+                    value = (expr < TT.cast(level, FLOAT)).mean()
                 monits.append(('{}.{}{}'.format(self.name, name, key), value))
 
         return outs, monits, updates

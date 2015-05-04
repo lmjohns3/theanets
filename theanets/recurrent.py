@@ -239,7 +239,6 @@ class Classifier(feedforward.Classifier):
             A theano expression representing the network accuracy.
         '''
         correct = TT.eq(TT.argmax(output, axis=-1), self.labels)
-        acc = correct.mean()
         if self.weighted:
-            acc = (self.weights * correct).sum() / self.weights.sum()
-        return TT.cast(100, FLOAT) * acc
+            return (self.weights * correct).sum() / self.weights.sum()
+        return correct.mean()

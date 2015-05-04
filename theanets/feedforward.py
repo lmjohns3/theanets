@@ -295,10 +295,9 @@ class Classifier(graph.Network):
             A theano expression representing the network accuracy.
         '''
         correct = TT.eq(TT.argmax(output, axis=1), self.labels)
-        acc = correct.mean()
         if self.weighted:
-            acc = (self.weights * correct).sum() / self.weights.sum()
-        return TT.cast(100, FLOAT) * acc
+            return (self.weights * correct).sum() / self.weights.sum()
+        return correct.mean()
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

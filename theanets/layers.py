@@ -835,6 +835,11 @@ class Recurrent(Layer):
         should run "backwards", with future states influencing the current
         state. The default is None, which runs the recurrency forwards in time
         so that past states influence the current state of the layer.
+
+    bptt_limit : int, optional
+        If given, limit backpropagation of gradient information in scans (loops)
+        to the given number of time steps. Defaults to -1, which imposes no
+        limit.
     '''
 
     def __init__(self, **kwargs):
@@ -934,6 +939,7 @@ class Recurrent(Layer):
             sequences=inputs,
             outputs_info=outputs,
             go_backwards='back' in self.kwargs.get('direction', '').lower(),
+            truncate_gradient=self.kwargs.get('bptt_limit', -1),
         )
 
 

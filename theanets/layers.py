@@ -1280,6 +1280,67 @@ class GRU(Recurrent):
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 
+class Clockwork(Recurrent):
+    '''
+    '''
+
+    def __init__(self, periods, **kwargs):
+        assert kwargs['size'] % len(periods) == 0
+        self.periods = np.asarray(periods)
+        super(Clockwork, self).__init__(**kwargs)
+
+    def setup(self):
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_bias('b', self.size)
+
+    def transform(self, inputs):
+        '''Transform inputs to this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and a "hid" output that gives the post-activation values.
+        updates : sequence of update pairs
+            A sequence of updates to apply to this layer's state inside a theano
+            function.
+        '''
+        n = self.size // len(self.periods)
+        def fn(t, x_t, p_tm1, h_tm1):
+            p_t = x_t + TT.dot(h_tm1, self.find('hh'))
+            h_t = self.activate(p_t)
+            for i, T in enumerate(self.periods):
+                if t % T:
+                    sl = slice(i*n, (i+1)*n)
+                    TT.set_subtensor(p_t[:, sl], p_tm1[:, sl])
+                    TT.set_subtensor(h_t[:, sl], h_tm1[:, sl])
+            return [p_t, h_t]
+        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
+        (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
+        return dict(pre=pre, out=out), updates
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Clockwork, self).to_spec()
+        spec['periods'] = self.periods
+        return spec
+
+
 class Bidirectional(Layer):
     '''A bidirectional recurrent layer runs worker models forward and backward.
 

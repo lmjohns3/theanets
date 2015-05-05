@@ -189,6 +189,23 @@ class TestGRU(Base):
         self.assert_count(84)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 4
         assert not upd
+
+
+class TestClockwork(Base):
+    def _build(self):
+        return theanets.layers.Clockwork(inputs=2, size=4, periods=(2, 3), name='l')
+
+    def test_create(self):
+        self.assert_param_names(['b', 'xh', 'hh'])
+        self.assert_count(28)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 2
+        assert not upd
+
+    def test_spec(self):
+        self.assert_spec(periods=(2, 3), size=4)

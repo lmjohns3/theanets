@@ -18,8 +18,16 @@ class Base:
 
     def assert_spec(self, **expected):
         real = self.l.to_spec()
+        err = 'got {}, expected {}'.format(real, expected)
         for k, v in expected.items():
-            assert real[k] == v, 'got {}, expected {}'.format(real, expected)
+            try:
+                r = real[k]
+            except KeyError:
+                assert False, err
+            if isinstance(v, np.ndarray) or isinstance(r, np.ndarray):
+                assert np.allclose(r, v), err
+            else:
+                assert r == v, err
 
 
 class TestLayer(Base):

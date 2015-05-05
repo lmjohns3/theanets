@@ -292,7 +292,7 @@ are four options for each of the the values in the ``layers`` sequence.
   hidden layers with 5 and 6 units, and an output layer with 2 units, you can
   just use integers to specify all of your layers::
 
-    net = theanets.Experiment(theanets.Classifier, layers=(4, 5, 6, 2))
+    net = theanets.Classifier((4, 5, 6, 2))
 
 - If a layer value is a tuple, it must contain an integer and may contain one or
   more strings. The integer in the tuple specifies the size of the layer. If
@@ -305,11 +305,11 @@ are four options for each of the the values in the ``layers`` sequence.
   For example, to create a classification model with a rectified linear
   activation in the middle layer::
 
-    net = theanets.Classifier(layers=(4, (5, 'relu'), 6))
+    net = theanets.Classifier((4, (5, 'relu'), (6, 'softmax')))
 
   Or to create a model with a recurrent middle layer::
 
-    net = theanets.recurrent.Classifier(layers=(4, (5, 'rnn'), 6))
+    net = theanets.recurrent.Classifier((4, (5, 'rnn'), (6, 'softmax')))
 
   Note that recurrent models (that is, models containing recurrent layers) are a
   bit different from feedforward ones; please see
@@ -413,6 +413,10 @@ not to miss these examples.
 All of these cases are possible to model in ``theanets``; just include
 ``weighted=True`` when you create your model::
 
+  net = theanets.recurrent.Autoencoder((3, (10, 'rnn'), 3), weighted=True)
+
+or::
+
   exp = theanets.Experiment(
       theanets.recurrent.Autoencoder,
       layers=(3, (10, 'rnn'), 3),
@@ -489,14 +493,15 @@ appropriate model and provide an implementation of the
 Let's keep going with the example above. Suppose you created a linear autoencoder
 model that had a larger hidden layer than your dataset::
 
-  net = theanets.Autoencoder(layers=(4, (8, 'linear'), (4, 'tied')))
+  net = theanets.Autoencoder((4, (8, 'linear'), (4, 'tied')))
 
 Then, at least in theory, you risk learning an uninteresting "identity" model
 such that some hidden units are never used, and the ones that are have weights
 equal to the identity matrix. To prevent this from happening, you can impose a
-sparsity penalty::
+sparsity penalty when you train your model::
 
-  net = theanets.Autoencoder((4, (8, 'linear'), ('tied', 4)))
+  exp = theanets.Experiment(net)
+  exp.train(my_dataset, hidden_l1=0.001)
 
 But then you might run into a situation where the sparsity penalty drives some
 of the hidden units in the model to zero, to "save" loss during training.
@@ -505,15 +510,19 @@ another penalty to prevent feature weights from going to zero::
 
   class RICA(theanets.Autoencoder):
       def loss(self, **kwargs):
-          loss, monitors, updates = super(RICA, self).loss(**kwargs)
+          loss = super(RICA, self).loss(**kwargs)
           w = kwargs.get('weight_inverse', 0)
           if w > 0:
               loss += w * sum((1 / (p * p).sum(axis=0)).sum()
-                              for l in self.layers for p in l.params)
-          return loss, monitors, updates
+                              for l in self.layers for p in l.params
+                              if p.ndim == 2)
+          return loss
+
+  exp.train(my_dataset, hidden_l1=0.001, weight_inverse=0.001)
 
 This code adds a new regularizer that penalizes the inverse of the squared
-length of each of the weights in the model's layers.
+length of each of the weights in the model's layers. Here we detect weights by
+only including parameters with 2 dimensions.
 
 .. _creating-custom-errors:
 

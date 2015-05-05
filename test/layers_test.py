@@ -6,14 +6,20 @@ import theano.tensor as TT
 class Base:
     def setUp(self):
         self.x = TT.matrix('x')
+        self.l = self._build()
 
     def assert_param_names(self, expected):
-        assert (sorted(p.name for p in self._build().params) ==
+        assert (sorted(p.name for p in self.l.params) ==
                 sorted('l_{}'.format(n) for n in expected))
 
     def assert_count(self, expected):
-        real = self._build().num_params
+        real = self.l.num_params
         assert real == expected, 'got {}, expected {}'.format(real, expected)
+
+    def assert_spec(self, **expected):
+        real = self.l.to_spec()
+        for k, v in expected.items():
+            assert real[k] == v, 'got {}, expected {}'.format(real, expected)
 
 
 class TestLayer(Base):
@@ -26,7 +32,7 @@ class TestLayer(Base):
             assert isinstance(l, theanets.layers.Layer)
 
     def test_connect(self):
-        out, mon, upd = self._build().connect(dict(out=self.x), monitors=(0.1, 0.2))
+        out, mon, upd = self.l.connect(dict(out=self.x), monitors=(0.1, 0.2))
         assert len(out) == 2
         assert len(mon) == 2
         assert len(upd) == 0
@@ -41,7 +47,7 @@ class TestFeedforward(Base):
         self.assert_count(12)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -55,7 +61,7 @@ class TestMultiFeedforward(Base):
         self.assert_count(20)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(a=self.x, b=self.x))
+        out, upd = self.l.transform(dict(a=self.x, b=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -71,8 +77,7 @@ class TestTied(Base):
         self.assert_count(2)
 
     def test_transform(self):
-        l = self._build()
-        out, upd = l.transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -86,7 +91,7 @@ class TestClassifier(Base):
         self.assert_count(12)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -100,7 +105,7 @@ class TestMaxout(Base):
         self.assert_count(28)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -114,7 +119,7 @@ class TestRNN(Base):
         self.assert_count(28)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 
@@ -142,7 +147,7 @@ class TestMRNN(Base):
         self.assert_count(42)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 3
         assert not upd
 
@@ -156,7 +161,7 @@ class TestLSTM(Base):
         self.assert_count(124)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 2
         assert not upd
 

@@ -129,11 +129,25 @@ class TestARRNN(Base):
         return theanets.layers.ARRNN(inputs=2, size=4, name='l')
 
     def test_create(self):
+        self.assert_param_names(['b', 'hh', 'r', 'xh', 'xr'])
+        self.assert_count(40)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 4
+        assert not upd
+
+
+class TestLRRNN(Base):
+    def _build(self):
+        return theanets.layers.LRRNN(inputs=2, size=4, name='l')
+
+    def test_create(self):
         self.assert_param_names(['b', 'hh', 'r', 'xh'])
         self.assert_count(32)
 
     def test_transform(self):
-        out, upd = self._build().transform(dict(out=self.x))
+        out, upd = self.l.transform(dict(out=self.x))
         assert len(out) == 4
         assert not upd
 

@@ -986,19 +986,24 @@ class RNN(Recurrent):
         return dict(pre=pre, out=out), updates
 
 
-class ARRNN(Recurrent):
-    '''An adaptive rate RNN defines per-hidden-unit accumulation rates.
+class LRRNN(Recurrent):
+    '''A learned-rate RNN defines per-hidden-unit accumulation rates.
 
     In a normal RNN, a hidden unit is updated completely at each time step,
     :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
     hidden unit is computed as a mixture of the new and old values, `h_t =
     \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
 
-    Rates might be defined in a number of ways: as a vector of values sampled
-    randomly from (0, 1), or even as a learnable vector of values. But in the
-    adaptive rate RNN, the rate values are computed at each time step as a
-    logistic sigmoid applied to an affine transform of the input:
-    :math:`\alpha_t = 1 / (1 + e^{-x_t W_{xr} - b_r})`.
+    Rates might be defined in a number of ways, spanning a continuum between
+    vanilla RNNs (i.e., all rate parameters are fixed at 1) all the way to
+    parametric rates that are computed as a function of the inputs and the
+    hidden state at each time step (i.e., something more like the :class:`gated
+    recurrent unit <GRU>`).
+
+    This class represents rates as a single learnable vector of parameters. This
+    representation uses the fewest number of parameters for learnable rates, but
+    the simplicity of the model comes at the cost of effectively fixing the rate
+    for each unit as a constant value across time.
     '''
 
     def setup(self):
@@ -1038,6 +1043,69 @@ class ARRNN(Recurrent):
             h_t = self.activate(pre)
             return [pre, h_t, r * h_tm1 + (1 - r) * h_t]
         (pre, hid, out), updates = self._scan(fn, [h], [None, None, x])
+        return dict(pre=pre, hid=hid, rate=r, out=out), updates
+
+
+class ARRNN(Recurrent):
+    '''An adaptive-rate RNN defines per-hidden-unit accumulation rates.
+
+    In a normal RNN, a hidden unit is updated completely at each time step,
+    :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
+    hidden unit is computed as a mixture of the new and old values, `h_t =
+    \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
+
+    Rates might be defined in a number of ways, spanning a continuum between
+    vanilla RNNs (i.e., all rate parameters are fixed at 1) all the way to
+    parametric rates that are computed as a function of the inputs and the
+    hidden state at each time step (i.e., something more like the :class:`gated
+    recurrent unit <GRU>`).
+
+    In the ARRNN model, the rate values are represented as a computed at each
+    time step as a logistic sigmoid applied to an affine transform of the input:
+    :math:`\alpha_t = 1 / (1 + e^{-x_t W_{xr} - b_r})`. This representation of
+    the rates uses more parameters than the :class:`LRRNN` but is able to adapt
+    rates to the input at each time step. However, in this model, rates are not
+    able to adapt to the state of the hidden units at each time step.
+    '''
+
+    def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xr', self.input_size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_bias('b', self.size)
+        self.add_bias('r', self.size)
+        self.log_setup()
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : theano expression
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            a "hid" output that gives the rate-independent, post-activation
+            hidden state, a "rate" output that gives the rate value for each
+            hidden unit, and an "out" output that gives the hidden output.
+        updates : list of update pairs
+            A sequence of updates to apply inside a theano function.
+        '''
+        x = self._only_input(inputs)
+        r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
+        h = TT.dot(x, self.find('xh')) + self.find('b')
+        def fn(x_t, r_t, h_tm1):
+            pre = x_t + TT.dot(h_tm1, self.find('hh'))
+            h_t = self.activate(pre)
+            return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
+        (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
 

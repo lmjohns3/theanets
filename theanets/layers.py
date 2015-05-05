@@ -1280,17 +1280,37 @@ class GRU(Recurrent):
 
 
 class Clockwork(Recurrent):
-    '''
+    '''A Clockwork RNN updates "modules" of neurons with specific periods.
+
+    In a vanilla RNN, all neurons in the hidden pool are updated at every time
+    step by mixing an affine transformation of the input with an affine
+    transformation of the state of the hidden pool neurons at the previous time
+    step.
+
+    In a clockwork RNN, neurons in the hidden pool are split into several
+    "modules" of equal size, each of which has an associated period (an
+    integer). The neurons in a module are updated only when the time index of
+    the input is an even multiple of the period for that module. This separates
+    pool neurons into several groups, some of which only respond to "slow"
+    features in the input, and others which respond to "fast" features.
+    Additionally, modules with small periods receive inputs from modules with
+    large periods, but not vice-versa: this allows the "slow" features to
+    influence the "fast" features, but not the other way around.
+
+    The implementation here is modeled after J Koutník, K Greff, F Gomez, & J
+    Schmidhuber (2014), "A Clockwork RNN" http://arxiv.org/abs/1402.3511.
     '''
 
     def __init__(self, periods, **kwargs):
         assert kwargs['size'] % len(periods) == 0
-        self.periods = np.asarray(periods)
+        self.periods = np.asarray(sorted(periods))
         super(Clockwork, self).__init__(**kwargs)
 
     def setup(self):
+        n = self.size // len(self.periods)
+        for i, T in enumerate(self.periods):
+            self.add_weights('hh{}'.format(T), (i + 1) * n, n)
         self.add_weights('xh', self.input_size, self.size)
-        self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
@@ -1315,13 +1335,14 @@ class Clockwork(Recurrent):
         '''
         n = self.size // len(self.periods)
         def fn(t, x_t, p_tm1, h_tm1):
-            p_t = x_t + TT.dot(h_tm1, self.find('hh'))
-            h_t = self.activate(p_t)
+            p_t = p_tm1 + 0
+            h_t = h_tm1 + 0
             for i, T in enumerate(self.periods):
-                if t % T:
-                    sl = slice(i*n, (i+1)*n)
-                    TT.set_subtensor(p_t[:, sl], p_tm1[:, sl])
-                    TT.set_subtensor(h_t[:, sl], h_tm1[:, sl])
+                if t % T == 0:
+                    s = slice(i * n, (i+1) * n)
+                    h = TT.dot(h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T)))
+                    TT.set_subtensor(p_t[:, s], x_t[:, s] + h)
+                    TT.set_subtensor(h_t[:, s], self.activate(p_t[:, s]))
             return [p_t, h_t]
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])

@@ -316,8 +316,6 @@ class Layer(Base):
         The activation function to use on this layer's outputs.
     params : list of Params
         A list of the parameters in this layer.
-    num_params : int
-        Count of number of parameters in the layer.
     '''
 
     _count = 0
@@ -335,8 +333,12 @@ class Layer(Base):
         self.activate = create_activation(activation)
         self.kwargs = kwargs
         self.params = []
-        self.num_params = 0
         self.setup()
+
+    @property
+    def num_params(self):
+        '''Total number of learnable parameters in this layer.'''
+        return sum(np.prod(p.get_value().shape) for p in self.params)
 
     @property
     def output_name(self):
@@ -523,17 +525,17 @@ class Layer(Base):
             Fraction of weights to be set to zero. Defaults to 0.
         '''
         mean = self.kwargs.get(
-            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+            'mean_{}'.format(name),
+            self.kwargs.get('mean', mean))
         std = self.kwargs.get(
-            'std_{}'.format(name), self.kwargs.get(
-                'std', std or 1 / np.sqrt(nin + nout)))
+            'std_{}'.format(name),
+            self.kwargs.get('std', std or 1 / np.sqrt(nin + nout)))
         sparsity = self.kwargs.get(
             'sparsity_{}'.format(name),
             self.kwargs.get('sparsity', sparsity))
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity),
             name=self._fmt(name)))
-        self.num_params += nin * nout
 
     def add_bias(self, name, size, mean=0, std=1):
         '''Helper method to create a new bias vector.
@@ -549,11 +551,10 @@ class Layer(Base):
         std : float, optional
             Standard deviation for randomly-initialized biases. Defaults to 1.
         '''
-        mean = self.kwargs.get('mean_{}'.format(name), self.kwargs.get('mean', mean))
-        std = self.kwargs.get('std_{}'.format(name), self.kwargs.get('std', std))
+        mean = self.kwargs.get('mean_{}'.format(name), mean)
+        std = self.kwargs.get('std_{}'.format(name), std)
         self.params.append(theano.shared(
             random_vector(size, mean, std), name=self._fmt(name)))
-        self.num_params += size
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -797,7 +798,6 @@ class Maxout(Layer):
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
-        self.num_params += self.input_size * self.size * self.pieces
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -893,7 +893,6 @@ class Recurrent(Layer):
         self.params.append(theano.shared(
             random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
             name=self._fmt(name)))
-        self.num_params += nin * nout
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.

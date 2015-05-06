@@ -1382,7 +1382,7 @@ class Bidirectional(Layer):
 
     def __init__(self, worker='rnn', **kwargs):
         size = kwargs.pop('size')
-        name = kwargs.pop('name', 'layer{}'.format(Layer.count))
+        name = kwargs.pop('name', 'layer{}'.format(Layer._count))
         if 'direction' in kwargs:
             kwargs.pop('direction')
         def make(suffix, direction):

@@ -1396,6 +1396,11 @@ class Bidirectional(Layer):
         self.params = [self.forward.params, self.backward.params]
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
 
+    @property
+    def num_params(self):
+        '''Total number of learnable parameters in this layer.'''
+        return self.forward.num_params + self.backward.num_params
+
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 

@@ -72,10 +72,10 @@ Regression
 ----------
 
 A :class:`regression <theanets.feedforward.Regressor>` model is much like an
-autoencoder, except that at training time, the expected output :math:`Y \in
-\mathbb{R}^{m \times o}` must be provided to the model. Like an autoencoder, a
-regression model takes as input an array of arbitrary data :math:`X \in
-\mathbb{R}^{m \times n}`, and the difference between the network's output and
+autoencoder. Like an autoencoder, a regression model takes as input an array of
+arbitrary data :math:`X \in \mathbb{R}^{m \times n}`. However, at training time,
+a regression model also requires an array of expected target outputs :math:`Y
+\in \mathbb{R}^{m \times o}`. The difference between the network's output and
 the target is computed using the mean squared error:
 
 .. math::
@@ -139,9 +139,9 @@ A classifier model requires the following inputs at training time:
 
 The number of rows in ``x`` must match the number of elements in the ``labels``
 vector. Additionally, the values in ``labels`` are expected to range from 0 to
-the number of classes in the data being modeled. For example, for the MNIST
-digits dataset, which represents digits 0 through 9, the labels array contains
-integer class labels 0 through 9.
+one less than the number of classes in the data being modeled. For example, for
+the MNIST digits dataset, which represents digits 0 through 9, the labels array
+contains integer class labels 0 through 9.
 
 .. _creating-recurrent-models:
 
@@ -149,20 +149,20 @@ Recurrent Models
 ================
 
 The three types of feedforward models described above also exist in recurrent
-formulations, but in recurrent networks, time is an explicit part of the model.
-In ``theanets``, if you wish to include recurrent layers in your model, you must
-use a model class from the :mod:`theanets.recurrent` module; this is because
-recurrent models require data matrices with an additional dimension to represent
-time. In general,
+formulations. In recurrent networks, however, time is an explicit part of the
+model. In ``theanets``, if you wish to include recurrent layers in your model,
+you must use a model class from the :mod:`theanets.recurrent` module; this is
+because recurrent models require data matrices with an additional dimension to
+represent time. In general,
 
 - the data shapes required for a recurrent layer are all one
   dimension larger than the corresponding shapes for a feedforward network, and
-- the extra dimension is always the 0 axis, and
+- the extra dimension is always located on the first (0) axis, and
 - the extra dimension represents time.
 
 In addition to the three vanilla model types described above, recurrent networks
 also allow for the possibility of *predicting future outputs*. This task is
-handled by prediction networks.
+handled by :class:`prediction <theanets.recurrent.Predictor>` networks.
 
 Autoencoder
 -----------
@@ -175,28 +175,34 @@ output, under a squared-error loss.
 A recurrent autoencoder thus requires the following inputs:
 
 - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
-  holds a single data sample. Each element of axis 2 of ``x`` represents the
-  measurements of a particular input variable across all times and all data
-  items.
+  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
+  represents a single data sample in a batch of samples. Each element of axis 2
+  of ``x`` represents the measurements of a particular input variable across all
+  times and all data items.
+
+.. note::
+   In recurrent models, the batch size is currently required to be greater than
+   one. If you wish to run a recurrent model on a single sample, just create a
+   batch with two copies of the same sample.
 
 Prediction
 ----------
 
-An interesting subclass of autoencoders is models that attempt to predict future
-states based on past data. :class:`Prediction <theanets.recurrent.Predictor>`
-models are like autoencoders in that they require only a data array as input,
-and they train under a squared-error loss. Unlike a recurrent autoencoder,
-however, a prediction model is explicitly required to produce a future output,
-rather than the output from the same time step.
+An interesting subclass of autoencoders contains models that attempt to predict
+future states based on past data. :class:`Prediction
+<theanets.recurrent.Predictor>` models are like autoencoders in that they
+require only a data array as input, and they train under a squared-error loss.
+Unlike a recurrent autoencoder, however, a prediction model is explicitly
+required to produce a future output, rather than the output from the same time
+step.
 
 A recurrent prediction model takes the following inputs:
 
 - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
-  holds a single data sample. Each element of axis 2 of ``x`` represents the
-  measurements of a particular input variable across all times and all data
-  items.
+  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
+  represents a single sample in a batch of data. Each element of axis 2 of ``x``
+  represents the measurements of a particular input variable across all times
+  and all data items.
 
 Regression
 ----------
@@ -211,16 +217,16 @@ squared-error loss.
 A recurrent regression model takes the following inputs:
 
 - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
-  holds a single data sample. Each element of axis 2 of ``x`` represents the
-  measurements of a particular input variable across all times and all data
-  items.
+  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
+  holds a single sample from a batch of data. Each element of axis 2 of ``x``
+  represents the measurements of a particular input variable across all times
+  and all data items.
 
 - ``targets``: A three-dimensional array of target output data. Each element of
-  axis 0 of ``targets`` is expected to be one sample in time. Each element of
-  axis 1 of ``targets`` holds a single data sample. Each element of axis 2 of
-  ``targets`` represents the measurements of a particular output variable across
-  all times and all data items.
+  axis 0 of ``targets`` is expected to be one moment in time. Each element of
+  axis 1 of ``targets`` holds a single sample from a batch of data. Each element
+  of axis 2 of ``targets`` represents the measurements of a particular output
+  variable across all times and all data items.
 
 Classification
 --------------
@@ -240,14 +246,14 @@ each time step in the input data. So a recurrent classifier model requires the
 following inputs for training:
 
 - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one sample in time. Each element of axis 1 of ``x``
-  holds a single data sample. Each element of axis 2 of ``x`` represents the
-  measurements of a particular input variable across all times and all data
-  items.
+  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
+  holds a single sample in a batch of data. Each element of axis 2 of ``x``
+  represents the measurements of a particular input variable across all times
+  and all data items in a batch.
 
 - ``labels``: A two-dimensional array of integer target labels. Each element of
-  ``labels`` is expected to be the class index for a single data item. Axis 0 of
-  this array represents time, and axis 1 represents data samples.
+  ``labels`` is expected to be the class index for a single batch item. Axis 0
+  of this array represents time, and axis 1 represents data samples in a batch.
 
 .. _creating-specifying-layers:
 
@@ -256,10 +262,9 @@ Specifying Layers
 
 One of the most critical bits of creating a neural network model is specifying
 how the layers of the network are configured. There are very few limits to the
-complexity of possible neural network architectures, so it would be difficult to
-create a single, easy-to-use markup that makes it equally easy to specify all
-combinations. However, ``theanets`` tries to make it easy to create networks
-with a single "stack" of many common types of layers.
+complexity of possible neural network architectures. However, ``theanets`` tries
+to make it easy to create networks composed of a cycle-free graph of many common
+types of layers.
 
 When you create a network model, the ``layers`` keyword argument is used to
 specify the layers for your network. This keyword argument must be a sequence
@@ -269,9 +274,9 @@ Input Layer
 -----------
 
 The first element in the ``layers`` tuple should always be an integer; the
-:class:`Network.setup_layers() <theanets.feedforward.Network.setup_layers>`
-method creates an :class:`Input <theanets.layers.Input>` layer from the first
-element in the list.
+:class:`Network.add_layer() <theanets.feedforward.Network.add_layer>` method
+creates an :class:`Input <theanets.layers.Input>` layer from the first element
+in the list.
 
 During training, the input layer can also inject noise into the input
 data. If you are using an autoencoder model, adding noise at the input
@@ -315,13 +320,12 @@ are four options for each of the the values in the ``layers`` sequence.
   bit different from feedforward ones; please see
   :ref:`creating-recurrent-models` for more details.
 
-- If a layer value is a dictionary, it must contain either a ``size`` or an
-  ``outputs`` key, which specify the number of units in the layer. It can
-  additionally contain an ``activation`` key to specify the activation function
-  for the layer (see below), and a ``form`` key to specify the type of layer to
-  be constructed (e.g., ``'tied'``, ``'rnn'``, etc.). Additional keys in this
-  dictionary will be passed as keyword arguments to
-  :func:`theanets.layers.build`.
+- If a layer value is a dictionary, it must contain a ``size`` key, which
+  specifies the number of units in the layer. It can additionally contain an
+  ``activation`` key to specify the activation function for the layer (see
+  below), and a ``form`` key to specify the type of layer to be constructed
+  (e.g., ``'tied'``, ``'rnn'``, etc.). Additional keys in this dictionary will
+  be passed as keyword arguments to :func:`theanets.layers.build`.
 
   For example, you can use a dictionary to specify an non-default activation
   function for a layer in your model::
@@ -463,18 +467,17 @@ but did not want to include a bias term::
           return TT.dot(inputs, self.find('w'))
 
       def setup(self):
-          self.log_setup(self.add_weights('w'))
+          self.add_weights('w')
 
 Once you've set up your new layer class, it will automatically be registered and
 available in :func:`theanets.layers.build` using the name of your class::
 
-  layer = theanets.layers.build('mylayer', nin=3, nout=4)
+  layer = theanets.layers.build('mylayer', inputs=3, size=4)
 
 or, while creating a model::
 
   net = theanets.Autoencoder(
-      layers=(4, ('mylayer', 'linear', 3), 4),
-      tied_weights=True,
+      layers=(4, (3, 'mylayer', 'linear'), (4, 'tied', 'linear')),
   )
 
 This example shows how fast it is to create a model that will learn the subspace

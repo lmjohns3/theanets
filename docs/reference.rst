@@ -82,9 +82,11 @@ Recurrent layers
    Recurrent
    RNN
    ARRNN
-   MRNN
-   LSTM
+   LRRNN
    GRU
+   LSTM
+   Clockwork
+   MRNN
    Bidirectional
 
 Training strategies

@@ -33,6 +33,7 @@ import climate
 import functools
 import numpy as np
 import theano
+import theano.ifelse
 import theano.tensor as TT
 import theano.sparse as SS
 
@@ -1341,10 +1342,11 @@ class Clockwork(Recurrent):
         n = self.size // len(self.periods)
         def fn(t, x_t, p_tm1, h_tm1):
             p_t = TT.concatenate([
-                TT.switch(TT.eq(t % T, 0),
-                          x_t[:, i*n:(i+1)*n] + TT.dot(
-                              h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T))),
-                          p_tm1[:, i*n:(i+1)*n])
+                theano.ifelse.ifelse(
+                    TT.eq(t % T, 0),
+                    x_t[:, i*n:(i+1)*n] + TT.dot(
+                        h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T))),
+                    p_tm1[:, i*n:(i+1)*n])
                 for i, T in enumerate(self.periods)], axis=1)
             return [p_t, self.activate(p_t)]
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')

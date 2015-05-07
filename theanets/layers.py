@@ -334,6 +334,7 @@ class Layer(Base):
         self.kwargs = kwargs
         self.params = []
         self.setup()
+        self.log()
 
     @property
     def num_params(self):
@@ -455,7 +456,7 @@ class Layer(Base):
         '''Set up the parameters and initial values for this layer.'''
         pass
 
-    def log_setup(self):
+    def log(self):
         '''Log some information about this layer.'''
         act = self.activate.__theanets_name__
         ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
@@ -645,7 +646,6 @@ class Feedforward(Layer):
             label = 'w' if len(self.inputs) == 1 else 'w_{}'.format(name)
             self.add_weights(label, size, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
 
 class Classifier(Feedforward):
@@ -713,7 +713,6 @@ class Tied(Layer):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -741,6 +740,9 @@ class Maxout(Layer):
         '''Set up the parameters and initial values for this layer.'''
         self.add_weights('w')
         self.add_bias('b', self.size)
+
+    def log(self):
+        '''Log some information about this layer.'''
         logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
                      self.name,
                      self.input_size,
@@ -956,7 +958,6 @@ class RNN(Recurrent):
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1011,7 +1012,6 @@ class LRRNN(Recurrent):
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.add_bias('r', self.size, mean=2, std=1)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1074,7 +1074,6 @@ class ARRNN(Recurrent):
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.add_bias('r', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1128,7 +1127,6 @@ class MRNN(Recurrent):
         self.add_weights('hf', self.size, self.factors)
         self.add_weights('fh', self.factors, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1191,7 +1189,6 @@ class LSTM(Recurrent):
         self.add_bias('ci', self.size)
         self.add_bias('cf', self.size)
         self.add_bias('co', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1312,6 +1309,14 @@ class Clockwork(Recurrent):
             self.add_weights('hh{}'.format(T), (i + 1) * n, n)
         self.add_weights('xh', self.input_size, self.size)
         self.add_bias('b', self.size)
+
+    def log(self):
+        '''Log some information about this layer.'''
+        act = self.activate.__theanets_name__
+        ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
+        T = ' '.join(str(T) for T in self.periods)
+        logging.info('layer %s: %s -> %s (T: %s), %s, %d parameters',
+                     self.name, ins, self.size, T, act, self.num_params)
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.

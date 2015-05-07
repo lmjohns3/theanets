@@ -1335,15 +1335,13 @@ class Clockwork(Recurrent):
         '''
         n = self.size // len(self.periods)
         def fn(t, x_t, p_tm1, h_tm1):
-            p_t = p_tm1 + 0
-            h_t = h_tm1 + 0
-            for i, T in enumerate(self.periods):
-                if t % T == 0:
-                    s = slice(i * n, (i+1) * n)
-                    h = TT.dot(h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T)))
-                    TT.set_subtensor(p_t[:, s], x_t[:, s] + h)
-                    TT.set_subtensor(h_t[:, s], self.activate(p_t[:, s]))
-            return [p_t, h_t]
+            p_t = TT.concatenate([
+                TT.switch(TT.eq(t % T, 0),
+                          x_t[:, i*n:(i+1)*n] + TT.dot(
+                              h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T))),
+                          p_tm1[:, i*n:(i+1)*n])
+                for i, T in enumerate(self.periods)], axis=1)
+            return [p_t, self.activate(p_t)]
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
         return dict(pre=pre, out=out), updates

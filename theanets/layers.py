@@ -1238,9 +1238,15 @@ class GRU(Recurrent):
     Modeling" (page 4), available at http://arxiv.org/abs/1412.3555v1.
     '''
     def setup(self):
-        self.add_weights('xh', self.input_size, 3 * self.size)
-        self.add_weights('hh', self.size, 3 * self.size)
-        self.add_bias('b', 3 * self.size)
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xr', self.input_size, self.size)
+        self.add_weights('xz', self.input_size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_weights('hr', self.size, self.size)
+        self.add_weights('hz', self.size, self.size)
+        self.add_bias('bh', self.size)
+        self.add_bias('br', self.size)
+        self.add_bias('bz', self.size)
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.
@@ -1263,17 +1269,19 @@ class GRU(Recurrent):
             A sequence of updates to apply to this layer's state inside a theano
             function.
         '''
-        def split(z):
-            n = self.size
-            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n]
-        def fn(x_t, h_tm1):
-            xh, xz, xr = split(x_t + TT.dot(h_tm1, self.find('hh')))
-            z = TT.nnet.sigmoid(xz)
-            pre = xh + TT.nnet.sigmoid(xr) * h_tm1
+        def fn(x_t, r_t, z_t, h_tm1):
+            r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
+            z = TT.nnet.sigmoid(z_t + TT.dot(h_tm1, self.find('hz')))
+            pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
-        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
-        (pre, hid, rate, out), updates = self._scan(fn, [x], [None, None, None, x])
+        x = self._only_input(inputs)
+        (pre, hid, rate, out), updates = self._scan(
+            fn,
+            [TT.dot(x, self.find('xh')) + self.find('bh'),
+             TT.dot(x, self.find('xr')) + self.find('br'),
+             TT.dot(x, self.find('xz')) + self.find('bz')],
+            [None, None, None, x])
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 

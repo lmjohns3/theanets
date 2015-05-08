@@ -16,14 +16,17 @@ ZERO = np.zeros((len(T), BATCH_SIZE, 1), 'f')
 COEFFS = ((2, 1.5), (3, 1.8), (4, 1.1))
 SIN = sum(c * np.sin(TAU * f * T) for c, f in COEFFS)
 COS = sum(c * np.cos(TAU * f * T) for c, f in COEFFS)
-W = np.concatenate([SIN[..., None], COS[..., None]], axis=1)
-WAVES = np.concatenate([W[..., None], W[..., None]], axis=2).astype('f')
+W = np.concatenate([SIN[:, None], COS[:, None]], axis=1)
+WAVES = np.concatenate([W[:, None, :]] * BATCH_SIZE, axis=1).astype('f')
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(1, dict(form='clockwork', size=12, periods=(1, 2, 4)), 2))
+    layers=(1, dict(form='clockwork',
+                    size=64,
+                    radius=1,
+                    periods=(1, 2, 4, 8, 16, 32, 64, 128)), 2))
 
-e.train([ZERO, WAVES], batch_size=BATCH_SIZE)
+e.train([ZERO, WAVES], batch_size=BATCH_SIZE, algorithm='rprop')
 
 prd = e.network.predict(ZERO)
 ax = plt.subplot(111)

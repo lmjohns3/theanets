@@ -70,7 +70,7 @@ e.train(
     batches(scipy.io.netcdf_file(VALID_NC)),
     algorithm='rmsprop',
     learning_rate=0.0001,
-    max_gradient_norm=1,
+    gradient_clip=1,
     input_noise=0.6,
     train_batches=30,
     valid_batches=3,

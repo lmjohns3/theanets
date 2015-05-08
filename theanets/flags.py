@@ -62,8 +62,8 @@ g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
                help='train the network with momentum of V')
 g.add_argument('--min-improvement', type=float, default=0.01, metavar='R',
                help='train until relative improvement is less than R')
-g.add_argument('--max-gradient-norm', type=float, default=1e6, metavar='V',
-               help='clip gradients with norms outside [-V, V]')
+g.add_argument('--gradient-clip', type=float, default=1e6, metavar='V',
+               help='clip gradient values to the interval [-V, V]')
 
 g = climate.add_group('RmsProp Optimization')
 g.add_argument('--rms-halflife', type=float, default=7, metavar='N',

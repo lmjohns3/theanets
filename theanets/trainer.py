@@ -126,6 +126,10 @@ class Trainer(object):
         for name, monitor in network.monitors(**kwargs):
             self._monitor_names.append(name)
             self._monitor_exprs.append(monitor)
+        if kwargs.get('monitor_gradients'):
+            for p, g in zip(self.params, TT.grad(self.loss, self.params)):
+                self._monitor_names.append('∂{}'.format(p.name))
+                self._monitor_exprs.append((g * g).sum())
 
         logging.info('compiling evaluation function')
         self.f_eval = theano.function(network.inputs,

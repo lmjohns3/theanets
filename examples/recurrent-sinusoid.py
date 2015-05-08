@@ -21,10 +21,12 @@ WAVES = np.concatenate([W[:, None, :]] * BATCH_SIZE, axis=1).astype('f')
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(1, dict(form='clockwork',
-                    size=64,
-                    radius=1,
-                    periods=(1, 2, 4, 8, 16, 32, 64, 128)), 2))
+    layers=(1,
+            dict(form='clockwork',
+                 size=64,
+                 radius=1,
+                 periods=(1, 2, 4, 8, 16, 32, 64, 128)),
+            2))
 
 e.train([ZERO, WAVES], batch_size=BATCH_SIZE, algorithm='rprop')
 

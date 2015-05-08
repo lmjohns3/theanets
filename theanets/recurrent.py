@@ -101,7 +101,7 @@ class Predictor(Autoencoder):
         # match x[1], f(y)[1] to match x[2], and so forth.
         err = self.x[1:] - self.generate_prediction(output)[:-1]
         if self.weighted:
-            return (self.weights[1:] * err * err) / self.weights[1:].sum()
+            return (self.weights[1:] * err * err).sum() / self.weights[1:].sum()
         return (err * err).mean()
 
     def generate_prediction(self, y):

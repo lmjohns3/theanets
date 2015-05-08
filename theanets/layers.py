@@ -1398,8 +1398,8 @@ class Bidirectional(Layer):
                          **kwargs)
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
-        self.params = [self.forward.params, self.backward.params]
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
+        self.params = self.forward.params + self.backward.params
 
     @property
     def num_params(self):

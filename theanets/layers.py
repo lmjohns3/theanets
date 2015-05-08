@@ -1362,7 +1362,7 @@ class Clockwork(Recurrent):
             A dictionary specifying the configuration of this layer.
         '''
         spec = super(Clockwork, self).to_spec()
-        spec['periods'] = self.periods
+        spec['periods'] = tuple(self.periods)
         return spec
 
 

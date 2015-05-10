@@ -30,6 +30,12 @@ class Base:
                 assert r == v, err
 
 
+class BaseRecurrent(Base):
+    def setUp(self):
+        super(BaseRecurrent, self).setUp()
+        self.x = TT.tensor3('x')
+
+
 class TestLayer(Base):
     def _build(self):
         return theanets.layers.Feedforward(inputs=2, size=4, name='l')
@@ -118,7 +124,7 @@ class TestMaxout(Base):
         assert not upd
 
 
-class TestRNN(Base):
+class TestRNN(BaseRecurrent):
     def _build(self):
         return theanets.layers.RNN(inputs=2, size=4, name='l')
 
@@ -132,7 +138,7 @@ class TestRNN(Base):
         assert not upd
 
 
-class TestARRNN(Base):
+class TestARRNN(BaseRecurrent):
     def _build(self):
         return theanets.layers.ARRNN(inputs=2, size=4, name='l')
 
@@ -146,7 +152,7 @@ class TestARRNN(Base):
         assert not upd
 
 
-class TestLRRNN(Base):
+class TestLRRNN(BaseRecurrent):
     def _build(self):
         return theanets.layers.LRRNN(inputs=2, size=4, name='l')
 
@@ -160,7 +166,7 @@ class TestLRRNN(Base):
         assert not upd
 
 
-class TestMRNN(Base):
+class TestMRNN(BaseRecurrent):
     def _build(self):
         return theanets.layers.MRNN(inputs=2, size=4, factors=3, name='l')
 
@@ -174,7 +180,7 @@ class TestMRNN(Base):
         assert not upd
 
 
-class TestLSTM(Base):
+class TestLSTM(BaseRecurrent):
     def _build(self):
         return theanets.layers.LSTM(inputs=2, size=4, name='l')
 
@@ -188,12 +194,14 @@ class TestLSTM(Base):
         assert not upd
 
 
-class TestGRU(Base):
+class TestGRU(BaseRecurrent):
     def _build(self):
         return theanets.layers.GRU(inputs=2, size=4, name='l')
 
     def test_create(self):
-        self.assert_param_names(['b', 'xh', 'hh'])
+        self.assert_param_names(['bh', 'br', 'bz',
+                                 'hh', 'hr', 'hz',
+                                 'xh', 'xr', 'xz'])
         self.assert_count(84)
 
     def test_transform(self):
@@ -202,7 +210,7 @@ class TestGRU(Base):
         assert not upd
 
 
-class TestClockwork(Base):
+class TestClockwork(BaseRecurrent):
     def _build(self):
         return theanets.layers.Clockwork(inputs=2, size=4, periods=(2, 5), name='l')
 

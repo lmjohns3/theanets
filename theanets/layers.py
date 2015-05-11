@@ -890,12 +890,22 @@ class Recurrent(Layer):
             If nonzero, rescale initial weights to have this spectral radius.
             Defaults to 0.
         '''
-        std = std or 1 / np.sqrt(nin + nout)
-        sparsity = self.kwargs.get('sparsity', sparsity)
-        radius = self.kwargs.get('radius', radius) if nin == nout else 0
-        self.params.append(theano.shared(
-            random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
-            name=self._fmt(name)))
+        glorot = 1 / np.sqrt(nin + nout)
+        mean = self.kwargs.get(
+            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+        std = self.kwargs.get(
+            'std_{}'.format(name), self.kwargs.get('std', std or glorot))
+        s = self.kwargs.get(
+            'sparsity_{}'.format(name), self.kwargs.get('sparsity', sparsity))
+        r = self.kwargs.get(
+            'radius_{}'.format(name), self.kwargs.get('radius', radius))
+        if nin == self.size and nout % nin == 0:
+            arr = np.concatenate([
+                random_matrix(nin, nin, mean, std, sparsity=s, radius=r)
+                for _ in range(nout // nin)], axis=1)
+        else:
+            arr = random_matrix(nin, nout, mean, std, sparsity=s)
+        self.params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.

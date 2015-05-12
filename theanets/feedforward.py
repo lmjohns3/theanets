@@ -318,4 +318,4 @@ class Classifier(graph.Network):
 
     predict_class = classify
 
-    predict_proba = predict
+    predict_proba = graph.Network.predict

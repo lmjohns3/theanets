@@ -336,3 +336,26 @@ class Classifier(graph.Network):
             input data.
         '''
         return self.feed_forward(x)['{}.pre'.format(self.layers[-1].name)]
+
+    def score(self, x, y, w=None):
+        '''Compute the mean accuracy on a set of labeled data.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-variables)
+            An array containing examples to classify. Examples are given as the
+            rows in this array.
+        y : ndarray (num-examples, )
+            A vector of integer class labels, one for each row of input data.
+        w : ndarray (num-examples, )
+            A vector of weights, one for each row of input data.
+
+        Returns
+        -------
+        score : float
+            The (possibly weighted) mean accuracy of the model on the data.
+        '''
+        eq = y == self.classify(x)
+        if self.weighted and w is not None:
+            return (w * eq).sum() / w.sum()
+        return eq.mean()

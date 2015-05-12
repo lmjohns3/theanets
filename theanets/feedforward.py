@@ -314,3 +314,7 @@ class Classifier(graph.Network):
             A vector of class index values, one per row of input data.
         '''
         return self.predict(x).argmax(axis=-1)
+
+    predict_class = classify
+
+    predict_proba = predict

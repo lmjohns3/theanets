@@ -316,6 +316,23 @@ class Classifier(graph.Network):
         '''
         return self.predict(x).argmax(axis=-1)
 
-    predict_class = classify
+    predict = classify
 
     predict_proba = graph.Network.predict
+
+    def predict_logit(self, x):
+        '''Compute the logit values that underlie the softmax output.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-variables)
+            An array containing examples to classify. Examples are given as the
+            rows in this array.
+
+        Returns
+        -------
+        k : ndarray (num-examples, num-classes)
+            An array of class logit values, one row of logit values per row of
+            input data.
+        '''
+        return self.feed_forward(x)['{}.pre'.format(self.layers[-1].name)]

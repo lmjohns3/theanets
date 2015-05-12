@@ -2,11 +2,6 @@
 
 import climate
 
-climate.add_arg('--help-activation', action='store_true',
-                help='show available activation functions')
-climate.add_arg('--help-optimize', action='store_true',
-                help='show available optimization algorithms')
-
 g = climate.add_group('Architecture')
 g.add_argument('-n', '--layers', nargs='+', type=int, metavar='N',
                help='construct a network with layers of size N1, N2, ...')

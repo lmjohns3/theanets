@@ -14,8 +14,6 @@ g.add_argument('-g', '--hidden-activation', default='logistic', metavar='FUNC',
                help='function for hidden unit activations')
 g.add_argument('--output-activation', default='linear', metavar='FUNC',
                help='function for output unit activations')
-g.add_argument('-t', '--tied-weights', action='store_true',
-               help='tie encoding and decoding weights')
 
 g = climate.add_group('Training')
 g.add_argument('-a', '--algorithm', default=(), nargs='+', metavar='ALGO',

@@ -314,7 +314,7 @@ class Classifier(graph.Network):
         k : ndarray (num-examples, )
             A vector of class index values, one per row of input data.
         '''
-        return self.predict(x).argmax(axis=-1)
+        return self.feed_forward(x)[self.output_name].argmax(axis=-1)
 
     predict = classify
 

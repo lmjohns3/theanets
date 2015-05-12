@@ -126,20 +126,22 @@ class Network(object):
 
     Attributes
     ----------
+    inputs : list of theano variables
+        A list of the symbolic inputs this network expects during training.
     layers : list of :class:`Layer <layers.Layer>`
         A list of the layers in this network model.
     weighted : bool
-        True iff this network expects additional target weight inputs during
-        training.
+        True iff this network expects target weight inputs during training.
     '''
 
     def __init__(self, layers, weighted=False):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
         self.weighted = weighted
-        logging.info('constructing network')
         self.inputs = list(self.setup_vars())
-        self.layers = self.setup_layers(layers)
+        self.layers = []
+        for i, layer in enumerate(layers):
+            self.add_layer(layer, is_output=i == len(layers) - 1)
         logging.info('network has %d total parameters', self.num_params)
 
     def setup_vars(self):
@@ -168,104 +170,92 @@ class Network(object):
             return [self.x, self.weights]
         return [self.x]
 
-    def setup_layers(self, specs):
-        '''Set up a computation graph for our network.
-
-        Subclasses may override this method to construct alternative network
-        topologies.
+    def add_layer(self, layer, is_output=False):
+        '''Add a layer to our network graph.
 
         Parameters
         ----------
-        specs : list of layer specifications
-            A sequence of values specifying the layer configuration for the
-            network.  For more information, please see
-            :ref:`creating-specifying-layers`.
-
-        Returns
-        -------
-        layers : list of :class:`Layer <layers.Layer>`
-            A list of the layers for this network model.
+        layer : int, tuple, dict, or :class:`Layer <layers.Layer>`
+            A value specifying the layer to add. For more information, please
+            see :ref:`creating-specifying-layers`.
+        output_layer : bool, optional
+            True iff this is the output layer for the graph.
         '''
-        model = []
-        for i, spec in enumerate(specs):
-            # if spec is a Layer instance, just add it and move on.
-            if isinstance(spec, layers.Layer):
-                model.append(spec)
-                continue
+        # if the given layer is a Layer instance, just add it and move on.
+        if isinstance(layer, layers.Layer):
+            self.layers.append(layer)
+            return
 
-            # for the first layer, create an 'input' layer.
-            if i == 0:
-                model.append(layers.build('input', size=spec, name='in'))
-                continue
+        # for the first layer, create an 'input' layer.
+        if len(self.layers) == 0:
+            self.layers.append(layers.build('input', size=layer, name='in'))
+            return
 
-            # here we set up some defaults for constructing a new layer.
-            form = 'feedforward'
-            prev = model[-1]
-            last = i == len(specs) - 1
-            kwargs = dict(
-                name='out' if last else 'hid{}'.format(len(model)),
-                activation='linear' if last else 'logistic',
-                inputs={prev.output_name: prev.size},
-                size=spec,
-            )
+        # here we set up some defaults for constructing a new layer.
+        form = 'feedforward'
+        kwargs = dict(
+            name='out' if is_output else 'hid{}'.format(len(self.layers)),
+            activation='linear' if is_output else 'logistic',
+            inputs={self.layers[-1].output_name: self.layers[-1].size},
+            size=layer,
+        )
 
-            # if spec is a tuple, assume that it contains one or more of the following:
-            # - the type of layer to construct (layers.Layer subclass)
-            # - the name of a class for the layer (str; if layes.Layer subclass)
-            # - the name of an activation function (str; otherwise)
-            # - the number of units in the layer (int)
-            if isinstance(spec, (tuple, list)):
-                for el in spec:
-                    try:
-                        if issubclass(el, layers.Layer):
-                            form = el.__name__
-                    except TypeError:
-                        pass
-                    if isinstance(el, str):
-                        if el.lower() in layers.Layer._registry:
-                            form = el
-                        else:
-                            kwargs['activation'] = el
-                    if isinstance(el, int):
-                        kwargs['size'] = el
+        # if layer is a tuple, assume that it contains one or more of the following:
+        # - the type of layer to construct (layers.Layer subclass)
+        # - the name of a class for the layer (str; if layes.Layer subclass)
+        # - the name of an activation function (str; otherwise)
+        # - the number of units in the layer (int)
+        if isinstance(layer, (tuple, list)):
+            for el in layer:
+                try:
+                    if issubclass(el, layers.Layer):
+                        form = el.__name__
+                except TypeError:
+                    pass
+                if isinstance(el, str):
+                    if el.lower() in layers.Layer._registry:
+                        form = el
+                    else:
+                        kwargs['activation'] = el
+                if isinstance(el, int):
+                    kwargs['size'] = el
 
-            # if spec is a dictionary, try to extract a form for the layer, and
-            # override our default keyword arguments with the rest.
-            if isinstance(spec, dict):
-                if 'form' in spec:
-                    form = spec['form'].lower()
-                kwargs.update(spec)
+        # if layer is a dictionary, try to extract a form for the layer, and
+        # override our default keyword arguments with the rest.
+        if isinstance(layer, dict):
+            if 'form' in layer:
+                form = layer.pop('form').lower()
+            kwargs.update(layer)
 
-            if isinstance(form, str) and form.lower() == 'bidirectional':
-                kwargs['name'] = 'bd{}{}'.format(
-                    kwargs.get('worker', 'rnn'), len(model))
+        if isinstance(form, str) and form.lower() == 'bidirectional':
+            kwargs['name'] = 'bd{}{}'.format(
+                kwargs.get('worker', 'rnn'), len(self.layers))
 
-            if isinstance(form, str) and form.lower() == 'tied':
-                partner = kwargs.get('partner')
-                if isinstance(partner, str):
-                    # if the partner is named, just get that layer.
-                    partner = [l for l in model if l.name == partner][0]
-                else:
-                    # otherwise, we look backwards through our list of layers.
-                    # any "tied" layer that we find increases a counter by one,
-                    # and any "untied" layer decreases the counter by one. our
-                    # partner is the first layer we find with count zero.
-                    #
-                    # this is intended to handle the hopefully common case of a
-                    # (possibly deep) tied-weights autoencoder.
-                    tied = 1
-                    partner = None
-                    for l in model[::-1]:
-                        tied += 1 if isinstance(l, layers.Tied) else -1
-                        if tied == 0:
-                            partner = l
-                            break
-                    assert partner is not None, \
-                        'could not find tied layer partner for {} in {}'.format(spec, model)
-                kwargs['partner'] = partner
+        if isinstance(form, str) and form.lower() == 'tied':
+            partner = kwargs.get('partner')
+            if isinstance(partner, str):
+                # if the partner is named, just get that layer.
+                partner = [l for l in self.layers if l.name == partner][0]
+            else:
+                # otherwise, we look backwards through our list of layers.
+                # any "tied" layer that we find increases a counter by one,
+                # and any "untied" layer decreases the counter by one. our
+                # partner is the first layer we find with count zero.
+                #
+                # this is intended to handle the hopefully common case of a
+                # (possibly deep) tied-weights autoencoder.
+                tied = 1
+                partner = None
+                for l in self.layers[::-1]:
+                    tied += 1 if isinstance(l, layers.Tied) else -1
+                    if tied == 0:
+                        partner = l
+                        break
+                assert partner is not None, \
+                    'could not find tied layer partner for {} in {}'.format(layer, self.layers)
+            kwargs['partner'] = partner
 
-            model.append(layers.build(form, **kwargs))
-        return model
+        self.layers.append(layers.build(form, **kwargs))
 
     def error(self, output):
         '''Build a theano expression for computing the network error.

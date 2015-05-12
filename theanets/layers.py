@@ -33,6 +33,7 @@ import climate
 import functools
 import numpy as np
 import theano
+import theano.ifelse
 import theano.tensor as TT
 import theano.sparse as SS
 
@@ -334,6 +335,7 @@ class Layer(Base):
         self.kwargs = kwargs
         self.params = []
         self.setup()
+        self.log()
 
     @property
     def num_params(self):
@@ -455,7 +457,7 @@ class Layer(Base):
         '''Set up the parameters and initial values for this layer.'''
         pass
 
-    def log_setup(self):
+    def log(self):
         '''Log some information about this layer.'''
         act = self.activate.__theanets_name__
         ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
@@ -645,7 +647,6 @@ class Feedforward(Layer):
             label = 'w' if len(self.inputs) == 1 else 'w_{}'.format(name)
             self.add_weights(label, size, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
 
 class Classifier(Feedforward):
@@ -713,7 +714,6 @@ class Tied(Layer):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -741,6 +741,9 @@ class Maxout(Layer):
         '''Set up the parameters and initial values for this layer.'''
         self.add_weights('w')
         self.add_bias('b', self.size)
+
+    def log(self):
+        '''Log some information about this layer.'''
         logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
                      self.name,
                      self.input_size,
@@ -887,12 +890,22 @@ class Recurrent(Layer):
             If nonzero, rescale initial weights to have this spectral radius.
             Defaults to 0.
         '''
-        std = std or 1 / np.sqrt(nin + nout)
-        sparsity = self.kwargs.get('sparsity', sparsity)
-        radius = self.kwargs.get('radius', radius) if nin == nout else 0
-        self.params.append(theano.shared(
-            random_matrix(nin, nout, mean, std, sparsity=sparsity, radius=radius),
-            name=self._fmt(name)))
+        glorot = 1 / np.sqrt(nin + nout)
+        mean = self.kwargs.get(
+            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+        std = self.kwargs.get(
+            'std_{}'.format(name), self.kwargs.get('std', std or glorot))
+        s = self.kwargs.get(
+            'sparsity_{}'.format(name), self.kwargs.get('sparsity', sparsity))
+        r = self.kwargs.get(
+            'radius_{}'.format(name), self.kwargs.get('radius', radius))
+        if nin == self.size and nout % nin == 0:
+            arr = np.concatenate([
+                random_matrix(nin, nin, mean, std, sparsity=s, radius=r)
+                for _ in range(nout // nin)], axis=1)
+        else:
+            arr = random_matrix(nin, nout, mean, std, sparsity=s)
+        self.params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.
@@ -956,7 +969,6 @@ class RNN(Recurrent):
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1011,7 +1023,6 @@ class LRRNN(Recurrent):
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.add_bias('r', self.size, mean=2, std=1)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1074,7 +1085,6 @@ class ARRNN(Recurrent):
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
         self.add_bias('r', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1128,7 +1138,6 @@ class MRNN(Recurrent):
         self.add_weights('hf', self.size, self.factors)
         self.add_weights('fh', self.factors, self.size)
         self.add_bias('b', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1191,7 +1200,6 @@ class LSTM(Recurrent):
         self.add_bias('ci', self.size)
         self.add_bias('cf', self.size)
         self.add_bias('co', self.size)
-        self.log_setup()
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
@@ -1240,9 +1248,15 @@ class GRU(Recurrent):
     Modeling" (page 4), available at http://arxiv.org/abs/1412.3555v1.
     '''
     def setup(self):
-        self.add_weights('xh', self.input_size, 3 * self.size)
-        self.add_weights('hh', self.size, 3 * self.size)
-        self.add_bias('b', 3 * self.size)
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xr', self.input_size, self.size)
+        self.add_weights('xz', self.input_size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_weights('hr', self.size, self.size)
+        self.add_weights('hz', self.size, self.size)
+        self.add_bias('bh', self.size)
+        self.add_bias('br', self.size)
+        self.add_bias('bz', self.size)
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.
@@ -1265,17 +1279,19 @@ class GRU(Recurrent):
             A sequence of updates to apply to this layer's state inside a theano
             function.
         '''
-        def split(z):
-            n = self.size
-            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n]
-        def fn(x_t, h_tm1):
-            xh, xz, xr = split(x_t + TT.dot(h_tm1, self.find('hh')))
-            z = TT.nnet.sigmoid(xz)
-            pre = xh + TT.nnet.sigmoid(xr) * h_tm1
+        def fn(x_t, r_t, z_t, h_tm1):
+            r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
+            z = TT.nnet.sigmoid(z_t + TT.dot(h_tm1, self.find('hz')))
+            pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
-        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
-        (pre, hid, rate, out), updates = self._scan(fn, [x], [None, None, None, x])
+        x = self._only_input(inputs)
+        (pre, hid, rate, out), updates = self._scan(
+            fn,
+            [TT.dot(x, self.find('xh')) + self.find('bh'),
+             TT.dot(x, self.find('xr')) + self.find('br'),
+             TT.dot(x, self.find('xz')) + self.find('bz')],
+            [None, None, None, x])
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 
@@ -1313,6 +1329,14 @@ class Clockwork(Recurrent):
         self.add_weights('xh', self.input_size, self.size)
         self.add_bias('b', self.size)
 
+    def log(self):
+        '''Log some information about this layer.'''
+        act = self.activate.__theanets_name__
+        ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
+        T = ' '.join(str(T) for T in self.periods)
+        logging.info('layer %s: %s -> %s (T: %s), %s, %d parameters',
+                     self.name, ins, self.size, T, act, self.num_params)
+
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.
 
@@ -1335,15 +1359,14 @@ class Clockwork(Recurrent):
         '''
         n = self.size // len(self.periods)
         def fn(t, x_t, p_tm1, h_tm1):
-            p_t = p_tm1 + 0
-            h_t = h_tm1 + 0
-            for i, T in enumerate(self.periods):
-                if t % T == 0:
-                    s = slice(i * n, (i+1) * n)
-                    h = TT.dot(h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T)))
-                    TT.set_subtensor(p_t[:, s], x_t[:, s] + h)
-                    TT.set_subtensor(h_t[:, s], self.activate(p_t[:, s]))
-            return [p_t, h_t]
+            p_t = TT.concatenate([
+                theano.ifelse.ifelse(
+                    TT.eq(t % T, 0),
+                    x_t[:, i*n:(i+1)*n] + TT.dot(
+                        h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T))),
+                    p_tm1[:, i*n:(i+1)*n])
+                for i, T in enumerate(self.periods)], axis=1)
+            return [p_t, self.activate(p_t)]
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
         return dict(pre=pre, out=out), updates
@@ -1357,7 +1380,7 @@ class Clockwork(Recurrent):
             A dictionary specifying the configuration of this layer.
         '''
         spec = super(Clockwork, self).to_spec()
-        spec['periods'] = self.periods
+        spec['periods'] = tuple(self.periods)
         return spec
 
 
@@ -1393,8 +1416,8 @@ class Bidirectional(Layer):
                          **kwargs)
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
-        self.params = [self.forward.params, self.backward.params]
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
+        self.params = self.forward.params + self.backward.params
 
     @property
     def num_params(self):

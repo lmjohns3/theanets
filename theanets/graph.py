@@ -338,7 +338,7 @@ class Network(object):
                 if i == 0:
                     noise = kwargs.get('input_noise', 0)
                     dropout = kwargs.get('input_dropouts', 0)
-                elif i == len(self.layers) - 1:
+                elif i != len(self.layers) - 1:
                     noise = kwargs.get('hidden_noise', 0)
                     dropout = kwargs.get('hidden_dropouts', 0)
                 out, mon, upd = layer.connect(inputs, noise=noise, dropout=dropout)

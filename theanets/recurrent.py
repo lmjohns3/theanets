@@ -78,12 +78,6 @@ class Autoencoder(feedforward.Autoencoder):
             return [self.x, self.weights]
         return [self.x]
 
-    def error(self, output):
-        err = output - self.targets
-        if self.weighted:
-            return (self.weights * err * err).sum() / self.weights.sum()
-        return (err * err).mean()
-
 
 class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
@@ -107,7 +101,7 @@ class Predictor(Autoencoder):
         # match x[1], f(y)[1] to match x[2], and so forth.
         err = self.x[1:] - self.generate_prediction(output)[:-1]
         if self.weighted:
-            return (self.weights[1:] * err * err) / self.weights[1:].sum()
+            return (self.weights[1:] * err * err).sum() / self.weights[1:].sum()
         return (err * err).mean()
 
     def generate_prediction(self, y):
@@ -153,24 +147,6 @@ class Regressor(feedforward.Regressor):
         if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]
-
-    def error(self, output):
-        '''Build a theano expression for computing the network error.
-
-        Parameters
-        ----------
-        output : theano expression
-            A theano expression representing the output of the network.
-
-        Returns
-        -------
-        error : theano expression
-            A theano expression representing the network error.
-        '''
-        err = output - self.targets
-        if self.weighted:
-            return (self.weights * err * err).sum() / self.weights.sum()
-        return (err * err).mean()
 
 
 class Classifier(feedforward.Classifier):
@@ -224,21 +200,3 @@ class Classifier(feedforward.Classifier):
         if self.weighted:
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()
-
-    def accuracy(self, output):
-        '''Build a theano expression for computing the network accuracy.
-
-        Parameters
-        ----------
-        output : theano expression
-            A theano expression representing the output of the network.
-
-        Returns
-        -------
-        acc : theano expression
-            A theano expression representing the network accuracy.
-        '''
-        correct = TT.eq(TT.argmax(output, axis=-1), self.labels)
-        if self.weighted:
-            return (self.weights * correct).sum() / self.weights.sum()
-        return correct.mean()

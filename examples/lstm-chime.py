@@ -61,13 +61,16 @@ def layer(n):
 
 e = theanets.Experiment(
     theanets.recurrent.Classifier,
-    layers=(39, layer(156), layer(300), layer(102), 51),
+    layers=(39, layer(156), layer(300), layer(102), (51, 'softmax')),
     weighted=True,
 )
 
 e.train(
     batches(scipy.io.netcdf_file(TRAIN_NC)),
     batches(scipy.io.netcdf_file(VALID_NC)),
+    algorithm='rmsprop',
+    learning_rate=0.0001,
+    gradient_clip=1,
     input_noise=0.6,
     train_batches=30,
     valid_batches=3,

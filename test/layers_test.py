@@ -30,12 +30,6 @@ class Base:
                 assert r == v, err
 
 
-class BaseRecurrent(Base):
-    def setUp(self):
-        super(BaseRecurrent, self).setUp()
-        self.x = TT.tensor3('x')
-
-
 class TestLayer(Base):
     def _build(self):
         return theanets.layers.Feedforward(inputs=2, size=4, name='l')
@@ -113,6 +107,26 @@ class TestClassifier(Base):
 class TestMaxout(Base):
     def _build(self):
         return theanets.layers.Maxout(inputs=2, size=4, pieces=3, name='l')
+
+    def test_create(self):
+        self.assert_param_names(['b', 'w'])
+        self.assert_count(28)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 2
+        assert not upd
+
+
+class BaseRecurrent(Base):
+    def setUp(self):
+        super(BaseRecurrent, self).setUp()
+        self.x = TT.tensor3('x')
+
+
+class TestConv1(BaseRecurrent):
+    def _build(self):
+        return theanets.layers.Conv1(inputs=2, size=4, length=3, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'w'])

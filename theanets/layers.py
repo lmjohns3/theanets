@@ -827,6 +827,12 @@ class Recurrent(Layer):
     This layer type is actually just a base class for the many different types
     of recurrent network layers, for example :class:`RNN` or :class:`LSTM`.
 
+    Recurrent layer types can only be included in ``theanets`` models that use
+    recurrent inputs and outputs, i.e., :class:`theanets.recurrent.Autoencoder`,
+    :class:`theanets.recurrent.Predictor`,
+    :class:`theanets.recurrent.Classifier`, or
+    :class:`theanets.recurrent.Regressor`.
+
     Parameters
     ----------
     radius : float, optional

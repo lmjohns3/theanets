@@ -104,7 +104,7 @@ class Conv1(Convolution):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_conv_weights('w', self.input_size, self.size)
+        self.add_conv_weights('w')
         self.add_bias('b', self.size)
 
     def transform(self, inputs):

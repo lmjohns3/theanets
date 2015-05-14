@@ -11,7 +11,7 @@ class TestTrainer(util.MNIST):
             layers=(self.DIGIT_SIZE, 10, self.DIGIT_SIZE))
 
     def assert_progress(self, algo, **kwargs):
-        trainer = self.exp.itertrain(self.images, optimize=algo, **kwargs)
+        trainer = self.exp.itertrain(self.images, algorithm=algo, monitor_gradients=True, **kwargs)
         train0, valid0 = next(trainer)
         train1, valid1 = next(trainer)
         assert train1['loss'] < valid0['loss']   # should have made progress!

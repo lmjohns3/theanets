@@ -25,8 +25,6 @@ Feedforward networks
 .. autosummary::
    :toctree: generated/
 
-   load
-   Network
    Autoencoder
    Classifier
    Regressor
@@ -42,7 +40,6 @@ Recurrent networks
    :toctree: generated/
 
    batches
-   Network
    Autoencoder
    Classifier
    Predictor
@@ -51,7 +48,7 @@ Recurrent networks
 Layer types
 ===========
 
-.. automodule:: theanets.layers
+.. automodule:: theanets.layers.base
    :no-members:
    :no-inherited-members:
 
@@ -60,21 +57,42 @@ Layer types
 
    build
    Layer
-   Input
 
 Feedforward layers
 ------------------
+
+.. automodule:: theanets.layers.feedforward
+   :no-members:
+   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/
 
    Classifier
    Feedforward
+   Input
    Maxout
    Tied
 
+Convolution layers
+------------------
+
+.. automodule:: theanets.layers.convolution
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Convolution
+   Conv1
+
 Recurrent layers
 ----------------
+
+.. automodule:: theanets.layers.recurrent
+   :no-members:
+   :no-inherited-members:
 
 .. autosummary::
    :toctree: generated/

@@ -6,6 +6,8 @@ Convolutional layers are characterized by computations that use a convolution
 operation on their inputs.
 '''
 
+from __future__ import division
+
 import numpy as np
 import theano
 import theano.tensor as TT

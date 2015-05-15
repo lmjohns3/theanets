@@ -2,6 +2,8 @@
 
 r'''Feedforward layers for neural network computation graphs.'''
 
+from __future__ import division
+
 import climate
 import numpy as np
 import theano

@@ -29,6 +29,8 @@ Usually all hidden nodes in a network share the same activation function, but
 this is not required.
 '''
 
+from __future__ import division
+
 import climate
 import functools
 import numpy as np
@@ -43,7 +45,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0):
+def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0, diagonal=0):
     '''Create a matrix of randomly-initialized weights.
 
     Parameters
@@ -65,6 +67,10 @@ def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0):
     radius : float, optional
         If given, rescale the initial weights to have this spectral radius.
         No scaling is performed by default.
+    diagonal : float, optional
+        If nonzero, create a matrix containing all zeros except for this value
+        along the diagonal. If nonzero, other arguments (except for rows and
+        cols) will be ignored.
 
     Returns
     -------
@@ -82,6 +88,9 @@ def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0):
         # rescale weights to have the appropriate spectral radius.
         u, s, vT = np.linalg.svd(arr)
         arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)
+    if diagonal != 0:
+        # generate a diagonal weight matrix. ignore other options.
+        arr = diagonal * np.eye(max(rows, cols))[:rows, :cols]
     return arr.astype(FLOAT)
 
 
@@ -295,10 +304,23 @@ class Layer(Base):
         A theano random number generator to use for creating noise and dropout
         values. If not provided, a new generator will be produced for this
         layer.
-    sparsity : float in (0, 1), optional
+    mean, mean_XYZ : float, optional
+        Initialize parameters for this layer to have the given mean value. If
+        ``mean_XYZ`` is specified, it will apply only to the parameter named
+        XYZ. Defaults to 0.
+    std, std_XYZ : float, optional
+        Initialize parameters for this layer to have the given standard
+        deviation. If ``std_XYZ`` is specified, only the parameter named XYZ
+        will be so initialized. Defaults to 0.
+    sparsity, sparsity_XYZ : float in (0, 1), optional
         If given, create sparse connections in the layer's weight matrix, such
-        that this fraction of the weights is set to zero. By default, this
+        that this fraction of the weights is set to zero. If ``sparsity_XYZ`` is
+        given, it will apply only the parameter with name XYZ. By default, this
         parameter is 0, meaning all weights are nonzero.
+    diagonal, diagonal_XYZ : float, optional
+        If given, create initial parameter matrices for this layer that are
+        initialized to diagonal matrices with this value along the diagonal.
+        Defaults to None, which initializes all weights using random values.
 
     Attributes
     ----------
@@ -512,7 +534,7 @@ class Layer(Base):
                 return p
         raise KeyError(key)
 
-    def add_weights(self, name, nin, nout, mean=0, std=None, sparsity=0):
+    def add_weights(self, name, nin, nout, mean=0, std=0, sparsity=0, diagonal=0):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -530,18 +552,21 @@ class Layer(Base):
             :math:`1 / sqrt(n_i + n_o)`.
         sparsity : float, optional
             Fraction of weights to be set to zero. Defaults to 0.
+        diagonal : float, optional
+            Initialize weights to a matrix of zeros with this value along the
+            diagonal. Defaults to None, which initializes all weights randomly.
         '''
-        mean = self.kwargs.get(
-            'mean_{}'.format(name),
-            self.kwargs.get('mean', mean))
-        std = self.kwargs.get(
-            'std_{}'.format(name),
-            self.kwargs.get('std', std or 1 / np.sqrt(nin + nout)))
-        sparsity = self.kwargs.get(
-            'sparsity_{}'.format(name),
-            self.kwargs.get('sparsity', sparsity))
+        glorot = 1 / np.sqrt(nin + nout)
+        m = self.kwargs.get(
+            'mean_{}'.format(name), self.kwargs.get('mean', mean))
+        s = self.kwargs.get(
+            'std_{}'.format(name), self.kwargs.get('std', std or glorot))
+        p = self.kwargs.get(
+            'sparsity_{}'.format(name), self.kwargs.get('sparsity', sparsity))
+        d = self.kwargs.get(
+            'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         self.params.append(theano.shared(
-            random_matrix(nin, nout, mean, std, sparsity=sparsity),
+            random_matrix(nin, nout, mean=m, std=s, sparsity=p, diagonal=d),
             name=self._fmt(name)))
 
     def add_bias(self, name, size, mean=0, std=1):

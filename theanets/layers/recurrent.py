@@ -6,6 +6,8 @@ Recurrent layers are basically defined by the presence of explicitly modeled
 time dependencies in the computation graph.
 '''
 
+from __future__ import division
+
 import climate
 import numpy as np
 import theano
@@ -88,7 +90,8 @@ class Recurrent(Layer):
             name=self._fmt('{}0'.format(name)))
         return TT.repeat(values, batch_size, axis=0)
 
-    def add_weights(self, name, nin, nout, mean=0, std=None, sparsity=0, radius=0):
+    def add_weights(self, name, nin, nout, mean=0, std=0, sparsity=0, radius=0,
+                    diagonal=0):
         '''Helper method to create a new weight matrix.
 
         Parameters
@@ -119,9 +122,11 @@ class Recurrent(Layer):
             'sparsity_{}'.format(name), self.kwargs.get('sparsity', sparsity))
         r = self.kwargs.get(
             'radius_{}'.format(name), self.kwargs.get('radius', radius))
+        d = self.kwargs.get(
+            'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         if nin == self.size and nout % nin == 0:
             arr = np.concatenate([
-                random_matrix(nin, nin, mean, std, sparsity=s, radius=r)
+                random_matrix(nin, nin, mean, std, sparsity=s, radius=r, diagonal=d)
                 for _ in range(nout // nin)], axis=1)
         else:
             arr = random_matrix(nin, nout, mean, std, sparsity=s)

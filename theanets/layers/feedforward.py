@@ -236,14 +236,12 @@ class Maxout(Layer):
         sparsity : float, optional
             Fraction of weights to set to zero. Defaults to 0.
         '''
+        nin = self.input_size
+        std = std or 1 / np.sqrt(nin + nout)
+        p = self.kwargs.get('sparsity_{}'.format(name),
+                            self.kwargs.get('sparsity', sparsity)
         def rm():
-            return random_matrix(
-                self.input_size,
-                self.size,
-                mean,
-                std or 1 / np.sqrt(self.input_size + self.size),
-                sparsity=self.kwargs.get('sparsity', sparsity),
-            )[:, :, None]
+            return random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))

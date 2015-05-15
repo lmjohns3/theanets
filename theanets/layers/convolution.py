@@ -114,19 +114,19 @@ class Conv1(Convolution):
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        outputs : dict of theano expressions
+        outputs : dict of Theano expressions
             A map from string output names to Theano expressions for the outputs
             from this layer. This layer type generates a "pre" output that gives
             the unit activity before applying the layer's activation function,
             and an "out" output that gives the post-activation output.
         updates : list of update pairs
-            A sequence of updates to apply inside a theano function.
+            A sequence of updates to apply inside a Theano function.
         '''
         # input is:     (time, batch, input)
         # conv2d wants: (batch, input, 1, time)

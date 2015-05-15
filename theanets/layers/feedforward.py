@@ -62,13 +62,13 @@ class Feedforward(Layer):
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        outputs : dict of theano expressions
+        outputs : dict of Theano expressions
             A map from string output names to Theano expressions for the outputs
             from this layer. This layer type generates a "pre" output that gives
             the unit activity before applying the layer's activation function,
@@ -138,13 +138,13 @@ class Tied(Layer):
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        outputs : dict of theano expressions
+        outputs : dict of Theano expressions
             A map from string output names to Theano expressions for the outputs
             from this layer. This layer type generates a "pre" output that gives
             the unit activity before applying the layer's activation function,
@@ -203,13 +203,13 @@ class Maxout(Layer):
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        outputs : dict of theano expressions
+        outputs : dict of Theano expressions
             A map from string output names to Theano expressions for the outputs
             from this layer. This layer type generates a "pre" output that gives
             the unit activity before applying the layer's activation function,

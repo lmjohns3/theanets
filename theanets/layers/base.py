@@ -120,14 +120,14 @@ def softmax(x):
 
     Parameters
     ----------
-    x : theano variable
-        A theano matrix. Each row represents one data point, and each column
+    x : Theano variable
+        A Theano matrix. Each row represents one data point, and each column
         represents one of the possible classes for the data points.
 
     Returns
     -------
-    y : theano variable
-        A theano expression computing the softmax of each row of `x`.
+    y : Theano variable
+        A Theano expression computing the softmax of each row of `x`.
     '''
     z = TT.exp(x - x.max(axis=-1, keepdims=True))
     return z / z.sum(axis=-1, keepdims=True)
@@ -190,7 +190,7 @@ def add_noise(expr, level, rng):
 
     Parameters
     ----------
-    expr : theano expression
+    expr : Theano expression
         Input expression to add noise to.
     level : float
         Standard deviation of gaussian noise to add to the expression. If this
@@ -198,7 +198,7 @@ def add_noise(expr, level, rng):
 
     Returns
     -------
-    expr : theano expression
+    expr : Theano expression
         The input expression, plus additional noise as specified.
     '''
     if level == 0:
@@ -212,7 +212,7 @@ def add_dropout(expr, probability, rng):
 
     Parameters
     ----------
-    expr : theano expression
+    expr : Theano expression
         Input expression to add dropouts to.
     probability : float, in [0, 1]
         Probability of dropout for each element of the input. If this is 0,
@@ -220,7 +220,7 @@ def add_dropout(expr, probability, rng):
 
     Returns
     -------
-    expr : theano expression
+    expr : Theano expression
         The input expression, plus additional dropouts as specified.
     '''
     if probability == 0:
@@ -283,7 +283,7 @@ class Layer(Base):
 
     Most subclasses will need to provide an implementation of the :func:`setup`
     method, which creates the parameters needed by the layer, and the
-    :func:`transform` method, which converts the theano input expressions coming
+    :func:`transform` method, which converts the Theano input expressions coming
     in to the layer into some output expression(s).
 
     Parameters
@@ -301,7 +301,7 @@ class Layer(Base):
         The name of an activation function to use for units in this layer. See
         :func:`build_activation`.
     rng : random number generator, optional
-        A theano random number generator to use for creating noise and dropout
+        A Theano random number generator to use for creating noise and dropout
         values. If not provided, a new generator will be produced for this
         layer.
     mean, mean_XYZ : float, optional
@@ -369,11 +369,11 @@ class Layer(Base):
         return '{}.out'.format(self.name)
 
     def connect(self, inputs, noise=0, dropout=0, monitors=None):
-        '''Create theano variables representing the outputs of this layer.
+        '''Create Theano variables representing the outputs of this layer.
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. Each string key is of the form
             "{layer_name}.{output_name}" (these refer to a specific output from
@@ -401,13 +401,13 @@ class Layer(Base):
         Returns
         -------
         outputs : dict
-            A dictionary mapping names to theano expressions for the outputs
+            A dictionary mapping names to Theano expressions for the outputs
             from this layer.
         monitors : sequence of (str, expression) tuples
             A sequence of values to compute when "monitoring" the state of this
             layer.
         updates : sequence of (parameter, expression) tuples
-            Updates that should be performed by a theano function that computes
+            Updates that should be performed by a Theano function that computes
             something using this layer.
         '''
         # prepare monitors/noise/dropouts to be dict types.
@@ -467,13 +467,13 @@ class Layer(Base):
 
         Parameters
         ----------
-        inputs : dict of theano expressions
+        inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
             names to Theano expressions. See :func:`Layer.connect`.
 
         Returns
         -------
-        output : theano expression
+        output : Theano expression
             The output for this layer is the same as the input.
         updates : list
             An empty updates list.

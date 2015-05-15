@@ -237,9 +237,10 @@ class Maxout(Layer):
             Fraction of weights to set to zero. Defaults to 0.
         '''
         nin = self.input_size
+        nout = self.size
         std = std or 1 / np.sqrt(nin + nout)
         p = self.kwargs.get('sparsity_{}'.format(name),
-                            self.kwargs.get('sparsity', sparsity)
+                            self.kwargs.get('sparsity', sparsity))
         def rm():
             return random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
         # stack up weight matrices for the pieces in our maxout.

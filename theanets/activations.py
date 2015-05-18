@@ -39,7 +39,40 @@ def build(name, layer, **kwargs):
         return c
     if '+' in name:
         return functools.reduce(compose, (build(n) for n in name.split('+')))
+    act = {
+        # s-shaped
+        'tanh':        TT.tanh,
+        'logistic':    TT.nnet.sigmoid,
+        'sigmoid':     TT.nnet.sigmoid,
+
+        # softmax (typically for classification)
+        'softmax':     softmax,
+
+        # linear variants
+        'linear':      lambda x: x,
+        'softplus':    TT.nnet.softplus,
+        'relu':        lambda x: (x + abs(x)) / 2,
+        'rect:max':    lambda x: (1 + x - abs(x - 1)) / 2,
+        'rect:minmax': lambda x: (1 + abs(x) - abs(x - 1)) / 2,
+
+        # batch normalization
+        'norm:mean':   lambda x: x - x.mean(axis=-1, keepdims=True),
+        'norm:max':    lambda x: x / (
+            abs(x).max(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+        'norm:std':    lambda x: x / (
+            x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+        'norm:z':      lambda x: (x - x.mean(axis=-1, keepdims=True)) / (
+            x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+    }.get(name)
+    if act is not None:
+        act.__theanets_name__ = name
+        return act
     return Activation.build(name, name, layer, **kwargs)
+
+
+def softmax(x):
+    z = TT.exp(x - x.max(axis=-1, keepdims=True))
+    return z / z.sum(axis=-1, keepdims=True)
 
 
 class Activation(util.Registrar(str('Base'), (), {})):
@@ -84,46 +117,6 @@ class Activation(util.Registrar(str('Base'), (), {})):
         raise NotImplementedError
 
 
-class Linear(Activation):
-    def __call__(self, x):
-        return x
-
-
-class Tanh(Activation):
-    def __call__(self, x):
-        return TT.tanh(x)
-
-class Logistic(Activation):
-    __extra_registration_keys__ = ['sigmoid']
-    def __call__(self, x):
-        return TT.nnet.sigmoid(x)
-
-
-class Softmax(Activation):
-    def __call__(self, x):
-        z = TT.exp(x - x.max(axis=-1, keepdims=True))
-        return z / z.sum(axis=-1, keepdims=True)
-
-
-class Softplus(Activation):
-    def __call__(self, x):
-        return TT.nnet.softplus(x)
-
-class Relu(Activation):
-    __extra_registration_keys__ = ['rect:min']
-    def __call__(self, x):
-        return (x + abs(x)) / 2
-
-class RectMax(Activation):
-    __extra_registration_keys__ = ['rect:max']
-    def __call__(self, x):
-        return (1 + x - abs(x - 1)) / 2
-
-class TruncatedRelu(Activation):
-    __extra_registration_keys__ = ['trelu', 'rect:minmax']
-    def __call__(self, x):
-        return (1 + abs(x) - abs(x - 1)) / 2
-
 class Prelu(Activation):
     __extra_registration_keys__ = ['leaky-relu']
 
@@ -136,6 +129,7 @@ class Prelu(Activation):
 
     def __call__(self, x):
         return (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
+
 
 class LGrelu(Activation):
     __extra_registration_keys__ = ['leaky-gain-relu']

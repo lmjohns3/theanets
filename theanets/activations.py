@@ -149,26 +149,32 @@ class LGrelu(Activation):
         return self.gain * (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
 
 
-class NormMean(Activation):
-    __extra_registration_keys__ = ['norm:mean']
-    def __call__(self, x):
-        return x - x.mean(axis=-1, keepdims=True)
+class Maxout(Activation):
+    r'''The maxout activation function is piecewise linear.
 
-class NormMax(Activation):
-    __extra_registration_keys__ = ['norm:max']
-    def __call__(self, x):
-        s = abs(x).max(axis=-1, keepdims=True)
-        return x / (s + TT.cast(1e-6, FLOAT))
+    This activation is unusual in that it requires a parameter: the number of
+    pieces to use. Given :math:`k` pieces, this activation computes a slope and
+    an intercept for each linear piece. It then transfers the input activation
+    as the maximum of all of the pieces.
 
-class NormStd(Activation):
-    __extra_registration_keys__ = ['norm:std']
-    def __call__(self, x):
-        s = x.std(axis=-1, keepdims=True)
-        return x / (s + TT.cast(1e-6, FLOAT))
+    Parameters
+    ----------
+    pieces : int
+        Number of linear pieces to use in the activation.
+    '''
 
-class NormZ(Activation):
-    __extra_registration_keys__ = ['norm:z']
+    def __init__(self, *args, **kwargs):
+        super(Maxout, self).__init__(*args, **kwargs)
+
+        self.pieces = kwargs['pieces']
+
+        m = np.ones((self.layer.size, self.pieces), FLOAT)
+        self.slope = theano.shared(m, name=self.layer._fmt('slope'))
+        self.params.append(self.slope)
+
+        b = np.ones((self.pieces, ), FLOAT)
+        self.intercept = theano.shared(v, name=self.layer._fmt('intercept'))
+        self.params.append(self.intercept)
+
     def __call__(self, x):
-        c = (x - x.mean(axis=-1, keepdims=True))
-        s = x.std(axis=-1, keepdims=True)
-        return c / (s + TT.cast(1e-6, FLOAT))
+        return (x * self.slope + self.intercept).max(axis=-1)

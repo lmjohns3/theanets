@@ -12,7 +12,7 @@ from . import util
 FLOAT = theano.config.floatX
 
 
-def build(name, **kwargs):
+def build(name, layer, **kwargs):
     '''Construct an activation function by name.
 
     Parameters
@@ -20,8 +20,10 @@ def build(name, **kwargs):
     name : str or :class:`Activation`
         The name of the type of activation function to build, or an
         already-created instance of an activation function.
+    layer : :class:`theanets.layers.Layer`
+        The layer to which this activation will be applied.
     kwargs : dict
-        Named arguments to pass to the activation constructor.
+        Additional named arguments to pass to the activation constructor.
 
     Returns
     -------
@@ -36,15 +38,30 @@ def build(name, **kwargs):
         return c
     if '+' in name:
         return functools.reduce(compose, (build(n) for n in name.split('+')))
-    return Activation.build(name, name=name, **kwargs)
+    return Activation.build(name, name, layer, **kwargs)
 
 
 class Activation(util.Registrar(str('Base'), (), {})):
-    '''
+    '''An activation function for a neural network layer.
+
+    Parameters
+    ----------
+    name : str
+        Name of this activation function.
+    layer : :class:`Layer`
+        The layer to which this function is applied.
+
+    Attributes
+    ----------
+    name : str
+        Name of this activation function.
+    layer : :class:`Layer`
+        The layer to which this function is applied.
     '''
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, layer, **kwargs):
         self.name = name
+        self.layer = layer
         self.kwargs = kwargs
         self.params = []
 

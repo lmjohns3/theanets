@@ -197,7 +197,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
         self.activation = activation
-        self.activate = activations.build(activation)
+        self.activate = activations.build(activation, self)
         self.kwargs = kwargs
         self._params = []
         self.setup()

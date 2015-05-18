@@ -123,6 +123,36 @@ class TruncatedRelu(Activation):
     def __call__(self, x):
         return (1 + abs(x) - abs(x - 1)) / 2
 
+class Prelu(Activation):
+    __extra_registration_keys__ = ['leaky-relu']
+
+    def __init__(self, *args, **kwargs):
+        super(Prelu, self).__init__(*args, **kwargs)
+        self.leak = theano.shared(
+            np.ones((self.layer.size, ), FLOAT) * 0.1,
+            name=self.layer._fmt('leak'))
+        self.params.append(self.leak)
+
+    def __call__(self, x):
+        return (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
+
+class LGrelu(Activation):
+    __extra_registration_keys__ = ['leaky-gain-relu']
+
+    def __init__(self, *args, **kwargs):
+        super(LGrelu, self).__init__(*args, **kwargs)
+        self.gain = theano.shared(
+            np.ones((self.layer.size, ), FLOAT),
+            name=self.layer._fmt('gain'))
+        self.params.append(self.gain)
+        self.leak = theano.shared(
+            np.ones((self.layer.size, ), FLOAT) * 0.1,
+            name=self.layer._fmt('leak'))
+        self.params.append(self.leak)
+
+    def __call__(self, x):
+        return self.gain * (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
+
 
 class NormMean(Activation):
     __extra_registration_keys__ = ['norm:mean']

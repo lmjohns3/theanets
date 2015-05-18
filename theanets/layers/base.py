@@ -32,10 +32,8 @@ this is not required.
 from __future__ import division
 
 import climate
-import functools
 import numpy as np
 import theano
-import theano.ifelse
 import theano.tensor as TT
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams

@@ -132,7 +132,7 @@ class Recurrent(base.Layer):
                 for _ in range(nout // nin)], axis=1)
         else:
             arr = util.random_matrix(nin, nout, mean, std, sparsity=s)
-        self.params.append(theano.shared(arr, name=self._fmt(name)))
+        self._params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
         '''Helper method for defining a basic loop in theano.
@@ -558,7 +558,7 @@ class Clockwork(Recurrent):
 
     def log(self):
         '''Log some information about this layer.'''
-        act = self.activate.__theanets_name__
+        act = self.activate.name
         ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
         T = ' '.join(str(T) for T in self.periods)
         logging.info('layer %s: %s -> %s (T: %s), %s, %d parameters',
@@ -644,7 +644,11 @@ class Bidirectional(base.Layer):
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
-        self.params = self.forward.params + self.backward.params
+
+    @property
+    def params(self):
+        '''A list of all learnable parameters in this layer.'''
+        return self.forward.params + self.backward.params
 
     @property
     def num_params(self):

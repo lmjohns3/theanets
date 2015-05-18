@@ -196,7 +196,7 @@ class Maxout(base.Layer):
                      self.input_size,
                      self.size,
                      self.pieces,
-                     self.activate.__theanets_name__,
+                     self.activate.name,
                      self.num_params)
 
     def transform(self, inputs):
@@ -246,7 +246,7 @@ class Maxout(base.Layer):
             return util.random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
-        self.params.append(theano.shared(arr, name=self._fmt(name)))
+        self._params.append(theano.shared(arr, name=self._fmt(name)))
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

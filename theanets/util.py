@@ -14,6 +14,8 @@ class Registrar(type):
             cls._registry = {}
         else:
             cls._registry[name.lower()] = cls
+            for name in getattr(cls, '__extra_registration_keys__', ()):
+                cls._registry[name.lower()] = cls
         super(Registrar, cls).__init__(name, bases, dct)
 
     def build(cls, key, *args, **kwargs):

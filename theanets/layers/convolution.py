@@ -73,7 +73,7 @@ class Convolution(base.Layer):
             for c in range(self.filter_shape[1]):
                 arr[:, :, r, c] = util.random_matrix(
                     nout, nin, mean, std, sparsity=sparsity)
-        self.params.append(theano.shared(arr, name=self._fmt(name)))
+        self._params.append(theano.shared(arr, name=self._fmt(name)))
 
 
 class Conv1(Convolution):

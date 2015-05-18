@@ -40,81 +40,12 @@ import theano.tensor as TT
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
+from .. import activations
 from .. import util
 
 logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
-
-
-def softmax(x):
-    '''Compute the softmax of the rows of a matrix.
-
-    Parameters
-    ----------
-    x : Theano variable
-        A Theano matrix. Each row represents one data point, and each column
-        represents one of the possible classes for the data points.
-
-    Returns
-    -------
-    y : Theano variable
-        A Theano expression computing the softmax of each row of `x`.
-    '''
-    z = TT.exp(x - x.max(axis=-1, keepdims=True))
-    return z / z.sum(axis=-1, keepdims=True)
-
-
-def create_activation(activation):
-    '''Given an activation description, return a callable that implements it.
-
-    Parameters
-    ----------
-    activation : string
-        A string description of an activation function to use.
-
-    Returns
-    -------
-    activation : callable(float) -> float
-        A callable activation function.
-    '''
-    def compose(a, b):
-        c = lambda z: b(a(z))
-        c.__theanets_name__ = '%s(%s)' % (b.__theanets_name__, a.__theanets_name__)
-        return c
-    if '+' in activation:
-        return functools.reduce(
-            compose, (create_activation(a) for a in activation.split('+')))
-    options = {
-        'tanh': TT.tanh,
-        'linear': lambda z: z,
-        'logistic': TT.nnet.sigmoid,
-        'sigmoid': TT.nnet.sigmoid,
-        'softplus': TT.nnet.softplus,
-        'softmax': softmax,
-
-        # rectification
-        'relu': lambda z: TT.maximum(0, z),
-        'trel': lambda z: TT.maximum(0, TT.minimum(1, z)),
-        'trec': lambda z: TT.maximum(1, z),
-        'tlin': lambda z: z * (abs(z) > 1),
-
-        # modifiers
-        'rect:max': lambda z: TT.minimum(1, z),
-        'rect:min': lambda z: TT.maximum(0, z),
-
-        # normalization
-        'norm:dc': lambda z: z - z.mean(axis=-1, keepdims=True),
-        'norm:max': lambda z: z / TT.maximum(TT.cast(1e-7, FLOAT), abs(z).max(axis=-1, keepdims=True)),
-        'norm:std': lambda z: z / TT.maximum(TT.cast(1e-7, FLOAT), TT.std(z, axis=-1, keepdims=True)),
-        'norm:z': lambda z: (z - z.mean(axis=-1, keepdims=True)) / TT.maximum(TT.cast(1e-7, FLOAT), z.std(axis=-1, keepdims=True)),
-        }
-    for k, v in options.items():
-        v.__theanets_name__ = k
-    try:
-        return options[activation.lower()]
-    except KeyError:
-        raise KeyError('unknown activation {}'.format(activation))
 
 
 def add_noise(expr, level, rng):
@@ -268,11 +199,16 @@ class Layer(util.Registrar(str('Base'), (), {})):
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
         self.activation = activation
-        self.activate = create_activation(activation)
+        self.activate = activations.build(activation)
         self.kwargs = kwargs
-        self.params = []
+        self._params = []
         self.setup()
         self.log()
+
+    @property
+    def params(self):
+        '''A list of all parameters in this layer.'''
+        return self._params + self.activate.params
 
     @property
     def num_params(self):
@@ -402,7 +338,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     def log(self):
         '''Log some information about this layer.'''
-        act = self.activate.__theanets_name__
+        act = self.activate.name
         ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
         logging.info('layer %s: %s -> %s, %s, %d parameters',
                      self.name, ins, self.size, act, self.num_params)
@@ -445,7 +381,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             If a param with the given name does not exist.
         '''
         name = self._fmt(str(key))
-        for i, p in enumerate(self.params):
+        for i, p in enumerate(self._params):
             if key == i or name == p.name:
                 return p
         raise KeyError(key)
@@ -481,7 +417,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             'sparsity_{}'.format(name), self.kwargs.get('sparsity', sparsity))
         d = self.kwargs.get(
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
-        self.params.append(theano.shared(
+        self._params.append(theano.shared(
             util.random_matrix(nin, nout, mean=m, std=s, sparsity=p, diagonal=d),
             name=self._fmt(name)))
 
@@ -501,7 +437,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''
         mean = self.kwargs.get('mean_{}'.format(name), mean)
         std = self.kwargs.get('std_{}'.format(name), std)
-        self.params.append(theano.shared(
+        self._params.append(theano.shared(
             util.random_vector(size, mean, std), name=self._fmt(name)))
 
     def to_spec(self):

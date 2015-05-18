@@ -4,6 +4,7 @@ r'''Activation functions for network layers.
 '''
 
 import functools
+import numpy as np
 import theano
 import theano.tensor as TT
 

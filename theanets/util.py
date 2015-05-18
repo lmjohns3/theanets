@@ -5,6 +5,8 @@ r'''Utility functions and classes.'''
 import numpy as np
 import theano
 
+FLOAT = theano.config.floatX
+
 
 class Registrar(type):
     '''A metaclass that builds a registry of its subclasses.'''

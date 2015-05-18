@@ -10,7 +10,8 @@ import theano
 import theano.sparse as SS
 import theano.tensor as TT
 
-from .base import Layer, random_matrix
+from . import base
+from .. import util
 
 logging = climate.get_logger(__name__)
 
@@ -23,7 +24,7 @@ __all__ = [
 ]
 
 
-class Input(Layer):
+class Input(base.Layer):
     '''The input of a network is a special type of layer with no parameters.
 
     Input layers essentially add only noise to the input data (if desired), but
@@ -46,7 +47,7 @@ class Input(Layer):
         return self.size
 
 
-class Feedforward(Layer):
+class Feedforward(base.Layer):
     '''A feedforward neural network layer performs a transform of its input.
 
     More precisely, feedforward layers as implemented here perform an affine
@@ -109,7 +110,7 @@ class Classifier(Feedforward):
         super(Classifier, self).__init__(**kwargs)
 
 
-class Tied(Layer):
+class Tied(base.Layer):
     '''A tied-weights feedforward layer shadows weights from another layer.
 
     Tied weights are typically featured in some types of autoencoder models
@@ -174,7 +175,7 @@ class Tied(Layer):
         return spec
 
 
-class Maxout(Layer):
+class Maxout(base.Layer):
     r'''A maxout layer computes a piecewise linear activation function.
 
     '''
@@ -242,7 +243,7 @@ class Maxout(Layer):
         p = self.kwargs.get('sparsity_{}'.format(name),
                             self.kwargs.get('sparsity', sparsity))
         def rm():
-            return random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
+            return util.random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
         # stack up weight matrices for the pieces in our maxout.
         arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
         self.params.append(theano.shared(arr, name=self._fmt(name)))

@@ -12,7 +12,8 @@ import numpy as np
 import theano
 import theano.tensor as TT
 
-from .base import Layer, random_matrix
+from . import base
+from .. import util
 
 FLOAT = theano.config.floatX
 
@@ -21,7 +22,7 @@ __all__ = [
 ]
 
 
-class Convolution(Layer):
+class Convolution(base.Layer):
     '''Convolution layers convolve filters over the input arrays.
 
     Parameters
@@ -70,7 +71,7 @@ class Convolution(Layer):
         arr = np.zeros((nout, nin) + self.filter_shape, FLOAT)
         for r in range(self.filter_shape[0]):
             for c in range(self.filter_shape[1]):
-                arr[:, :, r, c] = random_matrix(
+                arr[:, :, r, c] = util.random_matrix(
                     nout, nin, mean, std, sparsity=sparsity)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
 

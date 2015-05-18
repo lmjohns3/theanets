@@ -13,7 +13,8 @@ import numpy as np
 import theano
 import theano.tensor as TT
 
-from .base import Layer, random_matrix
+from . import base
+from .. import util
 
 logging = climate.get_logger(__name__)
 
@@ -31,7 +32,7 @@ __all__ = [
 ]
 
 
-class Recurrent(Layer):
+class Recurrent(base.Layer):
     r'''A recurrent network layer incorporates some dependency on past values.
 
     In many respects, a recurrent network layer is much like a basic feedforward
@@ -126,10 +127,11 @@ class Recurrent(Layer):
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         if nin == self.size and nout % nin == 0:
             arr = np.concatenate([
-                random_matrix(nin, nin, mean, std, sparsity=s, radius=r, diagonal=d)
+                util.random_matrix(nin, nin, mean, std,
+                                   sparsity=s, radius=r, diagonal=d)
                 for _ in range(nout // nin)], axis=1)
         else:
-            arr = random_matrix(nin, nout, mean, std, sparsity=s)
+            arr = util.random_matrix(nin, nout, mean, std, sparsity=s)
         self.params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):
@@ -609,7 +611,7 @@ class Clockwork(Recurrent):
         return spec
 
 
-class Bidirectional(Layer):
+class Bidirectional(base.Layer):
     '''A bidirectional recurrent layer runs worker models forward and backward.
 
     The outputs of the forward and backward passes are combined using an affine

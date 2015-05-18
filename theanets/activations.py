@@ -65,7 +65,8 @@ def build(name, layer, **kwargs):
             x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
     }.get(name)
     if act is not None:
-        act.__theanets_name__ = name
+        act.name = name
+        act.params = []
         return act
     return Activation.build(name, name, layer, **kwargs)
 

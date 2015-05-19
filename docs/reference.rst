@@ -71,7 +71,6 @@ Feedforward layers
    Classifier
    Feedforward
    Input
-   Maxout
    Tied
 
 Convolution layers
@@ -106,6 +105,22 @@ Recurrent layers
    Clockwork
    MRNN
    Bidirectional
+
+Activations
+===========
+
+.. automodule:: theanets.activations
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   build
+   Activation
+   LGrelu
+   Maxout
+   Prelu
 
 Training strategies
 ===================

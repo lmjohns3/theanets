@@ -32,6 +32,37 @@ from . import util
 FLOAT = theano.config.floatX
 
 
+def softmax(x):
+    z = TT.exp(x - x.max(axis=-1, keepdims=True))
+    return z / z.sum(axis=-1, keepdims=True)
+
+COMMON = {
+    # s-shaped
+    'tanh':        TT.tanh,
+    'logistic':    TT.nnet.sigmoid,
+    'sigmoid':     TT.nnet.sigmoid,
+
+    # softmax (typically for classification)
+    'softmax':     softmax,
+
+    # linear variants
+    'linear':      lambda x: x,
+    'softplus':    TT.nnet.softplus,
+    'relu':        lambda x: (x + abs(x)) / 2,
+    'rect:max':    lambda x: (x + abs(x)) / 2,
+    'rect:min':    lambda x: (1 + x - abs(x - 1)) / 2,
+    'rect:minmax': lambda x: (1 + abs(x) - abs(x - 1)) / 2,
+
+    # batch normalization
+    'norm:mean':   lambda x: x - x.mean(axis=-1, keepdims=True),
+    'norm:max':    lambda x: x / (
+        abs(x).max(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+    'norm:std':    lambda x: x / (
+        x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+    'norm:z':      lambda x: (x - x.mean(axis=-1, keepdims=True)) / (
+        x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+}
+
 def build(name, layer, **kwargs):
     '''Construct an activation function by name.
 
@@ -58,41 +89,12 @@ def build(name, layer, **kwargs):
         return c
     if '+' in name:
         return functools.reduce(compose, (build(n) for n in name.split('+')))
-    act = {
-        # s-shaped
-        'tanh':        TT.tanh,
-        'logistic':    TT.nnet.sigmoid,
-        'sigmoid':     TT.nnet.sigmoid,
-
-        # softmax (typically for classification)
-        'softmax':     softmax,
-
-        # linear variants
-        'linear':      lambda x: x,
-        'softplus':    TT.nnet.softplus,
-        'relu':        lambda x: (x + abs(x)) / 2,
-        'rect:max':    lambda x: (1 + x - abs(x - 1)) / 2,
-        'rect:minmax': lambda x: (1 + abs(x) - abs(x - 1)) / 2,
-
-        # batch normalization
-        'norm:mean':   lambda x: x - x.mean(axis=-1, keepdims=True),
-        'norm:max':    lambda x: x / (
-            abs(x).max(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
-        'norm:std':    lambda x: x / (
-            x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
-        'norm:z':      lambda x: (x - x.mean(axis=-1, keepdims=True)) / (
-            x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
-    }.get(name)
+    act = COMMON.get(name)
     if act is not None:
         act.name = name
         act.params = []
         return act
     return Activation.build(name, name, layer, **kwargs)
-
-
-def softmax(x):
-    z = TT.exp(x - x.max(axis=-1, keepdims=True))
-    return z / z.sum(axis=-1, keepdims=True)
 
 
 class Activation(util.Registrar(str('Base'), (), {})):

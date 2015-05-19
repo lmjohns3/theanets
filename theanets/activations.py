@@ -1,6 +1,25 @@
 # -*- coding: utf-8 -*-
 
 r'''Activation functions for network layers.
+
+Activation functions are normally constructed using the :func:`build` function.
+Common keys are:
+
+- "tanh"
+- "logistic" (or "sigmoid")
+- "softmax" (typically used for :class:`classifier <theanets.feedforward.Classifier>` output layers)
+- "linear"
+- "softplus" (continuous approximation of "relu")
+- "relu" (or "rect:max")
+- "rect:min"
+- "rect:minmax"
+- "norm:mean": mean subtractive batch normalization
+- "norm:max": max divisive batch normalization
+- "norm:std": standard deviation divisive batch normalization
+- "norm:z": z-score batch normalization
+
+Additionally, the names of all classes defined in this module can be used as
+keys for specifying an activation function.
 '''
 
 import functools
@@ -119,6 +138,23 @@ class Activation(util.Registrar(str('Base'), (), {})):
 
 
 class Prelu(Activation):
+    r'''Parametric rectified linear activation with learnable leak rate.
+
+    This activation is characterized by two linear pieces joined at the origin.
+    For negative inputs, the unit response is a linear function of the input
+    with slope :math:`r` (the "leak rate"). For positive inputs, the unit
+    response is the identity function:
+
+    .. math::
+       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\ x &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+
+    References
+    ----------
+    K He, X Zhang, S Ren, J Sun (2015), "Delving Deep into Rectifiers:
+    Surpassing Human-Level Performance on ImageNet Classification"
+    http://arxiv.org/abs/1502.01852
+    '''
+
     __extra_registration_keys__ = ['leaky-relu']
 
     def __init__(self, *args, **kwargs):
@@ -133,6 +169,18 @@ class Prelu(Activation):
 
 
 class LGrelu(Activation):
+    r'''Rectified linear activation with learnable leak rate and gain.
+
+    This activation is characterized by two linear pieces joined at the origin.
+    For negative inputs, the unit response is a linear function of the input
+    with slope :math:`r` (the "leak rate"). For positive inputs, the unit
+    response is a different linear function of the input with slope :math:`g`
+    (the "gain"):
+
+    .. math::
+       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\ gx &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+    '''
+
     __extra_registration_keys__ = ['leaky-gain-relu']
 
     def __init__(self, *args, **kwargs):
@@ -151,12 +199,34 @@ class LGrelu(Activation):
 
 
 class Maxout(Activation):
-    r'''The maxout activation function is piecewise linear.
+    r'''Arbitrary piecewise linear activation.
 
-    This activation is unusual in that it requires a parameter: the number of
-    pieces to use. Given :math:`k` pieces, this activation computes a slope and
-    an intercept for each linear piece. It then transfers the input activation
-    as the maximum of all of the pieces.
+    This activation is unusual in that it requires a parameter at initialization
+    time: the number of linear pieces to use. Consider a layer for the moment
+    with just one unit. A maxout activation with :math:`k` pieces uses a slope
+    :math:`m_k` and an intercept :math:`b_k` for each linear piece. It then
+    transfers the input activation as the maximum of all of the pieces:
+
+    .. math::
+       f(x) = \max_k m_k x + b_k
+
+    The parameters :math:`m_k` and :math:`b_k` are learnable.
+
+    For layers with more than one unit, the maxout activation allocates a slope
+    :math:`m_{ki}` and intercept :math:`b_{ki}` for each unit :math:`i` and each
+    piece :math:`k`. The activation for unit :math:`x_i` is:
+
+    .. math::
+       f(x_i) = \max_k m_{ki} x_i + b_{ki}
+
+    Again, the slope and intercept parameters are learnable.
+
+    This activation is actually a generalization of the rectified linear
+    activations; to see how, just allocate 2 pieces and set the intercepts to 0.
+    The slopes of the ``relu`` activation are given by :math:`m = (0, 1)`, those
+    of the :class:`Prelu` function are given by :math:`m = (r, 1)`, and those of
+    the :class:`LGrelu` are given by :math:`m = (r, g)` where :math:`r` is the
+    leak rate parameter and `g` is a gain parameter.
 
     Parameters
     ----------

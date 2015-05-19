@@ -11,22 +11,20 @@ the weighted sum of these inputs:
 .. math::
    z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
 
-where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an "activation function" or
-"transfer function."  Although many functions will work, typical choices of the
-activation function are:
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an :mod:`activation function
+<theanets.activations>`.
 
-:linear: :math:`\sigma(z) = z`
-:rectified linear: :math:`\sigma(z) = \max(0, z)`
-:logistic sigmoid: :math:`\sigma(z) = (1 + e^{-z})^{-1}`.
+In addition to standard feedforward layers, other types of layers are also
+commonly used:
 
-Most activation functions are chosen to incorporate a nonlinearity, since a
-model with even multiple linear layers cannot capture nonlinear phenomena. Nodes
-in the input layer are assumed to have linear activation (i.e., the input nodes
-simply represent the state of the input data), and nodes in the output layer
-might have linear or nonlinear activations depending on the modeling task.
+- For recurrent models, :mod:`recurrent layers <theanets.layers.recurrent>`
+  permit a cycle in the computation graph that depends on a previous time step.
 
-Usually all hidden nodes in a network share the same activation function, but
-this is not required.
+- For models that process images, :mod:`convolution layers
+  <theanets.layers.convolution>` are common.
+
+- For some types of autoencoder models, it is common to :class:`tie layer weights to
+  another layer <theanets.layers.feedforward.Tied>`.
 '''
 
 from __future__ import division

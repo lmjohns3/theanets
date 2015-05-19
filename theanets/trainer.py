@@ -35,6 +35,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import feedforward
 from . import layers
+from . import util
 
 logging = climate.get_logger(__name__)
 
@@ -70,7 +71,7 @@ def ipcluster_mapper(client):
     return mapper
 
 
-class Trainer(object):
+class Trainer(util.Registrar(str('Base'), (), {})):
     '''All trainers derive from this base class.
 
     A trainer is a wrapper for a few different types of theano functions, along

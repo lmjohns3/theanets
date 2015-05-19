@@ -74,16 +74,7 @@ class Experiment:
                     args += (trainer.RmsProp, )
                 factory = trainer.UnsupervisedPretrainer
             else:
-                factory = dict(
-                    adadelta=trainer.ADADELTA,
-                    esgd=trainer.ESGD,
-                    hf=trainer.HF,
-                    nag=trainer.NAG,
-                    rmsprop=trainer.RmsProp,
-                    rprop=trainer.Rprop,
-                    sample=trainer.Sample,
-                    sgd=trainer.SGD,
-                )[factory.lower()]
+                factory = trainer.Trainer.get_class(factory)
         logging.info('creating trainer %s', factory)
         for k in sorted(kwargs):
             logging.info('--%s = %s', k, kwargs[k])

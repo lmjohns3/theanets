@@ -23,6 +23,9 @@ class Registrar(type):
     def build(cls, key, *args, **kwargs):
         return cls._registry[key.lower()](*args, **kwargs)
 
+    def get_class(cls, key):
+        return cls._registry[key.lower()]
+
     def is_registered(cls, key):
         return key.lower() in cls._registry
 

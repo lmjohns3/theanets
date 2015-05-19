@@ -1084,7 +1084,7 @@ class UnsupervisedPretrainer(Trainer):
         layers_ = list(self.network.layers[:-1])
         for l in layers_[::-1][:-2]:
             layers_.append(layers.build(
-                'tied', partner=l, activation=l.kwargs['activation']))
+                'tied', partner=l, activation=l.activation))
         layers_.append(layers.build(
             'tied', partner=layers_[1], activation='linear'))
 

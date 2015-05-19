@@ -245,7 +245,7 @@ class Maxout(Activation):
         self.slope = theano.shared(m, name=self.layer._fmt('slope'))
         self.params.append(self.slope)
 
-        b = np.ones((self.pieces, ), FLOAT)
+        b = np.ones((self.layer.size, self.pieces), FLOAT)
         self.intercept = theano.shared(b, name=self.layer._fmt('intercept'))
         self.params.append(self.intercept)
 

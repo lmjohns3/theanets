@@ -19,7 +19,6 @@ __all__ = [
     'Classifier',
     'Feedforward',
     'Input',
-    'Maxout',
     'Tied',
 ]
 
@@ -172,90 +171,4 @@ class Tied(base.Layer):
         '''
         spec = super(Tied, self).to_spec()
         spec['partner'] = self.partner.name
-        return spec
-
-
-class Maxout(base.Layer):
-    r'''A maxout layer computes a piecewise linear activation function.
-
-    '''
-
-    def __init__(self, **kwargs):
-        self.pieces = kwargs.pop('pieces')
-        super(Maxout, self).__init__(**kwargs)
-
-    def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('w')
-        self.add_bias('b', self.size)
-
-    def log(self):
-        '''Log some information about this layer.'''
-        logging.info('layer %s: %s -> %s (x%s), %s, %d parameters',
-                     self.name,
-                     self.input_size,
-                     self.size,
-                     self.pieces,
-                     self.activate.name,
-                     self.num_params)
-
-    def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of state updates.
-        '''
-        x = self._only_input(inputs)
-        pre = TT.dot(x, self.find('w')).max(axis=2) + self.find('b')
-        return dict(pre=pre, out=self.activate(pre)), []
-
-    def add_weights(self, name, mean=0, std=None, sparsity=0):
-        '''Helper method to create a new weight matrix.
-
-        Parameters
-        ----------
-        name : str
-            Name of the parameter to add.
-        mean : float, optional
-            Mean value for randomly-initialized weights. Defaults to 0.
-        std : float, optional
-            Standard deviation of initial matrix values. Defaults to
-            :math:`1 / sqrt(n_i + n_o)`.
-        sparsity : float, optional
-            Fraction of weights to set to zero. Defaults to 0.
-        '''
-        nin = self.input_size
-        nout = self.size
-        std = std or 1 / np.sqrt(nin + nout)
-        p = self.kwargs.get('sparsity_{}'.format(name),
-                            self.kwargs.get('sparsity', sparsity))
-        def rm():
-            return util.random_matrix(nin, nout, mean, std, sparsity=p)[:, :, None]
-        # stack up weight matrices for the pieces in our maxout.
-        arr = np.concatenate([rm() for _ in range(self.pieces)], axis=2)
-        self._params.append(theano.shared(arr, name=self._fmt(name)))
-
-    def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
-        spec = super(Maxout, self).to_spec()
-        spec['pieces'] = self.pieces
         return spec

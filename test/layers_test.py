@@ -104,20 +104,6 @@ class TestClassifier(Base):
         assert not upd
 
 
-class TestMaxout(Base):
-    def _build(self):
-        return theanets.layers.Maxout(inputs=2, size=4, pieces=3, name='l')
-
-    def test_create(self):
-        self.assert_param_names(['b', 'w'])
-        self.assert_count(28)
-
-    def test_transform(self):
-        out, upd = self.l.transform(dict(out=self.x))
-        assert len(out) == 2
-        assert not upd
-
-
 class BaseRecurrent(Base):
     def setUp(self):
         super(BaseRecurrent, self).setUp()

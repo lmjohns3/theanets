@@ -169,9 +169,9 @@ class Network(object):
         )
 
         # if layer is a tuple, assume that it contains one or more of the following:
-        # - the type of layer to construct (layers.Layer subclass)
-        # - the name of a class for the layer (str; if layes.Layer subclass)
-        # - the name of an activation function (str; otherwise)
+        # - a layers.Layer subclass to construct (type)
+        # - the name of a layers.Layer class (str)
+        # - the name of an activation function (str)
         # - the number of units in the layer (int)
         if isinstance(layer, (tuple, list)):
             for el in layer:
@@ -181,7 +181,7 @@ class Network(object):
                 except TypeError:
                     pass
                 if isinstance(el, str):
-                    if el.lower() in layers.Layer._registry:
+                    if layers.Layer.is_registered(el):
                         form = el
                     else:
                         kwargs['activation'] = el

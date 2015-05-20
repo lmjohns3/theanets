@@ -3,23 +3,23 @@
 r'''Activation functions for network layers.
 
 Activation functions are normally constructed using the :func:`build` function.
-Common keys are:
+Commonly available functions are:
 
-- "tanh"
-- "logistic" (or "sigmoid")
-- "softmax" (typically used for :class:`classifier <theanets.feedforward.Classifier>` output layers)
 - "linear"
-- "softplus" (continuous approximation of "relu")
+- "logistic" (or "sigmoid")
+- "tanh"
+- "softmax" (typically used for :class:`classifier <theanets.feedforward.Classifier>` output layers)
 - "relu" (or "rect:max")
 - "rect:min"
 - "rect:minmax"
-- "norm:mean": mean subtractive batch normalization
-- "norm:max": max divisive batch normalization
-- "norm:std": standard deviation divisive batch normalization
+- "softplus" (continuous approximation of "relu")
+- "norm:mean": subtractive (mean) batch normalization
+- "norm:max": divisive (max) batch normalization
+- "norm:std": divisive (standard deviation) batch normalization
 - "norm:z": z-score batch normalization
 
 Additionally, the names of all classes defined in this module can be used as
-keys for specifying an activation function.
+keys when building an activation function.
 '''
 
 import functools
@@ -31,6 +31,7 @@ from . import util
 
 FLOAT = theano.config.floatX
 
+# We define several common activation functions here so they are pickle-able.
 
 def _identity(x): return x
 
@@ -38,7 +39,8 @@ def _relu(x): return (x + abs(x)) / 2
 def _trel(x): return (1 + x - abs(x - 1)) / 2
 def _rect(x): return (1 + abs(x) - abs(x - 1)) / 2
 
-def _norm_mean(x): return x - x.mean(axis=-1, keepdims=True)
+def _norm_mean(x):
+    return x - x.mean(axis=-1, keepdims=True)
 def _norm_max(x):
     s = abs(x).max(axis=-1, keepdims=True)
     return x / (s + TT.cast(1e-6, FLOAT))
@@ -77,6 +79,7 @@ COMMON = {
     'norm:std':    _norm_std,
     'norm:z':      _norm_z,
 }
+
 
 def build(name, layer, **kwargs):
     '''Construct an activation function by name.

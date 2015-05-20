@@ -77,14 +77,16 @@ class Network(object):
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
     weighted : bool, optional
-        If True, the network will require an additional input that provides
-        weights for the target outputs of the network; the weights will be the
-        last input argument to the network, and they must be the same shape as
-        the target output. This can be particularly useful for recurrent
-        networks, where the length of each input sequence in a minibatch is not
-        necessarily the same number of time steps, or for classifier networks
-        where the prior proabibility of one class is significantly different
-        than another. The default is not to use weighted outputs.
+        If True, the network will require an additional input during training
+        that provides weights for the target outputs of the network; the weights
+        will be the last input argument to the network, and they must be the
+        same shape as the target output.
+
+        This can be particularly useful for recurrent networks, where the length
+        of each input sequence in a minibatch is not necessarily the same number
+        of time steps, or for classifier networks where the prior proabibility
+        of one class is significantly different than another. The default is not
+        to use weighted outputs.
 
     Attributes
     ----------
@@ -140,8 +142,11 @@ class Network(object):
         layer : int, tuple, dict, or :class:`Layer <layers.Layer>`
             A value specifying the layer to add. For more information, please
             see :ref:`creating-specifying-layers`.
-        output_layer : bool, optional
-            True iff this is the output layer for the graph.
+        is_output : bool, optional
+            True iff this is the output layer for the graph. This influences the
+            default activation function used for the layer: output layers in
+            most models have a linear activation, while output layers in
+            classifier networks default to a softmax activation.
         '''
         # if the given layer is a Layer instance, just add it and move on.
         if isinstance(layer, layers.Layer):

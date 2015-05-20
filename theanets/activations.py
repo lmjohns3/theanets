@@ -112,7 +112,12 @@ def build(name, layer, **kwargs):
         act.name = name
         act.params = []
         return act
-    return Activation.build(name, name, layer, **kwargs)
+    if name.lower().startswith('maxout') and ':' in name:
+        name, pieces = name.split(':', 1)
+        kwargs['pieces'] = int(pieces)
+    kwargs['name'] = name
+    kwargs['layer'] = layer
+    return Activation.build(name, **kwargs)
 
 
 class Activation(util.Registrar(str('Base'), (), {})):

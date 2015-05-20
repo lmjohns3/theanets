@@ -228,6 +228,8 @@ class Classifier(graph.Network):
     model and :math:`R` is a regularization function.
     '''
 
+    DEFAULT_OUTPUT_ACTIVATION = 'softmax'
+
     def setup_vars(self):
         '''Setup Theano variables for our network.
 

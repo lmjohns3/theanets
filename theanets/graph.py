@@ -159,10 +159,11 @@ class Network(object):
             return
 
         # here we set up some defaults for constructing a new layer.
+        def_out_act = getattr(self, 'DEFAULT_OUTPUT_ACTIVATION', 'linear')
         form = 'feedforward'
         kwargs = dict(
             name='out' if is_output else 'hid{}'.format(len(self.layers)),
-            activation='linear' if is_output else 'logistic',
+            activation=def_out_act if is_output else 'logistic',
             inputs={self.layers[-1].output_name: self.layers[-1].size},
             size=layer,
         )

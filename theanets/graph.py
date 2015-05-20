@@ -63,44 +63,6 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 
-def load(filename, **kwargs):
-    '''Load an entire network from a pickle file on disk.
-
-    If this function is called without extra keyword arguments, a new network
-    will be created using the keyword arguments that were originally used to
-    create the pickled network. If this helper function is called with extra
-    keyword arguments, they will override arguments that were originally used to
-    create the pickled network. This override allows one to, for example, load a
-    network that was created with one activation function, and apply a different
-    activation function to the existing weights. Some options will cause errors
-    if overridden, such as `layers` or `tied_weights`, since they change the
-    number of parameters in the model.
-
-    Parameters
-    ----------
-    filename : str
-        Load the keyword arguments and parameters of a network from a pickle
-        file at the named path. If this name ends in ".gz" then the input will
-        automatically be gunzipped; otherwise the input will be treated as a
-        "raw" pickle.
-
-    Returns
-    -------
-    network : :class:`Network`
-        A newly-constructed network, with topology and parameters loaded from
-        the given pickle file.
-    '''
-    opener = gzip.open if filename.lower().endswith('.gz') else open
-    handle = opener(filename, 'rb')
-    pkl = pickle.load(handle)
-    handle.close()
-    kw = dict(layers=pkl['layers'], weighted=pkl['weighted'])
-    kw.update(kwargs)
-    net = pkl['klass'](**kw)
-    net.load_params(filename)
-    return net
-
-
 class Network(object):
     '''The network class encapsulates a network computation graph.
 
@@ -458,40 +420,33 @@ class Network(object):
         Parameters
         ----------
         filename : str
-            Save the parameters of this network to a pickle file at the named
-            path. If this name ends in ".gz" then the output will automatically
-            be gzipped; otherwise the output will be a "raw" pickle.
+            Save the state of this network to a pickle file at the named path.
+            If this name ends in ".gz" then the output will automatically be
+            gzipped; otherwise the output will be a "raw" pickle.
         '''
-        state = dict(klass=self.__class__,
-                     layers=[l.to_spec() for l in self.layers],
-                     weighted=self.weighted)
-        for layer in self.layers:
-            key = '{}-values'.format(layer.name)
-            state[key] = [p.get_value() for p in layer.params]
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'wb')
-        pickle.dump(state, handle, -1)
+        pickle.dump(self, handle, -1)
         handle.close()
-        logging.info('%s: saved model parameters', filename)
+        logging.info('%s: saved model', filename)
 
-    def load_params(self, filename):
-        '''Load the parameters for this network from disk.
+    @classmethod
+    def load(cls, filename):
+        '''Load a saved network from disk.
 
         Parameters
         ----------
         filename : str
-            Load the parameters of this network from a pickle file at the named
-            path. If this name ends in ".gz" then the input will automatically
-            be gunzipped; otherwise the input will be treated as a "raw" pickle.
+            Load the state of a network from a pickle file at the named path. If
+            this name ends in ".gz" then the input will automatically be
+            gunzipped; otherwise the input will be treated as a "raw" pickle.
         '''
         opener = gzip.open if filename.lower().endswith('.gz') else open
         handle = opener(filename, 'rb')
-        saved = pickle.load(handle)
+        model = pickle.load(handle)
         handle.close()
-        for layer in self.layers:
-            for p, v in zip(layer.params, saved['{}-values'.format(layer.name)]):
-                p.set_value(v)
-        logging.info('%s: loaded model parameters', filename)
+        logging.info('%s: loaded model', filename)
+        return model
 
     def loss(self, **kwargs):
         '''Return a variable representing the loss for this network.

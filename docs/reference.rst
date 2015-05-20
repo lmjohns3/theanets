@@ -12,7 +12,6 @@ Computation graphs
 .. autosummary::
    :toctree: generated/
 
-   load
    Network
 
 Feedforward networks

@@ -32,7 +32,25 @@ from . import util
 FLOAT = theano.config.floatX
 
 
-def softmax(x):
+def _identity(x): return x
+
+def _relu(x): return (x + abs(x)) / 2
+def _trel(x): return (1 + x - abs(x - 1)) / 2
+def _rect(x): return (1 + abs(x) - abs(x - 1)) / 2
+
+def _norm_mean(x): return x - x.mean(axis=-1, keepdims=True)
+def _norm_max(x):
+    s = abs(x).max(axis=-1, keepdims=True)
+    return x / (s + TT.cast(1e-6, FLOAT))
+def _norm_std(x):
+    s = x.std(axis=-1, keepdims=True)
+    return x / (s + TT.cast(1e-6, FLOAT))
+def _norm_z(x):
+    m = x.mean(axis=-1, keepdims=True)
+    s = x.std(axis=-1, keepdims=True)
+    return (x - m) / (s + TT.cast(1e-6, FLOAT))
+
+def _softmax(x):
     z = TT.exp(x - x.max(axis=-1, keepdims=True))
     return z / z.sum(axis=-1, keepdims=True)
 
@@ -43,24 +61,21 @@ COMMON = {
     'sigmoid':     TT.nnet.sigmoid,
 
     # softmax (typically for classification)
-    'softmax':     softmax,
+    'softmax':     _softmax,
 
     # linear variants
-    'linear':      lambda x: x,
+    'linear':      _identity,
     'softplus':    TT.nnet.softplus,
-    'relu':        lambda x: (x + abs(x)) / 2,
-    'rect:max':    lambda x: (x + abs(x)) / 2,
-    'rect:min':    lambda x: (1 + x - abs(x - 1)) / 2,
-    'rect:minmax': lambda x: (1 + abs(x) - abs(x - 1)) / 2,
+    'relu':        _relu,
+    'rect:max':    _relu,
+    'rect:min':    _trel,
+    'rect:minmax': _rect,
 
     # batch normalization
-    'norm:mean':   lambda x: x - x.mean(axis=-1, keepdims=True),
-    'norm:max':    lambda x: x / (
-        abs(x).max(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
-    'norm:std':    lambda x: x / (
-        x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
-    'norm:z':      lambda x: (x - x.mean(axis=-1, keepdims=True)) / (
-        x.std(axis=-1, keepdims=True) + TT.cast(1e-6, FLOAT)),
+    'norm:mean':   _norm_mean,
+    'norm:max':    _norm_max,
+    'norm:std':    _norm_std,
+    'norm:z':      _norm_z,
 }
 
 def build(name, layer, **kwargs):

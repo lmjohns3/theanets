@@ -18,7 +18,7 @@ class TestExperiment(util.MNIST):
             theanets.Classifier, layers=(self.DIGIT_SIZE, 2, 3))
         assert isinstance(exp.network, theanets.Classifier)
 
-    def test_create_autoencoder(self):
+    def test_create_regressor(self):
         exp = theanets.Experiment(
             theanets.Regressor, layers=(self.DIGIT_SIZE, 2, 4))
         assert isinstance(exp.network, theanets.Regressor)
@@ -38,6 +38,9 @@ class TestExperiment(util.MNIST):
                 assert lo.name == ln.name
                 assert lo.inputs == ln.inputs
                 assert lo.size == ln.size
+            for po, pn in zip(net.params, exp.network.params):
+                assert po.name == pn.name
+                assert np.allclose(po.get_value(), pn.get_value())
         finally:
             if os.path.exists(p):
                 os.unlink(p)

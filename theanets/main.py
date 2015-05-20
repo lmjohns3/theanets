@@ -225,10 +225,9 @@ class Experiment:
         path : str
             Location of the file to save the network.
         '''
-        logging.info('%s: saving model', path)
         self.network.save(path)
 
-    def load(self, path, **kwargs):
+    def load(self, path):
         '''Load a saved network from a pickle file on disk.
 
         This method sets the ``network`` attribute of the experiment to the
@@ -248,6 +247,5 @@ class Experiment:
             A newly-constructed network, with topology and parameters loaded
             from the given pickle file.
         '''
-        logging.info('%s: loading model', path)
-        self.network = graph.load(path, **kwargs)
+        self.network = graph.Network.load(path)
         return self.network

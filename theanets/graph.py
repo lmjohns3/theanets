@@ -196,8 +196,9 @@ class Network(object):
             kwargs.update(layer)
 
         if isinstance(form, str) and form.lower() == 'bidirectional':
-            kwargs['name'] = 'bd{}{}'.format(
-                kwargs.get('worker', 'rnn'), len(self.layers))
+            if not (isinstance(layer, dict) and 'name' in layer):
+                kwargs['name'] = 'bd{}{}'.format(
+                    kwargs.get('worker', 'rnn'), len(self.layers))
 
         if isinstance(form, str) and form.lower() == 'tied':
             partner = kwargs.get('partner')

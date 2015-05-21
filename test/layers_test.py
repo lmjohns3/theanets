@@ -3,7 +3,7 @@ import theanets
 import theano.tensor as TT
 
 
-class Base:
+class Base(object):
     def setUp(self):
         self.x = TT.matrix('x')
         self.l = self._build()

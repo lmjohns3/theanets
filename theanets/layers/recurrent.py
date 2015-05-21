@@ -204,7 +204,7 @@ class RNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -258,7 +258,7 @@ class LRRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -320,7 +320,7 @@ class ARRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -373,7 +373,7 @@ class MRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -435,7 +435,7 @@ class LSTM(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -492,7 +492,7 @@ class GRU(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -571,7 +571,7 @@ class Clockwork(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -664,7 +664,7 @@ class Bidirectional(base.Layer):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------

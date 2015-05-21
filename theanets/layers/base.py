@@ -175,12 +175,10 @@ class Layer(util.Registrar(str('Base'), (), {})):
         Dictionary mapping input names to their corresponding sizes.
     activation : str
         String representing the activation function for this layer.
-    kwargs : dict
-        Additional keyword arguments used when constructing this layer.
     activate : callable
         The activation function to use on this layer's outputs.
-    params : list of Params
-        A list of the parameters in this layer.
+    kwargs : dict
+        Additional keyword arguments used when constructing this layer.
     '''
 
     _count = 0

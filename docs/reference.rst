@@ -117,9 +117,9 @@ Activations
 
    build
    Activation
+   Prelu
    LGrelu
    Maxout
-   Prelu
 
 Training strategies
 ===================

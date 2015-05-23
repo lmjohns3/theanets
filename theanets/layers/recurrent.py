@@ -275,10 +275,12 @@ class LRRNN(Recurrent):
         r = TT.nnet.sigmoid(self.find('r'))
         x = self._only_input(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
+
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, r * h_tm1 + (1 - r) * h_t]
+
         (pre, hid, out), updates = self._scan(fn, [h], [None, None, x])
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
@@ -337,10 +339,12 @@ class ARRNN(Recurrent):
         x = self._only_input(inputs)
         r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
         h = TT.dot(x, self.find('xh')) + self.find('b')
+
         def fn(x_t, r_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
+
         (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
@@ -388,12 +392,14 @@ class MRNN(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        def fn(x_t, f_t, h_tm1):
-            pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
-            return [pre, self.activate(pre)]
         x = self._only_input(inputs)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
+
+        def fn(x_t, f_t, h_tm1):
+            pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
+            return [pre, self.activate(pre)]
+
         (pre, out), updates = self._scan(fn, [h, f], [None, x])
         return dict(pre=pre, factors=f, out=out), updates
 
@@ -450,6 +456,7 @@ class LSTM(Recurrent):
         def split(z):
             n = self.size
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
+
         def fn(x_t, h_tm1, c_tm1):
             xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
             i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
@@ -458,6 +465,7 @@ class LSTM(Recurrent):
             o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
             h_t = o_t * TT.tanh(c_t)
             return [h_t, c_t]
+
         x = self._only_input(inputs)
         batch_size = x.shape[1]
         (out, cell), updates = self._scan(
@@ -512,6 +520,7 @@ class GRU(Recurrent):
             pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
+
         x = self._only_input(inputs)
         (pre, hid, rate, out), updates = self._scan(
             fn,
@@ -585,6 +594,7 @@ class Clockwork(Recurrent):
             function.
         '''
         n = self.size // len(self.periods)
+
         def fn(t, x_t, p_tm1, h_tm1):
             p_t = TT.concatenate([
                 theano.ifelse.ifelse(
@@ -594,6 +604,7 @@ class Clockwork(Recurrent):
                     p_tm1[:, i*n:(i+1)*n])
                 for i, T in enumerate(self.periods)], axis=1)
             return [p_t, self.activate(p_t)]
+
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
         (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
         return dict(pre=pre, out=out), updates
@@ -635,12 +646,14 @@ class Bidirectional(base.Layer):
         name = kwargs.pop('name', 'layer{}'.format(Layer._count))
         if 'direction' in kwargs:
             kwargs.pop('direction')
+
         def make(suffix, direction):
             return build(worker,
                          direction=direction,
                          size=size // 2,
                          name='{}_{}'.format(name, suffix),
                          **kwargs)
+
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)

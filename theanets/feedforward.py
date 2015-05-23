@@ -55,8 +55,13 @@ class Autoencoder(graph.Network):
 
     .. math::
        \begin{eqnarray*}
-       \mathcal{L}(X, \theta) &=& \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - x_i \|_2^2 + R(X, \theta) \\
-       &=& \frac{1}{m} \sum_{i=1}^m \| g_\beta(f_\alpha(x_i)) - x_i \|_2^2 + R(X, \alpha, \beta)
+       \mathcal{L}(X, \theta)
+         &=&
+           \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - x_i \|_2^2
+           + R(X, \theta) \\
+         &=&
+           \frac{1}{m} \sum_{i=1}^m \| g_\beta(f_\alpha(x_i)) - x_i \|_2^2
+           + R(X, \alpha, \beta)
        \end{eqnarray*}
 
     where :math:`R` is a regularization function.
@@ -165,7 +170,8 @@ class Regressor(graph.Network):
     the model parameters :math:`\theta` is:
 
     .. math::
-       \mathcal{L}(X, Y, \theta) = \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - y_i \|_2^2 + R(X, \theta)
+       \mathcal{L}(X, Y, \theta) =
+         \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - y_i \|_2^2 + R(X, \theta)
 
     where :math:`F_\theta` is the feedforward function that computes the network
     output, and :math:`R` is a regularization function.

@@ -171,7 +171,8 @@ class Prelu(Activation):
     response is the identity function:
 
     .. math::
-       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\ x &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\
+                      x &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
 
     References
     ----------
@@ -203,7 +204,8 @@ class LGrelu(Activation):
     (the "gain"):
 
     .. math::
-       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\ gx &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+       f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\
+                       gx &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
     '''
 
     __extra_registration_keys__ = ['leaky-gain-relu']

@@ -43,6 +43,7 @@ def batches(samples, labels=None, steps=100, batch_size=64):
             j = rng.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
         return [xs]
+
     def labeled_sample():
         xs = np.zeros((steps, batch_size, samples.shape[1]), FLOAT)
         ys = np.zeros((steps, batch_size, labels.shape[1]), FLOAT)
@@ -51,6 +52,7 @@ def batches(samples, labels=None, steps=100, batch_size=64):
             xs[:, i, :] = samples[j:j+steps]
             ys[:, i, :] = labels[j:j+steps]
         return [xs, ys]
+
     return unlabeled_sample if labels is None else labeled_sample
 
 

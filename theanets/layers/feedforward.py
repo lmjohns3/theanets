@@ -81,8 +81,10 @@ class Feedforward(base.Layer):
                 return SS.structured_dot(x, y)
             else:
                 return TT.dot(x, y)
+
         def weight(n):
             return 'w' if len(self.inputs) == 1 else 'w_{}'.format(n)
+
         xws = ((inputs[n], self.find(weight(n))) for n in self.inputs)
         pre = sum(_dot(x, w) for x, w in xws) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []

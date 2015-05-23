@@ -795,10 +795,11 @@ class HF(Trainer):
     URL = 'https://raw.github.com/boulanni/theano-hf/master/hf.py'
 
     def __init__(self, network, **kwargs):
-        import os, tempfile
+        import os
+        import tempfile
         try:
             import urllib.request
-        except: # Python 2.x
+        except:  # Python 2.x
             import urllib
         sys.path.append(tempfile.gettempdir())
 
@@ -810,7 +811,7 @@ class HF(Trainer):
             path = os.path.join(tempfile.gettempdir(), 'hf.py')
             try:
                 urllib.request.urlretrieve(HF.URL, path)
-            except: # Python 2.x
+            except:  # Python 2.x
                 urllib.urlretrieve(HF.URL, path)
             logging.info('downloaded hf code to %s', path)
             import hf
@@ -827,7 +828,7 @@ class HF(Trainer):
         kwargs['validate_every'] = kwargs.pop('validate', 1 << 60)
         try:
             func = self.opt.train.__func__.__code__
-        except: # Python 2.x
+        except:  # Python 2.x
             func = self.opt.train.im_func.func_code
         for k in set(kwargs) - set(func.co_varnames[1:]):
             kwargs.pop(k)

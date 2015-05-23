@@ -204,7 +204,7 @@ class RNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -258,7 +258,7 @@ class LRRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -322,7 +322,7 @@ class ARRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -377,7 +377,7 @@ class MRNN(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -441,7 +441,7 @@ class LSTM(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -500,7 +500,7 @@ class GRU(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -580,7 +580,7 @@ class Clockwork(Recurrent):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -643,17 +643,19 @@ class Bidirectional(base.Layer):
 
     def __init__(self, worker='rnn', **kwargs):
         size = kwargs.pop('size')
-        name = kwargs.pop('name', 'layer{}'.format(Layer._count))
+        name = kwargs.pop('name', 'layer{}'.format(base.Layer._count))
         if 'direction' in kwargs:
             kwargs.pop('direction')
 
         def make(suffix, direction):
-            return build(worker,
-                         direction=direction,
-                         size=size // 2,
-                         name='{}_{}'.format(name, suffix),
-                         **kwargs)
+            return base.build(
+                worker,
+                direction=direction,
+                size=size // 2,
+                name='{}_{}'.format(name, suffix),
+                **kwargs)
 
+        self.worker = worker
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
         super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
@@ -675,7 +677,7 @@ class Bidirectional(base.Layer):
         ----------
         inputs : dict of theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
+            names to Theano expressions. See :func:`base.Layer.connect`.
 
         Returns
         -------
@@ -701,3 +703,15 @@ class Bidirectional(base.Layer):
         for k, v in bout.items():
             outputs['bw_{}'.format(k)] = v
         return outputs, fupd + bupd
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Bidirectional, self).to_spec()
+        spec['worker'] = self.worker
+        return spec

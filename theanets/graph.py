@@ -314,6 +314,7 @@ class Network(object):
                 out, upd = layer.connect(outputs, noise, dropout)
                 outputs.update(out)
                 updates.extend(upd)
+                outputs['out'] = outputs[layer.output_name()]
             self._graphs[key] = outputs, updates
         return self._graphs[key]
 

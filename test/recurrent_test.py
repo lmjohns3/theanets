@@ -50,7 +50,7 @@ class TestNetwork(Base):
     def test_feed_forward(self):
         net = self._build(15, 13)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 8, 'got {}'.format(list(hs.keys()))
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
         self.assert_shape(hs['in:out'].shape, (STEPS, BATCH, INS))
         self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 15))
         self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 13))
@@ -59,7 +59,7 @@ class TestNetwork(Base):
     def test_multiple_recurrent(self):
         net = self._build(13, 14, 15)
         hs = net.feed_forward(self.probe)
-        assert len(hs) == 10, 'got {}'.format(list(hs.keys()))
+        assert len(hs) == 11, 'got {}'.format(list(hs.keys()))
         self.assert_shape(hs['in:out'].shape, (STEPS, BATCH, INS))
         self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 13))
         self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 14))

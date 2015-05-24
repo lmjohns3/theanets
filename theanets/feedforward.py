@@ -306,7 +306,7 @@ class Classifier(graph.Network):
         acc = correct.mean()
         if self.weighted:
             acc = (self.weights * correct).sum() / self.weights.sum()
-        return TT.cast(100, FLOAT) * acc
+        return acc
 
     def classify(self, x):
         '''Compute a greedy classification for the given set of data.

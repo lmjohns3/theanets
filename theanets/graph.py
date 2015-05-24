@@ -164,7 +164,7 @@ class Network(object):
         kwargs = dict(
             name='out' if is_output else 'hid{}'.format(len(self.layers)),
             activation=def_out_act if is_output else 'logistic',
-            inputs={self.layers[-1].output_name: self.layers[-1].size},
+            inputs={self.layers[-1].output_name(): self.layers[-1].size},
             size=layer,
         )
 
@@ -268,46 +268,53 @@ class Network(object):
 
         Parameters
         ----------
-        input_noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
+        noise : dict mapping str to float, optional
+            A dictionary that maps layer output names to standard deviation
+            values. For an output "layer:output" in the graph, white noise with
+            the given standard deviation will be added to the output. Defaults
+            to 0 for all layer outputs.
+        dropout : dict mapping str to float in [0, 1], optional
+            A dictionary that maps layer output names to dropout values. For an
+            output "layer:output" in the graph, the given fraction of units in
+            the output will be randomly set to 0. Default to 0 for all layer
+            outputs.
 
         Returns
         -------
         outputs : list of theano variables
             A list of expressions giving the output of each layer in the graph.
-        monitors : list of (name, expression) tuples
-            A list of expressions to use when monitoring the network.
         updates : list of update tuples
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
         key = self._hash(**kwargs)
         if key not in self._graphs:
-            inputs = dict(x=self.x)
-            outputs, monitors, updates = {}, [], []
+            noise = kwargs.get('noise')
+            if noise is None:
+                noise = {}
+                for i, l in enumerate(self.layers):
+                    which = 'hidden_noise'
+                    if i == 0:
+                        which = 'input_noise'
+                    if i == len(self.layers) - 1:
+                        which = 'output_noise'
+                    noise[l.output_name()] = kwargs.get(which, 0)
+            dropout = kwargs.get('dropout')
+            if dropout is None:
+                dropout = {}
+                for i, l in enumerate(self.layers):
+                    which = 'hidden_dropouts'
+                    if i == 0:
+                        which = 'input_dropouts'
+                    if i == len(self.layers) - 1:
+                        which = 'output_dropouts'
+                    dropout[l.output_name()] = kwargs.get(which, 0)
+            outputs, updates = dict(x=self.x), []
             for i, layer in enumerate(self.layers):
-                noise = dropout = 0
-                if i == 0:
-                    noise = kwargs.get('input_noise', 0)
-                    dropout = kwargs.get('input_dropouts', 0)
-                elif i != len(self.layers) - 1:
-                    noise = kwargs.get('hidden_noise', 0)
-                    dropout = kwargs.get('hidden_dropouts', 0)
-                out, mon, upd = layer.connect(inputs, noise=noise, dropout=dropout)
-                inputs.update(out)
-                scoped = {'.'.join((layer.name, n)): e for n, e in out.items()}
-                inputs.update(scoped)
-                outputs.update(scoped)
-                monitors.extend(mon)
+                out, upd = layer.connect(outputs, noise, dropout)
+                outputs.update(out)
                 updates.extend(upd)
-            self._graphs[key] = outputs, monitors, updates
+            self._graphs[key] = outputs, updates
         return self._graphs[key]
 
     @property
@@ -330,9 +337,8 @@ class Network(object):
         '''Number of parameters in the entire network model.'''
         return sum(l.num_params for l in self.layers)
 
-    @property
     def output_name(self):
-        return self.layers[-1].output_name
+        return self.layers[-1].output_name()
 
     def find(self, layer, param):
         '''Get a parameter from a layer in the network.
@@ -391,7 +397,7 @@ class Network(object):
         '''
         key = self._hash(**kwargs)
         if key not in self._functions:
-            outputs, _, updates = self.build_graph(**kwargs)
+            outputs, updates = self.build_graph(**kwargs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
             self._functions[key] = (
                 labels,
@@ -417,7 +423,7 @@ class Network(object):
             Rows in this array correspond to examples, and columns to output
             variables.
         '''
-        return self.feed_forward(x)[self.output_name]
+        return self.feed_forward(x)[self.output_name()]
 
     __call__ = predict
 
@@ -473,23 +479,18 @@ class Network(object):
             Regularize the L2 norm of hidden unit activations by this constant.
         contractive : float, optional
             Regularize model using the Frobenius norm of the hidden Jacobian.
-        input_noise : float, optional
+        noise : float, optional
             Standard deviation of desired noise to inject into input.
-        hidden_noise : float, optional
-            Standard deviation of desired noise to inject into hidden unit
-            activation output.
-        input_dropouts : float in [0, 1], optional
+        dropout : float in [0, 1], optional
             Proportion of input units to randomly set to 0.
-        hidden_dropouts : float in [0, 1], optional
-            Proportion of hidden unit activations to randomly set to 0.
 
         Returns
         -------
         loss : theano expression
             A theano expression representing the loss of this network.
         '''
-        outputs, _, _ = self.build_graph(**kwargs)
-        hiddens = [outputs[l.output_name] for l in self.layers[1:-1]]
+        outputs, _ = self.build_graph(**kwargs)
+        hiddens = [outputs[l.output_name()] for l in self.layers[1:-1]]
         regularizers = dict(
             weight_l1=(abs(w).sum() for l in self.layers for w in l.params if w.ndim > 1),
             weight_l2=((w * w).sum() for l in self.layers for w in l.params if w.ndim > 1),
@@ -498,7 +499,7 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        return self.error(outputs[self.output_name]) + sum(
+        return self.error(outputs[self.output_name()]) + sum(
             TT.cast(kwargs[weight], FLOAT) * sum(expr)
             for weight, expr in regularizers.items()
             if kwargs.get(weight, 0) > 0)
@@ -511,8 +512,9 @@ class Network(object):
         monitors : list of (name, expression) pairs
             A list of named monitor expressions to compute for this network.
         '''
-        outputs, monitors, _ = self.build_graph(**kwargs)
-        return [('err', self.error(outputs[self.output_name]))] + monitors
+        outputs, _ = self.build_graph(**kwargs)
+        monitors = []
+        return [('err', self.error(outputs[self.output_name()]))] + monitors
 
     def updates(self, **kwargs):
         '''Return expressions to run as updates during network training.
@@ -522,5 +524,5 @@ class Network(object):
         updates : list of (parameter, expression) pairs
             A list of named parameter update expressions for this network.
         '''
-        _, _, updates = self.build_graph(**kwargs)
+        _, updates = self.build_graph(**kwargs)
         return updates

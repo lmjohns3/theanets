@@ -41,9 +41,8 @@ class TestLayer(Base):
             assert isinstance(l, theanets.layers.Layer)
 
     def test_connect(self):
-        out, mon, upd = self.l.connect(dict(out=self.x), monitors=(0.1, 0.2))
+        out, upd = self.l.connect(dict(out=self.x))
         assert len(out) == 2
-        assert len(mon) == 2
         assert len(upd) == 0
 
 

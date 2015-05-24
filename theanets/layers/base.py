@@ -209,104 +209,71 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''Total number of learnable parameters in this layer.'''
         return sum(np.prod(p.get_value().shape) for p in self.params)
 
-    @property
-    def output_name(self):
-        '''Fully-scoped name of the default output for this layer.'''
-        return '{}.out'.format(self.name)
+    def output_name(self, name='out'):
+        '''Return a fully-scoped name for the given layer output.
 
-    def connect(self, inputs, noise=0, dropout=0, monitors=None):
+        Parameters
+        ----------
+        name : str
+            Name of an output for this layer.
+
+        Returns
+        -------
+        scoped : str
+            A fully-scoped name for the given output from this layer.
+        '''
+        return '{}:{}'.format(self.name, name)
+
+    def connect(self, inputs, noise=0, dropout=0):
         '''Create Theano variables representing the outputs of this layer.
 
         Parameters
         ----------
         inputs : dict of Theano expressions
             Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. Each string key is of the form
-            "{layer_name}.{output_name}" (these refer to a specific output from
-            a specific layer in the graph) or simply "{output_name}" (these
-            typically refer to the outputs from the "most recent" layer; see
-            :func:`theanets.graph.Network.setup_layers`).
-        noise : positive float or dict, optional
-            Add isotropic gaussian noise with the given standard deviation to
-            the output of this layer. If this is a scalar, it is applied to the
-            default output from this layer; if it is a dictionary, then it
-            should map the names of outputs from this layer to the noise to add
-            to that layer. Defaults to 0, which does not add noise to any
-            outputs.
-        dropout : float in (0, 1) or dict, optional
-            Set the given fraction of outputs in this layer randomly to zero. If
-            this is a scalar, the given value applies to the default output from
-            this layer; if it is a dictionary, then it should map the names of
-            outputs in this layer to dropout values for that layer. Defaults to
-            0, which does not drop out any units in any outputs.
-        monitors : dict, optional
-            A dictionary mapping string output names to monitors for the given
-            output. Typically monitors are computed during training of a network
-            to provide insight into the dynamics of the model.
+            names to Theano expressions. Each string key should be of the form
+            "{layer_name}:{output_name}" and refers to a specific output from
+            a specific layer in the graph.
+        noise : dict of noise values, optional
+            This dictionary should map the names of outputs from this layer to
+            the zero-mean, isotropic noise to add to that output. Defaults to 0,
+            which does not add noise to any outputs.
+        dropout : dict of dropout values, optional
+            This dictionary should map the names of outputs in this layer to
+            dropout values for that output. Defaults to 0, which does not drop
+            out any units in any outputs.
 
         Returns
         -------
         outputs : dict
             A dictionary mapping names to Theano expressions for the outputs
             from this layer.
-        monitors : sequence of (str, expression) tuples
-            A sequence of values to compute when "monitoring" the state of this
-            layer.
         updates : sequence of (parameter, expression) tuples
             Updates that should be performed by a Theano function that computes
             something using this layer.
         '''
-        # prepare monitors/noise/dropouts to be dict types.
-        if monitors is None:
-            monitors = {}
-        if not isinstance(monitors, dict):
-            monitors = dict(out=monitors)
-        if not isinstance(noise, dict):
-            noise = dict(out=noise)
-        if not isinstance(dropout, dict):
-            dropout = dict(out=dropout)
-
-        # compute output expressions for this layer given the inputs. transform
-        # the outputs to be a list of ordered pairs if needed.
         outputs, updates = self.transform(inputs)
+
+        # transform the outputs to be a list of ordered pairs if needed.
         if isinstance(outputs, dict):
             outputs = sorted(outputs.items())
         if isinstance(outputs, TT.TensorVariable):
             outputs = [('out', outputs)]
 
-        # set up outputs, monitors, and updates for this layer.
+        # set up outputs for this layer by adding noise and dropout as needed.
         rng = self.kwargs.get('rng') or RandomStreams()
+        if not isinstance(noise, dict):
+            noise = {self.output_name(): noise}
+        if not isinstance(dropout, dict):
+            dropout = {self.output_name(): dropout}
         outs = {}
-        monits = []
         for name, expr in outputs:
-            # add noise and/or dropouts to this output.
-            outs[name] = add_dropout(
-                add_noise(expr, noise.get(name, 0), rng),
-                dropout.get(name, 0), rng)
+            scoped = self.output_name(name)
+            noisy = add_noise(expr, noise.get(scoped, 0), rng)
+            dropped = add_dropout(noisy, dropout.get(scoped, 0), rng)
+            outs[scoped] = dropped
 
-            # set up monitor expressions for this output.
-            levels = monitors.get(name)
-            if not levels:
-                continue
-            if isinstance(levels, dict):
-                levels = levels.items()
-            for level in levels:
-                if isinstance(level, (tuple, list)):
-                    label, call = level
-                    key = ':{}'.format(label)
-                    value = call(expr)
-                if isinstance(level, (int, float)):
-                    key = '<{}'.format(level)
-                    value = (expr < TT.cast(level, FLOAT)).mean()
-                monits.append(('{}.{}{}'.format(self.name, name, key), value))
-
-        for param in self.params:
-            levels = monitors.get(param.name)
-            if not levels:
-                continue
-            monits.append(('{}.{}{}'.format(self.name, param.name, key), value))
-
-        return outs, monits, updates
+        return outs, updates
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

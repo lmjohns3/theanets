@@ -137,9 +137,9 @@ class Autoencoder(graph.Network):
         '''
         key = self._find_layer(layer)
         if key not in self._functions:
-            outputs, _, updates = self.build_graph()
+            outputs, updates = self.build_graph()
             self._functions[key] = theano.function(
-                [outputs[key]], [outputs[self.output_name]], updates=updates)
+                [outputs[key]], [outputs[self.output_name()]], updates=updates)
         return self._functions[key](z)[0]
 
     def _find_layer(self, layer):
@@ -150,9 +150,7 @@ class Autoencoder(graph.Network):
         if isinstance(layer, int):
             layer = self.layers[layer]
         if isinstance(layer, layers.Layer):
-            layer = layer.output_name
-        if '.' not in layer:
-            layer = '{}.out'.format(layer)
+            layer = layer.output_name()
         return layer
 
 
@@ -285,9 +283,9 @@ class Classifier(graph.Network):
         monitors : list of (name, expression) pairs
             A list of named monitor expressions to compute for this network.
         '''
-        outputs, monitors, _ = self.build_graph(**kwargs)
-        out = outputs[self.output_name]
-        return [('err', self.error(out)), ('acc', self.accuracy(out))] + monitors
+        monitors = super(Classifier, self).monitors(**kwargs)
+        outputs, _ = self.build_graph(**kwargs)
+        return monitors + [('acc', self.accuracy(outputs[self.output_name()]))]
 
     def accuracy(self, output):
         '''Build a theano expression for computing the network accuracy.
@@ -322,7 +320,7 @@ class Classifier(graph.Network):
         k : ndarray (num-examples, )
             A vector of class index values, one per row of input data.
         '''
-        return self.feed_forward(x)[self.output_name].argmax(axis=-1)
+        return self.feed_forward(x)[self.output_name()].argmax(axis=-1)
 
     predict = classify
 
@@ -343,7 +341,7 @@ class Classifier(graph.Network):
             An array of class logit values, one row of logit values per row of
             input data.
         '''
-        return self.feed_forward(x)['{}.pre'.format(self.layers[-1].name)]
+        return self.feed_forward(x)[self.layers[-1].output_name('pre')]
 
     def score(self, x, y, w=None):
         '''Compute the mean accuracy on a set of labeled data.

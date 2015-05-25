@@ -146,6 +146,10 @@ class Regressor(feedforward.Regressor):
         # for a regressor, this specifies the correct outputs for a given input.
         self.targets = TT.tensor3('targets')
 
+        # the weights are the same shape as the output and specify the strength
+        # of each entries in the error computation.
+        self.weights = TT.tensor3('weights')
+
         if self.weighted:
             return [self.x, self.targets, self.weights]
         return [self.x, self.targets]

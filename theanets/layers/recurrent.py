@@ -556,7 +556,7 @@ class Clockwork(Recurrent):
 
     def __init__(self, periods, **kwargs):
         assert kwargs['size'] % len(periods) == 0
-        self.periods = np.asarray(sorted(periods))
+        self.periods = np.asarray(sorted(periods, reverse=True))
         super(Clockwork, self).__init__(**kwargs)
 
     def setup(self):

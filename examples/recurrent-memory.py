@@ -17,7 +17,7 @@ mask[:TIME - BITS - 1] = 0
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,
-    layers=(1, dict(form='rnn', activation='relu', size=10, radius=1), 1),
+    layers=(1, dict(form='rnn', activation='relu', size=10, diagonal=1), 1),
     weighted=True)
 
 def generate():

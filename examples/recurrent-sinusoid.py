@@ -22,19 +22,20 @@ ZERO = np.zeros((len(T), BATCH_SIZE, 1), 'f')
 ax = plt.subplot(111)
 ax.plot(T, SIN, ':', label='Target', alpha=0.7)
 
-for name, hidden in (
-        ('RNN', ('rnn', 'relu', 64)),
-        ('LSTM', ('lstm', 'tanh', 64)),
-        ('Clockwork', dict(form='clockwork',
-                           activation='linear',
-                           size=64,
+for name, layer in (
+        ('RNN', dict(form='rnn', activation='relu', size=64, diagonal=0.3)),
+        ('LSTM', dict(form='lstm', activation='tanh', size=64)),
+        ('Clockwork', dict(form='clockwork', activation='linear', size=64,
                            periods=(1, 4, 16, 64))),
 ):
     logging.info('training %s model', name)
-    e = theanets.Experiment(theanets.recurrent.Regressor, layers=(1, hidden, 1))
-    e.train([ZERO, WAVES], batch_size=BATCH_SIZE, learning_rate=0.0001, patience=0)
+    e = theanets.Experiment(theanets.recurrent.Regressor, layers=(1, layer, 1))
+    e.train([ZERO, WAVES],
+            batch_size=BATCH_SIZE,
+            learning_rate=0.0001,
+            patience=1)
     prd = e.network.predict(ZERO)
-    ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.7)
+    ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.9)
 
 ax.xaxis.tick_bottom()
 ax.yaxis.tick_left()

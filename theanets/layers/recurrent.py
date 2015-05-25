@@ -11,6 +11,7 @@ from __future__ import division
 import climate
 import numpy as np
 import theano
+import theano.ifelse
 import theano.tensor as TT
 
 from . import base

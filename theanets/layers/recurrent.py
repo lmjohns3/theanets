@@ -581,25 +581,61 @@ class GRU(Recurrent):
 
 
 class Clockwork(Recurrent):
-    '''A Clockwork RNN updates "modules" of neurons with specific periods.
+    r'''A Clockwork RNN layer updates "modules" of neurons at specific rates.
 
-    In a vanilla RNN, all neurons in the hidden pool are updated at every time
-    step by mixing an affine transformation of the input with an affine
-    transformation of the state of the hidden pool neurons at the previous time
-    step.
+    In a vanilla :class:`RNN` layer, all neurons in the hidden pool are updated
+    at every time step by mixing an affine transformation of the input with an
+    affine transformation of the state of the hidden pool neurons at the
+    previous time step:
 
-    In a clockwork RNN, neurons in the hidden pool are split into several
-    "modules" of equal size, each of which has an associated period (an
-    integer). The neurons in a module are updated only when the time index of
-    the input is an even multiple of the period for that module. This separates
-    pool neurons into several groups, some of which only respond to "slow"
-    features in the input, and others which respond to "fast" features.
-    Additionally, modules with small periods receive inputs from modules with
-    large periods, but not vice-versa: this allows the "slow" features to
-    influence the "fast" features, but not the other way around.
+    .. math::
+       h_t = g(x_tW_{xh} + h_{t-1}W_{hh} + b_h)
 
-    The implementation here is modeled after J Koutník, K Greff, F Gomez, & J
-    Schmidhuber (2014), "A Clockwork RNN" http://arxiv.org/abs/1402.3511.
+    In a Clockwork RNN layer, neurons in the hidden pool are split into
+    :math:`M` "modules" of equal size (:math:`h^i` for :math:`i = 1, \dots, M`),
+    each of which has an associated clock period (a positive integer :math:`T_i`
+    for :math:`i = 1, \dots, M`). The neurons in module :math:`i` are updated
+    only when the time index :math:`t` of the input :math:`x_t` is an even
+    multiple of :math:`T_i`. Thus some of modules (those with large :math:`T`)
+    only respond to "slow" features in the input, and others (those with small
+    :math:`T`) respond to "fast" features.
+
+    Furthermore, "fast" modules with small periods receive inputs from "slow"
+    modules with large periods, but not vice-versa: this allows the "slow"
+    features to influence the "fast" features, but not the other way around.
+
+    The state :math:`h_t^i` of module :math:`i` at time step :math:`t` is thus
+    governed by the following mathematical relation:
+
+    .. math::
+       h_t^i = \left\{ \begin{align*}
+          &g\left( x_tW_{xh}^i + b_h^i +
+             \sum_{j=1}^i h_{t-1}^jW_{hh}^j\right)
+             \mbox{ if } t \mod T_i = 0 \\
+          &h_{t-1}^i \mbox{ otherwise.} \end{align*} \right.
+
+    Here, the modules have been ordered such that :math:`T_j > T_i` for
+    :math:`j < i`.
+
+    In ``theanets``, this update relation is implemented using a nested loop.
+    The outer loop calls Theano's ``scan()`` operator to iterate over the input
+    data at each time step. The inner loop iterates over the modules, updating
+    each module if the clock cycle is correct, and copying over the previous
+    value of the module if not.
+
+    Parameters
+    ----------
+    periods : sequence of int
+        The periods for the modules in this clockwork layer. The number of
+        values in this sequence specifies the number of modules in the layer.
+        The layer size must be an integer multiple of the number of modules
+        given in this sequence.
+
+    References
+    ----------
+
+    .. [1] J. Koutník, K. Greff, F. Gomez, & J. Schmidhuber. (2014) "A Clockwork
+           RNN." http://arxiv.org/abs/1402.3511
     '''
 
     def __init__(self, periods, **kwargs):

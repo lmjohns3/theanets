@@ -24,8 +24,9 @@ ax.plot(T, SIN, ':', label='Target', alpha=0.7)
 
 for name, layer in (
         ('RNN', dict(form='rnn', activation='relu', size=64, diagonal=0.3)),
-        ('LSTM', dict(form='lstm', activation='tanh', size=64)),
         ('LRRNN', dict(form='lrrnn', activation='relu', size=64)),
+        ('GRU', dict(form='gru', activation='relu', size=64)),
+        ('LSTM', dict(form='lstm', activation='tanh', size=64)),
         ('Clockwork', dict(form='clockwork', activation='linear', size=64,
                            periods=(1, 4, 16, 64))),
 ):

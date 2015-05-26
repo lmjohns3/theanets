@@ -418,11 +418,59 @@ class MRNN(Recurrent):
 
 
 class LSTM(Recurrent):
-    '''Long Short-Term Memory layer.
+    r'''Long Short-Term Memory (LSTM) layer.
 
-    The implementation details for this layer follow the specification given by
-    A. Graves, "Generating Sequences with Recurrent Neural Networks,"
-    http://arxiv.org/pdf/1308.0850v5.pdf (page 5).
+    An LSTM layer is composed of a number of "cells" that are explicitly
+    designed to store information for a certain period of time. Each cell's
+    stored value is "guarded" by three gates that permit or deny modification of
+    the cell's value:
+
+    - The "input" gate turns on when the input to the LSTM layer should
+      influence the cell's value.
+    - The "output" gate turns on when the cell's stored value should propagate
+      to the next layer.
+    - The "forget" gate turns on when the cell's stored value should be reset.
+
+    The output :math:`h_t` of the LSTM layer at time :math:`t` is given as a
+    function of the input :math:`x_t` and the previous states of the layer
+    :math:`h_{t-1}` and the internal cell :math:`c_{t-1}` by:
+
+    .. math::
+       \begin{eqnarray}
+       i_t &=& \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i) \\
+       f_t &=& \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f) \\
+       c_t &=& f_t c_{t-1} + i_t \tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c) \\
+       o_t &=& \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o) \\
+       h_t &=& o_t \tanh(c_t)
+       \end{eqnarray}
+
+    where the :math:`W_{ab}` are weight matrix parameters and the :math:`b_x`
+    are bias vectors. Equations (1), (2), and (4) give the activations for the
+    three gates in the LSTM unit; these gates are activated using the logistic
+    sigmoid so that their activities are confined to the open interval (0, 1).
+    The value of the cell is updated by equation (3) and is just the weighted
+    sum of the previous cell value and the new cell value, where the weights are
+    given by the forget and input gate activations, respectively. The output of
+    the unit is the cell value weighted by the activation of the output gate.
+
+    The LSTM cell has become quite popular in recurrent neural network models.
+    It works amazingly well across a wide variety of tasks and is relatively
+    stable during training. The cost of this performance comes in the form of
+    large numbers of trainable parameters: Each gate as well as the cell
+    receives input from the current input, the previous state of all cells in
+    the LSTM layer, and the previous output of the LSTM layer.
+
+    The implementation details for this layer come from the specification given
+    on page 5 of [2]_.
+
+    References
+    ----------
+
+    .. [1] S. Hochreiter & J. Schmidhuber. (1997) "Long short-term memory."
+           Neural computation, 9(8), 1735-1780.
+
+    .. [2] A. Graves. (2013) "Generating Sequences with Recurrent Neural
+           Networks." http://arxiv.org/pdf/1308.0850v5.pdf
     '''
 
     def setup(self):

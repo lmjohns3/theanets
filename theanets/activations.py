@@ -104,9 +104,11 @@ def build(name, layer, **kwargs):
     def compose(a, b):
         c = lambda z: b(a(z))
         c.name = ['%s(%s)' % (b.name, a.name)]
+        c.params = getattr(b, 'params', []) + getattr(a, 'params', [])
         return c
     if '+' in name:
-        return functools.reduce(compose, (build(n) for n in name.split('+')))
+        return functools.reduce(
+            compose, (build(n, layer, **kwargs) for n in name.split('+')))
     act = COMMON.get(name)
     if act is not None:
         act.name = name

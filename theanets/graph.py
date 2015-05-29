@@ -50,6 +50,7 @@ the input nodes in the graph).
 '''
 
 import climate
+import fnmatch
 import gzip
 import hashlib
 import pickle
@@ -514,8 +515,43 @@ class Network(object):
             A list of named monitor expressions to compute for this network.
         '''
         outputs, _ = self.build_graph(**kwargs)
-        monitors = []
-        return [('err', self.error(outputs[self.output_name()]))] + monitors
+        monitors = [('err', self.error(outputs[self.output_name()]))]
+
+        def parse_pattern(pattern):
+            '''Yield graph expressions that match the given pattern.'''
+            for name, expr in outputs.items():
+                if fnmatch.fnmatch(name, pattern):
+                    yield name, expr
+            for l in self.layers:
+                for p in l.params:
+                    if fnmatch.fnmatch(p.name, pattern):
+                        yield p.name, p
+
+        def parse_levels(levels):
+            '''Yield named monitor callables.'''
+            if isinstance(levels, dict):
+                levels = levels.items()
+            if isinstance(levels, (int, float)):
+                levels = [levels]
+            for level in levels:
+                if isinstance(level, (tuple, list)):
+                    label, call = level
+                    yield ':{}'.format(label), call
+                if isinstance(level, (int, float)):
+                    key = '<{}'.format(level)
+                    call = lambda expr: (expr < TT.cast(level, FLOAT)).mean()
+                    yield key, call
+
+        inputs = kwargs.get('monitors', {})
+        if isinstance(inputs, dict):
+            inputs = inputs.items()
+        for pattern, levels in inputs:
+            levels = list(parse_levels(levels))
+            for name, expr in parse_pattern(pattern):
+                for key, value in levels:
+                    monitors.append(('{}{}'.format(name, key), value(expr)))
+
+        return monitors
 
     def updates(self, **kwargs):
         '''Return expressions to run as updates during network training.

@@ -58,7 +58,7 @@ e.train(
     hidden_l1=0.001,
     weight_inverse=0,
     train_batches=300,
-    monitors={'hid1.out': (-0.9, -0.1, 0.1, 0.9)}
+    monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)}
 )
 
 # color the network weights so they are viewable as digits.

@@ -320,17 +320,7 @@ class Network(object):
 
     @property
     def params(self):
-        '''Get a list of the learnable theano parameters for this network.
-
-        This attribute is mostly used by :class:`Trainer
-        <theanets.trainer.Trainer>` implementations to compute the set of
-        parameters that are tunable in a network.
-
-        Returns
-        -------
-        params : list of theano variables
-            A list of parameters that can be learned in this model.
-        '''
+        '''A list of the learnable theano parameters for this network.'''
         return [p for l in self.layers for p in l.params]
 
     @property
@@ -339,6 +329,14 @@ class Network(object):
         return sum(l.num_params for l in self.layers)
 
     def output_name(self):
+        '''Get the fully-scoped name of the output for this network model.
+
+        Returns
+        -------
+        name : str
+            A name of the form "{layer}:{output}" that indicates the overall
+            output for the network.
+        '''
         return self.layers[-1].output_name()
 
     def find(self, layer, param):

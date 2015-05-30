@@ -9,7 +9,8 @@ class Base(object):
         self.l = self._build()
 
     def assert_param_names(self, expected):
-        expected = sorted('l_{}'.format(n) for n in expected)
+        if not expected[0].startswith('l'):
+            expected = sorted('l.{}'.format(n) for n in expected)
         real = sorted(p.name for p in self.l.params)
         assert real == expected, 'got {}, expected {}'.format(real, expected)
 
@@ -81,7 +82,7 @@ class TestTied(Base):
 
     def test_create(self):
         l = self._build()
-        assert sorted(p.name for p in l.params) == [l.name + '_b']
+        assert sorted(p.name for p in l.params) == [l.name + '.b']
         self.assert_count(2)
 
     def test_transform(self):
@@ -224,16 +225,18 @@ class TestClockwork(BaseRecurrent):
         assert not upd
 
     def test_spec(self):
-        self.assert_spec(periods=(2, 5), size=4, form='clockwork')
+        self.assert_spec(periods=(5, 2), size=4, form='clockwork')
 
 
 class TestBidirectional(BaseRecurrent):
     def _build(self):
-        return theanets.layers.Bidirectional(inputs=2, size=4, worker='arrnn', name='l')
+        return theanets.layers.Bidirectional(
+            inputs=2, size=4, worker='arrnn', name='l')
 
     def test_create(self):
-        self.assert_param_names(['bw_b', 'bw_hh', 'bw_r', 'bw_xh', 'bw_xr',
-                                 'fw_b', 'fw_hh', 'fw_r', 'fw_xh', 'fw_xr'])
+        self.assert_param_names(
+            ['l_bw.b', 'l_bw.hh', 'l_bw.r', 'l_bw.xh', 'l_bw.xr',
+             'l_fw.b', 'l_fw.hh', 'l_fw.r', 'l_fw.xh', 'l_fw.xr'])
         self.assert_count(32)
 
     def test_transform(self):

@@ -300,14 +300,14 @@ class Layer(util.Registrar(str('Base'), (), {})):
     def log(self):
         '''Log some information about this layer.'''
         act = self.activate.name
-        ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
+        ins = '+'.join('{} {}'.format(n, s) for n, s in self.inputs.items())
         logging.info('layer %s: %s -> %s, %s, %d parameters',
                      self.name, ins, self.size, act, self.num_params)
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
         if '{' not in string:
-            string = '{}_' + string
+            string = '{}.' + string
         return string.format(self.name)
 
     def _only_input(self, inputs):

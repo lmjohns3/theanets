@@ -45,26 +45,47 @@ data points that you've classified into 10 categories. You can define your model
 and train it using a few lines of code::
 
   import climate
+  import sklearn.datasets
+  import sklearn.metrics
   import theanets
-  import my_data_set
 
   climate.enable_default_logging()
+
+  X, y = sklearn.datasets.make_classification(
+      n_samples=3000,
+      n_features=100,
+      n_informative=30,
+      n_repeated=10,
+      n_redundant=10,
+      n_classes=10,
+      n_clusters_per_class=3,
+  )
+  X = X.astype('f')
+  y = y.astype('i')
 
   exp = theanets.Experiment(
       theanets.Classifier,
       layers=(100, 200, 100, 10),
   )
 
+  cut = 2500
   exp.train(
-      my_data_set.training_data,
-      my_data_set.validation_data,
-      optimize='sgd',
+      [X[:cut], y[:cut]],
+      [X[cut:], y[cut:]],
+      algo='sgd',
       learning_rate=0.01,
       momentum=0.5,
-      hidden_l1=0.1,
+      hidden_l1=0.001,
+      weight_l2=0.001,
   )
 
-  exp.network.predict(my_data_set.test_data)
+  print('training:')
+  print(sklearn.metrics.confusion_matrix(
+      y[:cut], exp.network.predict(X[:cut])))
+
+  print('validation:')
+  print(sklearn.metrics.confusion_matrix(
+      y[cut:], exp.network.predict(X[cut:])))
 
 The remainder of the documentation will help fill you in on the details of these
 calls and the options that ``theanets`` provides for each of them. Have fun!

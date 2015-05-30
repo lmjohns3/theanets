@@ -234,7 +234,9 @@ class LRRNN(Recurrent):
     \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
 
     Rates might be defined in a number of ways, spanning a continuum between
-    vanilla RNNs (i.e., all rate parameters are fixed at 1) all the way to
+    vanilla RNNs (i.e., all rate parameters are fixed at 1), fixed but
+    non-uniform rates for each hidden unit [Ben12]_, parametric rates that are
+    dependent only on the input (i.e., the :class:`ARRNN`), all the way to
     parametric rates that are computed as a function of the inputs and the
     hidden state at each time step (i.e., something more like the :class:`gated
     recurrent unit <GRU>`).
@@ -243,6 +245,12 @@ class LRRNN(Recurrent):
     representation uses the fewest number of parameters for learnable rates, but
     the simplicity of the model comes at the cost of effectively fixing the rate
     for each unit as a constant value across time.
+
+    References
+    ----------
+
+    .. [Ben12] Y. Bengio, N. Boulanger-Lewandowski, R. Pascanu. (2012) "Advances
+       in Optimizing Recurrent Networks." http://arxiv.org/abs/1212.0901
     '''
 
     def setup(self):

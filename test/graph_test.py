@@ -35,10 +35,10 @@ class TestNetwork(util.MNIST):
         assert not self._build(13).updates()
 
 
-class TestMonitors(TestNetwork):
+class TestMonitors(util.MNIST):
     def setUp(self):
         super(TestMonitors, self).setUp()
-        self.net = self._build(15, 13)
+        self.net = theanets.Regressor((self.DIGIT_SIZE, 15, 14, 13))
 
     def assert_monitors(self, monitors, expected):
         mon = [k for k, v in self.net.monitors(monitors=monitors)]
@@ -57,7 +57,7 @@ class TestMonitors(TestNetwork):
     def test_dict_values(self):
         self.assert_monitors({'hid1:out': dict(a=lambda e: e+1,
                                                b=lambda e: e+2)},
-                             ['err', 'hid1:out:b', 'hid1:out:a'])
+                             ['err', 'hid1:out:a', 'hid1:out:b'])
 
     def test_not_found(self):
         self.assert_monitors({'hid10:out': 1}, ['err'])
@@ -66,5 +66,5 @@ class TestMonitors(TestNetwork):
         self.assert_monitors({'hid1.w': 1}, ['err', 'hid1.w<1'])
 
     def test_wildcard(self):
-        self.assert_monitors({'*.w': 1}, ['err', 'hid1.w<1', 'out.w<1'])
-        self.assert_monitors({'hid?.w': 1}, ['err', 'hid1.w<1'])
+        self.assert_monitors({'*.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1', 'out.w<1'])
+        self.assert_monitors({'hid?.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1'])

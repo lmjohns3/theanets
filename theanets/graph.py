@@ -412,8 +412,6 @@ class Network(object):
         '''
         return self.feed_forward(x)[self.output_name()]
 
-    __call__ = predict
-
     def save(self, filename):
         '''Save the state of this network to a pickle file on disk.
 

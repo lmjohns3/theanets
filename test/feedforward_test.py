@@ -1,5 +1,4 @@
 import theanets
-import numpy as np
 
 import util
 
@@ -10,12 +9,12 @@ class TestClassifier(util.MNIST):
 
     def test_classify_onelayer(self):
         net = self._build(13)
-        z = net.classify(self.images)
+        z = net.predict(self.images)
         assert z.shape == (self.NUM_DIGITS, )
 
     def test_classify_twolayer(self):
         net = self._build(13, 14)
-        z = net.classify(self.images)
+        z = net.predict(self.images)
         assert z.shape == (self.NUM_DIGITS, )
 
 

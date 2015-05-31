@@ -81,14 +81,14 @@ class TestClassifier(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Classifier((INS, ) + hiddens + (OUTS, ))
 
-    def test_classify_onelayer(self):
+    def test_predict_onelayer(self):
         net = self._build(13)
-        z = net.classify(self.probe)
+        z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH))
 
-    def test_classify_twolayer(self):
+    def test_predict_twolayer(self):
         net = self._build(13, 14)
-        z = net.classify(self.probe)
+        z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH))
 
 

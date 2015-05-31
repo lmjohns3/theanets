@@ -8,9 +8,9 @@ class TestNetwork(util.MNIST):
     def _build(self, *hiddens):
         return theanets.Regressor((self.DIGIT_SIZE, ) + hiddens)
 
-    def test_transform(self):
+    def test_predict(self):
         net = self._build(15, 13)
-        y = net.transform(self.images)
+        y = net.predict(self.images)
         assert y.shape == (self.NUM_DIGITS, 13)
 
     def test_feed_forward(self):

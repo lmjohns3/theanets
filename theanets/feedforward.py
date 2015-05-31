@@ -6,6 +6,7 @@ r'''
 import numpy as np
 import theano
 import theano.tensor as TT
+import warnings
 
 from . import graph
 from . import layers
@@ -360,7 +361,7 @@ class Classifier(graph.Network):
             acc = (self.weights * correct).sum() / self.weights.sum()
         return acc
 
-    def classify(self, x):
+    def predict(self, x):
         '''Compute a greedy classification for the given set of data.
 
         Parameters
@@ -376,9 +377,27 @@ class Classifier(graph.Network):
         '''
         return self.feed_forward(x)[self.output_name()].argmax(axis=-1)
 
-    predict = classify
+    def classify(self, x):
+        warnings.warn('please use predict() instead of classify()',
+                      DeprecationWarning)
+        return self.predict(x)
 
-    predict_proba = graph.Network.predict
+    def predict_proba(self, x):
+        '''Compute class posterior probabilities for the given set of data.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-variables)
+            An array containing examples to predict. Examples are given as the
+            rows in this array.
+
+        Returns
+        -------
+        p : ndarray (num-examples, num-classes)
+            An array of class posterior probability values, one per row of input
+            data.
+        '''
+        return self.feed_forward(x)[self.output_name()]
 
     def predict_logit(self, x):
         '''Compute the logit values that underlie the softmax output.
@@ -391,7 +410,7 @@ class Classifier(graph.Network):
 
         Returns
         -------
-        k : ndarray (num-examples, num-classes)
+        l : ndarray (num-examples, num-classes)
             An array of class logit values, one row of logit values per row of
             input data.
         '''
@@ -415,7 +434,7 @@ class Classifier(graph.Network):
         score : float
             The (possibly weighted) mean accuracy of the model on the data.
         '''
-        eq = y == self.classify(x)
+        eq = y == self.predict(x)
         if self.weighted and w is not None:
             return (w * eq).sum() / w.sum()
         return eq.mean()

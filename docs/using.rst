@@ -10,34 +10,33 @@ might want to examine the parameters that the model has learned.
 Predicting New Data
 ===================
 
-For all neural network models, you can compute the activation of the output
-layer by calling :func:`Network.predict()
-<theanets.feedforward.Network.predict>`::
+For most neural network models, you can compute the "natural" output of the model
+layer by calling :func:`Network.predict() <theanets.graph.Network.predict>`::
 
   results = exp.network.predict(new_dataset)
 
-You pass a ``numpy`` array containing data to the method, which returns an array
-containing one row of output activations for each row of input data.
+For :class:`regression <theanets.feedforward.Regressor>` and
+:class:`autoencoding <theanets.feedforward.Autoencoder>` models, this method
+returns the output of the network when passed the given input dataset. For
+:class:`classification <theanets.feedforward.Classifier>` models, this method
+returns the predicted classification of the inputs. (To get the actual output of
+the network---the posterior class probabilities---for a classifier model, use
+:func:`predict_proba() <theanets.feedforward.Classifier.predict_proba>`.)
 
-You can also compute the activations of all layers in the network using the
-:func:`Network.feed_forward() <theanets.feedforward.Network.feed_forward>`
+Regardless of the model, you pass to ``predict()`` a ``numpy`` array containing
+data examples along the rows, and the method returns an array containing one row
+of output predictions for each row of input data.
+
+You can also compute the activations of all layer outputs in the network using
+the :func:`Network.feed_forward() <theanets.feedforward.Network.feed_forward>`
 method::
 
-  for layer in exp.network.feed_forward(new_dataset):
+  for name, value in exp.network.feed_forward(new_dataset).items():
       print(abs(layer).sum(axis=1))
 
-This method returns a sequence of arrays, one for each layer in the network.
-Like ``predict()``, each output array contains one row for every row of input
-data.
-
-Additionally, for classifiers, you can obtain predictions for new data using the
-:func:`Classifier.classify() <theanets.feedforward.Classifier.classify>`
-method::
-
-  classes = exp.network.classify(new_dataset)
-
-This returns a vector of integers; each element in the vector gives the greedy
-(argmax) result across the categories for the corresponding row of input data.
+This method returns a dictionary that maps layer output names to their
+corresponding values for the given input. Like ``predict()``, each output array
+contains one row for every row of input data.
 
 Getting Learned Parameters
 ==========================

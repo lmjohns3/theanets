@@ -34,19 +34,37 @@ class TestNetwork(util.MNIST):
     def test_updates(self):
         assert not self._build(13).updates()
 
-    def test_monitor_dict(self):
-        net = self._build(15, 13)
-        mon = net.monitors(monitors={'hid1:out': 1})
-        assert mon == (('hid1:out<1', )), 'got {}'.format(mon)
 
-    def test_monitor_callable(self):
-        net = self._build(15, 13)
-        assert net.monitors({'hid1:out': lambda e: e + 1}) == ()
+class TestMonitors(TestNetwork):
+    def setUp(self):
+        super(TestMonitors, self).setUp()
+        self.net = self._build(15, 13)
 
-    def test_monitor_list(self):
-        net = self._build(15, 13)
-        net.monitors([])
+    def assert_monitors(self, monitors, expected):
+        mon = [k for k, v in self.net.monitors(monitors=monitors)]
+        assert mon == expected, 'expected {}, got {}'.format(expected, mon)
 
-    def test_monitor_values(self):
-        net = self._build(15, 13)
-        net.monitors([])
+    def test_dict(self):
+        self.assert_monitors({'hid1:out': 1}, ['err', 'hid1:out<1'])
+
+    def test_list(self):
+        self.assert_monitors([('hid1:out', 1)], ['err', 'hid1:out<1'])
+
+    def test_list_values(self):
+        self.assert_monitors({'hid1:out': [2, 1]},
+                             ['err', 'hid1:out<2', 'hid1:out<1'])
+
+    def test_dict_values(self):
+        self.assert_monitors({'hid1:out': dict(a=lambda e: e+1,
+                                               b=lambda e: e+2)},
+                             ['err', 'hid1:out:b', 'hid1:out:a'])
+
+    def test_not_found(self):
+        self.assert_monitors({'hid10:out': 1}, ['err'])
+
+    def test_param(self):
+        self.assert_monitors({'hid1.w': 1}, ['err', 'hid1.w<1'])
+
+    def test_wildcard(self):
+        self.assert_monitors({'*.w': 1}, ['err', 'hid1.w<1', 'out.w<1'])
+        self.assert_monitors({'hid?.w': 1}, ['err', 'hid1.w<1'])

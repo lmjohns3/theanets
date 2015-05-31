@@ -7,12 +7,22 @@ class TestClassifier(util.MNIST):
     def _build(self, *hiddens):
         return theanets.Classifier((self.DIGIT_SIZE, ) + hiddens + (10, ))
 
-    def test_classify_onelayer(self):
+    def test_predict_onelayer(self):
         net = self._build(13)
         z = net.predict(self.images)
         assert z.shape == (self.NUM_DIGITS, )
 
-    def test_classify_twolayer(self):
+    def test_score_onelayer(self):
+        net = self._build(13)
+        z = net.score(self.images, self.labels)
+        assert 0 < z < 1
+
+    def test_predict_proba_onelayer(self):
+        net = self._build(13)
+        z = net.predict_proba(self.images)
+        assert z.shape == (self.NUM_DIGITS, 10)
+
+    def test_predict_twolayer(self):
         net = self._build(13, 14)
         z = net.predict(self.images)
         assert z.shape == (self.NUM_DIGITS, )

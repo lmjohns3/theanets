@@ -33,12 +33,13 @@ class Base:
         self.inputs = np.random.randn(STEPS, ALL, INS).astype('f')
         self.outputs = np.random.randn(STEPS, ALL, OUTS).astype('f')
         self.probe = np.random.randn(STEPS, BATCH, INS).astype('f')
+        self.probe_classes = np.random.randn(STEPS, BATCH).astype('i')
 
     def assert_shape(self, actual, expected):
         assert actual == expected, 'expected {}, got {}'.format(expected, actual)
 
 
-class TestNetwork(Base):
+class TestRegressor(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Regressor(layers=(INS, ) + hiddens + (OUTS, ))
 
@@ -85,6 +86,16 @@ class TestClassifier(Base):
         net = self._build(13)
         z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH))
+
+    def test_score_onelayer(self):
+        net = self._build(13)
+        z = net.score(self.probe, self.probe_classes)
+        assert 0 < z < 1
+
+    def test_predict_proba_onelayer(self):
+        net = self._build(13)
+        z = net.predict_proba(self.probe)
+        self.assert_shape(z.shape, (STEPS, BATCH, OUTS))
 
     def test_predict_twolayer(self):
         net = self._build(13, 14)

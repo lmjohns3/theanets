@@ -51,7 +51,7 @@ The ``find()`` method returns a `Theano shared variable`_. To get a numpy array
 of the current values of the variable, call ``get_value()`` on the result from
 ``find()``, like so::
 
-  values = network.find(1, 0).get_value()
+  values = network.find('hid1', 'w').get_value()
 
 For "encoding" layers in the network, this value array contains a feature vector
 in each column, and for "decoding" layers (i.e., layers connected to the output
@@ -71,14 +71,14 @@ you could plot the weight vectors attached to each unit in the first hidden
 layer of the model to see what sorts of features the hidden unit detects::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
-  for i, pix in enumerate(exp.network.find(1, 0).get_value().T):
+  for i, pix in enumerate(exp.network.find('hid1', 'w').get_value().T):
       r, c = divmod(i, 10)
       img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
   plt.imshow(img, cmap=plt.cm.gray)
   plt.show()
 
 Here we've taken the weights from the first hidden layer of the model
-(``exp.network.find(1, 0)``) and plotted them as though they were 28×28
+(``exp.network.find('hid1', 'w')``) and plotted them as though they were 28×28
 grayscale images. This is a useful technique for processing images (and, to some
 extent, other types of data) because visually inspecting features can give you a
 quick sense of how the model interprets its input. In addition, this can serve

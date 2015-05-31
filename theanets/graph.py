@@ -103,37 +103,26 @@ class Network(object):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
         self.weighted = weighted
-        self.inputs = list(self.setup_vars())
+        self.inputs = list(self._setup_vars())
         self.layers = []
         for i, layer in enumerate(layers):
             self.add_layer(layer, is_output=i == len(layers) - 1)
         logging.info('network has %d total parameters', self.num_params)
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables required by our network.
 
-        The default variable for a network is simply `x`, which represents the
-        input to the network.
-
-        Subclasses may override this method to specify additional variables. For
-        example, a supervised model might specify an additional variable that
-        represents the target output for a particular input.
+        Subclasses must implement this method to specify variables that are
+        required for training the model. For example, a supervised model might
+        specify a variable that represents the target output for a particular
+        input.
 
         Returns
         -------
-        vars : list of theano variables
-            A list of the variables that this network requires as inputs.
+        vars : sequence of theano variables
+            The variables that this network requires as inputs during training.
         '''
-        # x represents our network's input.
-        self.x = TT.matrix('x')
-
-        # the weight array is provided to ensure that different target values
-        # are taken into account with different weights during optimization.
-        self.weights = TT.matrix('weights')
-
-        if self.weighted:
-            return [self.x, self.weights]
-        return [self.x]
+        raise NotImplementedError
 
     def add_layer(self, layer, is_output=False):
         '''Add a layer to our network graph.

@@ -60,7 +60,7 @@ class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
     '''
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables for our network.
 
         Returns
@@ -131,7 +131,7 @@ class Predictor(Autoencoder):
 class Regressor(feedforward.Regressor):
     '''A regressor attempts to produce a target output.'''
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables for our network.
 
         Returns
@@ -158,7 +158,7 @@ class Regressor(feedforward.Regressor):
 class Classifier(feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.'''
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables for our network.
 
         Returns

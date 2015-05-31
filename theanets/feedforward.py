@@ -175,7 +175,7 @@ class Regressor(graph.Network):
     output, and :math:`R` is a regularization function.
     '''
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables for our network.
 
         Returns
@@ -183,10 +183,15 @@ class Regressor(graph.Network):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Regressor, self).setup_vars()
+        # x represents our network's input.
+        self.x = TT.matrix('x')
 
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
+
+        # the weight array is provided to ensure that different target values
+        # are taken into account with different weights during optimization.
+        self.weights = TT.matrix('weights')
 
         if self.weighted:
             return [self.x, self.targets, self.weights]
@@ -241,7 +246,7 @@ class Classifier(graph.Network):
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
     '''Classifiers set the default activation for the output layer.'''
 
-    def setup_vars(self):
+    def _setup_vars(self):
         '''Setup Theano variables for our network.
 
         Returns
@@ -249,7 +254,8 @@ class Classifier(graph.Network):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
-        super(Classifier, self).setup_vars()
+        # x represents our network's input.
+        self.x = TT.matrix('x')
 
         # for a classifier, this specifies the correct labels for a given input.
         self.labels = TT.ivector('labels')

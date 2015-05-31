@@ -78,6 +78,25 @@ class Autoencoder(graph.Network):
     layer configuration is palindromic.
     '''
 
+    def _setup_vars(self):
+        '''Setup Theano variables for our network.
+
+        Returns
+        -------
+        vars : list of theano variables
+            A list of the variables that this network requires as inputs.
+        '''
+        # x represents our network's input (and target outputs).
+        self.x = TT.matrix('x')
+
+        # the weight array is provided to ensure that different target values
+        # are taken into account with different weights during optimization.
+        self.weights = TT.matrix('weights')
+
+        if self.weighted:
+            return [self.x, self.weights]
+        return [self.x]
+
     @property
     def tied_weights(self):
         '''A boolean indicating whether this network uses tied weights.'''

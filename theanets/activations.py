@@ -36,21 +36,14 @@ FLOAT = theano.config.floatX
 def _identity(x): return x
 
 def _relu(x): return (x + abs(x)) / 2
-def _trel(x): return (1 + x - abs(x - 1)) / 2
-def _rect(x): return (1 + abs(x) - abs(x - 1)) / 2
+def _trel(x): return (x + 1 - abs(x - 1)) / 2
+def _rect(x): return (abs(x) + 1 - abs(x - 1)) / 2
 
-def _norm_mean(x):
-    return x - x.mean(axis=-1, keepdims=True)
-def _norm_max(x):
-    s = abs(x).max(axis=-1, keepdims=True)
-    return x / (s + TT.cast(1e-6, FLOAT))
-def _norm_std(x):
-    s = x.std(axis=-1, keepdims=True)
-    return x / (s + TT.cast(1e-6, FLOAT))
-def _norm_z(x):
-    m = x.mean(axis=-1, keepdims=True)
-    s = x.std(axis=-1, keepdims=True)
-    return (x - m) / (s + TT.cast(1e-6, FLOAT))
+def _norm_mean(x): return x - x.mean(axis=-1, keepdims=True)
+def _norm_max(x): return x / (abs(x).max(axis=-1, keepdims=True) + 1e-8)
+def _norm_std(x): return x / (x.std(axis=-1, keepdims=True) + 1e-8)
+def _norm_z(x): return ((x - x.mean(axis=-1, keepdims=True)) /
+                        (x.std(axis=-1, keepdims=True) + 1e-8))
 
 def _softmax(x):
     z = TT.exp(x - x.max(axis=-1, keepdims=True))

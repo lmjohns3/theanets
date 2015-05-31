@@ -61,8 +61,6 @@ from . import layers
 
 logging = climate.get_logger(__name__)
 
-FLOAT = theano.config.floatX
-
 
 class Network(object):
     '''The network class encapsulates a network computation graph.
@@ -489,7 +487,7 @@ class Network(object):
                          for h in hiddens),
         )
         return self.error(outputs[self.output_name()]) + sum(
-            TT.cast(kwargs[weight], FLOAT) * sum(expr)
+            kwargs[weight] * sum(expr)
             for weight, expr in regularizers.items()
             if kwargs.get(weight, 0) > 0)
 
@@ -526,7 +524,7 @@ class Network(object):
                     yield ':{}'.format(label), call
                 if isinstance(level, (int, float)):
                     key = '<{}'.format(level)
-                    call = lambda expr: (expr < TT.cast(level, FLOAT)).mean()
+                    call = lambda expr: (expr < level).mean()
                     yield key, call
 
         inputs = kwargs.get('monitors', {})

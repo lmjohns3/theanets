@@ -1,16 +1,11 @@
+# -*- coding: utf-8 -*-
+
 '''This module contains recurrent network structures.'''
 
-import climate
 import numpy as np
-import numpy.random as rng
-import theano
 import theano.tensor as TT
 
 from . import feedforward
-
-logging = climate.get_logger(__name__)
-
-FLOAT = theano.config.floatX
 
 
 def batches(samples, labels=None, steps=100, batch_size=64):
@@ -38,17 +33,17 @@ def batches(samples, labels=None, steps=100, batch_size=64):
         network.
     '''
     def unlabeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), FLOAT)
+        xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
         for i in range(batch_size):
-            j = rng.randint(len(samples) - steps)
+            j = np.random.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
         return [xs]
 
     def labeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), FLOAT)
-        ys = np.zeros((steps, batch_size, labels.shape[1]), FLOAT)
+        xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
+        ys = np.zeros((steps, batch_size, labels.shape[1]), labels.dtype)
         for i in range(batch_size):
-            j = rng.randint(len(samples) - steps)
+            j = np.random.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
             ys[:, i, :] = labels[j:j+steps]
         return [xs, ys]
@@ -243,14 +238,12 @@ class Classifier(feedforward.Classifier):
         error : theano expression
             A theano expression representing the network error.
         '''
-        lo = TT.cast(1e-5, FLOAT)
-        hi = TT.cast(1, FLOAT)
         # flatten all but last components of the output and labels
         n = output.shape[0] * output.shape[1]
         correct = TT.reshape(self.labels, (n, ))
         weights = TT.reshape(self.weights, (n, ))
         prob = TT.reshape(output, (n, output.shape[2]))
-        nlp = -TT.log(TT.clip(prob[TT.arange(n), correct], lo, hi))
+        nlp = -TT.log(TT.clip(prob[TT.arange(n), correct], 1e-8, 1))
         if self.weighted:
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()

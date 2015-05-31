@@ -3,18 +3,12 @@
 r'''
 '''
 
-import climate
 import numpy as np
 import theano
 import theano.tensor as TT
-import theano.sparse as SS
 
 from . import graph
 from . import layers
-
-logging = climate.get_logger(__name__)
-
-FLOAT = theano.config.floatX
 
 
 class Autoencoder(graph.Network):
@@ -308,10 +302,8 @@ class Classifier(graph.Network):
         error : theano expression
             A theano expression representing the network error.
         '''
-        lo = TT.cast(1e-5, FLOAT)
-        hi = TT.cast(1, FLOAT)
         prob = output[TT.arange(self.labels.shape[0]), self.labels]
-        nlp = -TT.log(TT.clip(prob, lo, hi))
+        nlp = -TT.log(TT.clip(prob, 1e-8, 1))
         if self.weighted:
             return (self.weights * nlp).sum() / self.weights.sum()
         return nlp.mean()

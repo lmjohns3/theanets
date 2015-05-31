@@ -921,8 +921,12 @@ class Sample(Trainer):
         '''
         ifci = itertools.chain.from_iterable
 
-        first = lambda x: x[0] if isinstance(x, (tuple, list)) else x
-        last = lambda x: x[-1] if isinstance(x, (tuple, list)) else x
+        def first(x):
+            return x[0] if isinstance(x, (tuple, list)) else x
+
+        def last(x):
+            return x[-1] if isinstance(x, (tuple, list)) else x
+
         odim = idim = None
         for t in train_set:
             idim = first(t).shape[-1]

@@ -31,13 +31,14 @@ from . import util
 
 FLOAT = theano.config.floatX
 
-# We define several common activation functions here so they are pickle-able.
 
 def _identity(x): return x
+
 
 def _relu(x): return (x + abs(x)) / 2
 def _trel(x): return (x + 1 - abs(x - 1)) / 2
 def _rect(x): return (abs(x) + 1 - abs(x - 1)) / 2
+
 
 def _norm_mean(x): return x - x.mean(axis=-1, keepdims=True)
 def _norm_max(x): return x / (abs(x).max(axis=-1, keepdims=True) + 1e-8)
@@ -45,9 +46,11 @@ def _norm_std(x): return x / (x.std(axis=-1, keepdims=True) + 1e-8)
 def _norm_z(x): return ((x - x.mean(axis=-1, keepdims=True)) /
                         (x.std(axis=-1, keepdims=True) + 1e-8))
 
+
 def _softmax(x):
     z = TT.exp(x - x.max(axis=-1, keepdims=True))
     return z / z.sum(axis=-1, keepdims=True)
+
 
 COMMON = {
     # s-shaped
@@ -94,19 +97,23 @@ def build(name, layer, **kwargs):
     '''
     if isinstance(name, Activation):
         return name
+
     def compose(a, b):
-        c = lambda z: b(a(z))
+        def c(z): return b(a(z))
         c.name = ['%s(%s)' % (b.name, a.name)]
         c.params = getattr(b, 'params', []) + getattr(a, 'params', [])
         return c
+
     if '+' in name:
         return functools.reduce(
             compose, (build(n, layer, **kwargs) for n in name.split('+')))
+
     act = COMMON.get(name)
     if act is not None:
         act.name = name
         act.params = []
         return act
+
     if name.lower().startswith('maxout') and ':' in name:
         name, pieces = name.split(':', 1)
         kwargs['pieces'] = int(pieces)

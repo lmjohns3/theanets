@@ -521,9 +521,9 @@ class Network(object):
                     label, call = level
                     yield ':{}'.format(label), call
                 if isinstance(level, (int, float)):
-                    key = '<{}'.format(level)
-                    call = lambda expr: (expr < level).mean()
-                    yield key, call
+                    def call(expr):
+                        return (expr < level).mean()
+                    yield '<{}'.format(level), call
 
         inputs = kwargs.get('monitors', {})
         if isinstance(inputs, dict):

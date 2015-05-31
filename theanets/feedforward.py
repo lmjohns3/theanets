@@ -411,8 +411,8 @@ class Classifier(graph.Network):
         Returns
         -------
         l : ndarray (num-examples, num-classes)
-            An array of class logit values, one row of logit values per row of
-            input data.
+            An array of posterior class logit values, one row of logit values
+            per row of input data.
         '''
         return self.feed_forward(x)[self.layers[-1].output_name('pre')]
 

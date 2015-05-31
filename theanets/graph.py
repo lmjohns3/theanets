@@ -486,7 +486,7 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()
                          for h in hiddens),
         )
-        return self.error(outputs[self.output_name()]) + sum(
+        return self.error(outputs) + sum(
             kwargs[weight] * sum(expr)
             for weight, expr in regularizers.items()
             if kwargs.get(weight, 0) > 0)

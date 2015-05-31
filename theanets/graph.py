@@ -209,7 +209,8 @@ class Network(object):
                         partner = l
                         break
                 assert partner is not None, \
-                    'could not find tied layer partner for {} in {}'.format(layer, self.layers)
+                    'could not find tied layer partner for {} in {}'.format(
+                        layer, self.layers)
             kwargs['partner'] = partner
 
         self.layers.append(layers.build(form, **kwargs))
@@ -477,8 +478,10 @@ class Network(object):
         outputs, _ = self.build_graph(**kwargs)
         hiddens = [outputs[l.output_name()] for l in self.layers[1:-1]]
         regularizers = dict(
-            weight_l1=(abs(w).sum() for l in self.layers for w in l.params if w.ndim > 1),
-            weight_l2=((w * w).sum() for l in self.layers for w in l.params if w.ndim > 1),
+            weight_l1=(abs(w).sum() for l in self.layers
+                       for w in l.params if w.ndim > 1),
+            weight_l2=((w * w).sum() for l in self.layers
+                       for w in l.params if w.ndim > 1),
             hidden_l1=(abs(h).mean(axis=0).sum() for h in hiddens),
             hidden_l2=((h * h).mean(axis=0).sum() for h in hiddens),
             contractive=(TT.sqr(TT.grad(h.mean(axis=0).sum(), self.x)).sum()

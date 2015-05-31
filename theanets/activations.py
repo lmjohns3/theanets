@@ -8,7 +8,8 @@ Commonly available functions are:
 - "linear"
 - "logistic" (or "sigmoid")
 - "tanh"
-- "softmax" (typically used for :class:`classifier <theanets.feedforward.Classifier>` output layers)
+- "softmax" (typically used for :class:`classifier <theanets.feedforward.Classifier>`
+  output layers)
 - "relu" (or "rect:max")
 - "rect:min"
 - "rect:minmax"
@@ -36,13 +37,23 @@ def _identity(x): return x
 
 
 def _relu(x): return (x + abs(x)) / 2
+
+
 def _trel(x): return (x + 1 - abs(x - 1)) / 2
+
+
 def _rect(x): return (abs(x) + 1 - abs(x - 1)) / 2
 
 
 def _norm_mean(x): return x - x.mean(axis=-1, keepdims=True)
+
+
 def _norm_max(x): return x / (abs(x).max(axis=-1, keepdims=True) + 1e-8)
+
+
 def _norm_std(x): return x / (x.std(axis=-1, keepdims=True) + 1e-8)
+
+
 def _norm_z(x): return ((x - x.mean(axis=-1, keepdims=True)) /
                         (x.std(axis=-1, keepdims=True) + 1e-8))
 

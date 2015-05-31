@@ -40,8 +40,10 @@ class TestMonitors(util.MNIST):
         super(TestMonitors, self).setUp()
         self.net = theanets.Regressor((self.DIGIT_SIZE, 15, 14, 13))
 
-    def assert_monitors(self, monitors, expected):
+    def assert_monitors(self, monitors, expected, sort=False):
         mon = [k for k, v in self.net.monitors(monitors=monitors)]
+        if sort:
+            mon = sorted(mon)
         assert mon == expected, 'expected {}, got {}'.format(expected, mon)
 
     def test_dict(self):
@@ -57,7 +59,8 @@ class TestMonitors(util.MNIST):
     def test_dict_values(self):
         self.assert_monitors({'hid1:out': dict(a=lambda e: e+1,
                                                b=lambda e: e+2)},
-                             ['err', 'hid1:out:a', 'hid1:out:b'])
+                             ['err', 'hid1:out:a', 'hid1:out:b'],
+                             sort=True)
 
     def test_not_found(self):
         self.assert_monitors({'hid10:out': 1}, ['err'])

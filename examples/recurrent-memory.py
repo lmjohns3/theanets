@@ -30,8 +30,8 @@ logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
 
 e.train(generate, batch_size=BATCH_SIZE)
 
-predict = e.network.predict(src)[:, :, 0]
-vm = max(abs(src[:BITS]).max(), abs(predict[-BITS]).max())
+out = e.network.predict(src)[:, :, 0]
+vm = max(abs(src[:BITS]).max(), abs(out[-BITS]).max())
 
 def plot(n, z, label, rectangle):
     ax = plt.subplot(2, 1, n)
@@ -49,6 +49,6 @@ def plot(n, z, label, rectangle):
     ax.set_ylabel(label)
 
 plot(1, src[:, :, 0], 'Input', 0)
-plot(2, predict, 'Prediction', TIME - BITS)
+plot(2, out, 'Output', TIME - BITS)
 
 plt.show()

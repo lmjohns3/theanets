@@ -58,6 +58,14 @@ def batches(samples, labels=None, steps=100, batch_size=64):
 
 class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
+
+    A recurrent autoencoder model requires the following inputs during training:
+
+    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
+      ``x`` is expected to be one moment in time. Each element of axis 1 of
+      ``x`` represents a single data sample in a batch of samples. Each element
+      of axis 2 of ``x`` represents the measurements of a particular input
+      variable across all times and all data items.
     '''
 
     def _setup_vars(self):
@@ -83,6 +91,14 @@ class Autoencoder(feedforward.Autoencoder):
 
 class Predictor(Autoencoder):
     '''A predictor network attempts to predict its next time step.
+
+    A recurrent prediction model takes the following inputs:
+
+    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
+      ``x`` is expected to be one moment in time. Each element of axis 1 of
+      ``x`` represents a single sample in a batch of data. Each element of axis
+      2 of ``x`` represents the measurements of a particular input variable
+      across all times and all data items.
     '''
 
     def error(self, output):
@@ -129,7 +145,22 @@ class Predictor(Autoencoder):
 
 
 class Regressor(feedforward.Regressor):
-    '''A regressor attempts to produce a target output.'''
+    '''A regressor attempts to produce a target output.
+
+    A recurrent regression model takes the following inputs:
+
+    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
+      ``x`` is expected to be one moment in time. Each element of axis 1 of
+      ``x`` holds a single sample from a batch of data. Each element of axis 2
+      of ``x`` represents the measurements of a particular input variable across
+      all times and all data items.
+
+    - ``targets``: A three-dimensional array of target output data. Each element
+      of axis 0 of ``targets`` is expected to be one moment in time. Each
+      element of axis 1 of ``targets`` holds a single sample from a batch of
+      data. Each element of axis 2 of ``targets`` represents the measurements of
+      a particular output variable across all times and all data items.
+    '''
 
     def _setup_vars(self):
         '''Setup Theano variables for our network.
@@ -156,7 +187,24 @@ class Regressor(feedforward.Regressor):
 
 
 class Classifier(feedforward.Classifier):
-    '''A classifier attempts to match a 1-hot target output.'''
+    '''A classifier attempts to match a 1-hot target output.
+
+    Unlike a feedforward classifier, where the target labels are provided as a
+    single vector, a recurrent classifier requires a vector of target labels for
+    each time step in the input data. So a recurrent classifier model requires
+    the following inputs for training:
+
+    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
+      ``x`` is expected to be one moment in time. Each element of axis 1 of
+      ``x`` holds a single sample in a batch of data. Each element of axis 2 of
+      ``x`` represents the measurements of a particular input variable across
+      all times and all data items in a batch.
+
+    - ``labels``: A two-dimensional array of integer target labels. Each element
+      of ``labels`` is expected to be the class index for a single batch item.
+      Axis 0 of this array represents time, and axis 1 represents data samples
+      in a batch.
+    '''
 
     def _setup_vars(self):
         '''Setup Theano variables for our network.

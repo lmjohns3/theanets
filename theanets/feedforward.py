@@ -173,6 +173,20 @@ class Regressor(graph.Network):
 
     where :math:`F_\theta` is the feedforward function that computes the network
     output, and :math:`R` is a regularization function.
+
+    A regression model requires the following inputs at training time:
+
+    - ``x``: A two-dimensional array of input data. Each row of ``x`` is
+      expected to be one data item. Each column of ``x`` holds the measurements
+      of a particular input variable across all data items.
+    - ``targets``: A two-dimensional array of target output data. Each row of
+      ``targets`` is expected to be the target values for a single data item.
+      Each column of ``targets`` holds the measurements of a particular output
+      variable across all data items.
+
+    The number of rows in ``x`` must be equal to the number of rows of
+    ``targets``, but the number of columns in these two arrays may be whatever
+    is required for the inputs and outputs of the problem.
     '''
 
     def _setup_vars(self):
@@ -241,6 +255,20 @@ class Classifier(graph.Network):
     that the model assigns to class :math:`k` given input :math:`x_i`; this
     corresponds to the relevant softmax output from the model. Finally,
     :math:`R` is a regularization function.
+
+    A classifier model requires the following inputs at training time:
+
+    - ``x``: A two-dimensional array of input data. Each row of ``x`` is
+      expected to be one data item. Each column of ``x`` holds the measurements
+      of a particular input variable across all data items.
+    - ``labels``: A one-dimensional array of target labels. Each element of
+      ``labels`` is expected to be the class index for a single data item.
+
+    The number of rows in ``x`` must match the number of elements in the
+    ``labels`` vector. Additionally, the values in ``labels`` are expected to
+    range from 0 to one less than the number of classes in the data being
+    modeled. For example, for the MNIST digits dataset, which represents digits
+    0 through 9, the labels array contains integer class labels 0 through 9.
     '''
 
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'

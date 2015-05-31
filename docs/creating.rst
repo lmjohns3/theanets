@@ -87,20 +87,6 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
   exp = theanets.Experiment(theanets.Regressor)
   net = exp.network
 
-A regression model requires the following inputs at training time:
-
-- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
-  be one data item. Each column of ``x`` holds the measurements of a particular
-  input variable across all data items.
-- ``targets``: A two-dimensional array of target output data. Each row of
-  ``targets`` is expected to be the target values for a single data item. Each
-  column of ``targets`` holds the measurements of a particular output variable
-  across all data items.
-
-The number of rows in ``x`` must be equal to the number of rows of ``targets``,
-but the number of columns in these two arrays may be whatever is required for
-the inputs and outputs of the problem.
-
 Classification
 --------------
 
@@ -124,20 +110,6 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
 
   exp = theanets.Experiment(theanets.Classifier)
   net = exp.network
-
-A classifier model requires the following inputs at training time:
-
-- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
-  be one data item. Each column of ``x`` holds the measurements of a particular
-  input variable across all data items.
-- ``labels``: A one-dimensional array of target labels. Each element of
-  ``labels`` is expected to be the class index for a single data item.
-
-The number of rows in ``x`` must match the number of elements in the ``labels``
-vector. Additionally, the values in ``labels`` are expected to range from 0 to
-one less than the number of classes in the data being modeled. For example, for
-the MNIST digits dataset, which represents digits 0 through 9, the labels array
-contains integer class labels 0 through 9.
 
 .. _creating-recurrent-models:
 
@@ -168,14 +140,6 @@ feedforward counterpart, takes as input a single array of data :math:`X \in
 \mathbb{R}^{t \times m \times n}` and attempts to recreate the same data at the
 output, under a squared-error loss.
 
-A recurrent autoencoder thus requires the following inputs:
-
-- ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
-  represents a single data sample in a batch of samples. Each element of axis 2
-  of ``x`` represents the measurements of a particular input variable across all
-  times and all data items.
-
 .. note::
    In recurrent models, the batch size is currently required to be greater than
    one. If you wish to run a recurrent model on a single sample, just create a
@@ -192,14 +156,6 @@ Unlike a recurrent autoencoder, however, a prediction model is explicitly
 required to produce a future output, rather than the output from the same time
 step.
 
-A recurrent prediction model takes the following inputs:
-
-- ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
-  represents a single sample in a batch of data. Each element of axis 2 of ``x``
-  represents the measurements of a particular input variable across all times
-  and all data items.
-
 Regression
 ----------
 
@@ -209,20 +165,6 @@ requires two inputs at training time: an array of input data :math:`X \in
 :math:`Y \in \mathbb{R}^{t \times m \times o}`. Like the feedforward regression
 models, the recurrent version attempts to produce the target outputs under a
 squared-error loss.
-
-A recurrent regression model takes the following inputs:
-
-- ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
-  holds a single sample from a batch of data. Each element of axis 2 of ``x``
-  represents the measurements of a particular input variable across all times
-  and all data items.
-
-- ``targets``: A three-dimensional array of target output data. Each element of
-  axis 0 of ``targets`` is expected to be one moment in time. Each element of
-  axis 1 of ``targets`` holds a single sample from a batch of data. Each element
-  of axis 2 of ``targets`` represents the measurements of a particular output
-  variable across all times and all data items.
 
 Classification
 --------------
@@ -235,21 +177,6 @@ the error for this type of model requires an input dataset :math:`X \in
 \mathbb{R}^{t \times m \times n}` and a corresponding set of integer labels
 :math:`Y \in \mathbb{Z}^{t \times m}`; the error is then computed as the
 cross-entropy between the network output and the target labels.
-
-Unlike a feedforward classifier, where the target labels are provided as a
-single vector, a recurrent classifier requires a vector of target labels for
-each time step in the input data. So a recurrent classifier model requires the
-following inputs for training:
-
-- ``x``: A three-dimensional array of input data. Each element of axis 0 of
-  ``x`` is expected to be one moment in time. Each element of axis 1 of ``x``
-  holds a single sample in a batch of data. Each element of axis 2 of ``x``
-  represents the measurements of a particular input variable across all times
-  and all data items in a batch.
-
-- ``labels``: A two-dimensional array of integer target labels. Each element of
-  ``labels`` is expected to be the class index for a single batch item. Axis 0
-  of this array represents time, and axis 1 represents data samples in a batch.
 
 .. _creating-specifying-layers:
 

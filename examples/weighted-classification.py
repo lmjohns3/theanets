@@ -21,11 +21,6 @@ samples, labels = sklearn.datasets.make_classification(
 weights = np.ones_like(labels)
 weights[labels.nonzero()] *= 10
 
-exp = theanets.Experiment(
-    theanets.Classifier,
-    layers=(100, 10, 2),
-    weighted=True,
-)
 
 def split(a, b):
     return [samples[a:b].astype('float32'),
@@ -34,6 +29,12 @@ def split(a, b):
 
 train = split(0, 9000)
 valid = split(9000, 10000)
+
+exp = theanets.Experiment(
+    theanets.Classifier,
+    layers=(100, 10, 2),
+    weighted=True,
+)
 
 exp.train(train, valid)
 

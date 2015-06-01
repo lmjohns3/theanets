@@ -16,6 +16,7 @@ g.add_argument('--features', type=int, default=0, metavar='N',
 
 K = 655  # this retains 99% of the variance in the cifar images.
 
+
 def pca(dataset):
     mean = dataset[:3000].mean(axis=0)
 

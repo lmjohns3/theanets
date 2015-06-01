@@ -38,8 +38,10 @@ K = 197  # this retains 99% of the variance in the digit data.
 vals = np.sqrt(vals[:K])
 vecs = vecs[:, :K]
 
+
 def whiten(x):
     return np.dot(x, np.dot(vecs, np.diag(1. / vals)))
+
 
 def color(z):
     return np.dot(z, np.dot(np.diag(vals), vecs.T))
@@ -49,17 +51,14 @@ def color(z):
 N = 20
 
 e = theanets.Experiment(
-    RICA,
-    layers=(K, (N * N, 'linear'), (K, 'tied')),
-)
-e.train(
-    whiten(train),
-    whiten(valid),
-    hidden_l1=0.001,
-    weight_inverse=1e-6,
-    train_batches=300,
-    monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)}
-)
+    RICA, layers=(K, (N * N, 'linear'), (K, 'tied')))
+
+e.train(whiten(train),
+        whiten(valid),
+        hidden_l1=0.001,
+        weight_inverse=1e-6,
+        train_batches=300,
+        monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)})
 
 # color the network weights so they are viewable as digits.
 plot_layers([color(e.network.find('hid1', 'w').get_value().T).T], tied_weights=True)

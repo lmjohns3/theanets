@@ -42,10 +42,12 @@ def batch_at(features, labels, seq_begins, seq_lengths):
         mask[:length, b] = 1
     return [feat, labl, mask]
 
-# returns a callable that chooses sequences from netcdf data
+
 def batches(dataset):
+    '''Returns a callable that chooses sequences from netcdf data.'''
     seq_lengths = dataset.variables['seqLengths'].data
     seq_begins = np.concatenate(([0], np.cumsum(seq_lengths)[:-1]))
+
     def sample():
         chosen = np.random.choice(
             list(range(len(seq_lengths))), BATCH_SIZE, replace=False)
@@ -53,6 +55,7 @@ def batches(dataset):
                         dataset.variables['targetClasses'].data,
                         seq_begins[chosen],
                         seq_lengths[chosen])
+
     return sample
 
 

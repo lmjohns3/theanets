@@ -10,8 +10,8 @@ class TestCodeFormat:
             return glob.glob(os.path.join(*s))
         pep8style = pep8.StyleGuide(config_file='setup.cfg')
         result = pep8style.check_files(
+            match('examples') +
+            match('test') +
             match('theanets') +
-            match('theanets', 'layers') +
-            match('test')
-        )
+            match('theanets', 'layers'))
         assert result.total_errors == 0

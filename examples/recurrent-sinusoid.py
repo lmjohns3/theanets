@@ -56,8 +56,7 @@ for layer in (dict(form='rnn', activation='relu', diagonal=0.5),
               dict(form='lrrnn', activation='relu', diagonal=0.5),
               dict(form='gru', activation='relu'),
               dict(form='lstm', activation='tanh'),
-              dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64)),
-):
+              dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64))):
     name = layer['form']
     layer['size'] = 64
     logging.info('training %s model', name)

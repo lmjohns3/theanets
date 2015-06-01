@@ -33,9 +33,13 @@ for name, layer in (
     logging.info('training %s model', name)
     e = theanets.Experiment(theanets.recurrent.Regressor, layers=(1, layer, 1))
     e.train([ZERO, WAVES],
+            monitor_gradients=True,
             batch_size=BATCH_SIZE,
+            algorithm='rmsprop',
             learning_rate=0.0001,
-            patience=1)
+            momentum=0.9,
+            min_improvement=0.01,
+    )
     prd = e.network.predict(ZERO)
     ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.9)
 

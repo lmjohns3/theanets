@@ -28,7 +28,12 @@ def generate():
 src, tgt, msk = generate()
 logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
 
-e.train(generate, batch_size=BATCH_SIZE)
+e.train(generate,
+        batch_size=BATCH_SIZE,
+        algorithm='adadelta',
+        rms_regularizer=1e-4,
+        monitor_gradients=True,
+)
 
 out = e.network.predict(src)[:, :, 0]
 vm = max(abs(src[:BITS]).max(), abs(out[-BITS]).max())

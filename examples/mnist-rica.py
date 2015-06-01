@@ -46,7 +46,7 @@ def color(z):
 
 # now train our model on the whitened dataset.
 
-N = 32
+N = 20
 
 e = theanets.Experiment(
     RICA,
@@ -56,7 +56,7 @@ e.train(
     whiten(train),
     whiten(valid),
     hidden_l1=0.001,
-    weight_inverse=0,
+    weight_inverse=1e-6,
     train_batches=300,
     monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)}
 )

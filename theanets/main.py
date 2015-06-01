@@ -85,6 +85,9 @@ class Experiment:
             A dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
+        default_axis = 0
+        if not callable(data) and not callable(data[0]) and len(data[0].shape) == 3:
+            default_axis = 1
         name = kwargs.get('name', 'dataset')
         b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
         return downhill.Dataset(
@@ -92,7 +95,7 @@ class Experiment:
             name=name,
             batch_size=kwargs.get(b, 32),
             iteration_size=kwargs.get(i, kwargs.get(s)),
-            axis=kwargs.get('axis', 1 if len(data[0].shape) == 3 else 0))
+            axis=kwargs.get('axis', default_axis))
 
     def train(self, *args, **kwargs):
         '''Train the network until the trainer converges.

@@ -84,11 +84,13 @@ for ax in [wave_ax, learn_ax]:
     ax.spines['right'].set_color('none')
     ax.spines['bottom'].set_position(('outward', 6))
     ax.spines['left'].set_position(('outward', 6))
+
 wave_ax.set_ylabel('Amplitude')
 wave_ax.set_xlabel('Time')
+
 learn_ax.set_ylabel('Loss')
 learn_ax.set_xlabel('Training Epoch')
-learn_ax.set_grid(True)
+learn_ax.grid(True)
 
 plt.legend()
 plt.show()

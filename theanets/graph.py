@@ -532,9 +532,8 @@ class Network(object):
         if isinstance(inputs, dict):
             inputs = inputs.items()
         for pattern, levels in inputs:
-            levels = list(parse_levels(levels))
             for name, expr in parse_pattern(pattern):
-                for key, value in levels:
+                for key, value in parse_levels(levels):
                     monitors.append(('{}{}'.format(name, key), value(expr)))
 
         return monitors

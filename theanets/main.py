@@ -6,10 +6,10 @@ and, especially, training a neural network model.
 
 import climate
 import datetime
+import downhill
 import os
 import warnings
 
-from . import dataset
 from . import graph
 from . import trainer
 
@@ -41,78 +41,58 @@ class Experiment:
                 'like theanets.{Autoencoder,Regressor,...}'
             self.network = network(*args, **kwargs)
 
-    def create_trainer(self, factory, *args, **kwargs):
+    def create_trainer(self, train, algo='rmsprop'):
         '''Create a trainer.
 
-        Additional positional and keyword arguments are passed directly to the
-        trainer factory.
+        Additional keyword arguments are passed directly to the trainer.
 
         Parameters
         ----------
-        factory : str or callable
-            A callable that creates a trainer, or a string that maps to a
-            trainer constructor.
+        train : str
+            A string describing a trainer to use.
+        algo : str
+            A string describing an optimization algorithm.
 
         Returns
         -------
         trainer : :class:`Trainer <trainer.Trainer>`
             A trainer instance to alter the parameters of our network.
         '''
-        args = (self.network, ) + args
-        if isinstance(factory, str):
-            if factory.lower() in trainer.Scipy.METHODS:
-                args = (self.network, factory)
-                factory = trainer.Scipy
-            elif factory.lower().startswith('layer'):
-                if len(args) == 1:
-                    # use RmsProp trainer by default for individual layers
-                    args += (trainer.RmsProp, )
-                factory = trainer.SupervisedPretrainer
-            elif factory.lower().startswith('pre'):
-                if len(args) == 1:
-                    # use RmsProp trainer by default for pretrainer
-                    args += (trainer.RmsProp, )
-                factory = trainer.UnsupervisedPretrainer
-            else:
-                factory = trainer.Trainer.get_class(factory)
-        logging.info('creating trainer %s', factory)
-        for k in sorted(kwargs):
-            logging.info('--%s = %s', k, kwargs[k])
-        return factory(*args, **kwargs)
+        train = train.lower()
+        if train == 'sample':
+            return trainer.SampleTrainer(self.network)
+        if train.startswith('layer'):
+            return trainer.SupervisedPretrainer(algo, self.network)
+        if train.startswith('pre'):
+            return trainer.UnsupervisedPretrainer(algo, self.network)
+        return trainer.DownhillTrainer(train, self.network)
 
     def create_dataset(self, data, **kwargs):
         '''Create a dataset for this experiment.
 
         Parameters
         ----------
-        data : ndarray, (ndarray, ndarray), or callable
+        data : sequence of ndarray or callable
             The values that you provide for data will be encapsulated inside a
-            :class:`Dataset <dataset.Dataset>` instance; see that class for
+            :class:`Dataset <downhill.Dataset>` instance; see that class for
             documentation on the types of things it needs. In particular, you
             can currently pass in either a list/array/etc. of data, or a
             callable that generates data dynamically.
 
         Returns
         -------
-        data : :class:`Dataset <dataset.Dataset>`
+        data : :class:`Dataset <downhill.Dataset>`
             A dataset capable of providing mini-batches of data to a training
             algorithm.
         '''
-        samples, labels, weights = data, None, None
-        if isinstance(data, (tuple, list)):
-            if len(data) > 0:
-                samples = data[0]
-            if len(data) > 1:
-                labels = data[1]
-            if len(data) > 2:
-                weights = data[2]
         name = kwargs.get('name', 'dataset')
         b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
-        return dataset.Dataset(
-            samples, labels=labels, weights=weights, name=name,
+        return downhill.Dataset(
+            data,
+            name=name,
             batch_size=kwargs.get(b, 32),
             iteration_size=kwargs.get(i, kwargs.get(s)),
-            axis=kwargs.get('axis'))
+            axis=kwargs.get('axis', 1 if len(data[0].shape) == 3 else 0))
 
     def train(self, *args, **kwargs):
         '''Train the network until the trainer converges.
@@ -135,7 +115,7 @@ class Experiment:
             pass
         return monitors
 
-    def itertrain(self, train_set=None, valid_set=None, algorithm='rmsprop', **kwargs):
+    def itertrain(self, train, valid=None, algorithm='rmsprop', **kwargs):
         '''Train our network, one batch at a time.
 
         This method yields a series of ``(train, valid)`` monitor pairs. The
@@ -154,18 +134,19 @@ class Experiment:
 
         Parameters
         ----------
-        train_set : any
-            A dataset to use when training the network. If this is a `Dataset`
-            instance, it will be used directly as the training datset. If it is
-            another type, like a numpy array, it will be converted to a
-            `Dataset` and then used as the training set.
-        valid_set : any, optional
+        train : sequence of ndarray or :class:`downhill.Dataset`
+            A dataset to use when training the network. If this is a
+            ``downhill.Dataset`` instance, it will be used directly as the
+            training datset. If it is another type, like a numpy array, it will
+            be converted to a ``downhill.Dataset`` and then used as the training
+            set.
+        valid : sequence of ndarray or :class:`downhill.Dataset`, optional
             If this is provided, it will be used as a validation dataset. If not
             provided, the training set will be used for validation. (This is not
             recommended!)
-        algorithm : any, optional
+        algorithm : str or list of str, optional
             One or more optimization algorithms to use for training our network.
-            If not provided, NAG will be used.
+            If not provided, RMSProp will be used.
 
         Returns
         -------
@@ -179,13 +160,12 @@ class Experiment:
             dataset, at the conclusion of training.
         '''
         # set up datasets
-        if valid_set is None:
-            valid_set = train_set
-        if not isinstance(valid_set, dataset.Dataset):
-            valid_set = self.create_dataset(valid_set, name='valid', **kwargs)
-        if not isinstance(train_set, dataset.Dataset):
-            train_set = self.create_dataset(train_set, name='train', **kwargs)
-        sets = dict(train_set=train_set, valid_set=valid_set, cg_set=train_set)
+        if valid is None:
+            valid = train
+        if not isinstance(valid, downhill.Dataset):
+            valid = self.create_dataset(valid, name='valid', **kwargs)
+        if not isinstance(train, downhill.Dataset):
+            train = self.create_dataset(train, name='train', **kwargs)
 
         # set up training algorithm(s)
         if 'optimize' in kwargs:
@@ -204,10 +184,10 @@ class Experiment:
 
         # loop over trainers, saving every N minutes/iterations if enabled
         for algo in algorithm:
-            if not callable(getattr(algo, 'train', None)):
-                algo = self.create_trainer(algo, **kwargs)
+            if not callable(getattr(algo, 'itertrain', None)):
+                algo = self.create_trainer(algo)
             start = datetime.datetime.now()
-            for i, monitors in enumerate(algo.itertrain(**sets)):
+            for i, monitors in enumerate(algo.itertrain(train, valid, **kwargs)):
                 yield monitors
                 now = datetime.datetime.now()
                 elapsed = (now - start).total_seconds()

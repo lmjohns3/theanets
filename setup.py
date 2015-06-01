@@ -20,7 +20,7 @@ setuptools.setup(
               'classifier '
               'theano '
               ),
-    install_requires=['theano', 'climate'],
+    install_requires=['climate', 'downhill', 'theano'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

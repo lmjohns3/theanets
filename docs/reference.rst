@@ -131,37 +131,8 @@ Training strategies
 .. autosummary::
    :toctree: generated/
 
-   Trainer
-
-Stochastic gradient trainers
-----------------------------
-
-.. autosummary::
-   :toctree: generated/
-
-   SGD
-   NAG
-   Rprop
-   RmsProp
-   ADADELTA
-   ESGD
-   HF
-
-Scipy optimizers
-----------------
-
-.. autosummary::
-   :toctree: generated/
-
-   Scipy
-
-Specialized trainers
---------------------
-
-.. autosummary::
-   :toctree: generated/
-
-   Sample
+   DownhillTrainer
+   SampleTrainer
    SupervisedPretrainer
    UnsupervisedPretrainer
 
@@ -176,15 +147,3 @@ Drivers
    :toctree: generated/
 
    Experiment
-
-Datasets
-========
-
-.. automodule:: theanets.dataset
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Dataset

@@ -245,7 +245,7 @@ class Maxout(Activation):
     time: the number of linear pieces to use. Consider a layer for the moment
     with just one unit. A maxout activation with :math:`k` pieces uses a slope
     :math:`m_k` and an intercept :math:`b_k` for each linear piece. It then
-    transfers the input activation as the maximum of all of the pieces:
+    transforms the input to the maximum of all of the pieces:
 
     .. math::
        f(x) = \max_k m_k x + b_k
@@ -266,7 +266,7 @@ class Maxout(Activation):
     The slopes of the ``relu`` activation are given by :math:`m = (0, 1)`, those
     of the :class:`Prelu` function are given by :math:`m = (r, 1)`, and those of
     the :class:`LGrelu` are given by :math:`m = (r, g)` where :math:`r` is the
-    leak rate parameter and `g` is a gain parameter.
+    leak rate parameter and :math:`g` is a gain parameter.
 
     Parameters
     ----------

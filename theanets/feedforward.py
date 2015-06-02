@@ -129,7 +129,7 @@ class Autoencoder(graph.Network):
             The given dataset, encoded by the appropriate hidden layer
             activation.
         '''
-        enc = self.feed_forward(x)[self._find_layer(layer)]
+        enc = self.feed_forward(x)[self._find_output(layer)]
         if sample:
             return np.random.binomial(n=1, p=enc).astype(np.uint8)
         return enc
@@ -149,20 +149,39 @@ class Autoencoder(graph.Network):
         decoded : ndarray
             The decoded dataset.
         '''
-        key = self._find_layer(layer)
+        key = self._find_output(layer)
         if key not in self._functions:
             outputs, updates = self.build_graph()
             self._functions[key] = theano.function(
                 [outputs[key]], [outputs[self.output_name()]], updates=updates)
         return self._functions[key](z)[0]
 
-    def _find_layer(self, layer):
-        '''
+    def _find_output(self, layer):
+        '''Find a layer output name for the given layer specifier.
+
+        Parameters
+        ----------
+        layer : None, int, str, or :class:`theanets.layers.Layer`
+            A layer specification. If this is None, the "middle" layer in the
+            network will be used (i.e., the layer at the middle index in the
+            list of network layers). If this is an integer, the corresponding
+            layer in the network's layer list will be used. If this is a string,
+            the layer with the corresponding name will be returned.
+
+        Returns
+        -------
+        name : str
+            The fully-scoped output name for the desired layer.
         '''
         if layer is None:
             layer = len(self.layers) // 2
         if isinstance(layer, int):
             layer = self.layers[layer]
+        if isinstance(layer, str):
+            try:
+                layer = [l for l in self.layers if l.name == layer][0]
+            except IndexError:
+                pass
         if isinstance(layer, layers.Layer):
             layer = layer.output_name()
         return layer

@@ -406,12 +406,38 @@ class Network(object):
 
         Returns
         -------
-        y : ndarray (num-examples, num-variables
+        y : ndarray (num-examples, num-variables)
             Returns the values of the network output units when given input `x`.
             Rows in this array correspond to examples, and columns to output
             variables.
         '''
         return self.feed_forward(x)[self.output_name()]
+
+    def score(self, x, y, w=None):
+        '''Compute R^2 coefficient of determination for a given labeled input.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-inputs)
+            An array containing data to be fed into the network. Multiple
+            examples are arranged as rows in this array, with columns containing
+            the variables for each example.
+        y : ndarray (num-examples, num-outputs)
+            An array containing expected target data for the network. Multiple
+            examples are arranged as rows in this array, with columns containing
+            the variables for each example.
+
+        Returns
+        -------
+        r2 : float
+            The R^2 correlation between the prediction of this netork and its
+            target output.
+        '''
+        u = y - self.predict(x)
+        v = y - y.mean()
+        if w is None:
+            w = np.ones_like(u)
+        return 1 - (w * u * u).sum() / (w * v * v).sum()
 
     def save(self, filename):
         '''Save the state of this network to a pickle file on disk.

@@ -186,6 +186,25 @@ class Autoencoder(graph.Network):
             layer = layer.output_name()
         return layer
 
+    def score(self, x, w=None):
+        '''Compute R^2 coefficient of determination for a given input.
+
+        Parameters
+        ----------
+        x : ndarray (num-examples, num-inputs)
+            An array containing data to be fed into the network. Multiple
+            examples are arranged as rows in this array, with columns containing
+            the variables for each example.
+
+        Returns
+        -------
+        r2 : float
+            The R^2 correlation between the prediction of this netork and its
+            input. This can serve as one measure of the information loss of the
+            autoencoder.
+        '''
+        return super(Autoencoder, self).score(x, x, w=w)
+
 
 class Regressor(graph.Network):
     r'''A regression model attempts to produce a target output.
@@ -454,6 +473,6 @@ class Classifier(graph.Network):
             The (possibly weighted) mean accuracy of the model on the data.
         '''
         eq = y == self.predict(x)
-        if self.weighted and w is not None:
+        if w is not None:
             return (w * eq).sum() / w.sum()
         return eq.mean()

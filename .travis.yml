@@ -15,7 +15,7 @@ install:
   - travis_retry pip install -r requirements.txt
   - travis_retry pip install python-coveralls
   - travis_retry python setup.py develop
-script: nosetests --runslow --cov-config=.coveragerc
+script: nosetests --with-coverage --cover-package=theanets
 after_success:
   - coveralls
 cache: apt

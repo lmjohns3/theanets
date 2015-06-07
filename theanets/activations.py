@@ -111,7 +111,7 @@ def build(name, layer, **kwargs):
 
     def compose(a, b):
         def c(z): return b(a(z))
-        c.name = ['%s(%s)' % (b.name, a.name)]
+        c.name = '%s(%s)' % (b.name, a.name)
         c.params = getattr(b, 'params', []) + getattr(a, 'params', [])
         return c
 

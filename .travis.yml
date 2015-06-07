@@ -5,7 +5,6 @@ python:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq libatlas-dev libatlas-base-dev liblapack-dev gfortran
-install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
@@ -13,10 +12,17 @@ install:
   - conda create --yes -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy
   - conda install --yes -n testenv pip
   - source activate testenv
+install:
+  - PATH="$HOME/miniconda/bin:$PATH"
+  - source activate testenv
   - pip install -U pep8 python-coveralls
-  - python setup.py install
+  - pip install .
 script:
+  - PATH="$HOME/miniconda/bin:$PATH"
+  - source activate testenv
   - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
 after_success:
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - source activate testenv
   - coveralls
 cache: apt

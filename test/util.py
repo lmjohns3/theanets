@@ -1,7 +1,6 @@
 '''Helper code for theanets unit tests.'''
 
 import numpy as np
-import skdata.mnist
 
 
 class MNIST(object):
@@ -9,14 +8,7 @@ class MNIST(object):
     DIGIT_SIZE = 784
 
     def setUp(self):
+        # we just create some random "mnist digit" data of the right shape.
         np.random.seed(3)
-
-        mnist = skdata.mnist.dataset.MNIST()
-        mnist.meta  # trigger download if needed.
-
-        def arr(n, dtype):
-            arr = mnist.arrays[n]
-            return arr.reshape((len(arr), -1)).astype(dtype)
-
-        self.images = arr('train_images', 'f')[:MNIST.NUM_DIGITS] / 255.
-        self.labels = arr('train_labels', 'b')[:MNIST.NUM_DIGITS]
+        self.images = np.random.randn(NUM_DIGITS, DIGIT_SIZE).astype('f')
+        self.labels = np.random.randint(0, 10, NUM_DIGITS).astype('i')

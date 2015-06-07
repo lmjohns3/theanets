@@ -9,20 +9,12 @@ before_install:
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - conda update --yes conda
-  - conda create --yes -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy
-  - conda install --yes -n testenv pip
-  - source activate testenv
 install:
-  - PATH="$HOME/miniconda/bin:$PATH"
-  - source activate testenv
-  - pip install -U pep8 python-coveralls
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+  - pip install pep8 python-coveralls
   - pip install .
 script:
-  - PATH="$HOME/miniconda/bin:$PATH"
-  - source activate testenv
   - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
 after_success:
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - source activate testenv
   - coveralls
 cache: apt

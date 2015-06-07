@@ -11,8 +11,8 @@ before_install:
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda update --yes conda
 install:
-  - travis_retry conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-  - travis_retry pip install -r requirements.txt
+  - travis_retry conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy theano
+  - travis_retry pip install pep8
   - travis_retry pip install python-coveralls
   - travis_retry python setup.py develop
 script: nosetests --with-coverage --cover-package=theanets

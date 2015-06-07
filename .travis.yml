@@ -11,7 +11,7 @@ before_install:
   - conda update --yes conda
 install:
   - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy nose
-  - pip install pep8 python-coveralls
+  - pip install pep8 python-coveralls skdata
   - pip install .
 script:
   - nosetests --with-coverage --cover-package=theanets --logging-level=INFO

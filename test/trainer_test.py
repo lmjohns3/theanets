@@ -19,6 +19,7 @@ class TestTrainer(util.MNIST):
         assert valid1['loss'] == valid0['loss']  # no new validation occurred
 
     def test_sgd(self):
+        # this really tests that interaction with downhill works.
         self.assert_progress('sgd')
 
     def test_layerwise(self):
@@ -26,3 +27,13 @@ class TestTrainer(util.MNIST):
             theanets.Autoencoder,
             layers=(self.DIGIT_SIZE, 10, 10, self.DIGIT_SIZE))
         self.assert_progress('layerwise')
+
+    def test_sample(self):
+        exp = theanets.Experiment(
+            theanets.Autoencoder,
+            layers=(self.DIGIT_SIZE, 10, 10, self.DIGIT_SIZE))
+        trainer = exp.itertrain(
+            self.images, algorithm='sample', monitor_gradients=True)
+        train0, valid0 = next(trainer)
+        # for this trainer, we don't measure the loss.
+        assert train0['loss'] == 0 == valid0['loss']

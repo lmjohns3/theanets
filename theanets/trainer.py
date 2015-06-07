@@ -128,30 +128,30 @@ class SampleTrainer(object):
             return x[-1] if isinstance(x, (tuple, list)) else x
 
         odim = idim = None
-        for t in train_set:
+        for t in train:
             idim = first(t).shape[-1]
             odim = last(t).shape[-1]
 
         # set output (decoding) weights on the network.
-        samples = ifci(last(t) for t in train_set)
+        samples = ifci(last(t) for t in train)
         for param in self.network.layers[-1].params:
             shape = param.get_value(borrow=True).shape
             if len(shape) == 2 and shape[1] == odim:
-                arr = np.vstack(Sample.reservoir(samples, shape[0]))
-                logging.info('setting %s: %s <- %s', param.name, shape)
+                arr = np.vstack(SampleTrainer.reservoir(samples, shape[0]))
+                logging.info('setting %s: %s', param.name, shape)
                 param.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
         # set input (encoding) weights on the network.
-        samples = ifci(first(t) for t in train_set)
+        samples = ifci(first(t) for t in train)
         for layer in self.network.layers:
             for param in layer.params:
                 shape = param.get_value(borrow=True).shape
                 if len(shape) == 2 and shape[0] == idim:
-                    arr = np.vstack(Sample.reservoir(samples, shape[1])).T
+                    arr = np.vstack(SampleTrainer.reservoir(samples, shape[1])).T
                     logging.info('setting %s: %s', param.name, shape)
                     param.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
                     samples = ifci(self.network.feed_forward(
-                        first(t))[i-1] for t in train_set)
+                        first(t))[i-1] for t in train)
 
         yield dict(loss=0), dict(loss=0)
 

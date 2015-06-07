@@ -6,9 +6,17 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq libatlas-dev libatlas-base-dev liblapack-dev gfortran
 install:
-  - travis_retry pip install -U pip numpy scipy theano pep8 nose python-coveralls
-  - travis_retry python setup.py develop
-script: nosetests --with-coverage --cover-package=theanets
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - conda update --yes conda
+  - conda create --yes -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy
+  - conda install --yes -n testenv pip
+  - source activate testenv
+  - pip install -U pep8 python-coveralls
+  - python setup.py install
+script:
+  - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
 after_success:
   - coveralls
 cache: apt

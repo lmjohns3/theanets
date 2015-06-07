@@ -1,6 +1,10 @@
 theanets
 ========
 
+.. image:: https://travis-ci.org/lmjohns3/theanets.svg?branch=master
+.. image:: https://coveralls.io/repos/lmjohns3/theanets/badge.svg?branch=master
+   :target: https://coveralls.io/r/lmjohns3/theanets?branch=master
+
 The ``theanets`` package provides tools for defining and optimizing several
 common types of neural network models. It uses Python for rapid development, and
 under the hood Theano_ provides graph optimization and fast computations on the

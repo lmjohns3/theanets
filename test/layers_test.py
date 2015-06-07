@@ -4,9 +4,18 @@ import theano.tensor as TT
 
 
 class Base(object):
+    INPUTS = 2
+    SIZE = 4
+    OUTPUTS = 3
+
     def setUp(self):
         self.x = TT.matrix('x')
         self.l = self._build()
+
+    def test_feed_forward(self):
+        net = theanets.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
+        assert out.shape == (8, Base.OUTPUTS)
 
     def assert_param_names(self, expected):
         if not expected[0].startswith('l'):
@@ -34,11 +43,12 @@ class Base(object):
 
 class TestLayer(Base):
     def _build(self):
-        return theanets.layers.Feedforward(inputs=2, size=4, name='l')
+        return theanets.layers.Feedforward(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_build(self):
         for f in 'feedforward Feedforward classifier rnn lstm'.split():
-            l = theanets.layers.build(f, inputs=2, size=4)
+            l = theanets.layers.build(f, inputs=Base.INPUTS, size=Base.SIZE)
             assert isinstance(l, theanets.layers.Layer)
 
     def test_connect(self):
@@ -49,7 +59,8 @@ class TestLayer(Base):
 
 class TestFeedforward(Base):
     def _build(self):
-        return theanets.layers.Feedforward(inputs=2, size=4, name='l')
+        return theanets.layers.Feedforward(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['w', 'b'])
@@ -63,22 +74,40 @@ class TestFeedforward(Base):
 
 class TestMultiFeedforward(Base):
     def _build(self):
-        return theanets.layers.Feedforward(inputs=dict(a=2, b=2), size=4, name='l')
+        self.a = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE, name='a')
+        self.b = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE, name='b')
+        return theanets.layers.Feedforward(
+            inputs={'a:out': Base.SIZE, 'b:out': Base.SIZE},
+            size=Base.SIZE, name='l')
+
+    def test_feed_forward(self):
+        net = theanets.Regressor(
+            (Base.INPUTS, self.a, self.b, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
+        assert out.shape == (8, Base.OUTPUTS)
 
     def test_create(self):
-        self.assert_param_names(['w_a', 'w_b', 'b'])
-        self.assert_count(20)
+        self.assert_param_names(['w_a:out', 'w_b:out', 'b'])
+        self.assert_count(36)
 
     def test_transform(self):
-        out, upd = self.l.transform(dict(a=self.x, b=self.x))
+        out, upd = self.l.transform({'a:out': self.x, 'b:out': self.x})
         assert len(out) == 2
         assert not upd
 
 
 class TestTied(Base):
     def _build(self):
-        l0 = theanets.layers.Feedforward(inputs=2, size=4, name='l0')
-        return theanets.layers.Tied(partner=l0, name='l')
+        self.l0 = theanets.layers.Feedforward(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l0')
+        return theanets.layers.Tied(partner=self.l0, name='l')
+
+    def test_feed_forward(self):
+        net = theanets.Autoencoder((Base.INPUTS, self.l0, self.l))
+        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
+        assert out.shape == (8, Base.INPUTS)
 
     def test_create(self):
         l = self._build()
@@ -93,7 +122,8 @@ class TestTied(Base):
 
 class TestClassifier(Base):
     def _build(self):
-        return theanets.layers.Classifier(inputs=2, size=4, name='l')
+        return theanets.layers.Classifier(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['w', 'b'])
@@ -110,10 +140,21 @@ class BaseRecurrent(Base):
         super(BaseRecurrent, self).setUp()
         self.x = TT.tensor3('x')
 
+    def test_feed_forward(self):
+        net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(5, 8, Base.INPUTS).astype('f'))
+        assert out.shape == (5, 8, Base.OUTPUTS)
+
 
 class TestConv1(BaseRecurrent):
     def _build(self):
-        return theanets.layers.Conv1(inputs=2, size=4, length=3, name='l')
+        return theanets.layers.Conv1(
+            inputs=Base.INPUTS, size=Base.SIZE, length=3, name='l')
+
+    def test_feed_forward(self):
+        net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(5, 8, Base.INPUTS).astype('f'))
+        assert out.shape == (3, 8, Base.OUTPUTS)
 
     def test_create(self):
         self.assert_param_names(['b', 'w'])
@@ -127,7 +168,8 @@ class TestConv1(BaseRecurrent):
 
 class TestRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.RNN(inputs=2, size=4, name='l')
+        return theanets.layers.RNN(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'xh'])
@@ -141,7 +183,8 @@ class TestRNN(BaseRecurrent):
 
 class TestARRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.ARRNN(inputs=2, size=4, name='l')
+        return theanets.layers.ARRNN(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'r', 'xh', 'xr'])
@@ -155,7 +198,8 @@ class TestARRNN(BaseRecurrent):
 
 class TestLRRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.LRRNN(inputs=2, size=4, name='l')
+        return theanets.layers.LRRNN(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'r', 'xh'])
@@ -169,7 +213,8 @@ class TestLRRNN(BaseRecurrent):
 
 class TestMRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.MRNN(inputs=2, size=4, factors=3, name='l')
+        return theanets.layers.MRNN(
+            inputs=Base.INPUTS, size=Base.SIZE, factors=3, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'fh', 'hf', 'xf', 'xh'])
@@ -183,7 +228,8 @@ class TestMRNN(BaseRecurrent):
 
 class TestLSTM(BaseRecurrent):
     def _build(self):
-        return theanets.layers.LSTM(inputs=2, size=4, name='l')
+        return theanets.layers.LSTM(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'cf', 'ci', 'co', 'hh', 'xh'])
@@ -197,7 +243,8 @@ class TestLSTM(BaseRecurrent):
 
 class TestGRU(BaseRecurrent):
     def _build(self):
-        return theanets.layers.GRU(inputs=2, size=4, name='l')
+        return theanets.layers.GRU(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_create(self):
         self.assert_param_names(['bh', 'br', 'bz',
@@ -213,7 +260,8 @@ class TestGRU(BaseRecurrent):
 
 class TestClockwork(BaseRecurrent):
     def _build(self):
-        return theanets.layers.Clockwork(inputs=2, size=4, periods=(2, 5), name='l')
+        return theanets.layers.Clockwork(
+            inputs=Base.INPUTS, size=Base.SIZE, periods=(2, 5), name='l')
 
     def test_create(self):
         self.assert_param_names(['b', 'xh', 'hh2', 'hh5'])
@@ -225,13 +273,13 @@ class TestClockwork(BaseRecurrent):
         assert not upd
 
     def test_spec(self):
-        self.assert_spec(periods=(5, 2), size=4, form='clockwork')
+        self.assert_spec(periods=(5, 2), size=Base.SIZE, form='clockwork')
 
 
 class TestBidirectional(BaseRecurrent):
     def _build(self):
         return theanets.layers.Bidirectional(
-            inputs=2, size=4, worker='arrnn', name='l')
+            inputs=Base.INPUTS, size=Base.SIZE, worker='arrnn', name='l')
 
     def test_create(self):
         self.assert_param_names(
@@ -245,4 +293,4 @@ class TestBidirectional(BaseRecurrent):
         assert not upd
 
     def test_spec(self):
-        self.assert_spec(size=4, form='bidirectional', worker='arrnn')
+        self.assert_spec(size=Base.SIZE, form='bidirectional', worker='arrnn')

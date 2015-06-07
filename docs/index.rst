@@ -52,23 +52,13 @@ and train it using a few lines of code::
   climate.enable_default_logging()
 
   X, y = sklearn.datasets.make_classification(
-      n_samples=3000,
-      n_features=100,
-      n_informative=30,
-      n_repeated=10,
-      n_redundant=10,
-      n_classes=10,
-      n_clusters_per_class=3,
-  )
+      n_samples=3000, n_features=100, n_classes=10)
   X = X.astype('f')
   y = y.astype('i')
+  cut = int(len(X) * 0.8)
 
   exp = theanets.Experiment(
-      theanets.Classifier,
-      layers=(100, 200, 100, 10),
-  )
-
-  cut = 2500
+      theanets.Classifier, layers=(100, 200, 100, 10))
   exp.train(
       [X[:cut], y[:cut]],
       [X[cut:], y[cut:]],

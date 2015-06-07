@@ -10,7 +10,7 @@ before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - conda update --yes conda
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy nose
   - pip install pep8 python-coveralls
   - pip install .
 script:

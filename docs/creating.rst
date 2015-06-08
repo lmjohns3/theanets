@@ -124,13 +124,37 @@ because recurrent models require data matrices with an additional dimension to
 represent time. In general,
 
 - the data shapes required for a recurrent layer are all one
-  dimension larger than the corresponding shapes for a feedforward network, and
-- the extra dimension is always located on the first (0) axis, and
-- the extra dimension represents time.
+  dimension larger than the corresponding shapes for a feedforward network,
+
+- the extra dimension represents time, and
+
+- the extra dimension is located on:
+
+  - the first (0) axis for versions through 0.6, or
+  - the second (1) axis for versions 0.7 and up.
 
 In addition to the three vanilla model types described above, recurrent networks
 also allow for the possibility of *predicting future outputs*. This task is
 handled by :class:`prediction <theanets.recurrent.Predictor>` networks.
+
+.. warning::
+
+   Starting with release 0.7.0 of ``theanets``, recurrent models will change the
+   expected axis ordering for data arrays! The axis ordering before version
+   0.7.0 is ``(time, batch, variables)``, and the axis ordering starting in the
+   0.7.0 release will be ``(batch, time, variables)``.
+
+   The new ordering will be more consistent with other models in ``theanets``.
+   The first axis (index 0) of all data arrays will represent the examples in a
+   batch, and the last axis (index -1) will represent the variables. For
+   recurrent models, the axis in the middle of a batch (index 1) will represent
+   time.
+
+.. note::
+
+   In recurrent models, the batch size is currently required to be greater than
+   one. If you wish to run a recurrent model on a single sample, just create a
+   batch with two copies of the same sample.
 
 Autoencoder
 -----------
@@ -139,11 +163,6 @@ A :class:`recurrent autoencoder <theanets.recurrent.Autoencoder>`, just like its
 feedforward counterpart, takes as input a single array of data :math:`X \in
 \mathbb{R}^{t \times m \times n}` and attempts to recreate the same data at the
 output, under a squared-error loss.
-
-.. note::
-   In recurrent models, the batch size is currently required to be greater than
-   one. If you wish to run a recurrent model on a single sample, just create a
-   batch with two copies of the same sample.
 
 Prediction
 ----------

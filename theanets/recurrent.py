@@ -3,6 +3,7 @@
 '''This module contains recurrent network structures.'''
 
 import numpy as np
+import sys
 import theano.tensor as TT
 
 from . import feedforward
@@ -51,6 +52,19 @@ def batches(samples, labels=None, steps=100, batch_size=64):
     return unlabeled_sample if labels is None else labeled_sample
 
 
+_warned = False
+
+
+def _warn_dimshuffle():
+    global _warned
+    if not _warned:
+        sys.stderr.write('''\
+*****  WARNING: In theanets 0.7.0, recurrent models will use a  *****
+*****  new axis ordering! Learn more at http://goo.gl/kXB4Db    *****
+''')
+        _warned = True
+
+
 class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
 
@@ -71,6 +85,8 @@ class Autoencoder(feedforward.Autoencoder):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
+        _warn_dimshuffle()
+
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
@@ -164,6 +180,8 @@ class Regressor(feedforward.Regressor):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
+        _warn_dimshuffle()
+
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')
@@ -208,6 +226,8 @@ class Classifier(feedforward.Classifier):
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
+        _warn_dimshuffle()
+
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
         self.x = TT.tensor3('x')

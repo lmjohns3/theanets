@@ -15,7 +15,7 @@ class TestRegressor(util.MNIST):
 
     def test_score_onelayer(self):
         net = self._build(13)
-        z = net.score(self.images)
+        z = net.score(self.images, np.random.randn(self.NUM_DIGITS, 3))
         assert z < 0
 
     def test_feed_forward(self):

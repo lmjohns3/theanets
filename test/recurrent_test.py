@@ -68,6 +68,12 @@ class TestRegressor(Base):
         self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, OUTS))
 
 
+class TestWeightedRegressor(TestRegressor):
+    def _build(self, *hiddens):
+        return theanets.recurrent.Regressor(
+            layers=(INS, ) + hiddens + (OUTS, ), weighted=True)
+
+
 class TestPredictor(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Predictor((INS, ) + hiddens + (INS, ))
@@ -121,6 +127,12 @@ class TestClassifier(Base):
         self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, OUTS))
 
 
+class TestWeightedClassifier(TestClassifier):
+    def _build(self, *hiddens):
+        return theanets.recurrent.Classifier(
+            layers=(INS, ) + hiddens + (OUTS, ), weighted=True)
+
+
 class TestAutoencoder(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Autoencoder((INS, ) + hiddens + (INS, ))
@@ -143,3 +155,9 @@ class TestAutoencoder(Base):
         self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 15))
         self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 13))
         self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, INS))
+
+
+class TestWeightedAutoencoder(TestAutoencoder):
+    def _build(self, *hiddens):
+        return theanets.recurrent.Autoencoder(
+            (INS, ) + hiddens + (INS, ), weighted=True)

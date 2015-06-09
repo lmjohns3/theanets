@@ -53,6 +53,7 @@ import climate
 import fnmatch
 import gzip
 import hashlib
+import numpy as np
 import pickle
 import theano
 import theano.tensor as TT

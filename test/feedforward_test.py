@@ -82,9 +82,8 @@ class TestWeightedClassifier(TestClassifier):
 
     def test_score_onelayer(self):
         net = self._build(13)
-        z = net.score(self.images,
-                      self.labels,
-                      np.random.randint(0, 2, size=self.labels.shape))
+        z = net.score(
+            self.images, self.labels, 0.5 * np.ones(self.labels.shape, 'f'))
         assert 0 < z < 1
 
 

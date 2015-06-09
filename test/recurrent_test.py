@@ -77,6 +77,15 @@ class TestPredictor(Base):
         z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH, INS))
 
+    def test_feed_forward(self):
+        net = self._build(15, 13)
+        hs = net.feed_forward(self.probe)
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
+        self.assert_shape(hs['in:out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, INS))
+
 
 class TestClassifier(Base):
     def _build(self, *hiddens):
@@ -102,6 +111,15 @@ class TestClassifier(Base):
         z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH))
 
+    def test_feed_forward(self):
+        net = self._build(15, 13)
+        hs = net.feed_forward(self.probe)
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
+        self.assert_shape(hs['in:out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, OUTS))
+
 
 class TestAutoencoder(Base):
     def _build(self, *hiddens):
@@ -116,3 +134,12 @@ class TestAutoencoder(Base):
         net = self._build(13, 14)
         z = net.predict(self.probe)
         self.assert_shape(z.shape, (STEPS, BATCH, INS))
+
+    def test_feed_forward(self):
+        net = self._build(15, 13)
+        hs = net.feed_forward(self.probe)
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
+        self.assert_shape(hs['in:out'].shape, (STEPS, BATCH, INS))
+        self.assert_shape(hs['hid1:out'].shape, (STEPS, BATCH, 15))
+        self.assert_shape(hs['hid2:out'].shape, (STEPS, BATCH, 13))
+        self.assert_shape(hs['out:out'].shape, (STEPS, BATCH, INS))

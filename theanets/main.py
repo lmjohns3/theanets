@@ -151,8 +151,8 @@ class Experiment:
             One or more optimization algorithms to use for training our network.
             If not provided, RMSProp will be used.
 
-        Returns
-        -------
+        Yields
+        ------
         training : dict
             A dictionary of monitor values computed using the training dataset,
             at the conclusion of training. This dictionary will at least contain

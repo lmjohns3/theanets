@@ -4,8 +4,10 @@
 
 Many optimization methods are general-purpose optimization routines that happen
 to be pretty good for training neural networks; these are provided by
-``downhill``. Other methods --- :class:`Sample`, :class:`SupervisedPretrainer`,
-and :class:`UnsupervisedPretrainer` --- are specific to neural networks.
+``downhill``. The other methods here --- :class:`SampleTrainer`,
+:class:`SupervisedPretrainer`, and :class:`UnsupervisedPretrainer` --- are more
+specific to neural networks, often taking advantage of the layered structure of
+many common network architectures.
 '''
 
 import climate
@@ -45,8 +47,8 @@ class DownhillTrainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Returns
-        -------
+        Yields
+        ------
         training : dict
             A dictionary mapping monitor names to values, evaluated on the
             training dataset.
@@ -110,8 +112,8 @@ class SampleTrainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Returns
-        -------
+        Yields
+        ------
         training : dict
             A dictionary mapping monitor names to values, evaluated on the
             training dataset.
@@ -205,8 +207,8 @@ class SupervisedPretrainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Returns
-        -------
+        Yields
+        ------
         training : dict
             A dictionary mapping monitor names to values, evaluated on the
             training dataset.
@@ -272,8 +274,8 @@ class UnsupervisedPretrainer(object):
             A set of validation data for computing monitor values and
             determining when the loss has stopped improving.
 
-        Returns
-        -------
+        Yields
+        ------
         training : dict
             A dictionary mapping monitor names to values, evaluated on the
             training dataset.

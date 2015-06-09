@@ -66,11 +66,37 @@ class TestClassifier(util.MNIST):
         z = net.predict(self.images)
         assert z.shape == (self.NUM_DIGITS, )
 
+    def test_feed_forward(self):
+        net = self._build(15, 13)
+        hs = net.feed_forward(self.images)
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
+        assert hs['in:out'].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+        assert hs['hid1:out'].shape == (self.NUM_DIGITS, 15)
+        assert hs['out:out'].shape == (self.NUM_DIGITS, 10)
+
+
+class TestWeightedClassifier(TestClassifier):
+    def _build(self, *hiddens):
+        return theanets.Classifier(
+            (self.DIGIT_SIZE, ) + hiddens + (10, ), weighted=True)
+
+    def test_score_onelayer(self):
+        net = self._build(13)
+        z = net.score(self.images,
+                      self.labels,
+                      np.random.randint(0, 2, size=self.labels.shape))
+        assert 0 < z < 1
+
 
 class TestAutoencoder(util.MNIST):
     def _build(self, *hiddens):
         return theanets.Autoencoder(
             (self.DIGIT_SIZE, ) + hiddens + (self.DIGIT_SIZE, ))
+
+    def test_score_onelayer(self):
+        net = self._build(13)
+        z = net.score(self.images)
+        assert z < 0
 
     def test_encode_onelayer(self):
         net = self._build(13)
@@ -101,3 +127,22 @@ class TestAutoencoder(util.MNIST):
         net = self._build(13, 14, 15)
         x = net.decode(net.encode(self.images))
         assert x.shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+
+    def test_feed_forward(self):
+        net = self._build(15, 13)
+        hs = net.feed_forward(self.images)
+        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
+        assert hs['in:out'].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+        assert hs['hid1:out'].shape == (self.NUM_DIGITS, 15)
+        assert hs['out:out'].shape == (self.NUM_DIGITS, self.DIGIT_SIZE)
+
+
+class TestWeightedAutoencoder(TestAutoencoder):
+    def _build(self, *hiddens):
+        return theanets.Autoencoder(
+            (self.DIGIT_SIZE, ) + hiddens + (self.DIGIT_SIZE, ), weighted=True)
+
+    def test_score_onelayer(self):
+        net = self._build(13)
+        z = net.score(self.images, np.random.randint(0, 2, size=self.images.shape))
+        assert z < 0

@@ -268,6 +268,16 @@ class Maxout(Activation):
     the :class:`LGrelu` are given by :math:`m = (r, g)` where :math:`r` is the
     leak rate parameter and :math:`g` is a gain parameter.
 
+    .. note::
+
+       To use this activation in a network layer specification, provide an
+       activation string of the form ``'maxout:k'``, where ``k`` is an integer
+       giving the number of piecewise functions.
+
+       For example, the layer tuple ``(100, 'rnn', 'maxout:10')`` specifies a
+       vanilla :class:`RNN <theanets.layers.recurrent.RNN>` layer with 100 units
+       and a maxout activation with 10 pieces.
+
     Parameters
     ----------
     pieces : int

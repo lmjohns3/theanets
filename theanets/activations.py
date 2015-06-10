@@ -187,6 +187,8 @@ class Prelu(Activation):
        f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\
                       x &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
 
+    This activation allocates a separate leak rate for each unit in its layer.
+
     References
     ----------
     K He, X Zhang, S Ren, J Sun (2015), "Delving Deep into Rectifiers:
@@ -219,6 +221,9 @@ class LGrelu(Activation):
     .. math::
        f(x) = \left\{ \begin{eqnarray*} rx &\qquad& \mbox{if } x < 0 \\
                        gx &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+
+    This activation allocates a separate leak and gain rate for each unit in its
+    layer.
     '''
 
     __extra_registration_keys__ = ['leaky-gain-relu']

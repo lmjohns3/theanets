@@ -84,21 +84,25 @@ In fact, you can just as easily create 3 (or any number of) hidden layers::
 
 By default, hidden layers use the logistic sigmoid transfer function. By passing
 a tuple instead of just an integer, you can change some of these layers to use
-different :mod:`activations <theanets.activations>`::
+different activations_::
 
   maxout = (1000, 'maxout:4')  # maxout with 4 pieces.
   exp = theanets.Experiment(
       theanets.Classifier,
       (100, 1000, maxout, (1000, 'relu'), 10))
 
+.. _activations: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.activations
+
 By passing a dictionary instead, you can specify even more attributes of each
-:mod:`layer <theanets.layers>`, like how its parameters are initialized::
+layer_, like how its parameters are initialized::
 
   # Sparsely-initialized layer with large nonzero weights.
   foo = dict(name='foo', size=1000, std=1, sparsity=0.9)
   exp = theanets.Experiment(
       theanets.Classifier,
       (100, foo, (1000, 'maxout:4'), (1000, 'relu'), 10))
+
+.. _layer: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers.base
 
 Specifying layers is the heart of building models in ``theanets``. Read more
 about this in `Creating a Model`_.

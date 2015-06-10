@@ -77,7 +77,7 @@ different :mod:`activations <theanets.activations>`::
       (100, 1000, maxout, (1000, 'relu'), 10))
 
 By passing a dictionary instead, you can specify even more attributes of each
-:mod:`layer <theanets.layers>`, like how its parameters are initialized::
+:mod:`layer <theanets.layers.base>`, like how its parameters are initialized::
 
   # Sparsely-initialized layer with large nonzero weights.
   foo = dict(name='foo', size=1000, std=1, sparsity=0.9)

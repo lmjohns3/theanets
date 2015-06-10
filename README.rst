@@ -11,10 +11,7 @@ written in Python to interoperate with excellent tools like ``numpy`` and
 ``scikit-learn``, and it uses Theano_ to take advantage of your GPU. The package
 aims to provide:
 
-- a simple API for building and training common types of neural network models,
-  including sparse and denoising autoencoders, "deep" autoencoder and
-  classification models, recurrent models for regression and classification,
-  etc.;
+- a simple API for building and training common types of neural network models;
 - thorough documentation;
 - easy-to-read code;
 - and, under the hood, a fully expressive graph computation framework.
@@ -107,14 +104,15 @@ layer_, like how its parameters are initialized::
 Specifying layers is the heart of building models in ``theanets``. Read more
 about this in `Creating a Model`_.
 
-.. _Creating a Model: creating.html
+.. _Creating a Model: http://theanets.readthedocs.org/en/latest/creating.html
 
 Regularization
 --------------
 
-Adding regularizers is easy, too! Just pass them to the training method::
+Adding regularizers is easy, too! Just pass them to the training method. For
+instance, you can train up a sparse classification model with weight decay::
 
-  # Penalize hidden-unit activations and large weights.
+  # Penalize hidden-unit activity (L1 norm) and weights (L2 norm).
   exp.train(train, valid, hidden_l1=0.001, weight_l2=0.001)
 
 In ``theanets`` dropout is treated as a regularizer and can be set on many
@@ -131,9 +129,8 @@ input layer)::
 
   exp.train(train, valid, input_noise=0.3)
 
-You can make as many successive calls to :func:`train()
-<theanets.Experiment.train>` as you like. Each call can include different
-training algorithms::
+You can make as many successive calls to train() as you like. Each call can
+include different training algorithms::
 
   exp.train(train, valid, algo='rmsprop')
   exp.train(train, valid, algo='nag')
@@ -152,7 +149,12 @@ Training models is a bit more art than science, but ``theanets`` tries to make
 it easy to evaluate different training approaches. Read more about this in
 `Training a Model`_.
 
-.. _Training a Model: training.html
+.. _Training a Model: http://theanets.readthedocs.org/en/latest/training.html
+
+Quick Start: Recurrent Models
+=============================
+
+
 
 More Information
 ================

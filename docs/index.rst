@@ -91,9 +91,10 @@ about this in :doc:`creating`.
 Regularization
 --------------
 
-Adding regularizers is easy, too! Just pass them to the training method::
+Adding regularizers is easy, too! Just pass them to the training method. For
+instance, you can train up a sparse classification model with weight decay::
 
-  # Penalize hidden-unit activations and large weights.
+  # Penalize hidden-unit activity (L1 norm) and weights (L2 norm).
   exp.train(train, valid, hidden_l1=0.001, weight_l2=0.001)
 
 In ``theanets`` dropout is treated as a regularizer and can be set on many

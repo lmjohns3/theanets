@@ -1,10 +1,10 @@
-========
-theanets
-========
-
 .. image:: https://travis-ci.org/lmjohns3/theanets.svg?branch=master
 .. image:: https://coveralls.io/repos/lmjohns3/theanets/badge.svg?branch=master
    :target: https://coveralls.io/r/lmjohns3/theanets?branch=master
+
+============
+``THEANETS``
+============
 
 The ``theanets`` package is a deep learning and neural network toolkit. It is
 written in Python to interoperate with excellent tools like ``numpy`` and

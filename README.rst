@@ -42,12 +42,16 @@ data points that you've classified into 10 categories. No problem! With just a
 few lines you can (a) provide some data, (b) build and (c) train a model,
 and (d) evaluate the model::
 
+  import climate
   import theanets
   from sklearn.datasets import make_classification
   from sklearn.metrics import confusion_matrix
 
+  climate.enable_default_logging()
+
   # Create a classification dataset.
-  X, y = make_classification(n_samples=3000, n_features=100, n_classes=10)
+  X, y = make_classification(
+      n_samples=3000, n_features=100, n_classes=10, n_informative=10)
   X = X.astype('f')
   y = y.astype('i')
   cut = int(len(X) * 0.8)  # training / validation split

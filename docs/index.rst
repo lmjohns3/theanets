@@ -146,5 +146,4 @@ Documentation
    creating
    training
    using
-   misc
    reference

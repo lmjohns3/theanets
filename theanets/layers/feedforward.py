@@ -35,6 +35,11 @@ class Input(base.Layer):
         kwargs['activation'] = 'linear'
         super(Input, self).__init__(**kwargs)
 
+    def log(self):
+        '''Log some information about this layer.'''
+        logging.info('layer %s "%s": %s inputs',
+                     self.__class__.__name__, self.name, self.size)
+
     def to_spec(self):
         '''Create a specification for this layer.
 

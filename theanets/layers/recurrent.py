@@ -660,11 +660,15 @@ class Clockwork(Recurrent):
 
     def log(self):
         '''Log some information about this layer.'''
-        act = self.activate.name
-        ins = '+'.join('{}:{}'.format(n, s) for n, s in self.inputs.items())
-        T = ' '.join(str(T) for T in self.periods)
-        logging.info('layer %s: %s -> %s (T: %s), %s, %d parameters',
-                     self.name, ins, self.size, T, act, self.num_params)
+        inputs = ', '.join('({}){}'.format(n, s) for n, s in self.inputs.items())
+        logging.info('layer %s "%s": %s -> %s, [%s] %s, %d parameters',
+                     self.__class__.__name__,
+                     self.name,
+                     inputs,
+                     self.size,
+                     ' '.join(str(T) for T in self.periods),
+                     self.activate.name,
+                     self.num_params)
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.

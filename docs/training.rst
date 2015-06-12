@@ -10,10 +10,10 @@ the task that the network should perform.
 The neural networks research literature is filled with exciting advances in
 optimization algorithms for neural networks. In ``theanets`` several optimizers
 are available; each one has different performance characteristics and might be
-better or worse suited for a particular model or task. Optimization algorithms
-based on stochastic gradient descent are provided by the ``downhill`` module;
-see the documentation at http://downhill.rtfd.org for more information about
-these optimizers.
+better or worse suited for a particular model or task.
+
+To train a network, you must first specify a trainer and then provide some data
+to the trainer. You can also save the model periodically during training.
 
 Specifying a Trainer
 ====================
@@ -35,10 +35,8 @@ algorithms. The algorithm itself is selected using the ``algorithm`` keyword
 argument, and any other keyword arguments provided to ``train()`` are passed to
 the algorithm implementation.
 
-.. _Nesterov's accelerated gradient: http://downhill.readthedocs.org/en/stable/generated/downhill.first_order.NAG.html
-
 Multiple calls to ``train()`` are possible and can be used to implement things
-like custom annealing schedules::
+like custom annealing schedules (e.g., the "newbob" training strategy)::
 
   exp = theanets.Experiment(theanets.Classifier, layers=(10, 5, 2))
 
@@ -58,37 +56,51 @@ like custom annealing schedules::
 The available training methods are described below, followed by some details on
 additional functionality available for training models.
 
-.. _training-neural-network-trainers:
+.. _training-available-trainers:
 
-Neural Network Trainers
-=======================
+Available Trainers
+==================
+
+The most common method for training a neural network model is to use a
+stochastic gradient-based optimizer. In ``theanets`` many of these algorithms
+are available by interfacing with the ``downhill`` package:
+
+- ``sgd``: `Stochastic gradient descent`_
+- ``nag``: `Nesterov's accelerated gradient`_
+- ``rprop``: `Resilient backpropagation`_
+- ``rmsprop``: RMSProp_
+- ``adadelta``: ADADELTA_
+- ``esgd``: `Equilibrated SGD`_
+- ``adam``: Adam_
+
+.. _Stochastic gradient descent: http://downhill.readthedocs.org/en/stable/generated/downhill.first_order.SGD.html
+.. _Nesterov's accelerated gradient: http://downhill.readthedocs.org/en/stable/generated/downhill.first_order.NAG.html
+.. _Resilient backpropagation: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.RProp.html
+.. _RMSProp: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.RMSProp.html
+.. _ADADELTA: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.ADADELTA.html
+.. _Equilibrated SGD: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.ESGD.html
+.. _Adam: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.Adam.html
 
 In addition to the optimization algorithms provided by ``downhill``,
 ``theanets`` defines a few algorithms that are more specific to neural networks.
-In various ways, these trainers take advantage of the layered structure of the
-loss function for a network.
+These trainers tend to take advantage of the layered structure of the loss
+function for a network.
 
-Sampling from Data
-------------------
-
-:class:`sample <theanets.trainer.Sample>`
+- ``sample``: :class:`Sample trainer <theanets.trainer.Sample>`
 
 This trainer sets model parameters directly to samples drawn from the training
 data. This is a very fast "training" algorithm since all updates take place at
 once; however, often features derived directly from the training data require
 further tuning to perform well.
 
-Layerwise Pretraining
----------------------
+- ``layerwise``: :class:`Layerwise (supervised) pretrainer <theanets.trainer.SupervisedPretrainer>`
 
-:class:`layerwise <theanets.trainer.SupervisedPretrainer>`
-
-Greedy supervised layerwise pre-training: This trainer applies RmsProp to each
+Greedy supervised layerwise pre-training: This trainer applies RMSProp to each
 layer sequentially.
 
-:class:`pretrain <theanets.trainer.UnsupervisedPretrainer>`
+- ``pretrain``: :class:`Unsupervised pretrainer <theanets.trainer.UnsupervisedPretrainer>`
 
-Greedy unsupervised layerwise pre-training: This trainer applies RmsProp to a
+Greedy unsupervised layerwise pre-training: This trainer applies RMSProp to a
 tied-weights "shadow" autoencoder using an unlabeled dataset, and then transfers
 the learned autoencoder weights to the model being trained.
 
@@ -196,8 +208,140 @@ of the on-disk arrays into memory at a given time::
 
   exp.train(Loader())
 
-There are almost limitless possibilities for using callables to interface with
-the training process.
+Thanks to Python's flexibility in making classes callable, there are almost
+limitless possibilities for using callables to interface with the training
+process.
+
+.. _training-specifying-hyperparameters:
+
+Specifying Hyperparameters
+==========================
+
+A training algorithm typically relies on a small number of "hyperparameters" to
+define how it interprets loss and gradient information from the model during
+training. For example, many stochastic gradient-based optimization algorithms
+rely on a learning rate parameter to specify the scale of the parameter updates
+to apply.
+
+In ``theanets`` these hyperparameters are specified separately as keyword
+arguments during each call to ``train()``. Although some training approaches
+offer specialized hyperparameters, here we'll cover a few of the hyperparameters
+that are common to most algorithms.
+
+Learning Rate
+-------------
+
+The most basic stochastic gradient optimization method makes small parameter
+updates based on the local gradient of the loss at each step in the optimization
+procedure. Intuitively, parameters in a model are updated by subtracting a small
+portion of the local derivative from the current parameter value.
+Mathematically, this is written as:
+
+.. math::
+
+   \theta_{t+1} = \theta_t - \alpha \left. \frac{\partial\mathcal{L}}{\partial\theta} \right|_{\theta_t}
+
+where :math:`\mathcal{L}` is the loss function being optimized, :math:`\theta`
+is the value of a parameter in the model at optimization step :math:`t`,
+:math:`\alpha` is the learning rate, and
+:math:`\frac{\partial\mathcal{L}}{\partial\theta}` (also often written
+:math:`\nabla_{\theta_t}\mathcal{L}`) is the partial derivative of the loss with
+respect to the parameters, evaluated at the current value of those parameters.
+
+The learning rate :math:`\alpha` specifies the scale of these parameter updates
+with respect to the magnitude of the gradient. Almost all stochastic optimizers
+use a fixed learning rate parameter.
+
+In ``theanets``, the learning rate is passed as a keyword argument to
+``train()``::
+
+  exp.train(data, learning_rate=0.1)
+
+Often the learning rate is set to a very small value---many approaches seem to
+start with values around 1e-4. If the learning rate is too large, the
+optimization procedure might "bounce around" in the loss landscape because the
+parameter steps are too large. If the learning rate is too small, the
+optimization procedure might not make progress quickly enough to make training
+practical.
+
+Momentum
+--------
+
+Momentum is a common technique in stochastic gradient optimization algorithms
+that seems to accelerate the optimization process in most cases. Intuitively,
+momentum maintains a "velocity" of the most recent parameter steps and combines
+these recent individual steps together when making a parameter update. By
+combining individual steps, momentum tends to "smooth out" any outliers in the
+update process. Mathematically, this is written:
+
+.. math::
+
+   \begin{eqnarray*}
+   \nu_{t+1} &=& \mu \nu_t - \alpha \left. \frac{\partial\mathcal{L}}{\partial\theta} \right|_{\theta_t} \\
+   \theta_{t+1} &=& \theta_t + \nu_{t+1}
+   \end{eqnarray*}
+
+where the symbols are the same as the description of vanilla SGD above,
+:math:`\nu` describes the "velocity" of parameter :math:`\theta`, and
+:math:`\mu` is the momentum hyperparameter. The gradient computations using
+momentum are exactly the same as when not using momentum; the only difference is
+the accumulation of recent updates in the "velocity."
+
+In ``theanets``, the momentum value is passed as a keyword argument to
+``train()``::
+
+  exp.train(data, momentum=0.9)
+
+Typically momentum is set to a value in :math:`[0, 1)`---when set to 0, momentum
+is disabled, and when set to values near 1, the momentum is very high, requiring
+several consecutive parameter updates in the same direction to change the
+parameter velocity. Often it is useful to set the momentum to a surprisingly
+large value, sometimes even to values greater than 0.9. Such values can be
+especially effective with a relatively small learning rate. If the momentum is
+set too low, then parameter updates will be more noisy and optimization might
+take longer to converge, but if the momentum is set too high, the optimization
+process might diverge entirely.
+
+Early Stopping
+--------------
+
+When you make a call to ``train()`` (or ``itertrain()``), ``theanets`` begins an
+optimization procedure.
+
+continue to iterate as long as the training procedure you're using doesn't run
+out of patience. So the 50 iterations you're seeing might vary depending on the
+model, your dataset, and your training algorithm & parameters. (E.g., the
+"sample" trainer only produces one result, because sampling from the training
+dataset just happens once, but the SGD-based trainers will run for multiple
+iterations.)
+
+For each iteration produced by itertrain using a SGD-based algorithm, the
+trainer applies "train_batches" gradient updates to the model. Each of these
+batches contains "batch_size" training examples and computes a single gradient
+update. After "train_batches" have been processed, the training dataset is
+shuffled, so that subsequent iterations might see the same set of batches, but
+not in the same order.
+
+The validation dataset is run through the model to test convergence every
+"validate_every" iterations. If there is no progress for "patience" of these
+validations, then the training algorithm halts and returns.
+
+In theanets, the patience is the number of failed validation attempts
+that we're willing to tolerate before seeing any progress. So theanets
+will make (patience * validate_every) training updates, checking
+(patience) times for improvement before deciding that training should
+halt.
+
+In some other tools, the patience is the number of training updates
+that we're willing to wait before seeing any progress; these tools
+will make (patience) training updates, checking (patience /
+validate_every) times for improvement before deciding that training
+should halt. With this definition, you do want to make sure the
+validation frequency is smaller than half the patience, to have a good
+chance of seeing progress before halting.
+
+Gradient Clipping
+-----------------
 
 .. _training-specifying-regularizers:
 

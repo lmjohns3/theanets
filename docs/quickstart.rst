@@ -250,10 +250,9 @@ subsequent keyword arguments will be passed to the training algorithm; these
 arguments typically specify hyperparameters of the algorithm like the learning
 rate and so forth.
 
-The available training methods are described in :ref:`training-gradient-methods`
-and :ref:`training-other-methods`; here we've specified :class:`Nesterov's
-Accelerated Gradient <theanets.trainer.NAG>`, a type of stochastic gradient
-descent with momentum.
+The available training methods are described in
+:ref:`training-available-trainers`; here we've specified Nesterov's Accelerated
+Gradient, a type of stochastic gradient descent with momentum.
 
 Visualizing features
 --------------------

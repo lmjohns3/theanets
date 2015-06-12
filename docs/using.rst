@@ -32,7 +32,7 @@ the :func:`Network.feed_forward() <theanets.feedforward.Network.feed_forward>`
 method::
 
   for name, value in exp.network.feed_forward(new_dataset).items():
-      print(abs(layer).sum(axis=1))
+      print(abs(value).sum(axis=1))
 
 This method returns a dictionary that maps layer output names to their
 corresponding values for the given input. Like ``predict()``, each output array

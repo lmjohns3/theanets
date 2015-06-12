@@ -50,7 +50,7 @@ and (d) evaluate the model::
   exp = theanets.Experiment(theanets.Classifier, layers=(100, 10))
 
   # Train the model using SGD with momentum.
-  exp.train(train, valid, algo='sgd', learning_rate=1e-4, momentum=0.9)
+  exp.train(train, valid, algorithm='sgd', learning_rate=1e-4, momentum=0.9)
 
   # Show confusion matrices on the training/validation splits.
   for label, (X, y) in (('training:', train), ('validation:', valid)):
@@ -119,13 +119,13 @@ You can make as many successive calls to :func:`train()
 <theanets.Experiment.train>` as you like. Each call can include different
 training algorithms::
 
-  exp.train(train, valid, algo='rmsprop')
-  exp.train(train, valid, algo='nag')
+  exp.train(train, valid, algorithm='rmsprop')
+  exp.train(train, valid, algorithm='nag')
 
 different learning hyperparameters::
 
-  exp.train(train, valid, algo='rmsprop', learning_rate=0.1)
-  exp.train(train, valid, algo='rmsprop', learning_rate=0.01)
+  exp.train(train, valid, algorithm='rmsprop', learning_rate=0.1)
+  exp.train(train, valid, algorithm='rmsprop', learning_rate=0.01)
 
 and different regularization hyperparameters::
 

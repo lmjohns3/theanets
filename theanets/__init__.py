@@ -7,3 +7,5 @@ from .main import Experiment
 from . import layers
 from . import recurrent
 from . import trainer
+
+__version__ = '0.6.0pre'

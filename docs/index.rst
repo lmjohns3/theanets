@@ -147,3 +147,9 @@ Documentation
    training
    using
    reference
+
+Indices and tables
+==================
+
+- :ref:`genindex`
+- :ref:`modindex`

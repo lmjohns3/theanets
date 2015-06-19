@@ -27,6 +27,41 @@ class TestFunctions:
         assert f()[0].shape == (STEPS, BATCH, INS)
 
 
+class TestText:
+    TXT = 'hello world, how are you!'
+
+    def setUp(self):
+        self.txt = theanets.recurrent.Text(self.TXT, alpha='helo wrd,!', unknown='_')
+
+    def test_min_count(self):
+        txt = theanets.recurrent.Text(self.TXT, min_count=2, unknown='_')
+        assert txt.text == 'hello worl__ how _re _o__'
+        assert txt.alpha == ' ehlorw'
+
+        txt = theanets.recurrent.Text(self.TXT, min_count=3, unknown='_')
+        assert txt.text == '__llo _o_l__ _o_ ___ _o__'
+        assert txt.alpha == ' lo'
+
+    def test_alpha(self):
+        assert self.txt.text == 'hello world, how _re _o_!'
+        assert self.txt.alpha == 'helo wrd,!'
+
+    def test_encode(self):
+        assert self.txt.encode('hello!') == [1, 2, 3, 3, 4, 10]
+        assert self.txt.encode('you!') == [0, 4, 0, 10]
+
+    def test_decode(self):
+        assert self.txt.decode([1, 2, 3, 3, 4, 10]) == 'hello!'
+        assert self.txt.decode([0, 4, 0, 10]) == '_o_!'
+
+    def test_classifier_batches(self):
+        b = self.txt.classifier_batches(3, 2)
+        assert len(b()) == 2
+        assert b()[0].shape == (3, 2, 1 + len(self.txt.alpha))
+        assert b()[1].shape == (3, 2)
+        assert not np.allclose(b()[0], b()[0])
+
+
 class Base:
     def setUp(self):
         np.random.seed(3)

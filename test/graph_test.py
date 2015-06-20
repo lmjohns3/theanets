@@ -1,12 +1,10 @@
-import theanets
 import numpy as np
+import theanets
 
-import util
 
-
-class TestNetwork(util.MNIST):
+class TestNetwork:
     def test_updates(self):
-        m = theanets.Regressor((self.DIGIT_SIZE, 13))
+        m = theanets.Regressor((15, 13))
         assert not m.updates()
 
     def test_layer_ints(self):
@@ -31,10 +29,9 @@ class TestNetwork(util.MNIST):
         assert m.layers[2].partner is m.layers[1]
 
 
-class TestMonitors(util.MNIST):
+class TestMonitors:
     def setUp(self):
-        super(TestMonitors, self).setUp()
-        self.net = theanets.Regressor((self.DIGIT_SIZE, 15, 14, 13))
+        self.net = theanets.Regressor((10, 15, 14, 13))
 
     def assert_monitors(self, monitors, expected, sort=False):
         mon = [k for k, v in self.net.monitors(monitors=monitors)]
@@ -49,14 +46,13 @@ class TestMonitors(util.MNIST):
         self.assert_monitors([('hid1:out', 1)], ['err', 'hid1:out<1'])
 
     def test_list_values(self):
-        self.assert_monitors({'hid1:out': [2, 1]},
-                             ['err', 'hid1:out<2', 'hid1:out<1'])
+        self.assert_monitors(
+            {'hid1:out': [2, 1]}, ['err', 'hid1:out<2', 'hid1:out<1'])
 
     def test_dict_values(self):
-        self.assert_monitors({'hid1:out': dict(a=lambda e: e+1,
-                                               b=lambda e: e+2)},
-                             ['err', 'hid1:out:a', 'hid1:out:b'],
-                             sort=True)
+        self.assert_monitors(
+            {'hid1:out': dict(a=lambda e: e+1, b=lambda e: e+2)},
+            ['err', 'hid1:out:a', 'hid1:out:b'], sort=True)
 
     def test_not_found(self):
         self.assert_monitors({'hid10:out': 1}, ['err'])

@@ -133,7 +133,17 @@ input layer)::
 
   exp.train(train, valid, input_noise=0.3)
 
-You can make as many successive calls to train() as you like. Each call can
+Optimization Algorithms
+-----------------------
+
+You can optimize your model using any of the algorithms provided by downhill_
+(SGD, NAG, RMSProp, ADADELTA, etc.), or additionally using a couple of
+`pretraining methods`_ specific to neural networks.
+
+.. _downhill: http://downhill.readthedocs.org/
+.. _pretraining methods: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.trainer
+
+You can also make as many successive calls to train() as you like. Each call can
 include different training algorithms::
 
   exp.train(train, valid, algorithm='rmsprop')

@@ -22,3 +22,9 @@ class TestTrainer(util.Base):
         train0, valid0 = next(trainer)
         # for this trainer, we don't measure the loss.
         assert train0['loss'] == 0 == valid0['loss']
+
+    def test_unsupervised_pretrainer(self):
+        self.exp = theanets.Experiment(
+            theanets.Classifier,
+            [self.NUM_INPUTS, 10, 20, self.NUM_CLASSES])
+        self.assert_progress('pretrain', [self.INPUTS])

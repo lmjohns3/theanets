@@ -61,9 +61,9 @@ class Experiment:
         train = train.lower()
         if train == 'sample':
             return trainer.SampleTrainer(self.network)
-        if train.startswith('layer'):
+        if train.startswith('layer') or train.startswith('sup'):
             return trainer.SupervisedPretrainer(algo, self.network)
-        if train.startswith('pre'):
+        if train.startswith('pre') or train.startswith('unsup'):
             return trainer.UnsupervisedPretrainer(algo, self.network)
         return trainer.DownhillTrainer(train, self.network)
 

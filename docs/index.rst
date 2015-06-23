@@ -142,6 +142,101 @@ Training models is a bit more art than science, but ``theanets`` tries to make
 it easy to evaluate different training approaches. Read more about this in
 :doc:`training`.
 
+Quick Start: Recurrent Models
+=============================
+
+Recurrent neural networks are becoming quite important for many sequence-based
+tasks in machine learning; one popular "toy example" for recurrent models is to
+generate text that's similar to some body of training text.
+
+In these models, a recurrent classifier is set up to predict the identity of the
+next character in a sequence of text, given all of the preceding characters. The
+inputs to the model are the one-hot encodings of a sequence of characters from
+the text, and the corresponding outputs are the class labels of the subsequent
+character. The ``theanets`` code has a :class:`Text <theanets.recurrent.Text>`
+helper class that provides easy encoding and decoding of text to and from
+integer classes; using the helper makes the top-level code look like::
+
+  import numpy as np, re, theanets
+
+  chars = re.sub(r'\s+', ' ', open('corpus.txt').read().lower())
+  txt = theanets.recurrent.Text(chars, min_count=10)
+  A = 1 + len(txt.alpha)  # of letter classes
+
+  # create a model to train: input -> gru -> relu -> softmax.
+  exp = theanets.Experiment(
+      theanets.recurrent.Classifier, (A, (100, 'gru'), (1000, 'relu'), A))
+
+  # train the model iteratively; draw a sample after every epoch.
+  seed = txt.encode(txt.text[300017:300050])
+  for tm, _ in exp.itertrain(txt.classifier_batches(100, 32), momentum=0.9):
+      print('{}|{} ({:.1f}%)'.format(
+          txt.decode(seed),
+          txt.decode(exp.network.predict_sequence(seed, 40)),
+          100 * tm['acc']))
+
+This example uses several features of ``theanets`` that make modeling neural
+networks fun and interesting. The model uses a layer of :class:`Gated Recurrent
+Units <theanets.layers.recurrent.GRU>` to capture the temporal dependencies in
+the data. It also :ref:`uses a callable <training-using-callables>` to provide
+data to the model, and takes advantage of :ref:`iterative training
+<training-iteration>` to sample an output from the model after each training
+epoch.
+
+To run this example, download a text you'd like to model (e.g., Herman
+Melville's *Moby Dick*) and save it in ``corpus.txt``::
+
+  curl http://www.gutenberg.org/cache/epub/2701/pg2701.txt > corpus.txt
+
+Then when you run the script, the output might look something like this
+(abbreviated to show patterns)::
+
+  used for light, but only as an oi|pr vgti ki nliiariiets-a, o t.;to niy  , (16.6%)
+  used for light, but only as an oi|s bafsvim-te i"eg nadg tiaraiatlrekls tv (20.2%)
+  used for light, but only as an oi|vetr uob bsyeatit is-ad. agtat girirole, (28.5%)
+  used for light, but only as an oi|siy thinle wonl'th, in the begme sr"hey  (29.9%)
+  used for light, but only as an oi|nr. bonthe the tuout honils ohe thib th  (30.5%)
+  used for light, but only as an oi|kg that mand sons an, of,rtopit bale thu (31.0%)
+  used for light, but only as an oi|nsm blasc yan, ang theate thor wille han (32.1%)
+  used for light, but only as an oi|b thea mevind, int amat ars sif istuad p (33.3%)
+  used for light, but only as an oi|msenge bie therale hing, aik asmeatked s (34.1%)
+  used for light, but only as an oi|ge," rrermondy ghe e comasnig that urle  (35.5%)
+  used for light, but only as an oi|s or thartich comase surt thant seaiceng (36.1%)
+  used for light, but only as an oi|s lot fircennor, unding dald bots trre i (37.1%)
+  used for light, but only as an oi|st onderass noptand. "peles, suiondes is (38.2%)
+  used for light, but only as an oi|gnith. s. lited, anca! stobbease so las, (39.3%)
+  used for light, but only as an oi|chics fleet dong berieribus armor has or (40.1%)
+  used for light, but only as an oi|cs and quirbout detom tis glome dold pco (41.1%)
+  used for light, but only as an oi|nht shome wand, the your at movernife lo (42.0%)
+  used for light, but only as an oi|r a reald hind the, with of the from sti (43.0%)
+  used for light, but only as an oi|t beftect. how shapellatgen the fortower (44.0%)
+  used for light, but only as an oi|rtucated fanns dountetter from fom to wi (45.2%)
+  used for light, but only as an oi|r the sea priised tay queequings hearhou (46.8%)
+  used for light, but only as an oi|ld, wode, i long ben! but the gentived.  (48.0%)
+  used for light, but only as an oi|r wide-no nate was him. "a king to had o (49.1%)
+  used for light, but only as an oi|l erol min't defositanable paring our. 4 (50.0%)
+  used for light, but only as an oi|l the motion ahab, too, and relay in aha (51.0%)
+  used for light, but only as an oi|n dago, and contantly used the coil; but (52.3%)
+  used for light, but only as an oi|l starbuckably happoss of the fullies ti (52.4%)
+  used for light, but only as an oi|led-bubble most disinuan into the mate-- (53.3%)
+  used for light, but only as an oi|len. ye?' 'tis though moby starbuck, and (53.6%)
+  used for light, but only as an oi|l, and the pequodeers. but was all this: (53.9%)
+  used for light, but only as an oi|ling his first repore to the pequod, sym (54.4%)
+  used for light, but only as an oi|led escried; we they like potants--old s (54.3%)
+  used for light, but only as an oi|l-ginqueg! i save started her supplain h (54.3%)
+  used for light, but only as an oi|l is, the captain all this mildly bounde (54.9%)
+
+Here, the seed text is shown left of the pipe character, and the randomly
+sampled sequence follows. In parantheses are the per-character accuracy values
+on the training set while training the model. The pattern of learning proceeds
+from almost-random character generation, to producing groups of letters
+separated by spaces, to generating words that seem like they might belong in
+*Moby Dick*, things like "captain," "ahab, too," and "constantly used the coil."
+
+Much amusement can (and should) be derived from a temporal model extending
+itself forward in this way. After all, how else would we ever think of
+"Pequodeers," "Starbuckably," or "Ginqueg"?!
+
 Documentation
 =============
 

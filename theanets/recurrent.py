@@ -368,8 +368,8 @@ class Classifier(feedforward.Classifier):
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()
 
-    def sample(self, seed, n, streams=1):
-        '''Draw a sample of n characters from a sequential classifier model.
+    def predict_sequence(self, seed, n, streams=1):
+        '''Draw a sample of n characters sequentially from this classifier.
 
         Parameters
         ----------
@@ -387,15 +387,17 @@ class Classifier(feedforward.Classifier):
             from the model. If the number of requested streams is greater than
             1, this will be an array of the corresponding number of integers.
         '''
-        s = len(seed)
-        b = max(2, streams)
-        inputs = np.zeros((s + n, b, self.layers[-1].size), 'f')
-        inputs[np.arange(s), :, seed] = 1
-        for i in range(s, s + n):
+        start = len(seed)
+        batch = max(2, streams)
+        inputs = np.zeros((start + n, batch, self.layers[0].size), 'f')
+        inputs[np.arange(start), :, seed] = 1
+        for i in range(start, start + n):
             pdf = self.predict_proba(inputs[:i])[-1]
             try:
-                c = np.random.multinomial(1, pdf, size=b).argmax(axis=-1)
+                c = np.random.multinomial(1, pdf, size=batch).argmax(axis=-1)
             except:
+                # sometimes the pdf isn't completely normalized. just choose
+                # greedily in this case.
                 c = pdf.argmax(axis=-1)
-            inputs[j, np.arange(b), c] = 1
+            inputs[i, np.arange(batch), c] = 1
             yield c if streams >= 2 else c[0]

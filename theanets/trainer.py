@@ -64,7 +64,7 @@ class DownhillTrainer(object):
                 inputs=self.network.inputs,
                 params=self.network.params,
                 monitor_gradients=kwargs.get('monitor_gradients', False),
-        ).iteropt(train, valid=valid, **kwargs):
+        ).iterate(train, valid=valid, **kwargs):
             yield monitors
 
 

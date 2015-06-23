@@ -38,11 +38,19 @@ Recurrent networks
 .. autosummary::
    :toctree: generated/
 
-   batches
    Autoencoder
    Classifier
    Predictor
    Regressor
+
+Recurrent helpers
+-----------------
+
+.. autosummary::
+   :toctree: generated/
+
+   batches
+   Text
 
 Layer types
 ===========

@@ -85,7 +85,9 @@ class Text(object):
         self.alpha = alpha
         if self.alpha is None:
             self.alpha = ''.join(sorted(set(
-                a for a, c in collections.Counter(text).items() if c >= min_count)))
+                a for a, c in
+                collections.Counter(text).items()
+                if c >= min_count and c != unknown)))
         self.text = re.sub(r'[^{}]'.format(re.escape(self.alpha)), unknown, text)
         assert unknown not in self.alpha
         self._rev_index = unknown + self.alpha

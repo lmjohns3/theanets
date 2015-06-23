@@ -206,7 +206,7 @@ sample an output from the model after each training epoch.
 
 .. _Text: http://theanets.readthedocs.org/en/latest/generated/theanets.recurrent.Text.html
 .. _Gated Recurrent Units: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.recurrent.GRU.html
-.. _uses a callable: http://theanets.readthedocs.org/en/latest/reference.html#training-using-callables
+.. _uses a callable: http://theanets.readthedocs.org/en/latest/training.html#training-using-callables
 .. _iterative training: http://theanets.readthedocs.org/en/latest/training.html#training-iteration
 
 To run this example, download a text you'd like to model (e.g., Herman

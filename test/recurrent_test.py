@@ -194,8 +194,8 @@ class TestClassifier(Base):
     def test_predict_sequence(self):
         net = self._build(13)
         count = 0
-        for cs in net.predict_sequence([0, 0, 1, 2], 4, 3):
-            assert cs.shape == (3, )
+        for cs in net.predict_sequence([0, 0, 1, 2], 4, streams=3):
+            assert len(cs) == 3
             count += 1
         assert count == 4
 

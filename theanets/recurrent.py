@@ -384,7 +384,7 @@ class Classifier(feedforward.Classifier):
 
         Yields
         ------
-        label(s) : int or array of ints
+        label(s) : int or list of ints
             Yields at each time step an integer class label sampled sequentially
             from the model. If the number of requested streams is greater than
             1, this will be an array of the corresponding number of integers.
@@ -394,12 +394,14 @@ class Classifier(feedforward.Classifier):
         inputs = np.zeros((start + n, batch, self.layers[0].size), 'f')
         inputs[np.arange(start), :, seed] = 1
         for i in range(start, start + n):
-            pdf = self.predict_proba(inputs[:i])[-1]
-            try:
-                c = np.random.multinomial(1, pdf, size=batch).argmax(axis=-1)
-            except:
-                # sometimes the pdf isn't completely normalized. just choose
-                # greedily in this case.
-                c = pdf.argmax(axis=-1)
-            inputs[i, np.arange(batch), c] = 1
-            yield c if streams >= 2 else c[0]
+            chars = []
+            for pdf in self.predict_proba(inputs[:i])[-1]:
+                try:
+                    c = np.random.multinomial(1, pdf, size=batch).argmax(axis=-1)
+                except ValueError:
+                    # sometimes the pdf triggers a normalization error. just
+                    # choose greedily in this case.
+                    c = pdf.argmax(axis=-1)
+                chars.append(c)
+            inputs[i, np.arange(batch), chars] = 1
+            yield chars if streams >= 2 else chars[0]

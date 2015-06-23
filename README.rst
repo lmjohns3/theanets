@@ -40,7 +40,9 @@ Quick Start: Classification
 Suppose you want to create a classifier and train it on some 100-dimensional
 data points that you've classified into 10 categories. No problem! With just a
 few lines you can (a) provide some data, (b) build and (c) train a model,
-and (d) evaluate the model::
+and (d) evaluate the model:
+
+.. code:: python
 
   import climate
   import theanets
@@ -73,11 +75,15 @@ Layers
 ------
 
 The model above is quite simplistic! Make it a bit more sophisticated by adding
-a hidden layer::
+a hidden layer:
+
+.. code:: python
 
   exp = theanets.Experiment(theanets.Classifier, (100, 1000, 10))
 
-In fact, you can just as easily create 3 (or any number of) hidden layers::
+In fact, you can just as easily create 3 (or any number of) hidden layers:
+
+.. code:: python
 
   exp = theanets.Experiment(
       theanets.Classifier,
@@ -85,7 +91,9 @@ In fact, you can just as easily create 3 (or any number of) hidden layers::
 
 By default, hidden layers use the logistic sigmoid transfer function. By passing
 a tuple instead of just an integer, you can change some of these layers to use
-different activations_::
+different activations_:
+
+.. code:: python
 
   maxout = (1000, 'maxout:4')  # maxout with 4 pieces.
   exp = theanets.Experiment(
@@ -95,7 +103,9 @@ different activations_::
 .. _activations: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.activations
 
 By passing a dictionary instead, you can specify even more attributes of each
-layer_, like how its parameters are initialized::
+layer_, like how its parameters are initialized:
+
+.. code:: python
 
   # Sparsely-initialized layer with large nonzero weights.
   foo = dict(name='foo', size=1000, std=1, sparsity=0.9)
@@ -114,22 +124,30 @@ Regularization
 --------------
 
 Adding regularizers is easy, too! Just pass them to the training method. For
-instance, you can train up a sparse classification model with weight decay::
+instance, you can train up a sparse classification model with weight decay:
+
+.. code:: python
 
   # Penalize hidden-unit activity (L1 norm) and weights (L2 norm).
   exp.train(train, valid, hidden_l1=0.001, weight_l2=0.001)
 
 In ``theanets`` dropout is treated as a regularizer and can be set on many
-layers at once::
+layers at once:
+
+.. code:: python
 
   exp.train(train, valid, hidden_dropout=0.5)
 
-or just on a specific layer::
+or just on a specific layer:
+
+.. code:: python
 
   exp.train(train, valid, dropout={'foo:out': 0.5})
 
 Similarly, you can add Gaussian noise to any of the layers (here, just to the
-input layer)::
+input layer):
+
+.. code:: python
 
   exp.train(train, valid, input_noise=0.3)
 
@@ -144,17 +162,23 @@ You can optimize your model using any of the algorithms provided by downhill_
 .. _pretraining methods: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.trainer
 
 You can also make as many successive calls to train() as you like. Each call can
-include different training algorithms::
+include different training algorithms:
+
+.. code:: python
 
   exp.train(train, valid, algorithm='rmsprop')
   exp.train(train, valid, algorithm='nag')
 
-different learning hyperparameters::
+different learning hyperparameters:
+
+.. code:: python
 
   exp.train(train, valid, algorithm='rmsprop', learning_rate=0.1)
   exp.train(train, valid, algorithm='rmsprop', learning_rate=0.01)
 
-and different regularization hyperparameters::
+and different regularization hyperparameters:
+
+.. code:: python
 
   exp.train(train, valid, input_noise=0.7)
   exp.train(train, valid, input_noise=0.3)
@@ -178,7 +202,9 @@ inputs to the model are the one-hot encodings of a sequence of characters from
 the text, and the corresponding outputs are the class labels of the subsequent
 character. The ``theanets`` code has a Text_ helper class that provides easy
 encoding and decoding of text to and from integer classes; using the helper
-makes the top-level code look like::
+makes the top-level code look like:
+
+.. code:: python
 
   import numpy as np, re, theanets
 

@@ -2,27 +2,29 @@
 Creating a Network
 ==================
 
-The first step in using ``theanets`` is creating a model to train and use.
-This basically involves two parts:
+The first step in using ``theanets`` is creating a neural network model to train
+and use. A network model basically consists of three parts:
 
-- one of the three broad classes of network models, and
-- a series of layers that map inputs to outputs.
+- an error function that defines how well the parameters in the model perform
+  for the desired task,
+- a set of symbolic input variables that represent data required to compute the
+  error, and
+- a series of layers that map input data to network outputs.
 
 In ``theanets``, a network model is a subclass of :class:`Network
-<theanets.feedforward.Network>`. Its primary defining characteristics are the
-implementation of the :func:`Network.error()
-<theanets.feedforward.Network.error>` method, and the definition of the
-variables that the model requires during training.
+<theanets.graph.Network>`. Networks encapsulate the first two of these parts by
+implementing the :func:`Network.error() <theanets.feedforward.Network.error>`
+method and defining the variables that the model requires during training. When
+you choose one of the network models available in ``theanets`` (or if you choose
+to make your own), you are choosing these elements of the model.
 
-The ``error`` method defines the error function for the model, as a function of
-the output of the network, and any internal symbolic variables that the model
-defines. The error is an important (and sometimes the only) component of the
-loss that model trainers attempt to minimize during the learning process.
-
-In the brief discussion below, we assume that the network has some set of
-parameters :math:`\theta`. In the feedforward pass, the network computes some
-function of its inputs :math:`x \in \mathbb{R}^n` using these parameters; we
-represent this feedforward function using the notation :math:`F_\theta(x)`.
+The third part, specifying the layers in the model, is discussed at length
+below. First, though, we'll go through a brief presentation of the predefined
+network models in ``theanets``. In the brief discussion below, we assume that
+the network has some set of parameters :math:`\theta`. In the feedforward pass,
+the network computes some function of its inputs :math:`x \in \mathbb{R}^n`
+using these parameters; we represent this feedforward function using the
+notation :math:`F_\theta(x)`.
 
 .. _creating-predefined-models:
 
@@ -39,17 +41,27 @@ Autoencoder
 -----------
 
 An :class:`autoencoder <theanets.feedforward.Autoencoder>` takes an array of
-arbitrary data :math:`x` as input, transforms it in some way, and then attempts
-to recreate the original input as the output of the network.
+arbitrary data vectors :math:`X \in \mathbb{R}^{m \times n}` as input,
+transforms it in some way, and then attempts to recreate the original input as
+the output of the network.
 
 To evaluate the loss for an autoencoder, only the input data is required. The
 default autoencoder model computes the loss using the mean squared error between
 the network's output and the input:
 
 .. math::
-   \mathcal{L}(X, \theta) = \frac{1}{m}\frac{1}{n} \sum_{i=1}^m \left\| F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
+   \mathcal{L}(X, \theta) = \frac{1}{mn}\frac{1}{n} \sum_{i=1}^m \left\|
+      F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
 
-To create an autoencoder in theanets, you can create a network class directly::
+Autoencoders simply try to adjust their model parameters :math:`\theta` to
+minimize this squared error between the true inputs and the values that the
+network produces. In theory this could be trivial---if, for example,
+:math:`F_\theta(x) = x`---but in practice this doesn't actually happen often. In
+addition, a regularizer :math:`R(X, \theta)` can be added to the overall loss
+for the model to prevent this sort of trivial solution.
+
+To create an autoencoder in ``theanets``, you can create a network class
+directly::
 
   net = theanets.Autoencoder()
 
@@ -58,12 +70,6 @@ or you can use an :class:`Experiment <theanets.main.Experiment>`::
   exp = theanets.Experiment(theanets.Autoencoder)
   net = exp.network
 
-An autoencoder requires the following inputs at training time:
-
-- ``x``: A two-dimensional array of input data. Each row of ``x`` is expected to
-  be one data item. Each column of ``x`` holds the measurements of a particular
-  input variable across all data items.
-
 Regression
 ----------
 
@@ -71,11 +77,12 @@ A :class:`regression <theanets.feedforward.Regressor>` model is much like an
 autoencoder. Like an autoencoder, a regression model takes as input an array of
 arbitrary data :math:`X \in \mathbb{R}^{m \times n}`. However, at training time,
 a regression model also requires an array of expected target outputs :math:`Y
-\in \mathbb{R}^{m \times o}`. The difference between the network's output and
-the target is computed using the mean squared error:
+\in \mathbb{R}^{m \times o}`. Like an autoencoder, the error between the
+network's output and the target is computed using the mean squared error:
 
 .. math::
-   \mathcal{L}(X, Y, \theta) = \frac{1}{m}\frac{1}{o} \sum_{i=1}^m \left\| F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
+   \mathcal{L}(X, Y, \theta) = \frac{1}{mn}\frac{1}{o} \sum_{i=1}^m \left\|
+      F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
 
 To create a regression model in theanets, you can create a network class
 directly::
@@ -93,16 +100,18 @@ Classification
 A :class:`classification <theanets.feedforward.Classifier>` model takes as input
 some piece of data that you want to classify (e.g., the pixels of an image, word
 counts from a document, etc.) and outputs a probability distribution over
-available labels. The error for this type of model takes an input dataset
-:math:`X \in \mathbb{R}^{m \times n}` and a corresponding set of integer labels
-:math:`Y \in \mathbb{Z}^m`; the error is then computed as the cross-entropy
-between the network output and the target labels:
+available labels. At training time, this type of model requires an array of
+input data :math:`X \in \mathbb{R}^{m \times n}` and a corresponding set of
+integer labels :math:`Y \in \{1,\dots,k\}^m`; the error is then computed as the
+cross-entropy between the network output and the true target labels:
 
 .. math::
-   \mathcal{L}(X, Y, \theta) = \frac{1}{m} \sum_{i=1}^m - \log F_\theta(x_i)_{y_i} + R(x, \theta)
+   \mathcal{L}(X, Y, \theta) = -\frac{1}{m} \sum_{i=1}^m \sum_{j=1}^k
+      \delta_{j,y_i} \log F_\theta(x_i)_j + R(X, \theta)
 
-To create a classifier model in ``theanets``, you can create a network class
-directly::
+where :math:`\delta{a,b}` is the Kronecker delta, which is 1 if :math:`a=b` and
+0 otherwise. To create a classifier model in ``theanets``, you can create a
+network class directly::
 
   net = theanets.Classifier()
 
@@ -145,10 +154,10 @@ handled by :class:`prediction <theanets.recurrent.Predictor>` networks.
    0.7.0 release will be ``(batch, time, variables)``.
 
    The new ordering will be more consistent with other models in ``theanets``.
-   The first axis (index 0) of all data arrays will represent the examples in a
-   batch, and the last axis (index -1) will represent the variables. For
-   recurrent models, the axis in the middle of a batch (index 1) will represent
-   time.
+   Starting in the 0.7 release, the first axis (index 0) of data arrays for all
+   model types will represent the examples in a batch, and the last axis (index
+   -1) will represent the variables. For recurrent models, the axis in the
+   middle of a batch (index 1) will represent time.
 
 .. note::
 
@@ -297,7 +306,9 @@ previous layer), and the output layer in :class:`Classifier
 To specify a different activation function for a layer, include an activation
 key chosen from the table below. As described above, this can be included in
 your model specification either using the ``activation`` keyword argument in a
-layer dictionary, or by including the key in a tuple with the layer size.
+layer dictionary, or by including the key in a tuple with the layer size::
+
+  theanets.Autoencoder([10, (10, 'tanh'), 10])
 
 =========  ============================  =============================================
 Key        Description                   :math:`g(z) =`
@@ -312,12 +323,23 @@ relu       rectified linear              :math:`\max(0, z)`
 trel       truncated rectified linear    :math:`\max(0, \min(1, z))`
 trec       thresholded rectified linear  :math:`z \mbox{ if } z > 1 \mbox{ else } 0`
 tlin       thresholded linear            :math:`z \mbox{ if } |z| > 1 \mbox{ else } 0`
-rect:max   truncation                    :math:`\min(1, z)`
-rect:min   rectification                 :math:`\max(0, z)`
+rect:min   truncation                    :math:`\min(1, z)`
+rect:max   rectification                 :math:`\max(0, z)`
 norm:mean  mean-normalization            :math:`z - \bar{z}`
 norm:max   max-normalization             :math:`z / \max |z|`
 norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
+norm:z     z-score normalization         :math:`z-\bar{z} / \mathbb{E}[(z-\bar{z})^2]`
 =========  ============================  =============================================
+
+Activation functions can also be composed by concatenating multiple function
+names togather using a ``+``. For example, to create a layer that uses a
+batch-normalized hyperbolic tangent activation::
+
+  theanets.Autoencoder([10, (10, 'tanh+norm:z'), 10])
+
+Just like function composition, the order of the components matters! Unlike the
+notation for mathematical function composition, the functions will be applied
+from left-to-right.
 
 .. _creating-using-weighted-targets:
 

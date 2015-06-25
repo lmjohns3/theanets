@@ -26,6 +26,9 @@ import theanets
 
 climate.enable_default_logging()
 
+COLORS = ['#d62728', '#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e',
+          '#e377c2', '#8c564b', '#bcbd22', '#7f7f7f', '#17becf']
+
 BATCH_SIZE = 2
 
 
@@ -47,16 +50,17 @@ WAVES = np.concatenate([SIN[:, None, None]] * BATCH_SIZE, axis=1).astype('f')
 _, (wave_ax, learn_ax) = plt.subplots(2, 1)
 
 # Plot the target wave.
-wave_ax.plot(T, SIN, ':', label='Target', alpha=0.7)
+wave_ax.plot(T, SIN, ':', label='Target', alpha=0.7, color='#111111')
 
 
 # For each layer type, train a model containing that layer, and plot its
 # predicted output.
-for layer in (dict(form='rnn', activation='relu', diagonal=0.5),
-              dict(form='lrrnn', activation='relu', diagonal=0.5),
-              dict(form='gru', activation='relu'),
-              dict(form='lstm', activation='tanh'),
-              dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64))):
+for i, layer in enumerate((
+        dict(form='rnn', activation='relu', diagonal=0.5),
+        dict(form='lrrnn', activation='relu', diagonal=0.5),
+        dict(form='gru', activation='relu'),
+        dict(form='lstm', activation='tanh'),
+        dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64)))):
     name = layer['form']
     layer['size'] = 64
     logging.info('training %s model', name)
@@ -71,8 +75,8 @@ for layer in (dict(form='rnn', activation='relu', diagonal=0.5),
                              min_improvement=0.01):
         losses.append(tm['loss'])
     prd = e.network.predict(ZERO)
-    wave_ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.7)
-    learn_ax.plot(losses, label=name, alpha=0.7)
+    wave_ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.7, color=COLORS[i])
+    learn_ax.plot(losses, label=name, alpha=0.7, color=COLORS[i])
 
 
 # Make the plots look nice.

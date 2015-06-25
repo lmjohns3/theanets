@@ -144,15 +144,16 @@ class Network(object):
 
         # for the first layer, create an 'input' layer.
         if len(self.layers) == 0:
+            assert isinstance(layer, int), 'first layer must be an int'
             self.layers.append(layers.build('input', size=layer, name='in'))
             return
 
         # here we set up some defaults for constructing a new layer.
-        def_out_act = getattr(self, 'DEFAULT_OUTPUT_ACTIVATION', 'linear')
+        act = getattr(self, 'DEFAULT_OUTPUT_ACTIVATION', 'linear')
         form = 'feedforward'
         kwargs = dict(
             name='out' if is_output else 'hid{}'.format(len(self.layers)),
-            activation=def_out_act if is_output else 'logistic',
+            activation=act if is_output else 'logistic',
             inputs={self.layers[-1].output_name(): self.layers[-1].size},
             size=layer,
         )
@@ -180,6 +181,7 @@ class Network(object):
         # if layer is a dictionary, try to extract a form for the layer, and
         # override our default keyword arguments with the rest.
         if isinstance(layer, dict):
+            layer = dict(layer)
             if 'form' in layer:
                 form = layer.pop('form').lower()
             kwargs.update(layer)

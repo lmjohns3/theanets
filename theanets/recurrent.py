@@ -11,7 +11,7 @@ import theano.tensor as TT
 from . import feedforward
 
 
-def batches(samples, labels=None, steps=100, batch_size=64):
+def batches(samples, labels=None, steps=100, batch_size=64, rng=None):
     '''Return a callable that generates samples from a dataset.
 
     Parameters
@@ -28,6 +28,10 @@ def batches(samples, labels=None, steps=100, batch_size=64):
         Generate this many samples per call. Defaults to 64. This must match the
         batch_size parameter that was used when creating the recurrent network
         that will process the data.
+    rng : :class:`numpy.random.RandomState` or int, optional
+        A random number generator, or an integer seed for a random number
+        generator. If not provided, the random number generator will be created
+        with an automatically chosen seed.
 
     Returns
     -------
@@ -35,10 +39,13 @@ def batches(samples, labels=None, steps=100, batch_size=64):
         A callable that can be used inside a dataset for training a recurrent
         network.
     '''
+    if rng is None or isinstance(rng, int):
+        rng = np.random.RandomState(rng)
+
     def unlabeled_sample():
         xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
         for i in range(batch_size):
-            j = np.random.randint(len(samples) - steps)
+            j = rng.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
         return [xs]
 
@@ -46,7 +53,7 @@ def batches(samples, labels=None, steps=100, batch_size=64):
         xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
         ys = np.zeros((steps, batch_size, labels.shape[1]), labels.dtype)
         for i in range(batch_size):
-            j = np.random.randint(len(samples) - steps)
+            j = rng.randint(len(samples) - steps)
             xs[:, i, :] = samples[j:j+steps]
             ys[:, i, :] = labels[j:j+steps]
         return [xs, ys]
@@ -123,7 +130,7 @@ class Text(object):
         '''
         return ''.join(self._rev_index[c] for c in enc)
 
-    def classifier_batches(self, time_steps, batch_size):
+    def classifier_batches(self, time_steps, batch_size, rng=None):
         '''Create a callable that returns a batch of training data.
 
         Parameters
@@ -132,6 +139,10 @@ class Text(object):
             Number of time steps in each batch.
         batch_size : int
             Number of training examples per batch.
+        rng : :class:`numpy.random.RandomState` or int, optional
+            A random number generator, or an integer seed for a random number
+            generator. If not provided, the random number generator will be
+            created with an automatically chosen seed.
 
         Returns
         -------
@@ -141,11 +152,14 @@ class Text(object):
         '''
         assert batch_size >= 2, 'batch_size must be at least 2!'
 
+        if rng is None or isinstance(rng, int):
+            rng = np.random.RandomState(rng)
+
         def batch():
             inputs = np.zeros((time_steps, batch_size, 1 + len(self.alpha)), 'f')
             outputs = np.zeros((time_steps, batch_size), 'i')
             for b in range(batch_size):
-                offset = np.random.randint(len(self.text) - time_steps - 1)
+                offset = rng.randint(len(self.text) - time_steps - 1)
                 enc = self.encode(self.text[offset:offset + time_steps + 1])
                 inputs[np.arange(time_steps), b, enc[:-1]] = 1
                 outputs[np.arange(time_steps), b] = enc[1:]
@@ -370,7 +384,7 @@ class Classifier(feedforward.Classifier):
             return (weights * nlp).sum() / weights.sum()
         return nlp.mean()
 
-    def predict_sequence(self, seed, steps, streams=1):
+    def predict_sequence(self, seed, steps, streams=1, rng=None):
         '''Draw a sequential sample of classes from this network.
 
         Parameters
@@ -381,6 +395,10 @@ class Classifier(feedforward.Classifier):
             The number of time steps to sample.
         streams : int, optional
             Number of parallel streams to sample from the model. Defaults to 1.
+        rng : :class:`numpy.random.RandomState` or int, optional
+            A random number generator, or an integer seed for a random number
+            generator. If not provided, the random number generator will be
+            created with an automatically chosen seed.
 
         Yields
         ------
@@ -390,6 +408,8 @@ class Classifier(feedforward.Classifier):
             1, this will be a list containing the corresponding number of class
             labels.
         '''
+        if rng is None or isinstance(rng, int):
+            rng = np.random.RandomState(rng)
         start = len(seed)
         batch = max(2, streams)
         inputs = np.zeros((start + steps, batch, self.layers[0].size), 'f')
@@ -398,7 +418,7 @@ class Classifier(feedforward.Classifier):
             chars = []
             for pdf in self.predict_proba(inputs[:i])[-1]:
                 try:
-                    c = np.random.multinomial(1, pdf).argmax(axis=-1)
+                    c = rng.multinomial(1, pdf).argmax(axis=-1)
                 except ValueError:
                     # sometimes the pdf triggers a normalization error. just
                     # choose greedily in this case.

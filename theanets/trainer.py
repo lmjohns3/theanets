@@ -72,14 +72,14 @@ class SampleTrainer(object):
     '''This trainer replaces network weights with samples from the input.'''
 
     @staticmethod
-    def reservoir(xs, n):
+    def reservoir(xs, n, rng):
         '''Select a random sample of n items from xs.'''
         pool = []
         for i, x in enumerate(xs):
             if len(pool) < n:
                 pool.append(x / np.linalg.norm(x))
                 continue
-            j = np.random.randint(i + 1)
+            j = rng.randint(i + 1)
             if j < n:
                 pool[j] = x / np.linalg.norm(x)
         # if the pool still has fewer than n items, pad with distorted random
@@ -87,8 +87,8 @@ class SampleTrainer(object):
         L = len(pool)
         S = np.std(pool, axis=0)
         while len(pool) < n:
-            x = pool[np.random.randint(L)]
-            pool.append(x + S * np.random.randn(*x.shape))
+            x = pool[rng.randint(L)]
+            pool.append(x + S * rng.randn(*x.shape))
         return np.array(pool, dtype=pool[0].dtype)
 
     def __init__(self, network):
@@ -134,12 +134,16 @@ class SampleTrainer(object):
             idim = first(t).shape[-1]
             odim = last(t).shape[-1]
 
+        rng = kwargs.get('rng')
+        if rng is None or isinstance(rng, int):
+            rng = np.random.RandomState(rng)
+
         # set output (decoding) weights on the network.
         samples = ifci(last(t) for t in train)
         for param in self.network.layers[-1].params:
             shape = param.get_value(borrow=True).shape
             if len(shape) == 2 and shape[1] == odim:
-                arr = np.vstack(SampleTrainer.reservoir(samples, shape[0]))
+                arr = np.vstack(SampleTrainer.reservoir(samples, shape[0], rng))
                 logging.info('setting %s: %s', param.name, shape)
                 param.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
@@ -149,7 +153,7 @@ class SampleTrainer(object):
             for param in layer.params:
                 shape = param.get_value(borrow=True).shape
                 if len(shape) == 2 and shape[0] == idim:
-                    arr = np.vstack(SampleTrainer.reservoir(samples, shape[1])).T
+                    arr = np.vstack(SampleTrainer.reservoir(samples, shape[1], rng)).T
                     logging.info('setting %s: %s', param.name, shape)
                     param.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
                     samples = ifci(self.network.feed_forward(

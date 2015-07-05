@@ -142,7 +142,11 @@ class Layer(util.Registrar(str('Base'), (), {})):
     activation : str, optional
         The name of an activation function to use for units in this layer. See
         :func:`build_activation`.
-    rng : random number generator, optional
+    nrng : :class:`numpy.random.RandomState` or int, optional
+        A numpy random number generator, or an integer seed for a random number
+        generator. If not provided, the random number generator will be created
+        with an automatically chosen seed.
+    trng : Theano random number generator, optional
         A Theano random number generator to use for creating noise and dropout
         values. If not provided, a new generator will be produced for this
         layer.
@@ -191,6 +195,9 @@ class Layer(util.Registrar(str('Base'), (), {})):
             self.inputs = dict(out=self.inputs)
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
+        self.nrng = kwargs.get('nrng')
+        if self.nrng is None or isinstance(self.nrng, int):
+            self.nrng = np.random.RandomState(self.nrng)
         self.activation = activation
         self.activate = activations.build(activation, self)
         self.kwargs = kwargs
@@ -260,7 +267,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             outputs = [('out', outputs)]
 
         # set up outputs for this layer by adding noise and dropout as needed.
-        rng = self.kwargs.get('rng') or RandomStreams()
+        rng = self.kwargs.get('trng') or RandomStreams()
         if not isinstance(noise, dict):
             noise = {self.output_name(): noise}
         if not isinstance(dropout, dict):
@@ -382,7 +389,8 @@ class Layer(util.Registrar(str('Base'), (), {})):
         d = self.kwargs.get(
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         self._params.append(theano.shared(
-            util.random_matrix(nin, nout, mean=m, std=s, sparsity=p, diagonal=d),
+            util.random_matrix(nin, nout, mean=m, std=s, sparsity=p,
+                               diagonal=d, rng=self.nrng),
             name=self._fmt(name)))
 
     def add_bias(self, name, size, mean=0, std=1):
@@ -402,7 +410,8 @@ class Layer(util.Registrar(str('Base'), (), {})):
         mean = self.kwargs.get('mean_{}'.format(name), mean)
         std = self.kwargs.get('std_{}'.format(name), std)
         self._params.append(theano.shared(
-            util.random_vector(size, mean, std), name=self._fmt(name)))
+            util.random_vector(size, mean, std, rng=self.nrng),
+            name=self._fmt(name)))
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

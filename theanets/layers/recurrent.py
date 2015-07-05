@@ -128,11 +128,11 @@ class Recurrent(base.Layer):
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         if nin == self.size and nout % nin == 0:
             arr = np.concatenate([
-                util.random_matrix(nin, nin, mean, std,
-                                   sparsity=s, radius=r, diagonal=d)
+                util.random_matrix(nin, nin, mean, std, sparsity=s, radius=r,
+                                   diagonal=d, rng=self.nrng)
                 for _ in range(nout // nin)], axis=1)
         else:
-            arr = util.random_matrix(nin, nout, mean, std, sparsity=s)
+            arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.nrng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):

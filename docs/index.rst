@@ -1,7 +1,7 @@
 The ``theanets`` package is a deep learning and neural network toolkit. It is
 written in Python to interoperate with excellent tools like ``numpy`` and
-``scikit-learn``, and it uses Theano_ to take advantage of your GPU. The package
-aims to provide:
+``scikit-learn``, and it uses Theano_ to accelerate computations when possible
+using your GPU. The package aims to provide:
 
 - a simple API for building and training common types of neural network models;
 - thorough documentation;
@@ -146,7 +146,7 @@ Quick Start: Recurrent Models
 =============================
 
 Recurrent neural networks are becoming quite important for many sequence-based
-tasks in machine learning; one popular "toy example" for recurrent models is to
+tasks in machine learning; one popular toy example for recurrent models is to
 generate text that's similar to some body of training text.
 
 In these models, a recurrent classifier is set up to predict the identity of the

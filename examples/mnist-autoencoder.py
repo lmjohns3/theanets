@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+'''Single-layer autoencoder example using MNIST digit data.
+
+This example shows one way to train a single-layer autoencoder model using the
+handwritten MNIST digits.
+
+This example also shows the use of climate command-line arguments.
+'''
+
 import climate
 import matplotlib.pyplot as plt
 import theanets
@@ -12,6 +20,7 @@ g.add_argument('--features', type=int, default=8, metavar='N',
 
 
 def main(args):
+    # load up the MNIST digit dataset.
     train, valid, _ = load_mnist()
 
     e = theanets.Experiment(

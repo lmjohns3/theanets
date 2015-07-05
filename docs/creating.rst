@@ -5,18 +5,19 @@ Creating a Network
 The first step in using ``theanets`` is creating a neural network model to train
 and use. A network model basically consists of three parts:
 
-- an error function that defines how well the parameters in the model perform
+- an error function that quantifies how well the parameters in the model perform
   for the desired task,
 - a set of symbolic input variables that represent data required to compute the
   error, and
 - a series of layers that map input data to network outputs.
 
 In ``theanets``, a network model is a subclass of :class:`Network
-<theanets.graph.Network>`. Networks encapsulate the first two of these parts by
-implementing the :func:`Network.error() <theanets.feedforward.Network.error>`
-method and defining the variables that the model requires during training. When
-you choose one of the network models available in ``theanets`` (or if you choose
-to make your own), you are choosing these elements of the model.
+<theanets.graph.Network>`. Networks encapsulate the first two of these three
+parts by implementing the :func:`Network.error()
+<theanets.feedforward.Network.error>` method and creating the variables that the
+model requires during training. When you choose one of the network models
+available in ``theanets`` (or if you choose to make your own), you are choosing
+these two parts of the model.
 
 The third part, specifying the layers in the model, is discussed at length
 below. First, though, we'll go through a brief presentation of the predefined
@@ -50,15 +51,17 @@ default autoencoder model computes the loss using the mean squared error between
 the network's output and the input:
 
 .. math::
-   \mathcal{L}(X, \theta) = \frac{1}{mn}\frac{1}{n} \sum_{i=1}^m \left\|
+   \mathcal{L}(X, \theta) = \frac{1}{mn} \sum_{i=1}^m \left\|
       F_\theta(x_i) - x_i \right\|_2^2 + R(X, \theta)
 
 Autoencoders simply try to adjust their model parameters :math:`\theta` to
 minimize this squared error between the true inputs and the values that the
-network produces. In theory this could be trivial---if, for example,
-:math:`F_\theta(x) = x`---but in practice this doesn't actually happen often. In
-addition, a regularizer :math:`R(X, \theta)` can be added to the overall loss
-for the model to prevent this sort of trivial solution.
+network produces.
+
+In theory this could be trivial---if, for example, :math:`F_\theta(x) = x`---but
+in practice this doesn't actually happen very often. In addition, a regularizer
+:math:`R(X, \theta)` can be added to the overall loss for the model to prevent
+this sort of trivial solution.
 
 To create an autoencoder in ``theanets``, you can create a network class
 directly::
@@ -81,7 +84,7 @@ a regression model also requires an array of expected target outputs :math:`Y
 network's output and the target is computed using the mean squared error:
 
 .. math::
-   \mathcal{L}(X, Y, \theta) = \frac{1}{mn}\frac{1}{o} \sum_{i=1}^m \left\|
+   \mathcal{L}(X, Y, \theta) = \frac{1}{mn} \sum_{i=1}^m \left\|
       F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
 
 To create a regression model in theanets, you can create a network class
@@ -110,8 +113,10 @@ cross-entropy between the network output and the true target labels:
       \delta_{j,y_i} \log F_\theta(x_i)_j + R(X, \theta)
 
 where :math:`\delta{a,b}` is the Kronecker delta, which is 1 if :math:`a=b` and
-0 otherwise. To create a classifier model in ``theanets``, you can create a
-network class directly::
+0 otherwise.
+
+To create a classifier model in ``theanets``, you can create a network class
+directly::
 
   net = theanets.Classifier()
 
@@ -126,11 +131,11 @@ Recurrent Models
 ================
 
 The three types of feedforward models described above also exist in recurrent
-formulations. In recurrent networks, however, time is an explicit part of the
-model. In ``theanets``, if you wish to include recurrent layers in your model,
-you must use a model class from the :mod:`theanets.recurrent` module; this is
-because recurrent models require data matrices with an additional dimension to
-represent time. In general,
+formulations. In recurrent networks, time is an explicit part of the model. In
+``theanets``, if you wish to include recurrent layers in your model, you must
+use a model class from the :mod:`theanets.recurrent` module; this is because
+recurrent models require input and output data matrices with an additional
+dimension to represent time. In general,
 
 - the data shapes required for a recurrent layer are all one
   dimension larger than the corresponding shapes for a feedforward network,
@@ -217,79 +222,146 @@ complexity of possible neural network architectures. However, ``theanets`` tries
 to make it easy to create networks composed of a cycle-free graph of many common
 types of layers.
 
-When you create a network model, the ``layers`` keyword argument is used to
-specify the layers for your network. This keyword argument must be a sequence
-of values that specify the configuration of network layers.
+When you create a network model, the ``layers`` argument is used to specify the
+layers for your network. This argument must be a sequence of values, each of
+which specifies the configuration of a single layer in the model::
+
+  theanets.Autoencoder([A, B, ..., Z])
+
+Here, the ``A`` through ``Z`` variables represent layer configuration settings.
+These variables can be provided using many different types of data. For each of
+these configuration variables, ``theanets`` will create a layer with the
+corresponding properties, by calling :func:`Network.add_layer()
+<theanets.graph.Network.add_layer>`.
+
+Before describing the data types that can be used to configure layers, we will
+first describe the configuration values that are being set. Then, we'll go over
+the different types of layer configurations, showing how each configuration type
+sets the relevant parameters.
+
+Common Parameters
+-----------------
+
+Each layer configuration variable provides values for one or more of the
+following:
+
+- ``size``: The number of neurons in a layer. This parameter is required for all
+  layers.
+
+- ``name``: A string name for the layer. If this isn't provided, the layer will
+  be assigned a default name. The default names for the first and last layers in
+  a model are "in" and "out" respectively, and the layers in between are
+  assigned "hidN" where N is the number of existing layers.
+
+- ``form``: A string specifying the type of layer to use. This defaults to
+  "feedforward" but can be the name of any existing :class:`Layer
+  <theanets.layers.base.Layer>` subclass.
+
+- ``activation``: A string describing the :ref:`creating-activation` to use for
+  the layer. This defaults to "logistic".
+
+- ``inputs``: An integer or dictionary describing the sizes of the inputs that
+  this layer expects. This is normally optional and defaults to the size of the
+  preceding layer in the model. However, providing a dictionary here permits
+  arbitrary layer interconnections. See :ref:`creating-graph` for more details.
+
+In addition to these configuration values, each layer can also be provided with
+keyword arguments specific to that layer. For example, the distribution of
+initial parameter values can be controlled using parameters like ``mean`` and
+``sparsity``. See the :class:`Layer <theanets.layers.base.Layer>` class for more
+information.
 
 Input Layer
 -----------
 
-The first element in the ``layers`` tuple should always be an integer; the
-:class:`Network.add_layer() <theanets.feedforward.Network.add_layer>` method
-creates an :class:`Input <theanets.layers.Input>` layer from the first element
-in the list.
+The first element in the layers configuration sequence should normally be a
+single integer specifying the size of the expected input data. The ``theanets``
+code creates an :class:`Input <theanets.layers.Input>` layer from this integer
+value.
 
-During training, the input layer can also inject noise into the input
-data. If you are using an autoencoder model, adding noise at the input
-creates a model known as a denoising autoencoder. See
+The input layer in a model is almost a no-op. It doesn't have any learnable
+parameters, and effectively it just passes data along to the first hidden layer.
+However, during training, the input layer can inject noise or dropouts into the
+data. If you are using an autoencoder model, adding noise at the input creates a
+model known as a denoising autoencoder. See
 :ref:`training-specifying-regularizers` for more information.
 
-Hidden Layers
--------------
+Layer specifications
+--------------------
 
-For all subsequent layers (i.e., layers other than the input), there
-are four options for each of the the values in the ``layers`` sequence.
+For all subsequent layers (i.e., layers other than the input), there are four
+options for each of the layer configuration values.
 
-- If a layer value is an integer, it is interpreted as the size of a vanilla,
-  fully-connected feedforward layer. All options for the layer are set to their
-  defaults (e.g., the activation function defaults to the logistic sigmoid).
+Layer instances
+~~~~~~~~~~~~~~~
 
-  For example, to create a network with an input layer containing 4 units,
-  hidden layers with 5 and 6 units, and an output layer with 2 units, you can
-  just use integers to specify all of your layers::
+If a value in the sequence is a :class:`Layer <theanets.layers.base.Layer>`
+instance, this layer is simply added to the network model as-is.
 
-    net = theanets.Classifier((4, 5, 6, 2))
+Integers
+~~~~~~~~
 
-- If a layer value is a tuple, it must contain an integer and may contain one or
-  more strings. The integer in the tuple specifies the size of the layer. If
-  there is a string, and the string names a valid layer type (e.g., ``'tied'``,
-  ``'rnn'``, etc.), then this type of layer will be created. Otherwise, the
-  string is assumed to name an activation function (e.g., ``'logistic'``,
-  ``'relu'``, etc.) and a standard feedforward layer will be created with that
-  activation. (See below for a list of predefined activation functions.)
+If a layer value is an integer, that value is interpreted as the ``size`` of a
+regular :class:`Feedforward <theanets.layers.feedforward.Feedforward>` layer.
+All options for the layer are set to their defaults (e.g., the activation
+function defaults to the logistic sigmoid).
 
-  For example, to create a classification model with a rectified linear
-  activation in the middle layer::
+For example, to create a network with an input layer containing 4 units, hidden
+layers with 5 and 6 units, and an output layer with 2 units, you can just use
+integers to specify all of your layers::
 
-    net = theanets.Classifier((4, (5, 'relu'), (6, 'softmax')))
+  theanets.Classifier((4, 5, 6, 2))
 
-  Or to create a model with a recurrent middle layer::
+Tuples
+~~~~~~
 
-    net = theanets.recurrent.Classifier((4, (5, 'rnn'), (6, 'softmax')))
+Sometimes you will want to specify more than just the size of a layer. Often a
+tuple is a good choice. If a layer configuration value is a tuple, it must
+contain an integer and may contain one or more strings.
 
-  Note that recurrent models (that is, models containing recurrent layers) are a
-  bit different from feedforward ones; please see
-  :ref:`creating-recurrent-models` for more details.
+The integer in the tuple specifies the ``size`` of the layer.
 
-- If a layer value is a dictionary, it must contain a ``size`` key, which
-  specifies the number of units in the layer. It can additionally contain an
-  ``activation`` key to specify the activation function for the layer (see
-  below), and a ``form`` key to specify the type of layer to be constructed
-  (e.g., ``'tied'``, ``'rnn'``, etc.). Additional keys in this dictionary will
-  be passed as keyword arguments to :func:`theanets.layers.build`.
+If there is a string in the tuple that names a valid layer type (e.g.,
+``'tied'``, ``'rnn'``, etc.), then this type of layer will be created.
 
-  For example, you can use a dictionary to specify an non-default activation
-  function for a layer in your model::
+If there is a string in the tuple and it does not name a valid layer type, the
+string is assumed to name an activation function (e.g., ``'logistic'``,
+``'relu+norm:z'``, etc.) and a standard feedforward layer will be created with
+that activation.
 
-    net = theanets.Regressor(layers=(4, dict(size=5, activation='tanh'), 2))
+For example, to create a classification model with a rectified linear activation
+in the middle layer and a softmax output layer::
 
-  You could also create a layer with a sparsely-initialized weight matrix by
-  providing the ``sparsity`` key::
+  theanets.Classifier((4, (5, 'relu'), (6, 'softmax')))
 
-    net = theanets.Regressor(layers=(4, dict(size=5, sparsity=0.9), 2))
+Or to create a recurrent model with a vanilla :class:`RNN
+<theanets.layers.recurrent.RNN>` middle layer::
 
-- Finally, if a value is a :class:`Layer <theanets.layers.Layer>` instance, this
-  layer is simply added to the network model as-is.
+  theanets.recurrent.Classifier((4, (5, 'rnn'), (6, 'softmax')))
+
+Note that recurrent models (that is, models containing recurrent layers) are a
+bit different from feedforward ones; please see :ref:`creating-recurrent-models`
+for more details.
+
+Dictionaries
+~~~~~~~~~~~~
+
+If a layer configuration is a dictionary, its keyword arguments are basically
+passed directly to :func:`theanets.layers.build() <theanets.layers.base.build>`.
+The dictionary must contain a ``form`` key, which specifies the name of the
+layer type to build, as well as a ``size`` key, which specifies the number of
+units in the layer. It can additionally contain any other keyword arguments that
+you wish to use when constructing the layer.
+
+For example, you can use a dictionary to specify an non-default activation
+function for a layer in your model::
+
+  theanets.Regressor(layers=(4, dict(size=5, activation='tanh'), 2))
+
+You could also create a layer with a sparsely-initialized weight matrix by
+providing the ``sparsity`` key::
+
+  theanets.Regressor(layers=(4, dict(size=5, sparsity=0.9), 2))
 
 Activation Functions
 --------------------
@@ -310,9 +382,9 @@ layer dictionary, or by including the key in a tuple with the layer size::
 
   theanets.Autoencoder([10, (10, 'tanh'), 10])
 
-=========  ============================  =============================================
+=========  ============================  ===============================================
 Key        Description                   :math:`g(z) =`
-=========  ============================  =============================================
+=========  ============================  ===============================================
 linear     linear                        :math:`z`
 sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
 logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
@@ -328,8 +400,8 @@ rect:max   rectification                 :math:`\max(0, z)`
 norm:mean  mean-normalization            :math:`z - \bar{z}`
 norm:max   max-normalization             :math:`z / \max |z|`
 norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
-norm:z     z-score normalization         :math:`z-\bar{z} / \mathbb{E}[(z-\bar{z})^2]`
-=========  ============================  =============================================
+norm:z     z-score normalization         :math:`(z-\bar{z}) / \mathbb{E}[(z-\bar{z})^2]`
+=========  ============================  ===============================================
 
 Activation functions can also be composed by concatenating multiple function
 names togather using a ``+``. For example, to create a layer that uses a
@@ -381,7 +453,7 @@ not to miss these examples.
 All of these cases are possible to model in ``theanets``; just include
 ``weighted=True`` when you create your model::
 
-  net = theanets.recurrent.Autoencoder((3, (10, 'rnn'), 3), weighted=True)
+  theanets.recurrent.Autoencoder((3, (10, 'rnn'), 3), weighted=True)
 
 or::
 
@@ -390,26 +462,25 @@ or::
       layers=(3, (10, 'rnn'), 3),
       weighted=True)
 
-Then, when training the weighted model, the training and validation datasets
-require an additional component: an array of floating-point values with the same
-shape as the expected outputs of the model. For example, a non-recurrent
-Classifier model would require a weight vector with each minibatch, of the same
-shape as the labels array, so that the training and validation datasets would
-each have three pieces: ``sample``, ``label``, and ``weight``. Each value in the
-weight array is used as the weight for the corresponding error when computing
-the loss.
+When training a weighted model, the training and validation datasets require an
+additional component: an array of floating-point values with the same shape as
+the expected output of the model. For example, a non-recurrent Classifier model
+would require a weight vector with each minibatch, of the same shape as the
+labels array, so that the training and validation datasets would each have three
+pieces: ``sample``, ``label``, and ``weight``. Each value in the weight array is
+used as the weight for the corresponding error when computing the loss.
 
 .. _creating-customizing:
 
 Customizing
 ===========
 
-The ``theanets`` package tries to strike a good balance between defining
-everything known in the neural networks literature, and allowing you as a
-programmer to create new stuff with the library. For many off-the-shelf use
+The ``theanets`` package tries to strike a balance between defining everything
+known in the neural networks literature, and allowing you as a programmer to
+create new and exciting stuff with the library. For many off-the-shelf use
 cases, the hope is that something in ``theanets`` will work with just a few
 lines of code. For more complex cases, you should be able to create an
-appropriate subclass and integrate it into your workflow with a little more
+appropriate subclass and integrate it into your workflow with just a little more
 effort.
 
 .. _creating-custom-layers:
@@ -418,15 +489,16 @@ Defining Custom Layers
 ----------------------
 
 Layers are the real workhorse in ``theanets``; custom layers can be created to
-do all sorts of fun stuff. To create a custom layer, just subclass :class:`Layer
-<theanets.layers.Layer>` and give it the functionality you want. As a very
-simple example, let's suppose you wanted to create a normal feedforward layer
-but did not want to include a bias term::
+do all sorts of fun stuff. To create a custom layer, just create a subclass of
+:class:`Layer <theanets.layers.Layer>` and give it the functionality you want.
+
+As a very simple example, let's suppose you wanted to create a normal
+feedforward layer but did not want to include a bias term::
 
   import theanets
   import theano.tensor as TT
 
-  class MyLayer(theanets.layers.Layer):
+  class NoBias(theanets.layers.Layer):
       def transform(self, inputs):
           return TT.dot(inputs, self.find('w'))
 
@@ -436,17 +508,17 @@ but did not want to include a bias term::
 Once you've set up your new layer class, it will automatically be registered and
 available in :func:`theanets.layers.build` using the name of your class::
 
-  layer = theanets.layers.build('mylayer', inputs=3, size=4)
+  layer = theanets.layers.build('nobias', inputs=3, size=4)
 
 or, while creating a model::
 
   net = theanets.Autoencoder(
-      layers=(4, (3, 'mylayer', 'linear'), (4, 'tied', 'linear')),
+      layers=(4, (3, 'nobias', 'linear'), (4, 'tied', 'linear')),
   )
 
-This example shows how fast it is to create a model that will learn the subspace
-of your dataset that spans the most variance---the same subspace spanned by the
-principal components.
+This example shows how fast it is to create a PCA-like model that will learn the
+subspace of your dataset that spans the most variance---the same subspace
+spanned by the principal components.
 
 .. _creating-custom-regularizers:
 
@@ -485,6 +557,7 @@ another penalty to prevent feature weights from going to zero::
                               if p.ndim == 2)
           return loss
 
+  exp = theanets.Experiment(RICA, (4, (8, 'linear'), (4, 'tied')))
   exp.train(my_dataset, hidden_l1=0.001, weight_inverse=0.001)
 
 This code adds a new regularizer that penalizes the inverse of the squared
@@ -513,3 +586,39 @@ instead of MSE::
 
 Your cost function must return a theano expression that reflects the cost for
 your model.
+
+.. _creating-graph:
+
+Creating a Graph
+================
+
+While many types of neural networks are constructed using a single linear
+"stack" of layers, this does not always need to be the case. Indeed, many of the
+more exotic model types that perform well in specialized settings make use of
+connections between multiple inputs and outputs.
+
+In ``theanets`` it is easiest to create network architectures that use a single
+chain of layers. However, it is also possible to create network graphs that have
+arbitrary, acyclic connections among layers. Creating a nonlinear network graph
+requires using the ``inputs`` keyword argument when creating a layer.
+
+The ``inputs`` keyword argument for creating a layer should be a dictionary that
+maps from the name of a network output to the size of that output. If ``inputs``
+is not specified for a layer, ``theanets`` creates a default dictionary that
+just uses the output from the previous layer.
+
+Perhaps the simplest example of a non-default ``inputs`` dictionary is to create
+a classifier model that uses outputs from all hidden layers to inform the final
+output of the layer. Such a "multi-scale" model can be created as follows::
+
+  theanets.Classifier((
+      784,
+      dict(size=100, name='a'),
+      dict(size=100, name='b'),
+      dict(size=100, name='c'),
+      dict(size=10, inputs={'a:out': 100, 'b:out': 100, 'c:out': 100}),
+  ))
+
+Here, each of the hidden layers is assigned an explicit name, so that they will
+be easy to reference by the last layer. The output layer, a vanilla feedforward
+layer, combines together the outputs from layers ``a``, ``b``, and ``c``.

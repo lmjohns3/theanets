@@ -178,10 +178,12 @@ integer classes; using the helper makes the top-level code look like::
 This example uses several features of ``theanets`` that make modeling neural
 networks fun and interesting. The model uses a layer of :class:`Gated Recurrent
 Units <theanets.layers.recurrent.GRU>` to capture the temporal dependencies in
-the data. It also :ref:`uses a callable <training-using-callables>` to provide
-data to the model, and takes advantage of :ref:`iterative training
-<training-iteration>` to sample an output from the model after each training
-epoch.
+the data. It also `uses a callable`_ to provide data to the model, and takes
+advantage of `iterative training`_ to sample an output from the model after each
+training epoch.
+
+.. _uses a callable: http://downhill.readthedocs.org/en/stable/guide.html#data-using-callables
+.. _iterative training: http://downhill.readthedocs.org/en/stable/guide.html#iterative-optimization
 
 To run this example, download a text you'd like to model (e.g., Herman
 Melville's *Moby Dick*) and save it in ``corpus.txt``::

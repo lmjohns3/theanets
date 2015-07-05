@@ -86,7 +86,7 @@ In addition to the optimization algorithms provided by ``downhill``,
 These trainers tend to take advantage of the layered structure of the loss
 function for a network.
 
-- ``sample``: :class:`Sample trainer <theanets.trainer.Sample>`
+- ``sample``: :class:`Sample trainer <theanets.trainer.SampleTrainer>`
 
 This trainer sets model parameters directly to samples drawn from the training
 data. This is a very fast "training" algorithm since all updates take place at
@@ -109,118 +109,24 @@ the learned autoencoder weights to the model being trained.
 Providing Data
 ==============
 
-One of the areas in ``theanets`` that consistently requires the most work is
-assembling data to use when training your model.
+To train a model in ``theanets``, you will need to provide a set of data that
+can be used to compute the value of the loss function and its derivatives. Data
+can be passed to the trainer using either arrays_ or callables_; the
+``downhill`` documentation describes how this works.
 
-.. _training-using-arrays:
-
-Using Arrays
-------------
-
-A fairly typical use case for training a neural network in Python is to
-construct a ``numpy`` array containing the data you have::
-
-  dataset = np.load(filename)
-
-  exp = theanets.Experiment()
-  exp.train(dataset)
-
-Sometimes the data available for training a network model exceeds the available
-resources (e.g., memory) on the computer at hand. There are several ways of
-handling this type of situation. If your data are already in a ``numpy`` array
-stored on disk, you might want to try loading the array using ``mmap``::
-
-  dataset = np.load(filename, mmap_mode='r')
-
-  exp = theanets.Experiment()
-  exp.train(dataset)
-
-Alternatively, you might want to load just part of the data and train on that,
-then load another part and train on it::
-
-  exp = theanets.Experiment()
-  for filename in data_files:
-      dataset = np.load(filename)
-      exp.train(dataset)
-
-Finally, you can potentially handle large datasets by using a callable to
-provide data to the training algorithm.
-
-.. _training-using-callables:
-
-Using Callables
----------------
-
-Instead of an array of data, you can provide a callable for a dataset. This
-callable must take no arguments and must return one or more ``numpy`` arrays of
-the proper shape for your model.
-
-During training, the callable will be invoked every time the training algorithm
-requires a batch of training (or validation) data. Therefore, your callable
-should return at least one array containing a batch of data; if your model
-requires multiple arrays per batch (e.g., if you are training a
-:class:`classification <theanets.feedforward.Classifier>` or :class:`regression
-<theanets.feedforward.Regressor>` model), then your callable should return a
-list containing the correct number of arrays (e.g., a training array and the
-corresponding labels).
-
-For example, this code defines a ``batch()`` helper that could be used when
-training a plain :class:`autoencoder <theanets.feedforward.Autoencoder>` model.
-The callable chooses a random dataset and a random offset for each batch::
-
-  SOURCES = 'foo.npy', 'bar.npy', 'baz.npy'
-  BATCH_SIZE = 64
-
-  def batch():
-      X = np.load(np.random.choice(SOURCES), mmap_mode='r')
-      i = np.random.randint(len(X))
-      return X[i:i+BATCH_SIZE]
-
-  # ...
-
-  exp.train(batch)
-
-If you need to maintain more state than is reasonable from a single closure, you
-can also encapsulate the callable inside a class. Just make sure instances of
-the class are callable by defining the ``__call__`` method. For example, this
-class loads data from a series of ``numpy`` arrays on disk, but only loads one
-of the on-disk arrays into memory at a given time::
-
-  class Loader:
-      def __init__(sources=('foo.npy', 'bar.npy', 'baz.npy'), batch_size=64):
-          self.sources = sources
-          self.batch_size = batch_size
-          self.src = -1
-          self.idx = 0
-          self.X = ()
-
-      def __call__(self):
-          if self.idx + self.batch_size > len(self.X):
-              self.idx = 0
-              self.src = (self.src + 1) % len(self.sources)
-              self.X = np.load(self.sources[self.src], mmap_mode='r')
-          try:
-              return self.X[self.idx:self.idx+self.batch_size]
-          finally:
-              self.idx += self.batch_size
-
-  # ...
-
-  exp.train(Loader())
-
-Thanks to Python's flexibility in making classes callable, there are almost
-limitless possibilities for using callables to interface with the training
-process.
+.. _arrays: http://downhill.rtfd.org/en/stable/guide.html#data-using-arrays
+.. _callables: http://downhill.rtfd.org/en/stable/guide.html#data-using-callables
 
 .. _training-specifying-regularizers:
 
 Specifying Regularizers
 =======================
 
-The goal of training a model is to minimize the loss function by making
-adjustments to the model parameters. In most practical applications, the loss is
-not known a priori, but an estimate of it is computed using a set of data (the
-"training data") that has been gathered from the problem being modeled.
+The goal of training a neural network model is to minimize the loss function by
+making adjustments to the model parameters. In most practical applications, the
+loss is not known a priori, but an estimate of it is computed using a set of
+data (the "training data") that has been gathered from the problem being
+modeled.
 
 If a model has many parameters compared with the size of the training dataset,
 then many machine learning models exhibit a phenomenon called *overfitting*: the
@@ -228,12 +134,12 @@ model may learn to predict the training data with no measurable error, but then
 if it is applied to a new dataset, it makes lots of mistakes. In such a case,
 the model has essentially memorized the training data at the cost of not being
 able to *generalize* to new and unseen, yet similar, datasets. The risk of
-overfitting usually increases with the size of the model (as measured by the
-number of parameters) and decreases with the size of the training dataset.
+overfitting usually increases with the size of the model and decreases with the
+size of the training dataset.
 
-Another heuristic that can prevent models from overfitting on small datasets is
-based on the observation that "good" parameter values in most models are
-typically small: large parameter values often indicate overfitting.
+A heuristic that can prevent models from overfitting on small datasets is based
+on the observation that "good" parameter values in most models are typically
+small: large parameter values often indicate overfitting.
 
 One way to encourage a model to use small parameter values is to assume that the
 parameter values are sampled from some prior distribution, rather than assuming
@@ -255,47 +161,23 @@ then when we train it, we specify that the activity of the hidden units in the
 network will be penalized with a 0.1 coefficient. The rest of this section
 details the built-in regularizers that are available in ``theanets``.
 
-Input Regularization
---------------------
-
-One way of regularizing a model to prevent overfitting is to add noise to the
-data during training. While noise could be added in the training batches,
-``theanets`` provides two types of input noise regularizers: Gaussian noise and
-dropouts.
-
-In one method, zero-mean Gaussian noise is added to the input data; this is
-specified during training using the ``input_noise`` keyword argument::
-
-  exp.train(dataset, input_noise=0.1)
-
-The value of the argument specifies the standard deviation of the noise.
-
-In the other input regularization method, some of the inputs are randomly set to
-zero during training (this is sometimes called "dropout" or "masking noise").
-This type of input noise is specified using the ``input_dropout`` keyword
-argument::
-
-  exp.train(dataset, input_dropout=0.3)
-
-The value of the argument specifies the fraction of values in each input vector
-that are randomly set to zero.
-
 Decay
 -----
 
-In "weight decay," we assume that parameters are drawn from a zero-mean Gaussian
-distribution with an isotropic, modeler-specified standard deviation. In terms
-of loss functions, this equates to adding a term to the loss function that
-computes the :math:`L_2` norm of the parameter values in the model:
+Using "weight decay," we assume that parameters in a model are drawn from a
+zero-mean Gaussian distribution with an isotropic, modeler-specified standard
+deviation. In terms of loss functions, this equates to adding a term to the loss
+function that computes the :math:`L_2` norm of the parameter values in the
+model:
 
 .. math::
-   \mathcal{L}(\cdot) = \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   \mathcal{L}(\cdot) = \dots + \lambda \| \theta \|_2^2
 
 If the loss :math:`\mathcal{L}(\cdot)` represents some approximation to the
 log-posterior distribution of the model parameters given the data
 
 .. math::
-   \mathcal{L}(\cdot) = \log p(\theta|x) \propto \dots + \frac{\lambda}{2} \| \theta \|_2^2
+   \mathcal{L}(\cdot) = \log p(\theta|x) \propto \dots + \lambda \| \theta \|_2^2
 
 then the term with the :math:`L_2` norm on the parameters is like an unscaled
 Gaussian distribution.
@@ -306,26 +188,25 @@ argument during training::
   exp.train(dataset, weight_l2=1e-4)
 
 The value of the argument is the strength of the regularizer in the loss for the
-model. Smaller values create less pressure for small model weights.
+model. Larger values create more pressure for small model weights.
 
 Sparsity
 --------
 
 Sparse models have been shown to capture regularities seen in the mammalian
-visual cortex [Ols94]_. In addition, sparse models in machine learning are often
-more performant than "dense" models (i.e., models without restriction on the
-hidden representation) [Lee08]_. Furthermore, sparse models tend to yield latent
-representations that are more interpretable to humans than dense models
-[Tib96]_.
+visual cortex. In addition, sparse models in machine learning are often more
+performant than "dense" models (i.e., models without restriction on the hidden
+representation). Furthermore, sparse models tend to yield latent representations
+that are easier for humans to interpret than dense models.
 
-There are two main types of sparsity provided with ``theanets``: parameter
-sparsity and representation sparsity.
+There are two main types of sparsity regularizers provided with ``theanets``:
+parameter sparsity and representation sparsity.
 
 The first type of sparse regularizer is just like weight decay, but instead of
 assuming that weights are drawn from a Gaussian distribution, here we assume
 that weights in the model are drawn from a distribution with a taller peak at
-zero, like a Laplace distribution. In terms of loss function, this regularizer
-adds a term with an :math:`L_1` norm to the model:
+zero and heavier tails, like a Laplace distribution. In terms of loss function,
+this regularizer adds a term with an :math:`L_1` norm to the model:
 
 .. math::
    \mathcal{L}(\cdot) = \dots + \lambda \| \theta \|_1
@@ -337,7 +218,7 @@ log-posterior distribution of the model parameters given the data
    \mathcal{L}(\cdot) = \log p(\theta|x) \propto \dots + \lambda \| \theta \|_1
 
 then this term is like an unscaled Laplace distribution. In practice, this
-regularizer encourages many of the model parameters to be zeros.
+regularizer encourages many of the model *parameters* to be zero.
 
 In ``theanets``, this sparse parameter regularization is specified using the
 ``weight_l1`` keyword argument during training::
@@ -345,13 +226,22 @@ In ``theanets``, this sparse parameter regularization is specified using the
   exp.train(dataset, weight_l1=1e-4)
 
 The value of the argument is the strength of the regularizer in the loss for the
-model. Smaller values create less pressure for sparse model weights.
+model. The larger the regularization parameter, the more pressure for
+zero-valued weights.
 
 The second type of sparsity regularization puts pressure on the model to develop
-hidden representations that use as few nonzero values as possible. In this type
-of regularization, the model weights are penalized indirectly, since the hidden
+hidden *representations* that are mostly zero-valued. In this type of
+regularization, the model weights are penalized indirectly, since the hidden
 representation (i.e., the values of the hidden layer neurons in the network) are
-functions of both the model weights and the input data.
+functions of both the model weights and the input data. In terms of loss
+functions, this regularizer adds a term to the loss that penalizes the
+:math:`L_1` norm of the hidden layer activations
+
+.. math::
+   \mathcal{L}(\cdot) = \dots + \lambda \sum_{i=2}^{N-1} \| f_i(x) \|_1
+
+where :math:`f_i(x)` represents the neuron activations of hidden layer
+:math:`i`.
 
 Sparse hidden activations have shown much promise in computational neural
 networks. In ``theanets`` this type of regularization is specified using the
@@ -360,7 +250,79 @@ networks. In ``theanets`` this type of regularization is specified using the
   exp.train(dataset, hidden_l1=0.1)
 
 The value of the argument is the strength of the regularizer in the loss for the
-model. Smaller values create less pressure for sparse hidden representations.
+model. Large values create more pressure for hidden representations that use
+mostly zeros.
+
+Noise
+-----
+
+Another way of regularizing a model to prevent overfitting is to inject noise
+into the data or the representations during training. While noise could always
+be injected into the training batches manually, ``theanets`` provides two types
+of noise regularizers: additive Gaussian noise and multiplicative dropout
+(binary) noise.
+
+In one method, zero-mean Gaussian noise is added to the input data or hidden
+representations. These are specified during training using the ``input_noise``
+and ``hidden_noise`` keyword arguments, respectively::
+
+  exp.train(dataset, input_noise=0.1)
+  exp.train(dataset, hidden_noise=0.1)
+
+The value of the argument specifies the standard deviation of the noise.
+
+In the other input regularization method, some of the inputs are randomly set to
+zero during training (this is sometimes called "dropout" or "multiplicative
+masking noise"). This type of noise is specified using the ``input_dropout`` and
+``hidden_dropout`` keyword arguments, respectively::
+
+  exp.train(dataset, input_dropout=0.3)
+  exp.train(dataset, hidden_dropout=0.3)
+
+The value of the argument specifies the fraction of values in each input or
+hidden activation that are randomly set to zero.
+
+Instead of adding additional terms like the other regularizers, the noise
+regularizers can be seen as modifying the original loss for a model. For
+instance, consider an autoencoder model with two hidden layers::
+
+  exp = theanets.Experiment(
+      theanets.Autoencoder,
+      (100,
+       dict(size=50, name='a'),
+       dict(size=80, name='b'),
+       dict(size=100, name='o')))
+
+The loss for this model, without regularization, can be written as:
+
+.. math::
+   \mathcal{L}(X, \theta_a, \theta_b, \theta_o) = \frac{1}{mn} \sum_{i=1}^m \left\|
+      \sigma_b(\sigma_a(x_i\theta_a)\theta_b)\theta_o - x_i \right\|_2^2
+
+where we've ignored the bias terms, and :math:`\theta_a`, :math:`\theta_b`, and
+:math:`\theta_o` are the parameters for layers a, b, and o, respectively. Also,
+:math:`\sigma_a` and :math:`\sigma_b` are the activation functions for their
+respective hidden layers.
+
+If we train this model using input and hidden noise::
+
+  exp.train(..., input_noise=q, hidden_noise=r)
+
+then the loss becomes:
+
+.. math::
+   \mathcal{L}(X, \theta_a, \theta_b, \theta_o) = \frac{1}{mn} \sum_{i=1}^m \left\|
+      \left( \sigma_b\left(
+      (\sigma_a((x_i+\epsilon_q)\theta_a)+\epsilon_r)\theta_b \right) +
+      \epsilon_r \right)\theta_o - x_i \right\|_2^2
+
+where :math:`\epsilon_q` is white Gaussian noise drawn from
+:math:`\mathcal{N}(0, qI)` and :math:`\epsilon_r` is white Gaussian noise drawn
+separately for each hidden layer from :math:`\mathcal{N}(0, rI)`. The additive
+noise pushes the data and the representations off of their respective manifolds,
+but the loss is computed with respect to the uncorrupted input. This is thought
+to encourage the model to develop representations that push towards the true
+manifold of the data.
 
 .. _training-training:
 

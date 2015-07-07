@@ -277,16 +277,12 @@ class Network(object):
             dataset, at the conclusion of training.
         '''
         def create_dataset(data, **kwargs):
-            '''Create a dataset.'''
-            default_axis = 0
-            if not callable(data) and not callable(data[0]) and len(data[0].shape) == 3:
-                default_axis = 1
             name = kwargs.get('name', 'dataset')
             s = '{}_batches'.format(name)
             return downhill.Dataset(
                 data, name=name, batch_size=kwargs.get('batch_size', 32),
                 iteration_size=kwargs.get('iteration_size', kwargs.get(s)),
-                axis=kwargs.get('axis', default_axis))
+                axis=kwargs.get('axis', 0))
 
         # set up datasets ...
         if valid is None:

@@ -4,12 +4,16 @@ a tt, a:visited tt, a:active tt { color: #258; }
 .banana { float: right; max-width: 45%; }
 .banana img { width: 100%; }
 
-pre { font-size: 0.95rem; line-height: 1.25; }
-span.pre { background: #eee; font-size: 1rem; padding: 0.1rem 0.2rem; }
+pre { font-size: 0.9rem; line-height: 1.25; }
+span.pre { background: #eee; font-size: 0.95rem; padding: 0.1rem 0.2rem; }
 
-li a.internal span.pre {
+a.internal span.pre {
     background: inherit;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: inherit;
     padding: inherit;
 }
+
+th.field-name { background: #ffd; }
+
+dl.method dt { background: #def; }

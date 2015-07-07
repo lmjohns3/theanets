@@ -142,8 +142,8 @@ class BaseRecurrent(Base):
 
     def test_feed_forward(self):
         net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(5, 8, Base.INPUTS).astype('f'))
-        assert out.shape == (5, 8, Base.OUTPUTS)
+        out = net.predict(np.random.randn(8, 5, Base.INPUTS).astype('f'))
+        assert out.shape == (8, 5, Base.OUTPUTS)
 
 
 class TestConv1(BaseRecurrent):

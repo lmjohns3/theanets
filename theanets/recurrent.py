@@ -238,13 +238,13 @@ class Classifier(feedforward.Classifier):
         super(feedforward.Classifier, self).__init__(
             layers=layers, loss=loss, in_dim=3, out_dim=2, weighted=weighted)
 
-    def predict_sequence(self, seed, steps, streams=1, rng=None):
-        '''Draw a sequential sample of classes from this network.
+    def predict_sequence(self, labels, steps, streams=1, rng=None):
+        '''Draw a sequential sample of class labels from this network.
 
         Parameters
         ----------
-        seed : list of int
-            A list of integer class labels to "seed" the classifier.
+        labels : list of int
+            A list of integer class labels to get the classifier started.
         steps : int
             The number of time steps to sample.
         streams : int, optional
@@ -264,11 +264,11 @@ class Classifier(feedforward.Classifier):
         '''
         if rng is None or isinstance(rng, int):
             rng = np.random.RandomState(rng)
-        start = len(seed)
+        offset = len(labels)
         batch = max(2, streams)
-        inputs = np.zeros((batch, start + steps, self.layers[0].size), 'f')
-        inputs[:, np.arange(start), seed] = 1
-        for i in range(start, start + steps):
+        inputs = np.zeros((batch, offset + steps, self.layers[0].size), 'f')
+        inputs[:, np.arange(offset), labels] = 1
+        for i in range(offset, offset + steps):
             chars = []
             for pdf in self.predict_proba(inputs[:i])[:, -1]:
                 try:

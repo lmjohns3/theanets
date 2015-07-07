@@ -11,16 +11,16 @@ class Base(util.Base):
     NUM_OUTPUTS = util.Base.NUM_OUTPUTS
     NUM_CLASSES = util.Base.NUM_CLASSES
 
-    INPUTS = np.random.randn(NUM_TIMES, NUM_EXAMPLES, NUM_INPUTS).astype('f')
-    INPUT_WEIGHTS = np.random.randn(NUM_TIMES, NUM_EXAMPLES, NUM_INPUTS).astype('f')
-    OUTPUTS = np.random.randn(NUM_TIMES, NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
-    OUTPUT_WEIGHTS = np.random.randn(NUM_TIMES, NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
-    CLASSES = np.random.randn(NUM_TIMES, NUM_EXAMPLES).astype('i')
-    CLASS_WEIGHTS = np.random.rand(NUM_TIMES, NUM_EXAMPLES).astype('f')
+    INPUTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS).astype('f')
+    INPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS).astype('f')
+    OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_OUTPUTS).astype('f')
+    OUTPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_OUTPUTS).astype('f')
+    CLASSES = np.random.randn(NUM_EXAMPLES, NUM_TIMES).astype('i')
+    CLASS_WEIGHTS = np.random.rand(NUM_EXAMPLES, NUM_TIMES).astype('f')
 
     def assert_shape(self, actual, expected):
         if not isinstance(expected, tuple):
-            expected = (self.NUM_TIMES, self.NUM_EXAMPLES, expected)
+            expected = (self.NUM_EXAMPLES, self.NUM_TIMES, expected)
         assert actual == expected, 'expected {}, got {}'.format(expected, actual)
 
 
@@ -35,14 +35,14 @@ class TestFunctions(Base):
             steps=self.NUM_TIMES,
             batch_size=self.NUM_EXAMPLES)
         assert len(f()) == 2
-        assert f()[0].shape == (self.NUM_TIMES, self.NUM_EXAMPLES, self.NUM_INPUTS)
-        assert f()[1].shape == (self.NUM_TIMES, self.NUM_EXAMPLES, self.NUM_OUTPUTS)
+        assert f()[0].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_INPUTS)
+        assert f()[1].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_OUTPUTS)
 
     def test_batches_unlabeled(self):
         f = theanets.recurrent.batches(
             [self.samples], steps=self.NUM_TIMES, batch_size=self.NUM_EXAMPLES)
         assert len(f()) == 1
-        assert f()[0].shape == (self.NUM_TIMES, self.NUM_EXAMPLES, self.NUM_INPUTS)
+        assert f()[0].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_INPUTS)
 
 
 class TestText:
@@ -73,10 +73,10 @@ class TestText:
         assert self.txt.decode([0, 4, 0, 10]) == '_o_!'
 
     def test_classifier_batches(self):
-        b = self.txt.classifier_batches(3, 2)
+        b = self.txt.classifier_batches(steps=8, batch_size=5)
         assert len(b()) == 2
-        assert b()[0].shape == (3, 2, 1 + len(self.txt.alpha))
-        assert b()[1].shape == (3, 2)
+        assert b()[0].shape == (5, 8, 1 + len(self.txt.alpha))
+        assert b()[1].shape == (5, 8)
         assert not np.allclose(b()[0], b()[0])
 
 
@@ -133,7 +133,7 @@ class TestWeightedRegressor(TestRegressor):
 class TestClassifier(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Classifier(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_OUTPUTS])
+            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_CLASSES])
 
     def test_sgd(self):
         self.exp = theanets.Experiment(
@@ -144,22 +144,22 @@ class TestClassifier(Base):
     def test_predict_onelayer(self):
         net = self._build(13)
         z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_TIMES, self.NUM_EXAMPLES))
+        self.assert_shape(z.shape, (self.NUM_EXAMPLES, self.NUM_TIMES))
 
     def test_score_onelayer(self):
         net = self._build(13)
         z = net.score(self.INPUTS, self.CLASSES)
-        assert 0 < z < 1
+        assert 0 <= z <= 1
 
     def test_predict_proba_onelayer(self):
         net = self._build(13)
         z = net.predict_proba(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_OUTPUTS)
+        self.assert_shape(z.shape, self.NUM_CLASSES)
 
     def test_predict_twolayer(self):
         net = self._build(13, 14)
         z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_TIMES, self.NUM_EXAMPLES))
+        self.assert_shape(z.shape, (self.NUM_EXAMPLES, self.NUM_TIMES))
 
     def test_feed_forward(self):
         net = self._build(15, 13)
@@ -168,30 +168,30 @@ class TestClassifier(Base):
         self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
         self.assert_shape(hs['hid1:out'].shape, 15)
         self.assert_shape(hs['hid2:out'].shape, 13)
-        self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
+        self.assert_shape(hs['out:out'].shape, self.NUM_CLASSES)
 
     def test_predict_sequence(self):
         net = self._build(13)
 
         count = 0
-        for cs in net.predict_sequence([0, 0, 1, 2], 4, streams=3):
+        for cs in net.predict_sequence([3, 0, 1, 2], 5, streams=3):
             assert isinstance(cs, list)
             assert len(cs) == 3
             count += 1
-        assert count == 4
+        assert count == 5
 
         count = 0
-        for cs in net.predict_sequence([0, 0, 1, 2], 4):
+        for cs in net.predict_sequence([3, 0, 1, 2], 5):
             print(cs, type(cs))
             assert isinstance(cs, int)
             count += 1
-        assert count == 4
+        assert count == 5
 
 
 class TestWeightedClassifier(TestClassifier):
     def _build(self, *hiddens):
         return theanets.recurrent.Classifier(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_OUTPUTS],
+            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_CLASSES],
             weighted=True)
 
     def test_sgd(self):

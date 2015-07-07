@@ -149,7 +149,7 @@ class BaseRecurrent(Base):
 class TestConv1(BaseRecurrent):
     def _build(self):
         return theanets.layers.Conv1(
-            inputs=Base.INPUTS, size=Base.SIZE, length=3, name='l')
+            inputs=Base.INPUTS, size=Base.SIZE, filter_size=3, name='l')
 
     def test_feed_forward(self):
         net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))

@@ -3,11 +3,11 @@ import setuptools
 
 setuptools.setup(
     name='theanets',
-    version='0.6.0',
+    version='0.7.0pre',
     packages=setuptools.find_packages(),
     author='Leif Johnson',
     author_email='leif@lmjohns3.com',
-    description='A library of neural nets in theano',
+    description='Feedforward and recurrent neural nets using Theano',
     long_description=open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.rst')).read(),
     license='MIT',
     url='http://github.com/lmjohns3/theanets',

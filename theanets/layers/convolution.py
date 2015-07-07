@@ -77,7 +77,7 @@ class Convolution(base.Layer):
 
 
 class Conv1(Convolution):
-    '''1-dimensional convolutions are assumed to process temporal data.
+    '''1-dimensional convolutions run over one data axis.
 
     One-dimensional convolution layers can only be included in ``theanets``
     models that use recurrent inputs and outputs, i.e.,
@@ -89,7 +89,7 @@ class Conv1(Convolution):
 
     Parameters
     ----------
-    length : int
+    filter_size : int
         Length of the convolution filters for this layer.
     stride : int, optional
         Apply convolutions with this stride; i.e., skip this many samples
@@ -98,9 +98,9 @@ class Conv1(Convolution):
         Compute convolutions with this border mode. Defaults to 'valid'.
     '''
 
-    def __init__(self, length, stride=1, border_mode='valid', **kwargs):
+    def __init__(self, filter_size, stride=1, border_mode='valid', **kwargs):
         super(Conv1, self).__init__(
-            filter_shape=(1, length),
+            filter_shape=(1, filter_size),
             stride=(1, stride),
             border_mode=border_mode,
             **kwargs)

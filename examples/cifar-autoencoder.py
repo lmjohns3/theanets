@@ -44,18 +44,18 @@ def main(args):
     whiten, color = pca(train)
 
     feat = args.features or int(np.sqrt(2 * K))
-    e = theanets.Experiment(theanets.Autoencoder((K, feat ** 2, K)))
-    e.train(whiten(train), whiten(valid), input_noise=1, train_batches=313)
+    n = theanets.Autoencoder([K, feat ** 2, K])
+    n.train(whiten(train), whiten(valid), input_noise=1, train_batches=313)
 
     plot_layers([
-        color(e.network.find('hid1', 'w').get_value().T).T,
-        color(e.network.find('out', 'w').get_value())], channels=3)
+        color(n.find('hid1', 'w').get_value().T).T,
+        color(n.find('out', 'w').get_value())], channels=3)
     plt.tight_layout()
     plt.show()
 
     valid = whiten(valid[:100])
     plot_images(color(valid), 121, 'Sample data', channels=3)
-    plot_images(color(e.network.predict(valid)), 122,
+    plot_images(color(n.predict(valid)), 122,
                 'Reconstructed data', channels=3)
     plt.tight_layout()
     plt.show()

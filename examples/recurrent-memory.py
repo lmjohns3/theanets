@@ -51,18 +51,16 @@ logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
 
 
 # Create a new recurrent regression model and train it up.
-e = theanets.Experiment(
-    theanets.recurrent.Regressor,
+net = theanets.recurrent.Regressor(
     layers=(1, dict(form='rnn', activation='relu', size=10, diagonal=1), 1),
     weighted=True)
 
-e.train(generate,
-        batch_size=BATCH_SIZE,
-        algorithm='rmsprop',
-        max_gradient_norm=1,
-        learning_rate=0.001,
-        momentum=0.9,
-        monitor_gradients=True)
+net.train(generate,
+          batch_size=BATCH_SIZE,
+          max_gradient_norm=1,
+          learning_rate=0.001,
+          momentum=0.9,
+          monitor_gradients=True)
 
 
 # Now we plot the results. Our plot contains two rows. On the top row, a random
@@ -86,7 +84,7 @@ def plot(n, z, label, rectangle):
         ax.set_xlabel('Example')
     ax.set_ylabel(label)
 
-out = e.network.predict(src)[:, :, 0]
+out = net.predict(src)[:, :, 0]
 vm = max(abs(src[:BITS]).max(), abs(out[-BITS]).max())
 
 plot(1, src[:, :, 0], 'Input', 0)

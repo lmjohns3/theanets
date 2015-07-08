@@ -30,18 +30,17 @@ def split(a, b):
 train = split(0, 9000)
 valid = split(9000, 10000)
 
-exp = theanets.Experiment(
-    theanets.Classifier,
+net = theanets.Classifier(
     layers=(100, 10, 2),
     weighted=True,
 )
 
-exp.train(train, valid)
+net.train(train, valid)
 
 truth = valid[1]
 print('# of true 1s:', truth.sum())
 
-guess = exp.network.classify(valid[0])
+guess = net.predict(valid[0])
 print('# of predicted 1s:', guess.sum())
 
 cm = sklearn.metrics.confusion_matrix(truth, guess)

@@ -50,6 +50,8 @@ the input nodes in the graph).
 '''
 
 import climate
+import datetime
+import downhill
 import fnmatch
 import gzip
 import hashlib
@@ -57,8 +59,10 @@ import numpy as np
 import pickle
 import theano
 import theano.tensor as TT
+import warnings
 
 from . import layers
+from . import trainer
 
 logging = climate.get_logger(__name__)
 
@@ -217,6 +221,136 @@ class Network(object):
             kwargs['partner'] = partner
 
         self.layers.append(layers.build(form, **kwargs))
+
+    def itertrain(self, train, valid=None, algo='rmsprop', subalgo='rmsprop',
+                  save_every=0, save_progress=None, **kwargs):
+        '''Train our network, one batch at a time.
+
+        This method yields a series of ``(train, valid)`` monitor pairs. The
+        ``train`` value is a dictionary mapping names to monitor values
+        evaluated on the training dataset. The ``valid`` value is also a
+        dictionary mapping names to values, but these values are evaluated on
+        the validation dataset.
+
+        Because validation might not occur every training iteration, the
+        validation monitors might be repeated for multiple training iterations.
+        It is probably most helpful to think of the validation monitors as being
+        the "most recent" values that have been computed.
+
+        After training completes, the network attribute of this class will
+        contain the trained network parameters.
+
+        Parameters
+        ----------
+        train : :class:`Dataset <downhill.dataset.Dataset>` or list
+            A dataset to use when training the network. If this is a
+            ``downhill.Dataset`` instance, it will be used directly as the
+            training datset. If it is a list of numpy arrays or a list of
+            callables, it will be converted to a ``downhill.Dataset`` and then
+            used as the training set.
+        valid : :class:`Dataset <downhill.dataset.Dataset>` or list, optional
+            If this is provided, it will be used as a validation dataset. If not
+            provided, the training set will be used for validation. (This is not
+            recommended!)
+        algo : str, optional
+            An optimization algorithm to use for training our network. If not
+            provided, :class:`RMSProp <downhill.adaptive.RMSProp>` will be used.
+        subalgo : str, optional
+            An optimization algorithm to use for a trainer that requires a
+            "sub-algorithm," sugh as an unsupervised pretrainer. Defaults to
+            :class:`RMSProp <downhill.adaptive.RMSProp>`.
+        save_every : int or float, optional
+            If this is nonzero and ``save_progress`` is not None, then the model
+            being trained will be saved periodically. If this is a float, it is
+            treated as a number of minutes to wait between savings. If it is an
+            int, it is treated as the number of training epochs to wait between
+            savings. Defaults to 0.
+        save_progress : str, optional
+            If this is not None, and ``save_progress`` is nonzero, then save the
+            model periodically during training. This parameter gives the full
+            path of a file to save the model. If this name contains a "{}"
+            format specifier, it will be filled with the UTC Unix timestamp at
+            the time the model is saved. Defaults to None.
+
+        Yields
+        ------
+        training : dict
+            A dictionary of monitor values computed using the training dataset,
+            at the conclusion of training. This dictionary will at least contain
+            a 'loss' key that indicates the value of the loss function. Other
+            keys may be available depending on the trainer being used.
+        validation : dict
+            A dictionary of monitor values computed using the validation
+            dataset, at the conclusion of training.
+        '''
+        # set up datasets ...
+        if valid is None:
+            valid = train
+        if not isinstance(valid, downhill.Dataset):
+            valid = _create_dataset(valid, name='valid', **kwargs)
+        if not isinstance(train, downhill.Dataset):
+            train = _create_dataset(train, name='train', **kwargs)
+
+        if 'algorithm' in kwargs:
+            warnings.warn(
+                'please use the "algo" keyword arg instead of "algorithm"',
+                DeprecationWarning)
+            algo = kwargs.pop('algorithm')
+            if isinstance(algo, (list, tuple)):
+                algo = algo[0]
+
+        # set up trainer ...
+        if isinstance(algo, str):
+            algo = algo.lower()
+            if algo == 'sample':
+                algo = trainer.SampleTrainer(self)
+            elif algo.startswith('layer') or algo.startswith('sup'):
+                algo = trainer.SupervisedPretrainer(subalgo, self)
+            elif algo.startswith('pre') or algo.startswith('unsup'):
+                algo = trainer.UnsupervisedPretrainer(subalgo, self)
+            else:
+                algo = trainer.DownhillTrainer(algo, self)
+
+        # set up check to save model ...
+        def needs_saving(elapsed, iteration):
+            if not save_progress:
+                return False
+            if isinstance(save_every, float):
+                return elapsed > 60 * save_every
+            if isinstance(save_every, int):
+                return iteration % save_every == 0
+            return False
+
+        # train it!
+        start = datetime.datetime.utcnow()
+        for i, monitors in enumerate(algo.itertrain(train, valid, **kwargs)):
+            yield monitors
+            now = datetime.datetime.utcnow()
+            elapsed = (now - start).total_seconds()
+            if i and needs_saving(elapsed, i):
+                self.save(save_progress.format(int(now.timestamp())))
+                start = now
+
+    def train(self, *args, **kwargs):
+        '''Train the network until the trainer converges.
+
+        All arguments are passed to :func:`itertrain`.
+
+        Returns
+        -------
+        training : dict
+            A dictionary of monitor values computed using the training dataset,
+            at the conclusion of training. This dictionary will at least contain
+            a 'loss' key that indicates the value of the loss function. Other
+            keys may be available depending on the trainer being used.
+        validation : dict
+            A dictionary of monitor values computed using the validation
+            dataset, at the conclusion of training.
+        '''
+        monitors = None
+        for monitors in self.itertrain(*args, **kwargs):
+            pass
+        return monitors
 
     def error(self, outputs):
         '''Build a theano expression for computing the network error.
@@ -577,3 +711,34 @@ class Network(object):
         '''
         _, updates = self.build_graph(**kwargs)
         return updates
+
+
+def _create_dataset(data, **kwargs):
+    '''Create a dataset for this experiment.
+
+    Parameters
+    ----------
+    data : sequence of ndarray or callable
+        The values that you provide for data will be encapsulated inside a
+        :class:`Dataset <downhill.Dataset>` instance; see that class for
+        documentation on the types of things it needs. In particular, you
+        can currently pass in either a list/array/etc. of data, or a
+        callable that generates data dynamically.
+
+    Returns
+    -------
+    data : :class:`Dataset <downhill.Dataset>`
+        A dataset capable of providing mini-batches of data to a training
+        algorithm.
+    '''
+    default_axis = 0
+    if not callable(data) and not callable(data[0]) and len(data[0].shape) == 3:
+        default_axis = 1
+    name = kwargs.get('name', 'dataset')
+    b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
+    return downhill.Dataset(
+        data,
+        name=name,
+        batch_size=kwargs.get(b, 32),
+        iteration_size=kwargs.get(i, kwargs.get(s)),
+        axis=kwargs.get('axis', default_axis))

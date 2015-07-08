@@ -19,7 +19,7 @@ class Base(object):
 
     def assert_progress(self, algo, data, **kwargs):
         trainer = self.exp.itertrain(
-            data, algorithm=algo, monitor_gradients=True, **kwargs)
+            data, algo=algo, monitor_gradients=True, **kwargs)
         train0, valid0 = next(trainer)
         train1, valid1 = next(trainer)
         assert train1['loss'] < valid0['loss']   # should have made progress!

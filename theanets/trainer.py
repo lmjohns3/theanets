@@ -15,7 +15,6 @@ import downhill
 import itertools
 import numpy as np
 
-from . import feedforward
 from . import layers
 
 logging = climate.get_logger(__name__)
@@ -287,6 +286,8 @@ class UnsupervisedPretrainer(object):
             A dictionary containing monitor values evaluated on the validation
             dataset.
         '''
+        from . import feedforward
+
         # construct a "shadow" of the input network, using the original
         # network's encoding layers, with tied weights in an autoencoder
         # configuration.

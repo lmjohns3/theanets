@@ -220,8 +220,8 @@ class SupervisedPretrainer(object):
             dataset.
         '''
         net = self.network
-        tied = getattr(net, 'tied_weights', False)
         original = list(net.layers)
+        tied = any(isinstance(l, layers.Tied) for l in original)
         L = 1 + len(original) // 2 if tied else len(original) - 1
         for i in range(1, L):
             if i == L - 1:

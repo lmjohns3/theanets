@@ -43,15 +43,15 @@ and (d) evaluate the model::
   valid = X[cut:], y[cut:]
 
   # Build a classifier model with 100 inputs and 10 outputs.
-  exp = theanets.Experiment(theanets.Classifier, layers=(100, 10))
+  net = theanets.Classifier([100, 10])
 
   # Train the model using SGD with momentum.
-  exp.train(train, valid, algorithm='sgd', learning_rate=1e-4, momentum=0.9)
+  net.train(train, valid, algo='sgd', learning_rate=1e-4, momentum=0.9)
 
   # Show confusion matrices on the training/validation splits.
   for label, (X, y) in (('training:', train), ('validation:', valid)):
       print(label)
-      print(confusion_matrix(y, exp.network.predict(X)))
+      print(confusion_matrix(y, net.predict(X)))
 
 Layers
 ------
@@ -59,31 +59,28 @@ Layers
 The model above is quite simplistic! Make it a bit more sophisticated by adding
 a hidden layer::
 
-  exp = theanets.Experiment(theanets.Classifier, (100, 1000, 10))
+  net = theanets.Classifier([100, 1000, 10])
 
 In fact, you can just as easily create 3 (or any number of) hidden layers::
 
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      (100, 1000, 1000, 1000, 10))
+  net = theanets.Classifier([
+      100, 1000, 1000, 1000, 10])
 
 By default, hidden layers use the logistic sigmoid transfer function. By passing
 a tuple instead of just an integer, you can change some of these layers to use
 different :mod:`activations <theanets.activations>`::
 
   maxout = (1000, 'maxout:4')  # maxout with 4 pieces.
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      (100, 1000, maxout, (1000, 'relu'), 10))
+  net = theanets.Classifier([
+      100, 1000, maxout, (1000, 'relu'), 10])
 
 By passing a dictionary instead, you can specify even more attributes of each
 :mod:`layer <theanets.layers.base>`, like how its parameters are initialized::
 
   # Sparsely-initialized layer with large nonzero weights.
   foo = dict(name='foo', size=1000, std=1, sparsity=0.9)
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      (100, foo, (1000, 'maxout:4'), (1000, 'relu'), 10))
+  net = theanets.Classifier([
+      100, foo, (1000, 'maxout:4'), (1000, 'relu'), 10])
 
 Specifying layers is the heart of building models in ``theanets``. Read more
 about this in :doc:`creating`.
@@ -95,21 +92,21 @@ Adding regularizers is easy, too! Just pass them to the training method. For
 instance, you can train up a sparse classification model with weight decay::
 
   # Penalize hidden-unit activity (L1 norm) and weights (L2 norm).
-  exp.train(train, valid, hidden_l1=0.001, weight_l2=0.001)
+  net.train(train, valid, hidden_l1=0.001, weight_l2=0.001)
 
 In ``theanets`` dropout is treated as a regularizer and can be set on many
 layers at once::
 
-  exp.train(train, valid, hidden_dropout=0.5)
+  net.train(train, valid, hidden_dropout=0.5)
 
 or just on a specific layer::
 
-  exp.train(train, valid, dropout={'foo:out': 0.5})
+  net.train(train, valid, dropout={'foo:out': 0.5})
 
 Similarly, you can add Gaussian noise to any of the layers (here, just to the
 input layer)::
 
-  exp.train(train, valid, input_noise=0.3)
+  net.train(train, valid, input_noise=0.3)
 
 Optimization Algorithms
 -----------------------
@@ -122,21 +119,21 @@ You can optimize your model using any of the algorithms provided by downhill_
 .. _pretraining methods: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.trainer
 
 You can also make as many successive calls to :func:`train()
-<theanets.Experiment.train>` as you like. Each call can include different
+<theanets.graph.Network.train>` as you like. Each call can include different
 training algorithms::
 
-  exp.train(train, valid, algorithm='rmsprop')
-  exp.train(train, valid, algorithm='nag')
+  net.train(train, valid, algo='rmsprop')
+  net.train(train, valid, algo='nag')
 
 different learning hyperparameters::
 
-  exp.train(train, valid, algorithm='rmsprop', learning_rate=0.1)
-  exp.train(train, valid, algorithm='rmsprop', learning_rate=0.01)
+  net.train(train, valid, algo='rmsprop', learning_rate=0.1)
+  net.train(train, valid, algo='rmsprop', learning_rate=0.01)
 
 and different regularization hyperparameters::
 
-  exp.train(train, valid, input_noise=0.7)
-  exp.train(train, valid, input_noise=0.3)
+  net.train(train, valid, input_noise=0.7)
+  net.train(train, valid, input_noise=0.3)
 
 Training models is a bit more art than science, but ``theanets`` tries to make
 it easy to evaluate different training approaches. Read more about this in
@@ -164,15 +161,15 @@ integer classes; using the helper makes the top-level code look like::
   A = 1 + len(txt.alpha)  # of letter classes
 
   # create a model to train: input -> gru -> relu -> softmax.
-  exp = theanets.Experiment(
-      theanets.recurrent.Classifier, (A, (100, 'gru'), (1000, 'relu'), A))
+  net = theanets.recurrent.Classifier([
+      A, (100, 'gru'), (1000, 'relu'), A])
 
   # train the model iteratively; draw a sample after every epoch.
   seed = txt.encode(txt.text[300017:300050])
-  for tm, _ in exp.itertrain(txt.classifier_batches(100, 32), momentum=0.9):
+  for tm, _ in net.itertrain(txt.classifier_batches(100, 32), momentum=0.9):
       print('{}|{} ({:.1f}%)'.format(
           txt.decode(seed),
-          txt.decode(exp.network.predict_sequence(seed, 40)),
+          txt.decode(net.predict_sequence(seed, 40)),
           100 * tm['acc']))
 
 This example uses several features of ``theanets`` that make modeling neural

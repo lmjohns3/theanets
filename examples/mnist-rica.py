@@ -50,22 +50,21 @@ def color(z):
 
 N = 20
 
-e = theanets.Experiment(
-    RICA, layers=(K, (N * N, 'linear'), (K, 'tied')))
+net = RICA([K, (N * N, 'linear'), (K, 'tied')])
 
-e.train(whiten(train),
-        whiten(valid),
-        hidden_l1=0.001,
-        weight_inverse=1e-6,
-        train_batches=300,
-        monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)})
+net.train(whiten(train),
+          whiten(valid),
+          hidden_l1=0.001,
+          weight_inverse=1e-6,
+          train_batches=300,
+          monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)})
 
 # color the network weights so they are viewable as digits.
-plot_layers([color(e.network.find('hid1', 'w').get_value().T).T], tied_weights=True)
+plot_layers([color(net.find('hid1', 'w').get_value().T).T], tied_weights=True)
 plt.tight_layout()
 plt.show()
 
 plot_images(valid[:N*N], 121, 'Sample data')
-plot_images(color(e.network.predict(whiten(valid[:N*N]))), 122, 'Reconstructed data')
+plot_images(color(net.predict(whiten(valid[:N*N]))), 122, 'Reconstructed data')
 plt.tight_layout()
 plt.show()

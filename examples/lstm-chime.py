@@ -99,16 +99,15 @@ def layer(n):
     '''Helper for building a bidirectional LSTM layer with n cells.'''
     return dict(form='bidirectional', worker='lstm', size=n)
 
-e = theanets.Experiment(
-    theanets.recurrent.Classifier,
+n = theanets.recurrent.Classifier(
     layers=(39, layer(156), layer(300), layer(102), (51, 'softmax')),
     weighted=True,
 )
 
-e.train(
+n.train(
     batches(scipy.io.netcdf_file(TRAIN_NC)),
     batches(scipy.io.netcdf_file(VALID_NC)),
-    algorithm='rmsprop',
+    algo='rmsprop',
     learning_rate=0.0001,
     momentum=0.9,
     max_gradient_clip=1,

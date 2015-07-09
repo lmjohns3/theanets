@@ -23,24 +23,21 @@ def main(args):
     # load up the MNIST digit dataset.
     train, valid, _ = load_mnist()
 
-    e = theanets.Experiment(
-        theanets.Autoencoder,
-        layers=(784, args.features ** 2, 784))
+    net = theanets.Autoencoder([784, args.features ** 2, 784])
+    net.train(train, valid,
+              input_noise=0.1,
+              weight_l2=0.0001,
+              algo='rmsprop',
+              momentum=0.9,
+              min_improvement=0.1)
 
-    e.train(train, valid,
-            input_noise=0.1,
-            weight_l2=0.0001,
-            algorithm='rmsprop',
-            momentum=0.9,
-            min_improvement=0.1)
-
-    plot_layers([e.network.find('hid1', 'w'), e.network.find('out', 'w')])
+    plot_layers([net.find('hid1', 'w'), net.find('out', 'w')])
     plt.tight_layout()
     plt.show()
 
     v = valid[:100]
     plot_images(v, 121, 'Sample data')
-    plot_images(e.network.predict(v), 122, 'Reconstructed data')
+    plot_images(net.predict(v), 122, 'Reconstructed data')
     plt.tight_layout()
     plt.show()
 

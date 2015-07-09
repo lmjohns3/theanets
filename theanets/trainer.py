@@ -15,7 +15,6 @@ import downhill
 import itertools
 import numpy as np
 
-from . import feedforward
 from . import layers
 
 logging = climate.get_logger(__name__)
@@ -221,8 +220,8 @@ class SupervisedPretrainer(object):
             dataset.
         '''
         net = self.network
-        tied = getattr(net, 'tied_weights', False)
         original = list(net.layers)
+        tied = any(isinstance(l, layers.Tied) for l in original)
         L = 1 + len(original) // 2 if tied else len(original) - 1
         for i in range(1, L):
             if i == L - 1:
@@ -287,6 +286,8 @@ class UnsupervisedPretrainer(object):
             A dictionary containing monitor values evaluated on the validation
             dataset.
         '''
+        from . import feedforward
+
         # construct a "shadow" of the input network, using the original
         # network's encoding layers, with tied weights in an autoencoder
         # configuration.

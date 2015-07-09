@@ -64,17 +64,16 @@ for i, layer in enumerate((
     name = layer['form']
     layer['size'] = 64
     logging.info('training %s model', name)
-    e = theanets.Experiment(theanets.recurrent.Regressor, layers=(1, layer, 1))
+    net = theanets.recurrent.Regressor([1, layer, 1])
     losses = []
-    for tm, _ in e.itertrain([ZERO, WAVES],
-                             monitor_gradients=True,
-                             batch_size=BATCH_SIZE,
-                             algorithm='rmsprop',
-                             learning_rate=0.0001,
-                             momentum=0.9,
-                             min_improvement=0.01):
+    for tm, _ in net.itertrain([ZERO, WAVES],
+                               monitor_gradients=True,
+                               batch_size=BATCH_SIZE,
+                               learning_rate=0.0001,
+                               momentum=0.9,
+                               min_improvement=0.01):
         losses.append(tm['loss'])
-    prd = e.network.predict(ZERO)
+    prd = net.predict(ZERO)
     wave_ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.7, color=COLORS[i])
     learn_ax.plot(losses, label=name, alpha=0.7, color=COLORS[i])
 

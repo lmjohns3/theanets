@@ -13,9 +13,9 @@ climate.enable_default_logging()
 X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype='f')
 Y = np.array([[0], [1], [1], [0]], dtype='f')
 
-e = theanets.Experiment(theanets.Regressor, layers=(2, 2, 1))
-e.train([X, Y], optimize='rprop', patience=10, batch_size=4)
+net = theanets.Regressor([2, 2, 1])
+net.train([X, Y], algo='rprop', patience=10, batch_size=4)
 
 logging.info("Input:\n%s", X)
 logging.info("XOR output:\n%s", Y)
-logging.info("NN XOR predictions:\n%s", e.network(X.astype('f')).round(2))
+logging.info("NN XOR predictions:\n%s", net.predict(X.astype('f')).round(2))

@@ -98,11 +98,6 @@ class Autoencoder(graph.Network):
             return [self.x, self.weights]
         return [self.x]
 
-    @property
-    def tied_weights(self):
-        '''A boolean indicating whether this network uses tied weights.'''
-        return any('tied' in l.__class__.__name__.lower() for l in self.layers)
-
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.
 

@@ -63,15 +63,10 @@ in practice this doesn't actually happen very often. In addition, a regularizer
 :math:`R(X, \theta)` can be added to the overall loss for the model to prevent
 this sort of trivial solution.
 
-To create an autoencoder in ``theanets``, you can create a network class
-directly::
+To create an autoencoder in ``theanets``, just create an instance of the
+appropriate network subclass::
 
   net = theanets.Autoencoder()
-
-or you can use an :class:`Experiment <theanets.main.Experiment>`::
-
-  exp = theanets.Experiment(theanets.Autoencoder)
-  net = exp.network
 
 Regression
 ----------
@@ -87,15 +82,9 @@ network's output and the target is computed using the mean squared error:
    \mathcal{L}(X, Y, \theta) = \frac{1}{mn} \sum_{i=1}^m \left\|
       F_\theta(x_i) - y_i \right\|_2^2 + R(X, \theta)
 
-To create a regression model in theanets, you can create a network class
-directly::
+To create a regression model in theanets, invoke the constructor::
 
   net = theanets.Regressor()
-
-or you can use an :class:`Experiment <theanets.main.Experiment>`::
-
-  exp = theanets.Experiment(theanets.Regressor)
-  net = exp.network
 
 Classification
 --------------
@@ -115,15 +104,9 @@ cross-entropy between the network output and the true target labels:
 where :math:`\delta{a,b}` is the Kronecker delta, which is 1 if :math:`a=b` and
 0 otherwise.
 
-To create a classifier model in ``theanets``, you can create a network class
-directly::
+To create a classifier model in ``theanets``, invoke its constructor::
 
   net = theanets.Classifier()
-
-or you can use an :class:`Experiment <theanets.main.Experiment>`::
-
-  exp = theanets.Experiment(theanets.Classifier)
-  net = exp.network
 
 .. _creating-recurrent-models:
 
@@ -453,14 +436,7 @@ not to miss these examples.
 All of these cases are possible to model in ``theanets``; just include
 ``weighted=True`` when you create your model::
 
-  theanets.recurrent.Autoencoder((3, (10, 'rnn'), 3), weighted=True)
-
-or::
-
-  exp = theanets.Experiment(
-      theanets.recurrent.Autoencoder,
-      layers=(3, (10, 'rnn'), 3),
-      weighted=True)
+  net = theanets.recurrent.Autoencoder([3, (10, 'rnn'), 3], weighted=True)
 
 When training a weighted model, the training and validation datasets require an
 additional component: an array of floating-point values with the same shape as
@@ -532,15 +508,14 @@ appropriate model and provide an implementation of the
 Let's keep going with the example above. Suppose you created a linear autoencoder
 model that had a larger hidden layer than your dataset::
 
-  net = theanets.Autoencoder((4, (8, 'linear'), (4, 'tied')))
+  net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
 
 Then, at least in theory, you risk learning an uninteresting "identity" model
 such that some hidden units are never used, and the ones that are have weights
 equal to the identity matrix. To prevent this from happening, you can impose a
 sparsity penalty when you train your model::
 
-  exp = theanets.Experiment(net)
-  exp.train(my_dataset, hidden_l1=0.001)
+  net.train(..., hidden_l1=0.001)
 
 But then you might run into a situation where the sparsity penalty drives some
 of the hidden units in the model to zero, to "save" loss during training.
@@ -557,8 +532,8 @@ another penalty to prevent feature weights from going to zero::
                               if p.ndim == 2)
           return loss
 
-  exp = theanets.Experiment(RICA, (4, (8, 'linear'), (4, 'tied')))
-  exp.train(my_dataset, hidden_l1=0.001, weight_inverse=0.001)
+  net = RICA([4, (8, 'linear'), (4, 'tied')])
+  net.train(..., hidden_l1=0.001, weight_inverse=0.001)
 
 This code adds a new regularizer that penalizes the inverse of the squared
 length of each of the weights in the model's layers. Here we detect weights by

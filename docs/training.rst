@@ -18,13 +18,13 @@ to the trainer. You can also save the model periodically during training.
 Specifying a Trainer
 ====================
 
-The easiest way train a model with ``theanets`` is to use the :class:`Experiment
-<theanets.main.Experiment>` class::
+The easiest way train a model with ``theanets`` is to invoke the :func:`train()
+<theanets.graph.Network.train>` method::
 
-  exp = theanets.Experiment(theanets.Classifier, layers=(10, 5, 2))
-  exp.train(training_data,
+  net = theanets.Classifier(layers=[10, 5, 2])
+  net.train(training_data,
             validation_data,
-            algorithm='nag',
+            algo='nag',
             learning_rate=0.01,
             momentum=0.9)
 
@@ -38,18 +38,18 @@ the algorithm implementation.
 Multiple calls to ``train()`` are possible and can be used to implement things
 like custom annealing schedules (e.g., the "newbob" training strategy)::
 
-  exp = theanets.Experiment(theanets.Classifier, layers=(10, 5, 2))
+  net = theanets.Classifier(layers=[10, 5, 2])
 
   for e in (-2, -3, -4):
-    exp.train(training_data,
-              validation_data,
-              algorithm='nag',
-              learning_rate=10 ** e,
-              momentum=1 - 10 ** (e + 1))
+      net.train(training_data,
+                validation_data,
+                algo='nag',
+                learning_rate=10 ** e,
+                momentum=1 - 10 ** (e + 1))
 
-  exp.train(training_data,
+  net.train(training_data,
             validation_data,
-            algorithm='rmsprop',
+            algo='rmsprop',
             learning_rate=0.0001,
             momentum=0.9)
 
@@ -150,11 +150,8 @@ parameter values to express our knowledge as modelers of the problem at hand.
 In ``theanets``, regularization hyperparameters are provided when you train your
 model::
 
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      layers=(784, 1000, 784),
-  )
-  exp.train(dataset, hidden_l1=0.1)
+  net = theanets.Classifier(layers=[784, 1000, 784])
+  net.train(..., hidden_l1=0.1)
 
 Here we've specified that our model has a single, overcomplete hidden layer, and
 then when we train it, we specify that the activity of the hidden units in the
@@ -185,7 +182,7 @@ Gaussian distribution.
 This type of regularization is specified using the ``weight_l2`` keyword
 argument during training::
 
-  exp.train(dataset, weight_l2=1e-4)
+  net.train(..., weight_l2=1e-4)
 
 The value of the argument is the strength of the regularizer in the loss for the
 model. Larger values create more pressure for small model weights.
@@ -223,7 +220,7 @@ regularizer encourages many of the model *parameters* to be zero.
 In ``theanets``, this sparse parameter regularization is specified using the
 ``weight_l1`` keyword argument during training::
 
-  exp.train(dataset, weight_l1=1e-4)
+  net.train(..., weight_l1=1e-4)
 
 The value of the argument is the strength of the regularizer in the loss for the
 model. The larger the regularization parameter, the more pressure for
@@ -247,7 +244,7 @@ Sparse hidden activations have shown much promise in computational neural
 networks. In ``theanets`` this type of regularization is specified using the
 ``hidden_l1`` keyword argument during training::
 
-  exp.train(dataset, hidden_l1=0.1)
+  net.train(..., hidden_l1=0.1)
 
 The value of the argument is the strength of the regularizer in the loss for the
 model. Large values create more pressure for hidden representations that use
@@ -266,8 +263,8 @@ In one method, zero-mean Gaussian noise is added to the input data or hidden
 representations. These are specified during training using the ``input_noise``
 and ``hidden_noise`` keyword arguments, respectively::
 
-  exp.train(dataset, input_noise=0.1)
-  exp.train(dataset, hidden_noise=0.1)
+  net.train(..., input_noise=0.1)
+  net.train(..., hidden_noise=0.1)
 
 The value of the argument specifies the standard deviation of the noise.
 
@@ -276,8 +273,8 @@ zero during training (this is sometimes called "dropout" or "multiplicative
 masking noise"). This type of noise is specified using the ``input_dropout`` and
 ``hidden_dropout`` keyword arguments, respectively::
 
-  exp.train(dataset, input_dropout=0.3)
-  exp.train(dataset, hidden_dropout=0.3)
+  net.train(..., input_dropout=0.3)
+  net.train(..., hidden_dropout=0.3)
 
 The value of the argument specifies the fraction of values in each input or
 hidden activation that are randomly set to zero.
@@ -286,12 +283,11 @@ Instead of adding additional terms like the other regularizers, the noise
 regularizers can be seen as modifying the original loss for a model. For
 instance, consider an autoencoder model with two hidden layers::
 
-  exp = theanets.Experiment(
-      theanets.Autoencoder,
-      (100,
-       dict(size=50, name='a'),
-       dict(size=80, name='b'),
-       dict(size=100, name='o')))
+  net = theanets.Autoencoder([
+      100,
+      dict(size=50, name='a'),
+      dict(size=80, name='b'),
+      dict(size=100, name='o')])
 
 The loss for this model, without regularization, can be written as:
 
@@ -306,7 +302,7 @@ respective hidden layers.
 
 If we train this model using input and hidden noise::
 
-  exp.train(..., input_noise=q, hidden_noise=r)
+  net.train(..., input_noise=q, hidden_noise=r)
 
 then the loss becomes:
 
@@ -334,12 +330,12 @@ Training
 Training as Iteration
 ---------------------
 
-The :func:`Experiment.train() <theanets.main.Experiment.train>` method is
-actually just a thin wrapper over the underlying :func:`Experiment.itertrain()
-<theanets.main.Experiment.itertrain>` method, which you can use directly if you
+The :func:`Network.train() <theanets.graph.Network.train>` method is actually
+just a thin wrapper over the underlying :func:`Network.itertrain()
+<theanets.graph.Network.itertrain>` method, which you can use directly if you
 want to do something special during training::
 
-  for train, valid in exp.itertrain(train_dataset, valid_dataset, **kwargs):
+  for train, valid in net.itertrain(train_data, valid_data, **kwargs):
       print('training loss:', train['loss'])
       print('most recent validation loss:', valid['loss'])
 
@@ -357,24 +353,23 @@ contains the percent accuracy of the classifier model.
 Saving Progress
 ---------------
 
-The :class:`Experiment <theanets.main.Experiment>` class can snapshot your model
-automatically during training. When you call :func:`Experiment.train()
-<theanets.main.Experiment.train>`, you can provide the following keyword
+The :class:`Network <theanets.graph.Network>` base class can snapshot your model
+automatically during training. When you call :func:`Network.train()
+<theanets.graph.Network.train>`, you can provide the following keyword
 arguments:
 
 - ``save_progress``: This should be a string containing a filename where the
-  model should be saved.
+  model should be saved. If you want to save models in separate files during
+  training, you can include an empty format string ``{}`` in your filename, and
+  it will be formatted with the UTC Unix timestamp at the moment the model is
+  saved.
 
 - ``save_every``: This should be a numeric value specifying how often the model
-  should be saved during training. If this value is positive, it specifies the
-  number of training iterations between checkpoints; if it is negative, it
+  should be saved during training. If this value is an integer, it specifies the
+  number of training iterations between checkpoints; if it is a float, it
   specifies the number of minutes that are allowed to elapse between
   checkpoints.
 
-If you provide a ``save_progress`` argument when you construct your experiment,
-and a model exists in the given snapshot file, then that model will be loaded
-from disk.
-
-You can also save and load models manually by calling :func:`Experiment.save()
-<theanets.main.Experiment.save>` and :func:`Experiment.load()
-<theanets.main.Experiment.load>`, respectively.
+You can also save and load models manually by calling :func:`Network.save()
+<theanets.graph.Network.save>` and :func:`theanets.load()
+<theanets.graph.load>`, respectively.

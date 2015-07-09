@@ -69,39 +69,31 @@ typically involves three basic steps:
 #. Finally, you *use* the trained model in some way, probably by predicting
    results on a test dataset, visualizing the learned features, and so on.
 
-The ``theanets`` package provides a helper class, :class:`Experiment
-<theanets.main.Experiment>`, that performs these tasks with relatively low
-effort on your part. You typically define a model in ``theanets`` by creating an
-experiment with a number of *model hyperparameters* that define the specific
-behavior of your model, and then train your model using another set of
+You typically define a model in ``theanets`` by creating an instance of a model
+subclass. You would include a number of *model hyperparameters* that define the
+specific behavior of your model, and then train your model using another set of
 *optimization hyperparameters* that define the behavior of the optimization
 algorithm.
 
 The skeleton of your code will usually look something like this::
 
-  import matplotlib.pyplot as plt
-  import skdata.mnist
   import theanets
 
-  # create an experiment to define a model.
-  exp = theanets.Experiment(
-      Model,
-      hyperparam1=value1,
-      hyperparam2=value2,
-      # ...
+  # create a model.
+  net = theanets.Model(
+      layers=...,
   )
 
   # train the model.
-  exp.train(
+  net.train(
       training_data,
       validation_data,
-      algorithm='foo',
+      algo='foo',
       # ...
   )
 
   # use the trained model.
-  model = exp.network
-  model.predict(test_data)
+  net.predict(test_data)
 
 This quickstart document shows how to implement these stages by following a
 couple of examples.
@@ -144,13 +136,10 @@ popular recently due to their success on a variety of difficult machine learning
 problems. For now, though, to keep things simple, let's start out with a model
 that just has one hidden layer with 100 units.
 
-Once you've chosen the layers you want in your model, the easiest way to use
-``theanets`` is to create an :class:`Experiment <theanets.main.Experiment>` to
-construct your model::
+Once you've chosen the layers you want in your model, you typically pass the
+layers to the model constructor::
 
-  exp = theanets.Experiment(
-      theanets.Classifier,
-      layers=(784, 100, (10, 'softmax')))
+  net = theanets.Classifier(layers=[784, 100, 10])
 
 This is all that's required to get started. There are many different
 hyperparameters that can also be useful when constructing a model; see
@@ -219,36 +208,32 @@ Training the model
 ------------------
 
 Now that you have a model and some data, you're ready to train the model so that
-it performs the classification task as well as possible. The :class:`Experiment
-<theanets.main.Experiment>` class handles the general case of training with
-fairly little work.
+it performs the classification task as well as possible. Models are set up to
+handle training with fairly little work.
 
 The main decision to make during training is to choose the training algorithm to
 use, along with values for any associated hyperparameters. This is most
-naturally accomplished using the :func:`Experiment.train()
-<theanets.main.Experiment.train>` method::
+naturally accomplished using the :func:`Network.train()
+<theanets.graph.Network.train>` method::
 
   train, valid, test = load_mnist()
 
-  exp.train(train,
+  net.train(train,
             valid,
-            algorithm='nag',
+            algo='nag',
             learning_rate=1e-3,
             momentum=0.9)
 
 The first positional argument to this method is the training dataset, and the
-second (if provided) is a validation dataset. (These positional arguments can
-also be passed to :func:`Experiment.train() <theanets.main.Experiment.train>`
-using the ``train_set`` and ``valid_set`` keywords, respectively.) If a
-validation dataset is not provided, the training dataset will be used for
-validation.
+second (if provided) is a validation dataset. If a validation dataset is not
+provided, the training dataset will be used for validation.
 
-The ``algorithm`` keyword argument specifies an algorithm to use for training.
-If you do not provide a value for this argument, :class:`RmsProp
-<theanets.trainer.RmsProp>` is used as the default training algorithm. Any
-subsequent keyword arguments will be passed to the training algorithm; these
-arguments typically specify hyperparameters of the algorithm like the learning
-rate and so forth.
+The ``algo`` keyword argument specifies an algorithm to use for training. If you
+do not provide a value for this argument, :class:`RMSProp
+<downhill.adaptive.RMSProp>` is currently used as the default training
+algorithm. Any subsequent keyword arguments will be passed to the training
+algorithm; these arguments typically specify hyperparameters of the algorithm
+like the learning rate and so forth.
 
 The available training methods are described in
 :ref:`training-available-trainers`; here we've specified Nesterov's Accelerated
@@ -263,7 +248,7 @@ the model was trained using the MNIST digits, you can reshape the learned
 features and visualize them as though they were 28×28 images::
 
   img = np.zeros((28 * 10, 28 * 10), dtype='f')
-  for i, pix in enumerate(exp.network.find('hid1', 'w').get_value().T):
+  for i, pix in enumerate(net.find('hid1', 'w').get_value().T):
       r, c = divmod(i, 10)
       img[r * 28:(r+1) * 28, c * 28:(c+1) * 28] = pix.reshape((28, 28))
   plt.imshow(img, cmap=plt.cm.gray)
@@ -276,7 +261,7 @@ reshaped---into a giant image.
 
 The trained model can also be used to predict the class for a new MNIST digit::
 
-  predicted_class = exp.network.predict(new_digit)
+  predicted_class = net.predict(new_digit)
 
 For more information on the things you can do with a model, see :doc:`using`.
 
@@ -303,19 +288,15 @@ start producing the desired output at time step :math:`k + t`.
 Defining the model
 ------------------
 
-We'll set up a recurrent model by creating an :class:`Experiment
-<theanets.main.Experiment>` with the appropriate model class and layers::
+We'll set up a recurrent model by creating a :class:`recurrent regression
+<theanets.recurrent.Regressor>` instance::
 
-  exp = theanets.Experiment(
-      theanets.recurrent.Regressor,
-      layers=(1, ('lstm', 10), 1))
+  net = theanets.recurrent.Regressor(layers=[1, ('lstm', 10), 1])
 
-Here we've specified that we're using a :class:`recurrent regression
-<theanets.recurrent.Regressor>` model. Our network has three layers: the first
-just has one input unit, the next is a Long Short-Term Memory (LSTM) recurrent
-layer with ten units, and the output is a linear layer with just one output
-unit. This is just one way of specifying layers in a network; for more details
-see :ref:`creating-specifying-layers`.
+Our network has three layers: the first just has one input unit, the next is a
+Long Short-Term Memory (LSTM) recurrent layer with ten units, and the output is
+a linear layer with just one output unit. This is just one way of specifying
+layers in a network; for more details see :ref:`creating-specifying-layers`.
 
 Training the model
 ------------------
@@ -346,7 +327,7 @@ used a callable that generates batches of data for us. See
 Having set up a way to create training data, we just need to pass this along to
 our training algorithm::
 
-  exp.train(generate, algorithm='rmsprop')
+  net.train(generate, algo='rmsprop')
 
 This process will adjust the weights in the model so that the outputs of the
 model, given the inputs, will be closer and closer to the targets that we

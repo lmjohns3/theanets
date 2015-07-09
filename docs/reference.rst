@@ -143,15 +143,3 @@ Training strategies
    SampleTrainer
    SupervisedPretrainer
    UnsupervisedPretrainer
-
-Drivers
-=======
-
-.. automodule:: theanets.main
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Experiment

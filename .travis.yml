@@ -14,7 +14,7 @@ install:
   - pip install pep8 python-coveralls
   - pip install .
 script:
-  - nosetests --with-coverage --cover-package=theanets --logging-level=INFO
+  - THEANO_FLAGS=floatX=float32 nosetests --with-coverage --cover-package=theanets --logging-level=INFO
 after_success:
   - coveralls
 cache: apt

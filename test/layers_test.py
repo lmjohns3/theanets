@@ -264,8 +264,8 @@ class TestClockwork(BaseRecurrent):
             inputs=Base.INPUTS, size=Base.SIZE, periods=(2, 5), name='l')
 
     def test_create(self):
-        self.assert_param_names(['b', 'xh', 'hh2', 'hh5'])
-        self.assert_count(24)
+        self.assert_param_names(['b', 'xh', 'hh'])
+        self.assert_count(28)
 
     def test_transform(self):
         out, upd = self.l.transform(dict(out=self.x))

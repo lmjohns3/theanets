@@ -1,11 +1,12 @@
-'''This package groups together a bunch of theano code for neural nets.'''
+'''This package groups together a bunch of Theano code for neural nets.'''
 
+from .activations import Activation
 from .feedforward import Autoencoder, Regressor, Classifier
 from .graph import Network
+from .layers import Layer
+from .losses import Loss
 from .main import Experiment
 
-from . import layers
 from . import recurrent
-from . import trainer
 
 __version__ = '0.7.0pre'

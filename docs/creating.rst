@@ -488,7 +488,7 @@ Defining Custom Regularizers
 
 To create a custom regularizer in ``theanets``, you need to subclass the
 appropriate model and provide an implementation of the
-:func:`theanets.feedforward.Network.loss` method.
+:func:`theanets.feedforward.Network.regularized_loss` method.
 
 Let's keep going with the example above. Suppose you created a linear autoencoder
 model that had a larger hidden layer than your dataset::
@@ -508,8 +508,8 @@ Zero-valued features are probably not so interesting, so we can introduce
 another penalty to prevent feature weights from going to zero::
 
   class RICA(theanets.Autoencoder):
-      def loss(self, **kwargs):
-          loss = super(RICA, self).loss(**kwargs)
+      def regularized_loss(self, **kwargs):
+          loss = super(RICA, self).regularized_loss(**kwargs)
           w = kwargs.get('weight_inverse', 0)
           if w > 0:
               loss += w * sum((1 / (p * p).sum(axis=0)).sum()
@@ -533,19 +533,31 @@ It's pretty straightforward to create models in ``theanets`` that use different
 error functions from the predefined :class:`Classifier
 <theanets.feedforward.Classifier>` (which uses categorical cross-entropy) and
 :class:`Autoencoder <theanets.feedforward.Autoencoder>` and :class:`Regressor
-<theanets.feedforward.Regressor>` (which both use mean squared error, MSE).
+<theanets.feedforward.Regressor>` (which both use mean squared error, MSE)
+models.
 
-To define by a model with a new cost function, just create a new :class:`Network
-<theanets.feedforward.Network>` subclass and override the ``error`` method. For
-example, to create a regression model that uses mean absolute error (MAE)
-instead of MSE::
+To define a model with a new loss, just create a new :class:`Loss
+<theanets.losses.Loss>` subclass and specify its name when you create your
+model. For example, to create a regression model that uses a step function
+averaged over all of the model inputs::
 
-  class MaeRegressor(theanets.Regressor):
-      def error(self, output):
-          return abs(output - self.targets).mean()
+  class Step(theanets.Loss):
+      def __call__(self, output):
+          return (self.diff(output) > 0).mean()
 
-Your cost function must return a theano expression that reflects the cost for
-your model.
+  net = theanets.Regressor(loss='step')
+
+Your loss function implementation must return a theano expression that reflects
+the loss for your model. If you wish to make your loss work with weighted
+outputs, you will also need to include a case for having weights::
+
+  class Step(theanets.Loss):
+      def __call__(self, output):
+          step = self.diff(output) > 0
+          if self.weight:
+              return (self.weight * step).sum() / self.weight.sum()
+          else:
+              return step.mean()
 
 .. _creating-graph:
 

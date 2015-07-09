@@ -51,6 +51,23 @@ Recurrent helpers
    batches
    Text
 
+Losses
+======
+
+.. automodule:: theanets.losses
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   build
+   Loss
+   MeanSquaredError
+   MeanAbsoluteError
+   Hinge
+   CrossEntropy
+
 Layer types
 ===========
 

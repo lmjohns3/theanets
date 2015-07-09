@@ -11,7 +11,6 @@ from __future__ import division
 import climate
 import numpy as np
 import theano
-import theano.ifelse
 import theano.tensor as TT
 
 from . import base
@@ -653,8 +652,14 @@ class Clockwork(Recurrent):
 
     def setup(self):
         n = self.size // len(self.periods)
+        mask = np.zeros((self.size, self.size), FLOAT)
+        period = np.zeros((self.size, ), 'i')
         for i, T in enumerate(self.periods):
-            self.add_weights('hh{}'.format(T), (i + 1) * n, n)
+            mask[i*n:(i+1)*n, i*n:] = 1
+            period[i*n:(i+1)*n] = T
+        self._mask = theano.shared(mask, name='mask')
+        self._period = theano.shared(period, name='period')
+        self.add_weights('hh', self.size, self.size)
         self.add_weights('xh', self.input_size, self.size)
         self.add_bias('b', self.size)
 
@@ -690,16 +695,9 @@ class Clockwork(Recurrent):
             A sequence of updates to apply to this layer's state inside a theano
             function.
         '''
-        n = self.size // len(self.periods)
-
         def fn(t, x_t, p_tm1, h_tm1):
-            p_t = TT.concatenate([
-                theano.ifelse.ifelse(
-                    TT.eq(t % T, 0),
-                    x_t[:, i*n:(i+1)*n] + TT.dot(
-                        h_tm1[:, :(i+1)*n], self.find('hh{}'.format(T))),
-                    p_tm1[:, i*n:(i+1)*n])
-                for i, T in enumerate(self.periods)], axis=1)
+            p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
+            p_t = TT.switch(TT.eq(t % self._period, 0), p, p_tm1)
             return [p_t, self.activate(p_t)]
 
         x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')

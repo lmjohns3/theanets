@@ -56,7 +56,8 @@ html_sidebars = {
 }
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/', None),
+    'python': ('https://docs.python.org/3.4/', None),
+    'downhill': ('http://downhill.readthedocs.org/en/stable/', None),
     'numpy': ('http://docs.scipy.org/doc/numpy/', None),
     'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
 }

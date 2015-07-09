@@ -76,6 +76,7 @@ class Network(object):
     layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
+
     weighted : bool, optional
         If True, the network will require an additional input during training
         that provides weights for the target outputs of the network; the weights
@@ -88,6 +89,10 @@ class Network(object):
         of one class is significantly different than another. The default is not
         to use weighted outputs.
 
+    sparse_input : bool
+        If True, create an input variable that can hold a sparse matrix.
+        Defaults to False, which assumes all arrays are dense.
+
     Attributes
     ----------
     inputs : list of theano variables
@@ -98,23 +103,29 @@ class Network(object):
         True iff this network expects target weight inputs during training.
     '''
 
-    def __init__(self, layers, weighted=False):
+    def __init__(self, layers, weighted=False, sparse_input=False):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
         self.weighted = weighted
-        self.inputs = list(self._setup_vars())
+        self.inputs = list(self._setup_vars(sparse_input))
         self.layers = []
         for i, layer in enumerate(layers):
             self.add_layer(layer, is_output=i == len(layers) - 1)
         logging.info('network has %d total parameters', self.num_params)
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables required by our network.
 
         Subclasses must implement this method to specify variables that are
         required for training the model. For example, a supervised model might
         specify a variable that represents the target output for a particular
         input.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            If True, create an input variable that can hold a sparse matrix.
+            Defaults to False, which assumes all arrays are dense.
 
         Returns
         -------

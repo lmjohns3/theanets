@@ -193,8 +193,13 @@ class Autoencoder(feedforward.Autoencoder):
       variable across all times and all data items.
     '''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            Not used -- sparse inputs are not supported for recurrent networks.
 
         Returns
         -------
@@ -202,6 +207,8 @@ class Autoencoder(feedforward.Autoencoder):
             A list of the variables that this network requires as inputs.
         '''
         _warn_dimshuffle()
+
+        assert not sparse_input, 'Theanets does not support sparse recurrent models!'
 
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
@@ -288,8 +295,13 @@ class Regressor(feedforward.Regressor):
       a particular output variable across all times and all data items.
     '''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            Not used -- sparse inputs are not supported for recurrent networks.
 
         Returns
         -------
@@ -297,6 +309,8 @@ class Regressor(feedforward.Regressor):
             A list of the variables that this network requires as inputs.
         '''
         _warn_dimshuffle()
+
+        assert not sparse_input, 'Theanets does not support sparse recurrent models!'
 
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.
@@ -334,8 +348,13 @@ class Classifier(feedforward.Classifier):
       in a batch.
     '''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            Not used -- sparse inputs are not supported for recurrent networks.
 
         Returns
         -------
@@ -343,6 +362,8 @@ class Classifier(feedforward.Classifier):
             A list of the variables that this network requires as inputs.
         '''
         _warn_dimshuffle()
+
+        assert not sparse_input, 'Theanets does not support sparse recurrent models!'
 
         # the first dimension indexes time, the second indexes the elements of
         # each minibatch, and the third indexes the variables in a given frame.

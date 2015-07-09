@@ -5,6 +5,7 @@ r'''
 
 import numpy as np
 import theano
+import theano.sparse as SS
 import theano.tensor as TT
 import warnings
 
@@ -79,14 +80,21 @@ class Autoencoder(graph.Network):
     layer configuration is palindromic.
     '''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            Unused -- theanets does not support autoencoders with sparse input.
 
         Returns
         -------
         vars : list of theano variables
             A list of the variables that this network requires as inputs.
         '''
+        assert not sparse_input, 'Theanets does not support sparse autoencoders!'
+
         # x represents our network's input (and target outputs).
         self.x = TT.matrix('x')
 
@@ -241,8 +249,14 @@ class Regressor(graph.Network):
     is required for the inputs and outputs of the problem.
     '''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            If True, create an input variable that can hold a sparse matrix.
+            Defaults to False, which assumes all arrays are dense.
 
         Returns
         -------
@@ -251,6 +265,8 @@ class Regressor(graph.Network):
         '''
         # x represents our network's input.
         self.x = TT.matrix('x')
+        if sparse_input:
+            self.x = SS.csr_matrix('x')
 
         # this variable holds the target outputs for input x.
         self.targets = TT.matrix('targets')
@@ -326,8 +342,14 @@ class Classifier(graph.Network):
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
     '''Classifiers set the default activation for the output layer.'''
 
-    def _setup_vars(self):
+    def _setup_vars(self, sparse_input):
         '''Setup Theano variables for our network.
+
+        Parameters
+        ----------
+        sparse_input : bool
+            If True, create an input variable that can hold a sparse matrix.
+            Defaults to False, which assumes all arrays are dense.
 
         Returns
         -------
@@ -336,6 +358,8 @@ class Classifier(graph.Network):
         '''
         # x represents our network's input.
         self.x = TT.matrix('x')
+        if sparse_input:
+            self.x = SS.csr_matrix('x')
 
         # for a classifier, this specifies the correct labels for a given input.
         self.labels = TT.ivector('labels')

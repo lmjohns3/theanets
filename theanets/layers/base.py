@@ -32,6 +32,7 @@ from __future__ import division
 import climate
 import numpy as np
 import theano
+import theano.sparse as SS
 import theano.tensor as TT
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -263,7 +264,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         # transform the outputs to be a list of ordered pairs if needed.
         if isinstance(outputs, dict):
             outputs = sorted(outputs.items())
-        if isinstance(outputs, TT.TensorVariable):
+        if isinstance(outputs, (TT.TensorVariable, SS.SparseVariable)):
             outputs = [('out', outputs)]
 
         # set up outputs for this layer by adding noise and dropout as needed.

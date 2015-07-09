@@ -154,7 +154,7 @@ class TestConv1(BaseRecurrent):
     def test_feed_forward(self):
         net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
         out = net.predict(np.random.randn(5, 8, Base.INPUTS).astype('f'))
-        assert out.shape == (3, 8, Base.OUTPUTS)
+        assert out.shape == (5, 6, Base.OUTPUTS)
 
     def test_create(self):
         self.assert_param_names(['b', 'w'])

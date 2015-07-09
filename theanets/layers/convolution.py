@@ -85,7 +85,7 @@ class Conv1(Convolution):
     :class:`theanets.recurrent.Predictor`,
     :class:`theanets.recurrent.Classifier`, or
     :class:`theanets.recurrent.Regressor`. The convolution will always be
-    applied over the "time" dimension (axis 0).
+    applied over the "time" dimension (axis 1).
 
     Parameters
     ----------
@@ -129,9 +129,9 @@ class Conv1(Convolution):
         updates : list of update pairs
             A sequence of updates to apply inside a Theano function.
         '''
-        # input is:     (time, batch, input)
+        # input is:     (batch, time, input)
         # conv2d wants: (batch, input, 1, time)
-        x = self._only_input(inputs).dimshuffle(1, 2, 'x', 0)
+        x = self._only_input(inputs).dimshuffle(0, 2, 'x', 1)
 
         pre = TT.nnet.conv.conv2d(
             x,
@@ -140,9 +140,9 @@ class Conv1(Convolution):
             filter_shape=(self.size, self.input_size) + self.filter_shape,
             border_mode=self.border_mode,
             subsample=self.stride,
-        ).dimshuffle(3, 0, 1, 2)[:, :, :, 0] + self.find('b')
+        ).dimshuffle(0, 3, 1, 2)[:, :, :, 0] + self.find('b')
         # conv2d output is: (batch, output, 1, time)
-        # we want:          (time, batch, output)
+        # we want:          (batch, time, output)
         # (have to do [:, :, :, 0] to remove unused trailing dimension)
 
         return dict(pre=pre, out=self.activate(pre)), []

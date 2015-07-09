@@ -42,8 +42,8 @@ SIN = sum(c * np.sin(TAU * f * T) for c, f in ((2, 1.5), (3, 1.8), (4, 1.1)))
 # containing the target sine wave. We have to stack the target sine wave here
 # because recurrent models expect a tensor with three dimensions, and the batch
 # size for recurrent networks must be greater than 1.
-ZERO = np.zeros((len(T), BATCH_SIZE, 1), 'f')
-WAVES = np.concatenate([SIN[:, None, None]] * BATCH_SIZE, axis=1).astype('f')
+ZERO = np.zeros((BATCH_SIZE, len(T), 1), 'f')
+WAVES = np.concatenate([SIN[None, :, None]] * BATCH_SIZE, axis=0).astype('f')
 
 
 # Set up plotting axes to show the output result and learning curves.
@@ -69,12 +69,13 @@ for i, layer in enumerate((
     for tm, _ in net.itertrain([ZERO, WAVES],
                                monitor_gradients=True,
                                batch_size=BATCH_SIZE,
+                               algorithm='rmsprop',
                                learning_rate=0.0001,
                                momentum=0.9,
                                min_improvement=0.01):
         losses.append(tm['loss'])
     prd = net.predict(ZERO)
-    wave_ax.plot(T, prd[:, 0, 0].flatten(), label=name, alpha=0.7, color=COLORS[i])
+    wave_ax.plot(T, prd[0, :, 0].flatten(), label=name, alpha=0.7, color=COLORS[i])
     learn_ax.plot(losses, label=name, alpha=0.7, color=COLORS[i])
 
 

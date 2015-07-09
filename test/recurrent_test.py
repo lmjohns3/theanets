@@ -31,8 +31,7 @@ class TestFunctions(Base):
 
     def test_batches_labeled(self):
         f = theanets.recurrent.batches(
-            self.samples,
-            self.labels,
+            [self.samples, self.labels],
             steps=self.NUM_TIMES,
             batch_size=self.NUM_EXAMPLES)
         assert len(f()) == 2
@@ -41,7 +40,7 @@ class TestFunctions(Base):
 
     def test_batches_unlabeled(self):
         f = theanets.recurrent.batches(
-            self.samples, steps=self.NUM_TIMES, batch_size=self.NUM_EXAMPLES)
+            [self.samples], steps=self.NUM_TIMES, batch_size=self.NUM_EXAMPLES)
         assert len(f()) == 1
         assert f()[0].shape == (self.NUM_TIMES, self.NUM_EXAMPLES, self.NUM_INPUTS)
 

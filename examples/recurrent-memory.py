@@ -33,8 +33,8 @@ BATCH_SIZE = 32
 # network. These weights are zero everywhere except for the last BITS time
 # steps, which forces the network to do anything it can to reproduce the input
 # pattern at the end of the output.
-mask = np.ones((TIME, BATCH_SIZE, 1), bool)
-mask[:TIME - BITS - 1] = 0
+mask = np.ones((BATCH_SIZE, TIME, 1), bool)
+mask[:, :TIME - BITS - 1] = 0
 
 
 # We use a callable to generate a batch of random input data to present to our
@@ -42,8 +42,8 @@ mask[:TIME - BITS - 1] = 0
 # pattern whose final BITS elements correspond to the initial BITS elements of
 # the input, and the fixed weight mask from above.
 def generate():
-    s, t = np.random.randn(2, TIME, BATCH_SIZE, 1).astype('f')
-    s[:BITS] = t[-BITS:] = np.random.randn(BITS, BATCH_SIZE, 1)
+    s, t = np.random.randn(2, BATCH_SIZE, TIME, 1).astype('f')
+    s[:, :BITS] = t[:, -BITS:] = np.random.randn(BATCH_SIZE, BITS, 1)
     return s, t, mask
 
 src, tgt, msk = generate()
@@ -57,6 +57,7 @@ net = theanets.recurrent.Regressor(
 
 net.train(generate,
           batch_size=BATCH_SIZE,
+          algorithm='rmsprop',
           max_gradient_norm=1,
           learning_rate=0.001,
           momentum=0.9,
@@ -84,10 +85,10 @@ def plot(n, z, label, rectangle):
         ax.set_xlabel('Example')
     ax.set_ylabel(label)
 
-out = net.predict(src)[:, :, 0]
-vm = max(abs(src[:BITS]).max(), abs(out[-BITS]).max())
+out = net.predict(src)[:, :, 0].T
+vm = max(abs(src[:, :BITS]).max(), abs(out[:, -BITS]).max())
 
-plot(1, src[:, :, 0], 'Input', 0)
+plot(1, src[:, :, 0].T, 'Input', 0)
 plot(2, out, 'Output', TIME - BITS)
 
 plt.show()

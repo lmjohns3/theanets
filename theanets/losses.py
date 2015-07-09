@@ -32,15 +32,15 @@ class Loss(util.Registrar(str('Base'), (), {})):
     I_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
     def __init__(self, in_dim, out_dim=None, weighted=False):
-        self.input = Loss.F_CONTAINERS[in_dim]()
+        self.input = Loss.F_CONTAINERS[in_dim]('input')
         self.variables = [self.input]
         self.target = None
         if out_dim:
-            self.target = Loss.F_CONTAINERS[out_dim]()
+            self.target = Loss.F_CONTAINERS[out_dim]('target')
             self.variables.append(self.target)
         self.weight = None
         if weighted:
-            self.weight = Loss.F_CONTAINERS[out_dim or in_dim]()
+            self.weight = Loss.F_CONTAINERS[out_dim or in_dim]('weight')
             self.variables.append(self.weight)
 
     def diff(self, output):
@@ -117,12 +117,12 @@ class CrossEntropy(Loss):
     __extra_registration_keys__ = ['XE']
 
     def __init__(self, in_dim, out_dim, weighted=False):
-        self.input = Loss.F_CONTAINERS[in_dim]()
-        self.target = Loss.I_CONTAINERS[out_dim]()
+        self.input = Loss.F_CONTAINERS[in_dim]('input')
+        self.target = Loss.I_CONTAINERS[out_dim]('target')
         self.variables = [self.input, self.target]
         self.weight = None
         if weighted:
-            self.weight = Loss.F_CONTAINERS[out_dim]()
+            self.weight = Loss.F_CONTAINERS[out_dim]('weight')
             self.variables.append(self.weight)
 
     def __call__(self, output):

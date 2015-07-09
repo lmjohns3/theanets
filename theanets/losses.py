@@ -209,35 +209,8 @@ class MeanAbsoluteError(Loss):
         return abs(err).mean()
 
 
-class Hinge(Loss):
-    '''Hinge loss function.
-
-    .. math::
-       \mathcal{L}(x, t) = \begin{cases}
-         x - t \mbox{ if } x > t \\ 0 \mbox{ otherwise} \end{cases}
-    '''
-
-    def __call__(self, output):
-        '''Construct the computation graph for this loss function.
-
-        Parameters
-        ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
-
-        Returns
-        -------
-        loss : Theano expression
-            The values of the loss given the network output.
-        '''
-        err = TT.maximum(0, self.diff(output))
-        if self.weight is not None:
-            return (self.weight * err).sum() / self.weight.sum()
-        return err.mean()
-
-
 class CrossEntropy(Loss):
-    '''Cross-entropy (XE) loss function.
+    '''Cross-entropy (XE) loss function for classifiers.
 
     Parameters
     ----------
@@ -279,20 +252,19 @@ class CrossEntropy(Loss):
     -----
 
     The cross-entropy between a "true" distribution over discrete classes
-    :math:`p(t)` and a "model" distribution over classes :math:`q(y)` is the
-    number of bits needed to store the model distribution, under the expectation
-    of the true distribution. Mathematically, this loss computes:
+    :math:`p(t)` and a "model" distribution over predicted classes :math:`q(x)`
+    is the number of bits needed to store the model distribution, under the
+    expectation of the true distribution. Mathematically, this loss computes:
 
     .. math::
        \mathcal{L}(x, t) = - \sum_{k=1}^K p(t=k) \log q(x=k)
 
     The loss value is similar to the KL divergence between :math:`p` and
-    :math:`q`.
-
-    When using this loss, targets are assumed to be integers in the half-open
-    interval :math:`[0, k)`; the loss is computed by first taking the log of the
-    model distributin and then summing up only the entries in the resulting
-    array corresponding to the true class.
+    :math:`q`, but it is specifically aimed at classification models. When using
+    this loss, targets are assumed to be integers in the half-open interval
+    :math:`[0, k)`; the loss is computed by first taking the log of the model
+    distributin and then summing up only the entries in the resulting array
+    corresponding to the true class.
     '''
 
     __extra_registration_keys__ = ['XE']
@@ -327,12 +299,11 @@ class CrossEntropy(Loss):
             The values of the loss given the network output.
         '''
         k = output.shape[-1]
-        n = TT.prod(output.shape)
-        prob = output.reshape((-1, k))[
-            TT.arange(n // k), self.target.reshape((-1, ))]
+        n = TT.prod(output.shape) // k
+        prob = output.reshape((n, k))[TT.arange(n), self.target.reshape((n, ))]
         nlp = -TT.log(TT.clip(prob, 1e-8, 1))
         if self.weight is not None:
-            return (self.weight.reshape((-1, )) * nlp).sum() / self.weight.sum()
+            return (self.weight.reshape((n, )) * nlp).sum() / self.weight.sum()
         return nlp.mean()
 
     def accuracy(self, output):
@@ -355,3 +326,44 @@ class CrossEntropy(Loss):
         if self.weight is not None:
             acc = (self.weight * correct).sum() / self.weight.sum()
         return acc
+
+
+class Hinge(CrossEntropy):
+    '''Hinge loss function for classifiers.
+
+    Notes
+    -----
+
+    The hinge loss as implemented here computes the maximum difference between
+    the prediction :math:`q(x=k)` for a class :math:`k` and the prediction
+    :math:`q(x=t)` for the correct class :math:`t`:
+
+    .. math::
+       \mathcal{L}(x, t) = \max(0, \max_k q(x=k) - q(x=t))
+
+    This loss is zero whenever the prediction for the correct class is the
+    largest over classes, and increases linearly when the prediction for an
+    incorrect class is the largest.
+    '''
+
+    def __call__(self, output):
+        '''Construct the computation graph for this loss function.
+
+        Parameters
+        ----------
+        output : Theano expression
+            A Theano expression representing the output of a computation graph.
+
+        Returns
+        -------
+        loss : Theano expression
+            The values of the loss given the network output.
+        '''
+        k = output.shape[-1]
+        n = TT.prod(output.shape) // k
+        output = output.reshape((n, k))
+        true = output[TT.arange(n), self.target.reshape((n, ))]
+        err = TT.maximum(0, (output - true).max(axis=-1))
+        if self.weight is not None:
+            return (self.weight.reshape((n, )) * err).sum() / self.weight.sum()
+        return err.mean()

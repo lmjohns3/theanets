@@ -65,8 +65,8 @@ Losses
    Loss
    MeanSquaredError
    MeanAbsoluteError
-   Hinge
    CrossEntropy
+   Hinge
 
 Layer types
 ===========

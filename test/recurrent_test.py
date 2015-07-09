@@ -131,26 +131,6 @@ class TestWeightedRegressor(TestRegressor):
         self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS, self.OUTPUT_WEIGHTS])
 
 
-class TestPredictor(Base):
-    def _build(self, *hiddens):
-        return theanets.recurrent.Predictor(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_INPUTS])
-
-    def test_predict_onelayer(self):
-        net = self._build(13)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_INPUTS)
-
-    def test_feed_forward(self):
-        net = self._build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['hid2:out'].shape, 13)
-        self.assert_shape(hs['out:out'].shape, self.NUM_INPUTS)
-
-
 class TestClassifier(Base):
     def _build(self, *hiddens):
         return theanets.recurrent.Classifier(

@@ -130,10 +130,6 @@ dimension to represent time. In general,
   - the first (0) axis for versions through 0.6, or
   - the second (1) axis for versions 0.7 and up.
 
-In addition to the three vanilla model types described above, recurrent networks
-also allow for the possibility of *predicting future outputs*. This task is
-handled by :class:`prediction <theanets.recurrent.Predictor>` networks.
-
 .. warning::
 
    Starting with release 0.7.0 of ``theanets``, recurrent models will change the
@@ -153,34 +149,23 @@ handled by :class:`prediction <theanets.recurrent.Predictor>` networks.
    one. If you wish to run a recurrent model on a single sample, just create a
    batch with two copies of the same sample.
 
-Autoencoder
------------
+Autoencoding
+------------
 
 A :class:`recurrent autoencoder <theanets.recurrent.Autoencoder>`, just like its
 feedforward counterpart, takes as input a single array of data :math:`X \in
 \mathbb{R}^{t \times m \times n}` and attempts to recreate the same data at the
 output, under a squared-error loss.
 
-Prediction
-----------
-
-An interesting subclass of autoencoders contains models that attempt to predict
-future states based on past data. :class:`Prediction
-<theanets.recurrent.Predictor>` models are like autoencoders in that they
-require only a data array as input, and they train under a squared-error loss.
-Unlike a recurrent autoencoder, however, a prediction model is explicitly
-required to produce a future output, rather than the output from the same time
-step.
-
 Regression
 ----------
 
-A recurrent regression model is also just like its feedforward counterpart. It
-requires two inputs at training time: an array of input data :math:`X \in
-\mathbb{R}^{t \times m \times n}` and a corresponding array of output data
-:math:`Y \in \mathbb{R}^{t \times m \times o}`. Like the feedforward regression
-models, the recurrent version attempts to produce the target outputs under a
-squared-error loss.
+A :class:`recurrent regression <theantes.recurrent.Regressor>` model is also
+just like its feedforward counterpart. It requires two inputs at training time:
+an array of input data :math:`X \in \mathbb{R}^{t \times m \times n}` and a
+corresponding array of output data :math:`Y \in \mathbb{R}^{t \times m \times
+o}`. Like the feedforward regression models, the recurrent version attempts to
+produce the target outputs under a squared-error loss.
 
 Classification
 --------------

@@ -40,7 +40,6 @@ Recurrent networks
 
    Autoencoder
    Classifier
-   Predictor
    Regressor
 
 Recurrent helpers

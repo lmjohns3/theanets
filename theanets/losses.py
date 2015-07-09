@@ -1,7 +1,7 @@
 '''Loss functions for neural network models.
 '''
 
-import theano
+import theano.sparse as SS
 import theano.tensor as TT
 
 from . import util
@@ -41,6 +41,16 @@ class Loss(util.Registrar(str('Base'), (), {})):
         If True, a floating-point array of weights with the same dimensions as
         ``out_dim`` will be required to compute the "weighted" loss. Defaults
         to False.
+    sparse_input : bool or str, optional
+        If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
+        stored as sparse matrices in the CSR or CSC format (respectively). If
+        this is True, sparse input will be enabled in CSR format. By default
+        this is False, which means inputs are dense.
+
+    Raises
+    ------
+    AssertionError :
+        If ``sparse_input`` is enabled and ``in_dim`` is not 2.
 
     Attributes
     ----------
@@ -59,8 +69,15 @@ class Loss(util.Registrar(str('Base'), (), {})):
     F_CONTAINERS = (TT.scalar, TT.vector, TT.matrix, TT.tensor3, TT.tensor4)
     I_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
-    def __init__(self, in_dim, out_dim=None, weighted=False):
+    def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
+        if (sparse_input is True or
+            isinstance(sparse_input, str) and sparse_input.lower() == 'csr'):
+            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csr_matrix('input')
+        if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':
+            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csc_matrix('input')
         self.variables = [self.input]
         self.target = None
         if out_dim:
@@ -222,6 +239,42 @@ class Hinge(Loss):
 class CrossEntropy(Loss):
     '''Cross-entropy (XE) loss function.
 
+    Parameters
+    ----------
+    in_dim : int
+        Number of dimensions required to store the input data to compute the
+        loss.
+    out_dim : int, optional
+        Number of dimensions required to store the target values for computing
+        the loss. If this is None (the default), no target values are required
+        for this loss.
+    weighted : bool, optional
+        If True, a floating-point array of weights with the same dimensions as
+        ``out_dim`` will be required to compute the "weighted" loss. Defaults
+        to False.
+    sparse_input : str, optional
+        If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
+        stored as sparse matrices in the CSR or CSC format (respectively). By
+        default this is None, which means inputs are dense.
+
+    Raises
+    ------
+    AssertionError :
+        If ``sparse_input`` is True and ``in_dim`` is not 2.
+
+    Attributes
+    ----------
+    input : :class:`theano.TensorVariable`
+        A symbolic Theano variable representing input data.
+    target : :class:`theano.TensorVariable`
+        A symbolic Theano variable representing target output data. None if no
+        target values are required to compute the loss.
+    weight : :class:`theano.TensorVariable`
+        A symbolic Theano variable representing target weights. None if no
+        weights are required to compute the loss.
+    variables : list of :class:`theano.TensorVariable`
+        A list of all variables required to compute the loss.
+
     Notes
     -----
 
@@ -244,8 +297,15 @@ class CrossEntropy(Loss):
 
     __extra_registration_keys__ = ['XE']
 
-    def __init__(self, in_dim, out_dim, weighted=False):
+    def __init__(self, in_dim, out_dim, weighted=False, sparse_input=False):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
+        if (sparse_input is True or
+            isinstance(sparse_input, str) and sparse_input.lower() == 'csr'):
+            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csr_matrix('input')
+        if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':
+            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csc_matrix('input')
         self.target = Loss.I_CONTAINERS[out_dim]('target')
         self.variables = [self.input, self.target]
         self.weight = None

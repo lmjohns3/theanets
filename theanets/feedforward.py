@@ -223,9 +223,10 @@ class Regressor(graph.Network):
     is required for the inputs and outputs of the problem.
     '''
 
-    def __init__(self, layers=(), loss='mse', weighted=False):
+    def __init__(self, layers=(), loss='mse', weighted=False, sparse_input=False):
         super(Regressor, self).__init__(
-            layers=layers, loss=loss, in_dim=2, out_dim=2, weighted=weighted)
+            layers=layers, loss=loss, in_dim=2, out_dim=2, weighted=weighted,
+            sparse_input=sparse_input)
 
 
 class Classifier(graph.Network):
@@ -272,9 +273,10 @@ class Classifier(graph.Network):
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
     '''Classifiers set the default activation for the output layer.'''
 
-    def __init__(self, layers=(), loss='xe', weighted=False):
+    def __init__(self, layers=(), loss='xe', weighted=False, sparse_input=False):
         super(Classifier, self).__init__(
-            layers=layers, loss=loss, in_dim=2, out_dim=1, weighted=weighted)
+            layers=layers, loss=loss, in_dim=2, out_dim=1, weighted=weighted,
+            sparse_input=sparse_input)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.

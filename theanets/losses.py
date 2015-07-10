@@ -209,6 +209,48 @@ class MeanAbsoluteError(Loss):
         return abs(err).mean()
 
 
+class KullbackLeiblerDivergence(Loss):
+    '''The KL divergence loss is computed over probability distributions.
+
+    Notes
+    -----
+
+    The KL divergence loss is intended to optimize models that generate
+    probability distributions. If the outputs :math:`x_i` of a model represent a
+    normalized probability distribution (over the output variables), and the
+    targets :math:`t_i` represent a normalized target distribution (over the
+    output variables), then the KL divergence is given by:
+
+    .. math::
+       \mathcal{L}(x, t) = \frac{1}{d} \sum_{i=1}^d t_i \log \frac{t_i}{x_i}
+
+    Here the KL divergence is computed as a mean value over the output variables
+    in the model.
+    '''
+
+    __extra_registration_keys__ = ['KL', 'KLD']
+
+    def __call__(self, output):
+        '''Construct the computation graph for this loss function.
+
+        Parameters
+        ----------
+        output : Theano expression
+            A Theano expression representing the output of a computation graph.
+
+        Returns
+        -------
+        loss : Theano expression
+            The values of the loss given the network output.
+        '''
+        eps = 1e-8
+        t = TT.clip(self.target, eps, 1 - eps)
+        kl = t * TT.log(t / TT.clip(output, eps, 1 - eps))
+        if self.weight is not None:
+            return abs(self.weight * kl).sum() / self.weight.sum()
+        return abs(kl).mean()
+
+
 class CrossEntropy(Loss):
     '''Cross-entropy (XE) loss function for classifiers.
 

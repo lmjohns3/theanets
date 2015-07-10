@@ -65,6 +65,7 @@ Losses
    Loss
    MeanSquaredError
    MeanAbsoluteError
+   KullbackLeiblerDivergence
    CrossEntropy
    Hinge
 

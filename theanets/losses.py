@@ -388,6 +388,8 @@ class Hinge(CrossEntropy):
     incorrect class is the largest.
     '''
 
+    __extra_registration_keys__ = []
+
     def __call__(self, output):
         '''Construct the computation graph for this loss function.
 

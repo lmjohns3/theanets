@@ -71,8 +71,8 @@ class Loss(util.Registrar(str('Base'), (), {})):
 
     def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
-        if (sparse_input is True or
-            isinstance(sparse_input, str) and sparse_input.lower() == 'csr'):
+        if sparse_input is True or \
+           isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
             assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csr_matrix('input')
         if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':
@@ -313,8 +313,8 @@ class CrossEntropy(Loss):
 
     def __init__(self, in_dim, out_dim, weighted=False, sparse_input=False):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
-        if (sparse_input is True or
-            isinstance(sparse_input, str) and sparse_input.lower() == 'csr'):
+        if sparse_input is True or \
+           isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
             assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csr_matrix('input')
         if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':

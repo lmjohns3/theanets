@@ -13,7 +13,7 @@ class Base(object):
     INPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_INPUTS)).astype('f')
     OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
     OUTPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS)).astype('f')
-    CLASSES = np.random.randn(NUM_EXAMPLES).astype('i')
+    CLASSES = np.random.randint(NUM_CLASSES, size=NUM_EXAMPLES).astype('i')
     CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES)).astype('f')
 
     def assert_progress(self, algo, data, **kwargs):

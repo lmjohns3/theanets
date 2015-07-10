@@ -8,6 +8,7 @@ from .losses import Loss
 from .regularizers import Regularizer
 from .main import Experiment
 
+from . import convolution
 from . import recurrent
 from . import regularizers
 

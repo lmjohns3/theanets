@@ -150,7 +150,7 @@ class Network(object):
         form = 'feedforward'
         kwargs = dict(
             name='out' if is_output else 'hid{}'.format(len(self.layers)),
-            activation=act if is_output else 'logistic',
+            activation=act if is_output else 'relu',
             inputs={self.layers[-1].output_name(): self.layers[-1].size},
             size=layer,
         )

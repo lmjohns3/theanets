@@ -226,7 +226,7 @@ following:
   <theanets.layers.base.Layer>` subclass.
 
 - ``activation``: A string describing the :ref:`creating-activation` to use for
-  the layer. This defaults to "logistic".
+  the layer. This defaults to "relu".
 
 - ``inputs``: An integer or dictionary describing the sizes of the inputs that
   this layer expects. This is normally optional and defaults to the size of the
@@ -272,7 +272,7 @@ Integers
 If a layer value is an integer, that value is interpreted as the ``size`` of a
 regular :class:`Feedforward <theanets.layers.feedforward.Feedforward>` layer.
 All options for the layer are set to their defaults (e.g., the activation
-function defaults to the logistic sigmoid).
+function defaults to "relu").
 
 For example, to create a network with an input layer containing 4 units, hidden
 layers with 5 and 6 units, and an output layer with 2 units, you can just use
@@ -336,9 +336,9 @@ Activation Functions
 
 An activation function (sometimes also called a transfer function) specifies how
 the final output of a layer is computed from the weighted sums of the inputs. By
-default, hidden layers in ``theanets`` use a logistic sigmoid activation
-function. Output layers in :class:`Regressor <theanets.feedforward.Regressor>`
-and :class:`Autoencoder <theanets.feedforward.Autoencoder>` models use linear
+default, hidden layers in ``theanets`` use a relu activation function. Output
+layers in :class:`Regressor <theanets.feedforward.Regressor>` and
+:class:`Autoencoder <theanets.feedforward.Autoencoder>` models use linear
 activations (i.e., the output is just the weighted sum of the inputs from the
 previous layer), and the output layer in :class:`Classifier
 <theanets.feedforward.Classifier>` models uses a softmax activation.

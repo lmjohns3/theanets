@@ -209,7 +209,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
     @property
     def params(self):
         '''A list of all parameters in this layer.'''
-        return self._params + self.activate.params
+        return self._params + getattr(self.activate, 'params', [])
 
     @property
     def num_params(self):
@@ -312,7 +312,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
                      self.name,
                      inputs,
                      self.size,
-                     self.activate.name,
+                     getattr(self.activate, 'name', self.activate),
                      self.num_params)
 
     def _fmt(self, string):

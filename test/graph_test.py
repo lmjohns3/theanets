@@ -28,6 +28,38 @@ class TestNetwork:
         assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
         assert m.layers[2].partner is m.layers[1]
 
+    def test_find_number(self):
+        m = theanets.Regressor((1, 2, 1))
+        p = m.find(1, 0)
+        assert p.name == 'hid1.w'
+        p = m.find(2, 0)
+        assert p.name == 'out.w'
+
+    def test_find_name(self):
+        m = theanets.Regressor((1, 2, 1))
+        p = m.find('hid1', 'w')
+        assert p.name == 'hid1.w'
+        p = m.find('out', 'w')
+        assert p.name == 'out.w'
+
+    def test_find_missing(self):
+        m = theanets.Regressor((1, 2, 1))
+        try:
+            m.find('hid4', 'w')
+            assert False
+        except KeyError:
+            pass
+        try:
+            m.find(0, 0)
+            assert False
+        except KeyError:
+            pass
+        try:
+            m.find(1, 3)
+            assert False
+        except KeyError:
+            pass
+
 
 class TestMonitors:
     def setUp(self):

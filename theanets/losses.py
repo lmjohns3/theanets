@@ -407,7 +407,7 @@ class Hinge(CrossEntropy):
         n = TT.prod(output.shape) // k
         output = output.reshape((n, k))
         true = output[TT.arange(n), self.target.reshape((n, ))]
-        err = TT.maximum(0, (output - true).max(axis=-1))
+        err = TT.maximum(0, (output - true[:, None]).max(axis=-1))
         if self.weight is not None:
             return (self.weight.reshape((n, )) * err).sum() / self.weight.sum()
         return err.mean()

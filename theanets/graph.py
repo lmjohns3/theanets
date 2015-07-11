@@ -59,6 +59,7 @@ import numpy as np
 import pickle
 import theano
 import theano.tensor as TT
+import time
 import warnings
 
 from . import layers
@@ -262,8 +263,8 @@ class Network(object):
             If this is not None, and ``save_progress`` is nonzero, then save the
             model periodically during training. This parameter gives the full
             path of a file to save the model. If this name contains a "{}"
-            format specifier, it will be filled with the UTC Unix timestamp at
-            the time the model is saved. Defaults to None.
+            format specifier, it will be filled with the integer Unix timestamp
+            at the time the model is saved. Defaults to None.
 
         Yields
         ------
@@ -333,7 +334,7 @@ class Network(object):
             now = datetime.datetime.utcnow()
             elapsed = (now - start).total_seconds()
             if i and needs_saving(elapsed, i):
-                self.save(save_progress.format(int(now.timestamp())))
+                self.save(save_progress.format(int(time.time())))
                 start = now
 
     def train(self, *args, **kwargs):

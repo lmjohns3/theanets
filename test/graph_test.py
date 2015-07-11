@@ -1,5 +1,9 @@
 import numpy as np
+import os
+import tempfile
 import theanets
+
+import util
 
 
 class TestNetwork:
@@ -95,3 +99,19 @@ class TestMonitors:
     def test_wildcard(self):
         self.assert_monitors({'*.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1', 'out.w<1'])
         self.assert_monitors({'hid?.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1'])
+
+
+class TestSaving(util.Base):
+    def test_save_every(self):
+        net = theanets.Autoencoder((self.NUM_INPUTS, (3, 'prelu'), self.NUM_INPUTS))
+        f, p = tempfile.mkstemp(suffix='pkl')
+        os.close(f)
+        os.unlink(p)
+        train = net.itertrain([self.INPUTS], save_every=2, save_progress=p)
+        for i, _ in enumerate(zip(train, range(9))):
+            if i == 3 or i == 5 or i == 7:
+                assert os.path.isfile(p)
+            else:
+                assert not os.path.isfile(p)
+            if os.path.exists(p):
+                os.unlink(p)

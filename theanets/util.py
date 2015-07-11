@@ -77,7 +77,7 @@ def random_matrix(rows, cols, mean=0, std=1, sparsity=0, radius=0, diagonal=0, r
         arr *= mask
     if radius > 0:
         # rescale weights to have the appropriate spectral radius.
-        u, s, vT = np.linalg.svd(arr)
+        u, s, vT = np.linalg.svd(arr, full_matrices=False)
         arr = np.dot(np.dot(u, np.diag(radius * s / abs(s[0]))), vT)
     if diagonal != 0:
         # generate a diagonal weight matrix. ignore other options.

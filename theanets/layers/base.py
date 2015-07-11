@@ -187,7 +187,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     _count = 0
 
-    def __init__(self, size, inputs, name=None, activation='logistic', **kwargs):
+    def __init__(self, size, inputs, name=None, activation='relu', **kwargs):
         Layer._count += 1
         super(Layer, self).__init__()
         self.size = size

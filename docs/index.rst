@@ -66,13 +66,13 @@ In fact, you can just as easily create 3 (or any number of) hidden layers::
   net = theanets.Classifier([
       100, 1000, 1000, 1000, 10])
 
-By default, hidden layers use the logistic sigmoid transfer function. By passing
-a tuple instead of just an integer, you can change some of these layers to use
-different :mod:`activations <theanets.activations>`::
+By default, hidden layers use the relu transfer function. By passing a tuple
+instead of just an integer, you can change some of these layers to use different
+:mod:`activations <theanets.activations>`::
 
   maxout = (1000, 'maxout:4')  # maxout with 4 pieces.
   net = theanets.Classifier([
-      100, 1000, maxout, (1000, 'relu'), 10])
+      100, 1000, maxout, (1000, 'tanh'), 10])
 
 By passing a dictionary instead, you can specify even more attributes of each
 :mod:`layer <theanets.layers.base>`, like how its parameters are initialized::
@@ -80,7 +80,7 @@ By passing a dictionary instead, you can specify even more attributes of each
   # Sparsely-initialized layer with large nonzero weights.
   foo = dict(name='foo', size=1000, std=1, sparsity=0.9)
   net = theanets.Classifier([
-      100, foo, (1000, 'maxout:4'), (1000, 'relu'), 10])
+      100, foo, (1000, 'maxout:4'), (1000, 'tanh'), 10])
 
 Specifying layers is the heart of building models in ``theanets``. Read more
 about this in :doc:`creating`.

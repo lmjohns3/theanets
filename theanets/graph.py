@@ -150,7 +150,7 @@ class Network(object):
         form = 'feedforward'
         kwargs = dict(
             name='out' if is_output else 'hid{}'.format(len(self.layers)),
-            activation=act if is_output else 'logistic',
+            activation=act if is_output else 'relu',
             inputs={self.layers[-1].output_name(): self.layers[-1].size},
             size=layer,
         )
@@ -276,13 +276,25 @@ class Network(object):
             A dictionary of monitor values computed using the validation
             dataset, at the conclusion of training.
         '''
+        def create_dataset(data, **kwargs):
+            '''Create a dataset.'''
+            default_axis = 0
+            if not callable(data) and not callable(data[0]) and len(data[0].shape) == 3:
+                default_axis = 1
+            name = kwargs.get('name', 'dataset')
+            s = '{}_batches'.format(name)
+            return downhill.Dataset(
+                data, name=name, batch_size=kwargs.get('batch_size', 32),
+                iteration_size=kwargs.get('iteration_size', kwargs.get(s)),
+                axis=kwargs.get('axis', default_axis))
+
         # set up datasets ...
         if valid is None:
             valid = train
         if not isinstance(valid, downhill.Dataset):
-            valid = _create_dataset(valid, name='valid', **kwargs)
+            valid = create_dataset(valid, name='valid', **kwargs)
         if not isinstance(train, downhill.Dataset):
-            train = _create_dataset(train, name='train', **kwargs)
+            train = create_dataset(train, name='train', **kwargs)
 
         if 'algorithm' in kwargs:
             warnings.warn(
@@ -675,34 +687,3 @@ class Network(object):
         '''
         _, updates = self.build_graph(**kwargs)
         return updates
-
-
-def _create_dataset(data, **kwargs):
-    '''Create a dataset for this experiment.
-
-    Parameters
-    ----------
-    data : sequence of ndarray or callable
-        The values that you provide for data will be encapsulated inside a
-        :class:`Dataset <downhill.Dataset>` instance; see that class for
-        documentation on the types of things it needs. In particular, you
-        can currently pass in either a list/array/etc. of data, or a
-        callable that generates data dynamically.
-
-    Returns
-    -------
-    data : :class:`Dataset <downhill.Dataset>`
-        A dataset capable of providing mini-batches of data to a training
-        algorithm.
-    '''
-    default_axis = 0
-    if not callable(data) and not callable(data[0]) and len(data[0].shape) == 3:
-        default_axis = 1
-    name = kwargs.get('name', 'dataset')
-    b, i, s = 'batch_size', 'iteration_size', '{}_batches'.format(name)
-    return downhill.Dataset(
-        data,
-        name=name,
-        batch_size=kwargs.get(b, 32),
-        iteration_size=kwargs.get(i, kwargs.get(s)),
-        axis=kwargs.get('axis', default_axis))

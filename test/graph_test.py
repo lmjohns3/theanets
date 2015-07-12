@@ -3,7 +3,10 @@ import os
 import tempfile
 import theanets
 
-from itertools import izip as zip
+try:
+    from itertools import izip as zip
+except ImportError:  # python3
+    pass
 
 import util
 

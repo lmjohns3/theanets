@@ -132,16 +132,16 @@ dimension to represent time. In general,
 
 .. warning::
 
-   Starting with release 0.7.0 of ``theanets``, recurrent models will change the
-   expected axis ordering for data arrays! The axis ordering before version
-   0.7.0 is ``(time, batch, variables)``, and the axis ordering starting in the
-   0.7.0 release will be ``(batch, time, variables)``.
+   Starting with release 0.7.0 of ``theanets``, recurrent models have changed
+   the expected axis ordering for data arrays! The axis ordering before version
+   0.7.0 was ``(time, batch, variables)``, and the axis ordering starting in the
+   0.7.0 release is ``(batch, time, variables)``.
 
-   The new ordering will be more consistent with other models in ``theanets``.
+   The new ordering is more consistent with other models in ``theanets``.
    Starting in the 0.7 release, the first axis (index 0) of data arrays for all
-   model types will represent the examples in a batch, and the last axis (index
-   -1) will represent the variables. For recurrent models, the axis in the
-   middle of a batch (index 1) will represent time.
+   model types represents the examples in a batch, and the last axis (index -1)
+   represents the input variables. For recurrent models, the axis in the middle
+   of a batch (index 1) represents time.
 
 .. note::
 

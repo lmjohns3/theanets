@@ -11,17 +11,17 @@ import theano.tensor as TT
 from . import feedforward
 
 
-def batches(samples, labels=None, steps=100, batch_size=64, rng=None):
+def batches(arrays, steps=100, batch_size=64, rng=None):
     '''Return a callable that generates samples from a dataset.
 
     Parameters
     ----------
-    samples : ndarray (time-steps, data-dimensions)
-        An array of data. Rows in this array correspond to time steps, and
-        columns to variables.
-    labels : ndarray (time-steps, label-dimensions), optional
-        An array of data. Rows in this array correspond to time steps, and
-        columns to labels.
+    arrays : list of ndarray (time-steps, data-dimensions)
+        Arrays of data. Rows in these arrays are assumed to correspond to time
+        steps, and columns to variables. Multiple arrays can be given; in such
+        a case, these arrays usually correspond to [input, output]---for
+        example, for a recurrent regression problem---or [input, output,
+        weights]---for a weighted regression or classification problem.
     steps : int, optional
         Generate samples of this many time steps. Defaults to 100.
     batch_size : int, optional
@@ -39,26 +39,21 @@ def batches(samples, labels=None, steps=100, batch_size=64, rng=None):
         A callable that can be used inside a dataset for training a recurrent
         network.
     '''
+    assert batch_size >= 2, 'batch_size must be at least 2!'
+    assert isinstance(arrays, (tuple, list)), 'arrays must be a tuple or list!'
+
     if rng is None or isinstance(rng, int):
         rng = np.random.RandomState(rng)
 
-    def unlabeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
+    def sample():
+        xs = [np.zeros((batch_size, steps, a.shape[1]), a.dtype) for a in arrays]
         for i in range(batch_size):
-            j = rng.randint(len(samples) - steps)
-            xs[:, i, :] = samples[j:j+steps]
-        return [xs]
+            j = rng.randint(len(arrays[0]) - steps)
+            for x, a in zip(xs, arrays):
+                x[i] = a[j:j+steps]
+        return xs
 
-    def labeled_sample():
-        xs = np.zeros((steps, batch_size, samples.shape[1]), samples.dtype)
-        ys = np.zeros((steps, batch_size, labels.shape[1]), labels.dtype)
-        for i in range(batch_size):
-            j = rng.randint(len(samples) - steps)
-            xs[:, i, :] = samples[j:j+steps]
-            ys[:, i, :] = labels[j:j+steps]
-        return [xs, ys]
-
-    return unlabeled_sample if labels is None else labeled_sample
+    return sample
 
 
 class Text(object):
@@ -130,12 +125,12 @@ class Text(object):
         '''
         return ''.join(self._rev_index[c] for c in enc)
 
-    def classifier_batches(self, time_steps, batch_size, rng=None):
+    def classifier_batches(self, steps, batch_size, rng=None):
         '''Create a callable that returns a batch of training data.
 
         Parameters
         ----------
-        time_steps : int
+        steps : int
             Number of time steps in each batch.
         batch_size : int
             Number of training examples per batch.
@@ -155,14 +150,16 @@ class Text(object):
         if rng is None or isinstance(rng, int):
             rng = np.random.RandomState(rng)
 
+        T = np.arange(steps)
+
         def batch():
-            inputs = np.zeros((time_steps, batch_size, 1 + len(self.alpha)), 'f')
-            outputs = np.zeros((time_steps, batch_size), 'i')
+            inputs = np.zeros((batch_size, steps, 1 + len(self.alpha)), 'f')
+            outputs = np.zeros((batch_size, steps), 'i')
             for b in range(batch_size):
-                offset = rng.randint(len(self.text) - time_steps - 1)
-                enc = self.encode(self.text[offset:offset + time_steps + 1])
-                inputs[np.arange(time_steps), b, enc[:-1]] = 1
-                outputs[np.arange(time_steps), b] = enc[1:]
+                offset = rng.randint(len(self.text) - steps - 1)
+                enc = self.encode(self.text[offset:offset + steps + 1])
+                inputs[b, T, enc[:-1]] = 1
+                outputs[b, T] = enc[1:]
             return [inputs, outputs]
 
         return batch
@@ -171,13 +168,16 @@ class Text(object):
 class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
 
+    Notes
+    =====
+
     A recurrent autoencoder model requires the following inputs during training:
 
     - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-      ``x`` is expected to be one moment in time. Each element of axis 1 of
-      ``x`` represents a single data sample in a batch of samples. Each element
-      of axis 2 of ``x`` represents the measurements of a particular input
-      variable across all times and all data items.
+      ``x`` is expected to be one sample in a minibatch. Each element of axis 1
+      of ``x`` represents a moment of time. Each element of axis 2 of ``x``
+      represents the measurements of a particular input variable across all
+      times and all data items.
     '''
 
     def __init__(self, layers=(), loss='mse', weighted=False):
@@ -187,6 +187,9 @@ class Autoencoder(feedforward.Autoencoder):
 
 class Regressor(feedforward.Regressor):
     '''A regressor attempts to produce a target output.
+
+    Notes
+    =====
 
     A recurrent regression model takes the following inputs:
 
@@ -211,6 +214,9 @@ class Regressor(feedforward.Regressor):
 class Classifier(feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.
 
+    Notes
+    =====
+
     Unlike a feedforward classifier, where the target labels are provided as a
     single vector, a recurrent classifier requires a vector of target labels for
     each time step in the input data. So a recurrent classifier model requires
@@ -232,13 +238,13 @@ class Classifier(feedforward.Classifier):
         super(feedforward.Classifier, self).__init__(
             layers=layers, loss=loss, in_dim=3, out_dim=2, weighted=weighted)
 
-    def predict_sequence(self, seed, steps, streams=1, rng=None):
-        '''Draw a sequential sample of classes from this network.
+    def predict_sequence(self, labels, steps, streams=1, rng=None):
+        '''Draw a sequential sample of class labels from this network.
 
         Parameters
         ----------
-        seed : list of int
-            A list of integer class labels to "seed" the classifier.
+        labels : list of int
+            A list of integer class labels to get the classifier started.
         steps : int
             The number of time steps to sample.
         streams : int, optional
@@ -258,13 +264,13 @@ class Classifier(feedforward.Classifier):
         '''
         if rng is None or isinstance(rng, int):
             rng = np.random.RandomState(rng)
-        start = len(seed)
+        offset = len(labels)
         batch = max(2, streams)
-        inputs = np.zeros((start + steps, batch, self.layers[0].size), 'f')
-        inputs[np.arange(start), :, seed] = 1
-        for i in range(start, start + steps):
+        inputs = np.zeros((batch, offset + steps, self.layers[0].size), 'f')
+        inputs[:, np.arange(offset), labels] = 1
+        for i in range(offset, offset + steps):
             chars = []
-            for pdf in self.predict_proba(inputs[:i])[-1]:
+            for pdf in self.predict_proba(inputs[:i])[:, -1]:
                 try:
                     c = rng.multinomial(1, pdf).argmax(axis=-1)
                 except ValueError:
@@ -272,5 +278,5 @@ class Classifier(feedforward.Classifier):
                     # choose greedily in this case.
                     c = pdf.argmax(axis=-1)
                 chars.append(int(c))
-            inputs[i, np.arange(batch), chars] = 1
+            inputs[np.arange(batch), i, chars] = 1
             yield chars[0] if streams == 1 else chars

@@ -63,13 +63,13 @@ def batch_at(features, labels, seq_begins, seq_lengths):
         everywhere else.
     '''
     length = seq_lengths.max()
-    feat = np.zeros((length, BATCH_SIZE, features.shape[-1]), 'f')
-    labl = np.zeros((length, BATCH_SIZE), 'int32')
-    mask = np.zeros((length, BATCH_SIZE), 'f')
+    feat = np.zeros((BATCH_SIZE, length, features.shape[-1]), 'f')
+    labl = np.zeros((BATCH_SIZE, length), 'i')
+    mask = np.zeros((BATCH_SIZE, length), 'f')
     for b, (begin, length) in enumerate(zip(seq_begins, seq_lengths)):
-        feat[:length, b] = features[begin:begin+length]
-        labl[:length, b] = labels[begin:begin+length]
-        mask[:length, b] = 1
+        feat[b, :length] = features[begin:begin+length]
+        labl[b, :length] = labels[begin:begin+length]
+        mask[b, :length] = 1
     return [feat, labl, mask]
 
 

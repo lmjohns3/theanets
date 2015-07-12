@@ -216,11 +216,21 @@ class RNN(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        i = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = TT.dot(i, self.find('xh')) + self.find('b')
+
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             return [pre, self.activate(pre)]
-        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
-        (pre, out), updates = self._scan(fn, [x], [None, x])
+
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        (p, o), updates = self._scan(fn, [x], [None, x])
+        pre = p.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, out=out), updates
 
 
@@ -280,16 +290,24 @@ class LRRNN(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        r = TT.nnet.sigmoid(self.find('r'))
-        x = self._only_input(inputs)
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
         h = TT.dot(x, self.find('xh')) + self.find('b')
+        r = TT.nnet.sigmoid(self.find('r'))
 
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
             return [pre, h_t, r * h_tm1 + (1 - r) * h_t]
 
-        (pre, hid, out), updates = self._scan(fn, [h], [None, None, x])
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        (p, h, o), updates = self._scan(fn, [h], [None, None, x])
+        pre = p.dimshuffle(1, 0, 2)
+        hid = h.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
 
@@ -344,7 +362,9 @@ class ARRNN(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        x = self._only_input(inputs)
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
         r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
         h = TT.dot(x, self.find('xh')) + self.find('b')
 
@@ -353,7 +373,13 @@ class ARRNN(Recurrent):
             h_t = self.activate(pre)
             return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
 
-        (pre, hid, out), updates = self._scan(fn, [h, r], [None, None, x])
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        (p, h, o), updates = self._scan(fn, [h, r], [None, None, x])
+        pre = p.dimshuffle(1, 0, 2)
+        hid = h.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
 
 
@@ -400,7 +426,9 @@ class MRNN(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        x = self._only_input(inputs)
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
 
@@ -408,7 +436,12 @@ class MRNN(Recurrent):
             pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
             return [pre, self.activate(pre)]
 
-        (pre, out), updates = self._scan(fn, [h, f], [None, x])
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        (p, o), updates = self._scan(fn, [h, f], [None, x])
+        pre = p.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, factors=f, out=out), updates
 
     def to_spec(self):
@@ -522,12 +555,21 @@ class LSTM(Recurrent):
             h_t = o_t * TT.tanh(c_t)
             return [h_t, c_t]
 
-        x = self._only_input(inputs)
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+
         batch_size = x.shape[1]
-        (out, cell), updates = self._scan(
+        (o, c), updates = self._scan(
             fn,
             [TT.dot(x, self.find('xh')) + self.find('b')],
             [('h', batch_size), ('c', batch_size)])
+
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        out = o.dimshuffle(1, 0, 2)
+        cell = c.dimshuffle(1, 0, 2)
+
         return dict(out=out, cell=cell), updates
 
 
@@ -570,6 +612,10 @@ class GRU(Recurrent):
             A sequence of updates to apply to this layer's state inside a theano
             function.
         '''
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+
         def fn(x_t, r_t, z_t, h_tm1):
             r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
             z = TT.nnet.sigmoid(z_t + TT.dot(h_tm1, self.find('hz')))
@@ -577,13 +623,20 @@ class GRU(Recurrent):
             h_t = self.activate(pre)
             return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
 
-        x = self._only_input(inputs)
-        (pre, hid, rate, out), updates = self._scan(
+        (p, h, r, o), updates = self._scan(
             fn,
             [TT.dot(x, self.find('xh')) + self.find('bh'),
              TT.dot(x, self.find('xr')) + self.find('br'),
              TT.dot(x, self.find('xz')) + self.find('bz')],
             [None, None, None, x])
+
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        pre = p.dimshuffle(1, 0, 2)
+        hid = h.dimshuffle(1, 0, 2)
+        rate = r.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 
@@ -695,13 +748,23 @@ class Clockwork(Recurrent):
             A sequence of updates to apply to this layer's state inside a theano
             function.
         '''
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        i = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = TT.dot(i, self.find('xh')) + self.find('b')
+        n = self.size // len(self.periods)
+
         def fn(t, x_t, p_tm1, h_tm1):
             p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
             p_t = TT.switch(TT.eq(t % self._period, 0), p, p_tm1)
             return [p_t, self.activate(p_t)]
 
-        x = TT.dot(self._only_input(inputs), self.find('xh')) + self.find('b')
-        (pre, out), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        (p, o), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
+        pre = p.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
         return dict(pre=pre, out=out), updates
 
     def to_spec(self):

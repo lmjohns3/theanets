@@ -3,6 +3,8 @@ import os
 import tempfile
 import theanets
 
+from itertools import izip as zip
+
 import util
 
 

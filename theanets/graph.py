@@ -50,7 +50,6 @@ the input nodes in the graph).
 '''
 
 import climate
-import datetime
 import downhill
 import fnmatch
 import gzip
@@ -324,13 +323,12 @@ class Network(object):
             return False
 
         # train it!
-        start = datetime.datetime.utcnow()
+        start = time.time()
         for i, monitors in enumerate(algo.itertrain(train, valid, **kwargs)):
             yield monitors
-            now = datetime.datetime.utcnow()
-            elapsed = (now - start).total_seconds()
-            if i and needs_saving(elapsed, i):
-                self.save(save_progress.format(int(time.time())))
+            now = time.time()
+            if i and needs_saving(now - start, i):
+                self.save(save_progress.format(int(now)))
                 start = now
 
     def train(self, *args, **kwargs):

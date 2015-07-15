@@ -60,6 +60,7 @@ import theano
 import theano.tensor as TT
 import time
 import warnings
+from collections import OrderedDict
 
 from . import layers
 from . import losses
@@ -366,7 +367,10 @@ class Network(object):
         def add(s):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
-        add(kwargs)
+        # Use ordereddict to avoid creating different graphs with the save kwargs but different orders. 
+        # See discussion at https://groups.google.com/forum/#!topic/theanets/nL6Nis29B7Q 
+        ordered_kwargs = OrderedDict(sorted(kwargs.items(), key=lambda t: t[0]))
+        add(ordered_kwargs)
         for l in self.layers:
             add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
         return h.hexdigest()

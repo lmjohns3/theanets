@@ -21,6 +21,7 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 __all__ = [
+    'Recurrent',
     'RNN',
     'ARRNN',
     'LRRNN',
@@ -67,9 +68,6 @@ class Recurrent(base.Layer):
         to the given number of time steps. Defaults to -1, which imposes no
         limit.
     '''
-
-    def __init__(self, **kwargs):
-        super(Recurrent, self).__init__(**kwargs)
 
     def initial_state(self, name, batch_size):
         '''Return an array of suitable for representing initial state.
@@ -501,16 +499,16 @@ class LSTM(Recurrent):
     the LSTM layer, and the previous output of the LSTM layer.
 
     The implementation details for this layer come from the specification given
-    on page 5 of [2]_.
+    on page 5 of [Gra13a]_.
 
     References
     ----------
 
-    .. [1] S. Hochreiter & J. Schmidhuber. (1997) "Long short-term memory."
-           Neural computation, 9(8), 1735-1780.
+    .. [Hoc97] S. Hochreiter & J. Schmidhuber. (1997) "Long short-term memory."
+       Neural computation, 9(8), 1735-1780.
 
-    .. [2] A. Graves. (2013) "Generating Sequences with Recurrent Neural
-           Networks." http://arxiv.org/pdf/1308.0850v5.pdf
+    .. [Gra13a] A. Graves. (2013) "Generating Sequences with Recurrent Neural
+       Networks." http://arxiv.org/pdf/1308.0850v5.pdf
     '''
 
     def setup(self):
@@ -576,10 +574,16 @@ class LSTM(Recurrent):
 class GRU(Recurrent):
     '''Gated Recurrent Unit layer.
 
-    The implementation is from J Chung, C Gulcehre, KH Cho, & Y Bengio (2014),
-    "Empirical Evaluation of Gated Recurrent Neural Networks on Sequence
-    Modeling" (page 4), available at http://arxiv.org/abs/1412.3555v1.
+    The update equations in this layer are given by [Chu14]_, page 4.
+
+    References
+    ----------
+
+    .. [Chu14] J. Chung, C. Gulcehre, K. H. Cho, & Y. Bengio (2014), "Empirical
+       Evaluation of Gated Recurrent Neural Networks on Sequence Modeling"
+       http://arxiv.org/abs/1412.3555v1
     '''
+
     def setup(self):
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('xr', self.input_size, self.size)
@@ -694,8 +698,8 @@ class Clockwork(Recurrent):
     References
     ----------
 
-    .. [1] J. Koutník, K. Greff, F. Gomez, & J. Schmidhuber. (2014) "A Clockwork
-           RNN." http://arxiv.org/abs/1402.3511
+    .. [Kou14] J. Koutník, K. Greff, F. Gomez, & J. Schmidhuber. (2014) "A
+       Clockwork RNN." http://arxiv.org/abs/1402.3511
     '''
 
     def __init__(self, periods, **kwargs):
@@ -786,9 +790,8 @@ class Bidirectional(base.Layer):
     The outputs of the forward and backward passes are combined using an affine
     transformation into the overall output for the layer.
 
-    For an example specification of a bidirectional recurrent network, see A.
-    Graves, N. Jaitly, and A. Mohamed, "Hybrid Speech Recognition with Deep
-    Bidirectional LSTM," 2013. http://www.cs.toronto.edu/~graves/asru_2013.pdf
+    For an example specification of a bidirectional recurrent network, see
+    [Gra13b]_.
 
     Parameters
     ----------
@@ -797,6 +800,13 @@ class Bidirectional(base.Layer):
         and backward processing. This parameter defaults to 'rnn' (i.e., vanilla
         recurrent network layer), but can be given as any string that specifies
         a recurrent layer type.
+
+    References
+    ----------
+
+    .. [Gra13b] A. Graves, N. Jaitly, & A. Mohamed. (2013) "Hybrid Speech
+       Recognition with Deep Bidirectional LSTM."
+       http://www.cs.toronto.edu/~graves/asru_2013.pdf
     '''
 
     def __init__(self, worker='rnn', **kwargs):

@@ -61,7 +61,6 @@ Losses
 .. autosummary::
    :toctree: generated/
 
-   build
    Loss
    MeanSquaredError
    MeanAbsoluteError
@@ -79,7 +78,6 @@ Layer types
 .. autosummary::
    :toctree: generated/
 
-   build
    Layer
 
 Feedforward layers

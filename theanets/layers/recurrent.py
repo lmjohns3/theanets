@@ -806,7 +806,7 @@ class Bidirectional(base.Layer):
             kwargs.pop('direction')
 
         def make(suffix, direction):
-            return base.build(
+            return base.Layer.build(
                 worker,
                 direction=direction,
                 size=size // 2,

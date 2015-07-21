@@ -48,7 +48,7 @@ class TestLayer(Base):
 
     def test_build(self):
         for f in 'feedforward Feedforward classifier rnn lstm'.split():
-            l = theanets.layers.build(f, inputs=Base.INPUTS, size=Base.SIZE)
+            l = theanets.Layer.build(f, inputs=Base.INPUTS, size=Base.SIZE)
             assert isinstance(l, theanets.layers.Layer)
 
     def test_connect(self):

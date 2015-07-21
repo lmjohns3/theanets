@@ -229,7 +229,7 @@ class SupervisedPretrainer(object):
             elif tied:
                 net.layers = original[:i+1] + original[-i:]
             else:
-                net.layers = original[:i+1] + [layers.build(
+                net.layers = original[:i+1] + [layers.Layer.build(
                     'feedforward',
                     name='lwout',
                     inputs={original[i].output_name(): original[i].size},
@@ -293,9 +293,9 @@ class UnsupervisedPretrainer(object):
         # configuration.
         layers_ = list(self.network.layers[:-1])
         for l in layers_[::-1][:-2]:
-            layers_.append(layers.build(
+            layers_.append(layers.Layer.build(
                 'tied', partner=l, activation=l.activation))
-        layers_.append(layers.build(
+        layers_.append(layers.Layer.build(
             'tied', partner=layers_[1], activation='linear'))
 
         logging.info('creating shadow network')

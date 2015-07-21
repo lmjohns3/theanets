@@ -113,7 +113,7 @@ class Network(object):
     def __init__(self, layers, loss='mse', weighted=False, sparse_input=False, **kwargs):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
-        self.loss = losses.build(
+        self.loss = losses.Loss.build(
             loss, weighted=weighted, sparse_input=sparse_input, **kwargs)
         self.layers = []
         for i, layer in enumerate(layers):
@@ -142,7 +142,7 @@ class Network(object):
         # for the first layer, create an 'input' layer.
         if len(self.layers) == 0:
             assert isinstance(layer, int), 'first layer must be an int'
-            self.layers.append(layers.build('input', size=layer, name='in'))
+            self.layers.append(layers.Layer.build('input', size=layer, name='in'))
             return
 
         # here we set up some defaults for constructing a new layer.
@@ -213,7 +213,7 @@ class Network(object):
                         layer, self.layers)
             kwargs['partner'] = partner
 
-        self.layers.append(layers.build(form, **kwargs))
+        self.layers.append(layers.Layer.build(form, **kwargs))
 
     def itertrain(self, train, valid=None, algo='rmsprop', subalgo='rmsprop',
                   save_every=0, save_progress=None, **kwargs):

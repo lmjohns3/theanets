@@ -315,11 +315,11 @@ Dictionaries
 ~~~~~~~~~~~~
 
 If a layer configuration is a dictionary, its keyword arguments are basically
-passed directly to :func:`theanets.layers.build() <theanets.layers.base.build>`.
-The dictionary must contain a ``form`` key, which specifies the name of the
-layer type to build, as well as a ``size`` key, which specifies the number of
-units in the layer. It can additionally contain any other keyword arguments that
-you wish to use when constructing the layer.
+passed directly to :func:`theanets.Layer.build()
+<theanets.layers.base.Layer.build>`. The dictionary must contain a ``form`` key,
+which specifies the name of the layer type to build, as well as a ``size`` key,
+which specifies the number of units in the layer. It can additionally contain
+any other keyword arguments that you wish to use when constructing the layer.
 
 For example, you can use a dictionary to specify an non-default activation
 function for a layer in your model::
@@ -451,7 +451,8 @@ Defining Custom Layers
 
 Layers are the real workhorse in ``theanets``; custom layers can be created to
 do all sorts of fun stuff. To create a custom layer, just create a subclass of
-:class:`Layer <theanets.layers.Layer>` and give it the functionality you want.
+:class:`Layer <theanets.layers.base.Layer>` and give it the functionality you
+want.
 
 As a very simple example, let's suppose you wanted to create a normal
 feedforward layer but did not want to include a bias term::
@@ -459,7 +460,7 @@ feedforward layer but did not want to include a bias term::
   import theanets
   import theano.tensor as TT
 
-  class NoBias(theanets.layers.Layer):
+  class NoBias(theanets.Layer):
       def transform(self, inputs):
           return TT.dot(inputs, self.find('w'))
 
@@ -467,9 +468,10 @@ feedforward layer but did not want to include a bias term::
           self.add_weights('w')
 
 Once you've set up your new layer class, it will automatically be registered and
-available in :func:`theanets.layers.build` using the name of your class::
+available in :func:`theanets.Layer.build <theanets.layers.base.Layer.build>`
+using the name of your class::
 
-  layer = theanets.layers.build('nobias', inputs=3, size=4)
+  layer = theanets.Layer.build('nobias', inputs=3, size=4)
 
 or, while creating a model::
 

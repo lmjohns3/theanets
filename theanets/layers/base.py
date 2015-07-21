@@ -88,26 +88,6 @@ def add_dropout(expr, probability, rng):
         size=expr.shape, n=1, p=1-probability, dtype=FLOAT)
 
 
-def build(layer, *args, **kwargs):
-    '''Construct a layer by name.
-
-    Parameters
-    ----------
-    layer : str
-        The name of the type of layer to build.
-    args : tuple
-        Positional arguments to pass to the layer constructor.
-    kwargs : dict
-        Named arguments to pass to the layer constructor.
-
-    Returns
-    -------
-    layer : :class:`Layer`
-        A neural network layer instance.
-    '''
-    return Layer.build(layer, *args, **kwargs)
-
-
 class Layer(util.Registrar(str('Base'), (), {})):
     '''Layers in network graphs derive from this base class.
 

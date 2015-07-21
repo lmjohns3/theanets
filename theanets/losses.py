@@ -7,24 +7,6 @@ import theano.tensor as TT
 from . import util
 
 
-def build(name, **kwargs):
-    '''Construct an activation function by name.
-
-    Parameters
-    ----------
-    name : str or :class:`Loss`
-        The name of the type of loss function to build.
-    kwargs : dict
-        Additional named arguments to pass to the loss constructor.
-
-    Returns
-    -------
-    loss : :class:`Loss`
-        A neural network loss function instance.
-    '''
-    return Loss.build(name, **kwargs)
-
-
 class Loss(util.Registrar(str('Base'), (), {})):
     '''A loss function for a neural network model.
 

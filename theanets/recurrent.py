@@ -235,7 +235,7 @@ class Classifier(feedforward.Classifier):
     '''
 
     def __init__(self, *args, **kwargs):
-        kwargs.update(in_dim=3, out_dim=2)
+        kwargs.update(loss='xe', in_dim=3, out_dim=2)
         super(feedforward.Classifier, self).__init__(*args, **kwargs)
 
     def predict_sequence(self, labels, steps, streams=1, rng=None):

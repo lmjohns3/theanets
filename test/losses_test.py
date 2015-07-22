@@ -28,9 +28,11 @@ class TestNetwork(util.Base):
         self.assert_progress('sgd', [self.INPUTS, abs(self.OUTPUTS)])
 
     def test_hinge(self):
-        self.exp = theanets.Classifier(
-            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES), loss='hinge')
-        assert self.exp.loss.__class__.__name__ == 'Hinge'
+        self.exp = theanets.Network(
+            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES),
+            in_dim=2, out_dim=1, loss='hinge')
+        name = self.exp.loss.__class__.__name__
+        assert name == 'Hinge', name
         self.assert_progress('sgd', [self.INPUTS, self.CLASSES])
 
     def test_mae(self):

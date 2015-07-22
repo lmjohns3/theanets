@@ -28,6 +28,10 @@ class Loss(util.Registrar(str('Base'), (), {})):
         stored as sparse matrices in the CSR or CSC format (respectively). If
         this is True, sparse input will be enabled in CSR format. By default
         this is False, which means inputs are dense.
+    output_name : str, optional
+        Name of the network output to tap for computing the loss. Defaults to
+        'out:out', the name of the default output of the last layer in a linear
+        network.
 
     Raises
     ------
@@ -46,12 +50,15 @@ class Loss(util.Registrar(str('Base'), (), {})):
         weights are required to compute the loss.
     variables : list of :class:`theano.TensorVariable`
         A list of all variables required to compute the loss.
+    output_name : str
+        Name of the network output to tap for computing the loss.
     '''
 
     F_CONTAINERS = (TT.scalar, TT.vector, TT.matrix, TT.tensor3, TT.tensor4)
     I_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
-    def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False):
+    def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False,
+                 output_name='out:out'):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
         if sparse_input is True or \
            isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
@@ -69,30 +76,36 @@ class Loss(util.Registrar(str('Base'), (), {})):
         if weighted:
             self.weight = Loss.F_CONTAINERS[out_dim or in_dim]('weight')
             self.variables.append(self.weight)
+        self.output_name = output_name
 
-    def diff(self, output):
+    def diff(self, outputs):
         '''Compute the symbolic output difference from our target.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         diff : Theano expression
-            The difference between the graph output and the target data (if
-            provided) or the input data (otherwise).
+            The difference between the graph output (as specified by the
+            instance ``output_name``) and the target data (if provided) or the
+            input data (otherwise).
         '''
-        return output - (self.input if self.target is None else self.target)
+        output = outputs[self.output_name]
+        target = self.input if self.target is None else self.target
+        return output - target
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
@@ -128,20 +141,21 @@ class MeanSquaredError(Loss):
 
     __extra_registration_keys__ = ['MSE']
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = self.diff(output)
+        err = self.diff(outputs)
         if self.weight is not None:
             return (self.weight * err * err).sum() / self.weight.sum()
         return (err * err).mean()
@@ -172,20 +186,21 @@ class MeanAbsoluteError(Loss):
 
     __extra_registration_keys__ = ['MAE']
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = self.diff(output)
+        err = self.diff(outputs)
         if self.weight is not None:
             return abs(self.weight * err).sum() / self.weight.sum()
         return abs(err).mean()
@@ -212,19 +227,21 @@ class KullbackLeiblerDivergence(Loss):
 
     __extra_registration_keys__ = ['KL', 'KLD']
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         loss : Theano expression
             The values of the loss given the network output.
         '''
+        output = outputs[self.output_name]
         eps = 1e-8
         t = TT.clip(self.target, eps, 1 - eps)
         kl = t * TT.log(t / TT.clip(output, eps, 1 - eps))
@@ -253,6 +270,10 @@ class CrossEntropy(Loss):
         If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
         stored as sparse matrices in the CSR or CSC format (respectively). By
         default this is None, which means inputs are dense.
+    output_name : str, optional
+        Name of the network output to tap for computing the loss. Defaults to
+        'out:out', the name of the default output of the last layer in a linear
+        network.
 
     Raises
     ------
@@ -271,6 +292,8 @@ class CrossEntropy(Loss):
         weights are required to compute the loss.
     variables : list of :class:`theano.TensorVariable`
         A list of all variables required to compute the loss.
+    output_name : str
+        Name of the network output to tap for computing the loss.
 
     Notes
     -----
@@ -293,7 +316,8 @@ class CrossEntropy(Loss):
 
     __extra_registration_keys__ = ['XE']
 
-    def __init__(self, in_dim, out_dim, weighted=False, sparse_input=False):
+    def __init__(self, in_dim, out_dim, weighted=False, sparse_input=False,
+                 output_name='out:out'):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
         if sparse_input is True or \
            isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
@@ -308,20 +332,23 @@ class CrossEntropy(Loss):
         if weighted:
             self.weight = Loss.F_CONTAINERS[out_dim]('weight')
             self.variables.append(self.weight)
+        self.output_name = output_name
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         loss : Theano expression
             The values of the loss given the network output.
         '''
+        output = outputs[self.output_name]
         k = output.shape[-1]
         n = TT.prod(output.shape) // k
         prob = output.reshape((n, k))[TT.arange(n), self.target.reshape((n, ))]
@@ -330,13 +357,14 @@ class CrossEntropy(Loss):
             return (self.weight.reshape((n, )) * nlp).sum() / self.weight.sum()
         return nlp.mean()
 
-    def accuracy(self, output):
+    def accuracy(self, outputs):
         '''Build a Theano expression for computing the accuracy of graph output.
 
         Parameters
         ----------
-        output : Theano expression
-            An expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
@@ -344,6 +372,7 @@ class CrossEntropy(Loss):
             A Theano expression representing the accuracy of the output compared
             to the target data.
         '''
+        output = outputs[sef.output_name]
         predict = TT.argmax(output, axis=-1)
         correct = TT.eq(predict, self.target)
         acc = correct.mean()
@@ -372,19 +401,21 @@ class Hinge(CrossEntropy):
 
     __extra_registration_keys__ = []
 
-    def __call__(self, output):
+    def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
 
         Parameters
         ----------
-        output : Theano expression
-            A Theano expression representing the output of a computation graph.
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
 
         Returns
         -------
         loss : Theano expression
             The values of the loss given the network output.
         '''
+        output = outputs[self.output_name]
         k = output.shape[-1]
         n = TT.prod(output.shape) // k
         output = output.reshape((n, k))

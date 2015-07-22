@@ -544,8 +544,8 @@ model. For example, to create a regression model that uses a step function
 averaged over all of the model inputs::
 
   class Step(theanets.Loss):
-      def __call__(self, output):
-          return (self.diff(output) > 0).mean()
+      def __call__(self, outputs):
+          return (self.diff(outputs) > 0).mean()
 
   net = theanets.Regressor(loss='step')
 
@@ -554,8 +554,8 @@ the loss for your model. If you wish to make your loss work with weighted
 outputs, you will also need to include a case for having weights::
 
   class Step(theanets.Loss):
-      def __call__(self, output):
-          step = self.diff(output) > 0
+      def __call__(self, outputs):
+          step = self.diff(outputs) > 0
           if self.weight:
               return (self.weight * step).sum() / self.weight.sum()
           else:

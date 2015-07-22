@@ -81,7 +81,9 @@ class Network(object):
     layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
-
+    loss : str or :class:`Loss <losses.Loss>`
+        The name of a loss function to optimize when training this network
+        model.
     weighted : bool, optional
         If True, the network will require an additional input during training
         that provides weights for the target outputs of the network; the weights
@@ -93,11 +95,6 @@ class Network(object):
         of time steps, or for classifier networks where the prior proabibility
         of one class is significantly different than another. The default is not
         to use weighted outputs.
-
-    loss : str or :class:`Loss <losses.Loss>`
-        The name of a loss function to optimize when training this network
-        model.
-
     sparse_input : bool
         If True, create an input variable that can hold a sparse matrix.
         Defaults to False, which assumes all arrays are dense.
@@ -110,11 +107,10 @@ class Network(object):
         A list of the layers in this network model.
     '''
 
-    def __init__(self, layers, loss='mse', weighted=False, sparse_input=False, **kwargs):
+    def __init__(self, layers, loss='mse', **kwargs):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
-        self.loss = losses.Loss.build(
-            loss, weighted=weighted, sparse_input=sparse_input, **kwargs)
+        self.loss = losses.Loss.build(loss, **kwargs)
         self.layers = []
         for i, layer in enumerate(layers):
             self.add_layer(layer, is_output=i == len(layers) - 1)
@@ -621,8 +617,7 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(), self.loss.input)).mean()
                          for h in hiddens),
         )
-        out = outputs[self.layers[-1].output_name()]
-        return self.loss(out) + sum(
+        return self.loss(outputs) + sum(
             kwargs[weight] * sum(expr)
             for weight, expr in regularizers.items()
             if kwargs.get(weight, 0) > 0)
@@ -636,8 +631,7 @@ class Network(object):
             A list of named monitor expressions to compute for this network.
         '''
         outputs, _ = self.build_graph(**kwargs)
-        out = outputs[self.layers[-1].output_name()]
-        monitors = [('err', self.loss(out))]
+        monitors = [('err', self.loss(outputs))]
 
         def parse_pattern(pattern):
             '''Yield graph expressions that match the given pattern.'''

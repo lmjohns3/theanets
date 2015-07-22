@@ -180,9 +180,9 @@ class Autoencoder(feedforward.Autoencoder):
       times and all data items.
     '''
 
-    def __init__(self, layers=(), loss='mse', weighted=False):
-        super(feedforward.Autoencoder, self).__init__(
-            layers=layers, loss=loss, in_dim=3, weighted=weighted)
+    def __init__(self, *args, **kwargs):
+        kwargs.update(in_dim=3)
+        super(feedforward.Autoencoder, self).__init__(*args, **kwargs)
 
 
 class Regressor(feedforward.Regressor):
@@ -206,9 +206,9 @@ class Regressor(feedforward.Regressor):
       a particular output variable across all times and all data items.
     '''
 
-    def __init__(self, layers=(), loss='mse', weighted=False):
-        super(feedforward.Regressor, self).__init__(
-            layers=layers, loss=loss, in_dim=3, out_dim=3, weighted=weighted)
+    def __init__(self, *args, **kwargs):
+        kwargs.update(in_dim=3, out_dim=3)
+        super(feedforward.Regressor, self).__init__(*args, **kwargs)
 
 
 class Classifier(feedforward.Classifier):
@@ -234,9 +234,9 @@ class Classifier(feedforward.Classifier):
       in a batch.
     '''
 
-    def __init__(self, layers=(), loss='xe', weighted=False):
-        super(feedforward.Classifier, self).__init__(
-            layers=layers, loss=loss, in_dim=3, out_dim=2, weighted=weighted)
+    def __init__(self, *args, **kwargs):
+        kwargs.update(in_dim=3, out_dim=2)
+        super(feedforward.Classifier, self).__init__(*args, **kwargs)
 
     def predict_sequence(self, labels, steps, streams=1, rng=None):
         '''Draw a sequential sample of class labels from this network.

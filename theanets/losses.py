@@ -1,4 +1,6 @@
-'''Loss functions for neural network models.
+# -*- coding: utf-8 -*-
+
+r'''Loss functions for neural network models.
 '''
 
 import theano.sparse as SS
@@ -8,7 +10,7 @@ from . import util
 
 
 class Loss(util.Registrar(str('Base'), (), {})):
-    '''A loss function for a neural network model.
+    r'''A loss function for a neural network model.
 
     Parameters
     ----------
@@ -116,7 +118,7 @@ class Loss(util.Registrar(str('Base'), (), {})):
 
 
 class MeanSquaredError(Loss):
-    '''Mean-squared-error (MSE) loss function.
+    r'''Mean-squared-error (MSE) loss function.
 
     Notes
     -----
@@ -162,7 +164,7 @@ class MeanSquaredError(Loss):
 
 
 class MeanAbsoluteError(Loss):
-    '''Mean-absolute-error (MAE) loss function.
+    r'''Mean-absolute-error (MAE) loss function.
 
     Notes
     -----
@@ -207,7 +209,7 @@ class MeanAbsoluteError(Loss):
 
 
 class KullbackLeiblerDivergence(Loss):
-    '''The KL divergence loss is computed over probability distributions.
+    r'''The KL divergence loss is computed over probability distributions.
 
     Notes
     -----
@@ -251,7 +253,7 @@ class KullbackLeiblerDivergence(Loss):
 
 
 class CrossEntropy(Loss):
-    '''Cross-entropy (XE) loss function for classifiers.
+    r'''Cross-entropy (XE) loss function for classifiers.
 
     Parameters
     ----------
@@ -382,7 +384,7 @@ class CrossEntropy(Loss):
 
 
 class Hinge(CrossEntropy):
-    '''Hinge loss function for classifiers.
+    r'''Hinge loss function for classifiers.
 
     Notes
     -----

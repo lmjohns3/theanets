@@ -169,7 +169,7 @@ class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
 
     Notes
-    =====
+    -----
 
     A recurrent autoencoder model requires the following inputs during training:
 
@@ -189,7 +189,7 @@ class Regressor(feedforward.Regressor):
     '''A regressor attempts to produce a target output.
 
     Notes
-    =====
+    -----
 
     A recurrent regression model takes the following inputs:
 
@@ -215,7 +215,7 @@ class Classifier(feedforward.Classifier):
     '''A classifier attempts to match a 1-hot target output.
 
     Notes
-    =====
+    -----
 
     Unlike a feedforward classifier, where the target labels are provided as a
     single vector, a recurrent classifier requires a vector of target labels for

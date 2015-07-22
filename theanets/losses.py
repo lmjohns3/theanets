@@ -372,7 +372,7 @@ class CrossEntropy(Loss):
             A Theano expression representing the accuracy of the output compared
             to the target data.
         '''
-        output = outputs[sef.output_name]
+        output = outputs[self.output_name]
         predict = TT.argmax(output, axis=-1)
         correct = TT.eq(predict, self.target)
         acc = correct.mean()

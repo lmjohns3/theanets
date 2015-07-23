@@ -54,7 +54,7 @@ net = RICA([K, (N * N, 'linear'), (K, 'tied')])
 
 net.train(whiten(train),
           whiten(valid),
-          hidden_l1=0.001,
+          hidden_l1=0.5,
           weight_inverse=1e-6,
           train_batches=300,
           monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)})

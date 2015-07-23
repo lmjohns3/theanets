@@ -544,6 +544,12 @@ class Network(object):
             w = np.ones_like(u)
         return 1 - (w * u * u).sum() / (w * v * v).sum()
 
+    def __getstate__(self):
+        return (self.layers, self.loss)
+
+    def __setstate__(self, state):
+        self.layers, self.loss = state
+
     def save(self, filename):
         '''Save the state of this network to a pickle file on disk.
 

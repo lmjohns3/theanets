@@ -93,6 +93,7 @@ Feedforward layers
    Classifier
    Feedforward
    Input
+   Product
    Tied
 
 Convolution layers

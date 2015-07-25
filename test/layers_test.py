@@ -18,7 +18,7 @@ class Base(object):
         assert out.shape == (8, Base.OUTPUTS)
 
     def assert_param_names(self, expected):
-        if not expected[0].startswith('l'):
+        if expected and not expected[0].startswith('l'):
             expected = sorted('l.{}'.format(n) for n in expected)
         real = sorted(p.name for p in self.l.params)
         assert real == expected, 'got {}, expected {}'.format(real, expected)
@@ -91,6 +91,32 @@ class TestMultiFeedforward(Base):
     def test_create(self):
         self.assert_param_names(['w_a:out', 'w_b:out', 'b'])
         self.assert_count(36)
+
+    def test_transform(self):
+        out, upd = self.l.transform({'a:out': self.x, 'b:out': self.x})
+        assert len(out) == 2
+        assert not upd
+
+
+class TestProduct(Base):
+    def _build(self):
+        self.a = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE, name='a')
+        self.b = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE, name='b')
+        return theanets.layers.Product(
+            inputs={'a:out': Base.SIZE, 'b:out': Base.SIZE},
+            size=Base.SIZE, name='l')
+
+    def test_feed_forward(self):
+        net = theanets.Regressor(
+            (Base.INPUTS, self.a, self.b, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
+        assert out.shape == (8, Base.OUTPUTS)
+
+    def test_create(self):
+        self.assert_param_names([])
+        self.assert_count(0)
 
     def test_transform(self):
         out, upd = self.l.transform({'a:out': self.x, 'b:out': self.x})

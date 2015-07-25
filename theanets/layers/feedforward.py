@@ -19,6 +19,7 @@ __all__ = [
     'Classifier',
     'Feedforward',
     'Input',
+    'Product',
     'Tied',
 ]
 
@@ -114,6 +115,37 @@ class Classifier(Feedforward):
     def __init__(self, **kwargs):
         kwargs['activation'] = 'softmax'
         super(Classifier, self).__init__(**kwargs)
+
+
+class Product(base.Layer):
+    '''Multiply the outputs of multiple layers together elementwise.'''
+
+    __extra_registration_keys__ = ['Prod']
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of Theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
+        '''
+        keys = sorted(self.inputs)
+        pre = inputs[keys.pop()]
+        for key in keys:
+            pre *= inputs[key]
+        return dict(pre=pre, out=self.activate(pre)), []
 
 
 class Tied(base.Layer):

@@ -110,11 +110,17 @@ class Network(object):
     def __init__(self, layers, loss='mse', **kwargs):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
-        self.loss = losses.Loss.build(loss, **kwargs)
+
+        last_output = None
         self.layers = []
         for i, layer in enumerate(layers):
             self.add_layer(layer, is_output=i == len(layers) - 1)
+            last_output = self.layers[-1].output_name()
         logging.info('network has %d total parameters', self.num_params)
+
+        if 'output_name' not in kwargs:
+            kwargs['output_name'] = last_output
+        self.loss = losses.Loss.build(loss, **kwargs)
 
     def add_layer(self, layer, is_output=False):
         '''Add a layer to our network graph.

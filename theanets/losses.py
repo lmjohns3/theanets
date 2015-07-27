@@ -3,6 +3,7 @@
 r'''Loss functions for neural network models.
 '''
 
+import numpy as np
 import theano.sparse as SS
 import theano.tensor as TT
 
@@ -206,6 +207,124 @@ class MeanAbsoluteError(Loss):
         if self.weight is not None:
             return abs(self.weight * err).sum() / self.weight.sum()
         return abs(err).mean()
+
+
+class GaussianLogLikelihood(Loss):
+    r'''Gaussian Log Likelihood (GLL) loss function.
+
+    Parameters
+    ----------
+    mean_name : str
+        Name of the network graph output to use for the mean of the Gaussian
+        distribution.
+    covar_name : str
+        Name of the network graph output to use for the diagonal covariance of
+        the Gaussian distribution.
+
+    Notes
+    -----
+
+    This loss computes the negative log-likelihood of the observed target data
+    :math:`y` under a Gaussian distribution, where the neural network computes
+    the mean :math:`\mu` and the diagonal of the covariance :math:`\Sigma` as a
+    function of its input :math:`x`. The loss is given by:
+
+    .. math::
+       \mathcal{L}(x, y) = -\log p(y) = -\log p\left(y|\mu(x),\Sigma(x)\right)
+
+    where
+
+    .. math::
+       p(y) = p(y|\mu,\Sigma) = \frac{1}{(2\pi)^{n/2}|\Sigma|^{1/2}}
+          \exp\left\{-\frac{1}{2}(y-\mu)^\top\Sigma^{-1}(y-\mu) \right\}
+
+    is the Gaussian density function.
+
+    The log density :math:`\log p(y)` can be parameterized more conveniently
+    [Gu08]_ as:
+
+    .. math::
+       \log p(y|\nu,\Lambda) = a + \eta^\top y - \frac{1}{2} y^\top \Lambda y
+
+    where :math:`\Lambda = \Sigma^{-1}` is the precision,
+    :math:`\eta = \Lambda\mu` is the covariance-skewed mean, and
+    :math:`a=-\frac{1}{2}\left(n\log 2\pi-\log|\Lambda|+\eta^\top\Lambda\eta\right)`
+    contains all constant terms. (These terms are all computed as a function of
+    the input, :math:`x`.)
+
+    This implementation of the Gaussian log-likelihood loss approximates
+    :math:`\Sigma` using only its diagonal. This makes the precision easy to
+    compute because
+
+    .. math::
+       \Sigma^{-1} = \Lambda =
+          \mbox{diag}(\frac{1}{\sigma_1}, \dots, \frac{1}{\sigma_n})
+
+    is just the matrix containing the multiplicative inverse of the diagonal
+    covariance values. Similarly, the log-determinant of the precision is just
+    the sum of the logs of the diagonal terms:
+
+    .. math::
+       \log|\Lambda|=\sum_{i=1}^n\log\lambda_i=-\sum_{i=1}^n\log\sigma_i.
+
+    The log-likelihood is computed separately for each input-output pair in a
+    batch, and the overall likelihood is the mean of these individual values.
+
+    Weighted targets unfortunately do not work with this loss at the moment.
+
+    References
+    ----------
+    .. [Gu08] Multivariate Gaussian Distribution.
+        https://www.cs.cmu.edu/~epxing/Class/10701-08s/recitation/gaussian.pdf
+    '''
+
+    __extra_registration_keys__ = ['GLL']
+
+    def __init__(self, mean_name, covar_name, *args, **kwargs):
+        super(GaussianLogLikelihood, self).__init__(*args, **kwargs)
+        self.mean_name = mean_name
+        self.covar_name = covar_name
+
+    def __call__(self, outputs):
+        '''Construct the computation graph for this loss function.
+
+        Parameters
+        ----------
+        outputs : dict of Theano expressions
+            A dictionary mapping network output names to Theano expressions
+            representing the outputs of a computation graph.
+
+        Returns
+        -------
+        loss : Theano expression
+            The values of the loss given the network output.
+        '''
+        # this code is going to look weird to people who are used to seeing
+        # implementations of the gaussian likelihood function. our mean, covar,
+        # and self.target arrays are all of shape (batch-size, dimensionality).
+        # each of these arrays codes an independent input/output pair for the
+        # loss, but they're stacked together in matrices for computational
+        # efficiency.
+        #
+        # what's worse, the covariance is encoded as a vector of the diagonal
+        # elements, again one per input/output pair in the batch.
+        #
+        # the upshot of this is that many operations written traditionally as
+        # three dot products (vector-matrix-vector, e.g., x^T \Lambda x) are
+        # here written as three elementwise array products (x * prec * x),
+        # followed by a sum across the last dimension. this has the added
+        # benefit that it will be way faster than dot products, but it looks
+        # strange in the code below.
+        mean = outputs[self.mean_name]
+        covar = outputs[self.covar_name]
+        prec = 1 / TT.switch(TT.eq(covar, 0), 1.0, covar)  # prevent nans!
+        eta = mean * prec
+        logpi = TT.cast(mean.shape[-1] * np.log(2 * np.pi), 'float32')
+        logdet = TT.log(prec.sum(axis=-1))
+        const = logpi - logdet + (eta * prec * eta).sum(axis=-1)
+        squared = (self.target * prec * self.target).sum(axis=-1)
+        nll = 0.5 * (const + squared) - (eta * self.target).sum(axis=-1)
+        return nll.mean()
 
 
 class KullbackLeiblerDivergence(Loss):

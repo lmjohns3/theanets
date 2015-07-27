@@ -22,10 +22,21 @@ class TestBuild:
 
 class TestNetwork(util.Base):
     def test_kl(self):
-        self.exp = theanets.Regressor(
-            layers=(self.NUM_INPUTS, 10, (self.NUM_OUTPUTS, 'softmax')), loss='kl')
+        self.exp = theanets.Regressor([
+            self.NUM_INPUTS, 10, (self.NUM_OUTPUTS, 'softmax')], loss='kl')
         assert self.exp.loss.__class__.__name__ == 'KullbackLeiblerDivergence'
         self.assert_progress('sgd', [self.INPUTS, abs(self.OUTPUTS)])
+
+    def test_gll(self):
+        kw = dict(inputs={'hid:out': 10}, size=self.NUM_OUTPUTS)
+        self.exp = theanets.Regressor([
+            self.NUM_INPUTS,
+            dict(name='hid', size=10),
+            dict(name='covar', activation='relu', **kw),
+            dict(name='mean', activation='linear', **kw),
+        ], loss='gll', mean_name='mean:out', covar_name='covar:out')
+        assert self.exp.loss.__class__.__name__ == 'GaussianLogLikelihood'
+        self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS])
 
     def test_hinge(self):
         self.exp = theanets.Network(

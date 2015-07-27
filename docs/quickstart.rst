@@ -322,7 +322,7 @@ output are set to the first :math:`k` time steps of the input::
 
 In ``theanets``, data can be provided to a trainer in several ways; here we've
 used a callable that generates batches of data for us. See
-:ref:`training-using-callables` for more information.
+:ref:`training-providing-data` for more information.
 
 Having set up a way to create training data, we just need to pass this along to
 our training algorithm::

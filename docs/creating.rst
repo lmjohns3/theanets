@@ -331,6 +331,8 @@ providing the ``sparsity`` key::
 
   theanets.Regressor(layers=(4, dict(size=5, sparsity=0.9), 2))
 
+.. _creating-activation:
+
 Activation Functions
 --------------------
 

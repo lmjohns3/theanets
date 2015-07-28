@@ -34,9 +34,9 @@ class TestNetwork(util.Base):
             dict(name='hid', size=10),
             dict(name='covar', activation='relu', **kw),
             dict(name='mean', activation='linear', **kw),
-        ], loss='gll', mean_name='mean:out', covar_name='covar:out')
+        ], loss='gll', mean_name='mean', covar_name='covar')
         assert self.exp.loss.__class__.__name__ == 'GaussianLogLikelihood'
-        self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS])
+        self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
 
     def test_hinge(self):
         self.exp = theanets.Network(

@@ -61,7 +61,7 @@ class Loss(util.Registrar(str('Base'), (), {})):
     I_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
     def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False,
-                 output_name='out:out'):
+                 output_name='out'):
         self.input = Loss.F_CONTAINERS[in_dim]('input')
         if sparse_input is True or \
            isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
@@ -80,6 +80,8 @@ class Loss(util.Registrar(str('Base'), (), {})):
             self.weight = Loss.F_CONTAINERS[out_dim or in_dim]('weight')
             self.variables.append(self.weight)
         self.output_name = output_name
+        if ':' not in self.output_name:
+            self.output_name += ':out'
 
     def diff(self, outputs):
         '''Compute the symbolic output difference from our target.
@@ -280,10 +282,14 @@ class GaussianLogLikelihood(Loss):
 
     __extra_registration_keys__ = ['GLL']
 
-    def __init__(self, mean_name, covar_name, *args, **kwargs):
-        super(GaussianLogLikelihood, self).__init__(*args, **kwargs)
+    def __init__(self, mean_name='mean', covar_name='covar', **kwargs):
+        super(GaussianLogLikelihood, self).__init__(**kwargs)
         self.mean_name = mean_name
+        if ':' not in self.mean_name:
+            self.mean_name += ':out'
         self.covar_name = covar_name
+        if ':' not in self.covar_name:
+            self.covar_name += ':out'
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.

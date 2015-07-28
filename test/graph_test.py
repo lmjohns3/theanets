@@ -43,7 +43,7 @@ class TestNetwork:
         m = theanets.Regressor((1, 2, 1))
         assert m.loss.output_name == 'out:out'
         m = theanets.Regressor((1, 2, 1), output_name='foo')
-        assert m.loss.output_name == 'foo'
+        assert m.loss.output_name == 'foo:out'
 
     def test_find_number(self):
         m = theanets.Regressor((1, 2, 1))

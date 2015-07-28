@@ -282,7 +282,7 @@ class GaussianLogLikelihood(Loss):
 
     __extra_registration_keys__ = ['GLL']
 
-    def __init__(self, mean_name='mean', covar_name='covar', **kwargs):
+    def __init__(self, mean_name='mean', covar_name='covar', covar_eps=1e-3, **kwargs):
         super(GaussianLogLikelihood, self).__init__(**kwargs)
         self.mean_name = mean_name
         if ':' not in self.mean_name:
@@ -290,6 +290,7 @@ class GaussianLogLikelihood(Loss):
         self.covar_name = covar_name
         if ':' not in self.covar_name:
             self.covar_name += ':out'
+        self.covar_eps = covar_eps
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -323,7 +324,7 @@ class GaussianLogLikelihood(Loss):
         # strange in the code below.
         mean = outputs[self.mean_name]
         covar = outputs[self.covar_name]
-        prec = 1 / TT.switch(TT.eq(covar, 0), 1.0, covar)  # prevent nans!
+        prec = 1 / (abs(covar) + self.covar_eps)  # prevent nans!
         eta = mean * prec
         logpi = TT.cast(mean.shape[-1] * np.log(2 * np.pi), 'float32')
         logdet = TT.log(prec.sum(axis=-1))

@@ -11,11 +11,11 @@ class Base(object):
     NUM_CLASSES = 5
 
     INPUTS = np.random.randn(NUM_EXAMPLES, NUM_INPUTS).astype('f')
-    INPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_INPUTS).astype('f')
+    INPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_INPUTS)).astype('f')
     OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
-    OUTPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
+    OUTPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS)).astype('f')
     CLASSES = np.random.randn(NUM_EXAMPLES).astype('i')
-    CLASS_WEIGHTS = np.random.rand(NUM_EXAMPLES).astype('f')
+    CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES)).astype('f')
 
     def assert_progress(self, algo, data, **kwargs):
         trainer = self.exp.itertrain(

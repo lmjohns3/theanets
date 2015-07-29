@@ -12,11 +12,13 @@ class Base(util.Base):
     NUM_CLASSES = util.Base.NUM_CLASSES
 
     INPUTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS).astype('f')
-    INPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS).astype('f')
+    INPUT_WEIGHTS = abs(
+        np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS)).astype('f')
     OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_OUTPUTS).astype('f')
-    OUTPUT_WEIGHTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_OUTPUTS).astype('f')
+    OUTPUT_WEIGHTS = abs(
+        np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_OUTPUTS)).astype('f')
     CLASSES = np.random.randn(NUM_EXAMPLES, NUM_TIMES).astype('i')
-    CLASS_WEIGHTS = np.random.rand(NUM_EXAMPLES, NUM_TIMES).astype('f')
+    CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES, NUM_TIMES)).astype('f')
 
     def assert_shape(self, actual, expected):
         if not isinstance(expected, tuple):

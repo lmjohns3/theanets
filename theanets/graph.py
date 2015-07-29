@@ -284,7 +284,8 @@ class Network(object):
             return downhill.Dataset(
                 data, name=name, batch_size=kwargs.get('batch_size', 32),
                 iteration_size=kwargs.get('iteration_size', kwargs.get(s)),
-                axis=kwargs.get('axis', 0))
+                axis=kwargs.get('axis', 0),
+                rng=kwargs.get('rng', None))
 
         # set up datasets ...
         if valid is None:

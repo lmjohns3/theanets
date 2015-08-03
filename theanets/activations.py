@@ -303,12 +303,5 @@ class Maxout(Activation):
         self.params.append(self.intercept)
 
     def __call__(self, x):
-        if x.ndim == 1:
-            return (x[:, None] * self.slope + self.intercept).max(axis=-1)
-        if x.ndim == 2:
-            return (x[:, :, None] * self.slope + self.intercept).max(axis=-1)
-        if x.ndim == 3:
-            return (x[:, :, :, None] * self.slope + self.intercept).max(axis=-1)
-        if x.ndim == 4:
-            return (x[:, :, :, :, None] * self.slope + self.intercept).max(axis=-1)
-        raise NotImplemented
+        dims = list(range(x.ndim)) + ['x']
+        return (x.dimshuffle(*dims) * self.slope + self.intercept).max(axis=-1)

@@ -38,6 +38,12 @@ class TestNetwork(util.Base):
         assert self.exp.loss.__class__.__name__ == 'GaussianLogLikelihood'
         self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
 
+    def test_mmd(self):
+        self.exp = theanets.Regressor([
+            self.NUM_INPUTS, 10, self.NUM_OUTPUTS], loss='mmd')
+        assert self.exp.loss.__class__.__name__ == 'MaximumMeanDiscrepancy'
+        self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
+
     def test_hinge(self):
         self.exp = theanets.Network(
             layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES),

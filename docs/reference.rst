@@ -65,6 +65,7 @@ Losses
    MeanSquaredError
    MeanAbsoluteError
    GaussianLogLikelihood
+   MaximumMeanDiscrepancy
    KullbackLeiblerDivergence
    CrossEntropy
    Hinge

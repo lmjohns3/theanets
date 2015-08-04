@@ -556,6 +556,8 @@ class Network(object):
 
     def __setstate__(self, state):
         self.layers, self.loss = state
+        self._graphs = {}
+        self._functions = {}
 
     def save(self, filename):
         '''Save the state of this network to a pickle file on disk.

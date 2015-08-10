@@ -2,10 +2,6 @@
 
 r'''This module contains a base class for modeling computation graphs.
 
-Neural networks are really just a concise, computational way of describing a
-mathematical model of a computation graph that operates on a particular set of
-data.
-
 At a high level, a neural network is a computation graph that describes a
 parametric mapping
 
@@ -556,6 +552,8 @@ class Network(object):
 
     def __setstate__(self, state):
         self.layers, self.loss = state
+        self._graphs = {}
+        self._functions = {}
 
     def save(self, filename):
         '''Save the state of this network to a pickle file on disk.

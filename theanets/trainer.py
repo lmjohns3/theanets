@@ -236,9 +236,9 @@ class SupervisedPretrainer(object):
                     inputs={original[i].output_name(): original[i].size},
                     size=original[-1].size,
                     activation=original[-1].activation)]
-                net.loss.output_name = net.layers[-1].output_name()
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
+            net.loss.output_name = net.layers[-1].output_name()
             trainer = DownhillTrainer(self.algo, net)
             for monitors in trainer.itertrain(train, valid, **kwargs):
                 yield monitors

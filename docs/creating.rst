@@ -1,3 +1,5 @@
+.. _creating:
+
 ==================
 Creating a Network
 ==================

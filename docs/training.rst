@@ -1,3 +1,5 @@
+.. _training:
+
 ================
 Training a Model
 ================
@@ -14,6 +16,8 @@ better or worse suited for a particular model or task.
 
 To train a network, you must first specify a trainer and then provide some data
 to the trainer. You can also save the model periodically during training.
+
+.. _training-specifying-trainer:
 
 Specifying a Trainer
 ====================

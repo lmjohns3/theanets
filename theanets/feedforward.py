@@ -357,7 +357,9 @@ class Classifier(graph.Network):
     '''Classifiers set the default activation for the output layer.'''
 
     def __init__(self, *args, **kwargs):
-        kwargs.update(loss='xe', in_dim=2, out_dim=1)
+        if 'loss' not in kwargs:
+            kwargs['loss'] = 'xe'
+        kwargs.update(in_dim=2, out_dim=1)
         super(Classifier, self).__init__(*args, **kwargs)
 
     def monitors(self, **kwargs):

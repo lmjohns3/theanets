@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 
-r'''
-'''
+'''This module contains common feedforward network models.'''
 
 import numpy as np
 import theano
-import theano.tensor as TT
 import warnings
 
 from . import graph
@@ -13,15 +11,75 @@ from . import layers
 
 
 class Autoencoder(graph.Network):
-    r'''An autoencoder attempts to reproduce its input.
+    r'''An autoencoder network attempts to reproduce its input.
 
-    Some types of neural network models have been shown to learn useful features
-    from a set of data without requiring any label information. This learning
-    task is often referred to as feature learning or manifold learning. A class
-    of neural network architectures known as autoencoders are ideally suited for
-    this task. An autoencoder takes as input a data sample and attempts to
-    produce the same data sample as its output. Formally, an autoencoder defines
-    a mapping from a source space to itself:
+    Examples
+    --------
+
+    To create an autoencoder, just create a new model instance. Often you'll
+    provide the layer configuration at this time:
+
+    >>> model = theanets.Autoencoder([10, 20, 10])
+
+    If you want to create an autoencoder with tied weights, specify that layer
+    type when creating the model:
+
+    >>> model = theanets.Autoencoder([10, 20, (10, 'tied')])
+
+    See :ref:`creating` for more information.
+
+    *Data*
+
+    Training data for an autoencoder takes the form of a two-dimensional array.
+    The shape of this array is (num-examples, num-variables): the first axis
+    enumerates data points in a batch, and the second enumerates the variables
+    in the model.
+
+    For instance, to create a training dataset containing 1000 examples:
+
+    >>> inputs = np.random.randn(1000, 10).astype('f')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method:
+
+    >>> model.train([inputs])
+
+    See :ref:`training` for more information about training.
+
+    *Use*
+
+    A model can be used to :func:`predict() <theanets.graph.Network.predict>`
+    the output of some input data points:
+
+    >>> test = np.random.randn(3, 10).astype('f')
+    >>> print(model.predict(test))
+
+    Additionally, autoencoders can :func:`encode()
+    <theanets.feedforward.Autoencoder.encode>` a set of input data points:
+
+    >>> enc = model.encode(test)
+    >>> enc.shape
+    (3, 20)
+
+    The model can also :func:`decode()
+    <theanets.feedforward.Autoencoder.decode>` a set of encoded data:
+
+    >>> model.decode(enc)
+
+    See :ref:`using` for more information about using models.
+
+    Notes
+    -----
+
+    Autoencoder models default to a :class:`MSE
+    <theanets.losses.MeanSquaredError>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
+
+    Formally, an autoencoder defines a parametric mapping from a data space to
+    the same space:
 
     .. math::
        F_\theta: \mathcal{S} \to \mathcal{S}
@@ -43,40 +101,19 @@ class Autoencoder(graph.Network):
     - are generalizations of many popular density estimation techniques, and
     - can be used to model the "manifold" or density of a dataset.
 
-    If we have a labeled dataset containing :math:`m` :math:`d`-dimensional
-    input samples :math:`X \in \mathbb{R}^{m \times d}`, then the loss that the
-    autoencoder model optimizes with respect to the model parameters
-    :math:`\theta` is:
+    Many extremely common dimensionality reduction techniques can be expressed
+    as autoencoders. For instance, Principal Component Analysis (PCA) can be
+    expressed as a model with two tied, linear layers:
 
-    .. math::
-       \begin{eqnarray*}
-       \mathcal{L}(X, \theta)
-         &=&
-           \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - x_i \|_2^2
-           + R(X, \theta) \\
-         &=&
-           \frac{1}{m} \sum_{i=1}^m \| g_\beta(f_\alpha(x_i)) - x_i \|_2^2
-           + R(X, \alpha, \beta)
-       \end{eqnarray*}
+    >>> pca = theanets.Autoencoder([10, (5, 'linear'), (10, 'tied')])
 
-    where :math:`R` is a regularization function.
+    Similarly, Independent Component Analysis (ICA) can be expressed as the same
+    model, but trained with a sparsity penalty on the hidden-layer activations:
 
-    A generic autoencoder can be defined in ``theanets`` by using the
-    :class:`Autoencoder <theanets.feedforward.Autoencoder>` class::
+    >>> ica = pca
+    >>> ica.train([inputs], hidden_l1=0.1)
 
-      exp = theanets.Experiment(theanets.Autoencoder)
-
-    The ``layers`` parameter is required to define such a model; it can be
-    provided on the command-line by using ``--layers A B C ... A``, or in your
-    code::
-
-      exp = theanets.Experiment(
-          theanets.Autoencoder,
-          layers=(A, B, C, ..., A))
-
-    Autoencoders retain all attributes of the parent :class:`Network
-    <graph.Network>` class, but additionally can have "tied weights", if the
-    layer configuration is palindromic.
+    In this light, "nonlinear PCA" is quite easy to formulate as well!
     '''
 
     def __init__(self, *args, **kwargs):
@@ -189,38 +226,58 @@ class Autoencoder(graph.Network):
 
 
 class Regressor(graph.Network):
-    r'''A regression model attempts to produce a target output.
+    '''A regressor attempts to produce a target output given some inputs.
 
-    Regression models are trained by optimizing a (possibly regularized) loss
-    that centers around some measurement of error with respect to the target
-    outputs. This regression model implementation uses the mean squared error.
+    Examples
+    --------
 
-    If we have a labeled dataset containing :math:`m` :math:`d`-dimensional
-    input samples :math:`X \in \mathbb{R}^{m \times d}` and :math:`m`
-    :math:`e`-dimensional paired target outputs :math:`Y \in \mathbb{R}^{m
-    \times e}`, then the loss that the Regressor model optimizes with respect to
-    the model parameters :math:`\theta` is:
+    To create a regression model, just create a new class instance. Often you'll
+    provide the layer configuration at this time:
 
-    .. math::
-       \mathcal{L}(X, Y, \theta) =
-         \frac{1}{m} \sum_{i=1}^m \| F_\theta(x_i) - y_i \|_2^2 + R(X, \theta)
+    >>> model = theanets.Regressor([10, 20, 3])
 
-    where :math:`F_\theta` is the feedforward function that computes the network
-    output, and :math:`R` is a regularization function.
+    See :ref:`creating` for more information.
 
-    A regression model requires the following inputs at training time:
+    *Data*
 
-    - ``x``: A two-dimensional array of input data. Each row of ``x`` is
-      expected to be one data item. Each column of ``x`` holds the measurements
-      of a particular input variable across all data items.
-    - ``targets``: A two-dimensional array of target output data. Each row of
-      ``targets`` is expected to be the target values for a single data item.
-      Each column of ``targets`` holds the measurements of a particular output
-      variable across all data items.
+    Training data for a regression model takes the form of two two-dimensional
+    arrays. The shapes of both of these arrays are (num-examples, num-variables)
+    -- the first axis enumerates data points in a batch, and the second
+    enumerates the relevant variables (input variables for the input array, and
+    output variables for the output array).
 
-    The number of rows in ``x`` must be equal to the number of rows of
-    ``targets``, but the number of columns in these two arrays may be whatever
-    is required for the inputs and outputs of the problem.
+    For instance, to create a training dataset containing 1000 examples:
+
+    >>> inputs = np.random.randn(1000, 10).astype('f')
+    >>> outputs = np.random.randn(1000, 3).astype('f')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method, with the inputs and target outputs
+    as data:
+
+    >>> model.train([inputs, outputs])
+
+    See :ref:`training` for more information.
+
+    *Use*
+
+    A regression model can be used to :func:`predict()
+    <theanets.graph.Network.predict>` the output of some input data points:
+
+    >>> test = np.random.randn(3, 10).astype('f')
+    >>> print(model.predict(test))
+
+    See :ref:`using` for more information.
+
+    Notes
+    -----
+
+    Regressor models default to a :class:`MSE
+    <theanets.losses.MeanSquaredError>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
     '''
 
     def __init__(self, *args, **kwargs):
@@ -229,44 +286,71 @@ class Regressor(graph.Network):
 
 
 class Classifier(graph.Network):
-    r'''A classifier attempts to match a 1-hot target output.
+    '''A classifier computes a distribution over labels, given an input.
 
-    Classification models in ``theanets`` are trained by optimizing a (possibly
-    regularized) loss that centers around the categorical cross-entropy. This
-    error computes the difference between the distribution generated by the
-    classification model and the empirical distribution of the labeled data.
+    Examples
+    --------
 
-    If we have a labeled dataset containing :math:`m` :math:`d`-dimensional
-    input samples :math:`X \in \mathbb{R}^{m \times d}` and :math:`m` paired
-    target outputs :math:`Y \in \{0,1,\dots,K-1\}^m`, then the loss that the
-    ``Classifier`` model optimizes with respect to the model parameters
-    :math:`\theta` is:
+    To create a classification model, just create a new class instance. Often
+    you'll provide the layer configuration at this time:
 
-    .. math::
-       \mathcal{L}(X, Y, \theta) = R(X, \theta) - \frac{1}{m} \sum_{i=1}^m
-          \sum_{k=0}^{K-1} p(k | y_i) \log q_\theta(k | x_i)
+    >>> model = theanets.Classifier([10, (20, 'rnn'), 50])
 
-    Here, :math:`p(k|y_i)` is the probability that example :math:`i` is labeled
-    with class :math:`k`; in ``theanets`` classification models, this is 1 if
-    :math:`k = y_i` and 0 otherwise---so, in practice, the sum over classes
-    reduces to a single term. Next, :math:`q_\theta(k|x_i)` is the probability
-    that the model assigns to class :math:`k` given input :math:`x_i`; this
-    corresponds to the relevant softmax output from the model. Finally,
-    :math:`R` is a regularization function.
+    See :ref:`creating` for more information.
 
-    A classifier model requires the following inputs at training time:
+    *Data*
 
-    - ``x``: A two-dimensional array of input data. Each row of ``x`` is
-      expected to be one data item. Each column of ``x`` holds the measurements
-      of a particular input variable across all data items.
-    - ``labels``: A one-dimensional array of target labels. Each element of
-      ``labels`` is expected to be the class index for a single data item.
+    Training data for a classification model takes the form of a two-dimensional
+    array of input data and a one-dimensional vector of target labels. The input
+    array has a shape (num-examples, num-variables): the first axis enumerates
+    data points in a batch, and the second enumerates the input variables in the
+    model.
 
-    The number of rows in ``x`` must match the number of elements in the
-    ``labels`` vector. Additionally, the values in ``labels`` are expected to
-    range from 0 to one less than the number of classes in the data being
-    modeled. For example, for the MNIST digits dataset, which represents digits
-    0 through 9, the labels array contains integer class labels 0 through 9.
+    The second array provides the target class labels for the inputs. Its shape
+    is (num-examples, ), and each integer value in the array gives the class
+    label for the corresponding input example.
+
+    For instance, to create a training dataset containing 1000 examples:
+
+    >>> inputs = np.random.randn(1000, 10).astype('f')
+    >>> outputs = np.random.randint(50, size=1000).astype('i')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method, giving the inputs and target outputs
+    as a dataset:
+
+    >>> model.train([inputs, outputs])
+
+    See :ref:`training` for more information.
+
+    *Use*
+
+    A classification model can be used to :func:`predict()
+    <theanets.graph.Network.predict>` the output of some input data points:
+
+    >>> test = np.random.randn(3, 10).astype('f')
+    >>> print(model.predict(test))
+
+    This method returns a vector containing the most likely class for each input
+    example.
+
+    To retrieve the probabilities of the classes for each example, use
+    :func:`predict_proba() <theanets.feedforward.Classifier.predict_proba>`:
+
+    >>> model.predict_proba(test).shape
+    (3, 50)
+
+    See also :ref:`using` for more information.
+
+    Notes
+    -----
+
+    Classifier models default to a :class:`cross-entropy
+    <theanets.losses.CrossEntropy>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
     '''
 
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'

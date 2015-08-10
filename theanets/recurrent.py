@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 
-'''This module contains recurrent network structures.'''
+'''This module contains recurrent network models and utilities.'''
 
 import collections
 import numpy as np
 import re
-import sys
-import theano.tensor as TT
 
 from . import feedforward
 
 
 def batches(arrays, steps=100, batch_size=64, rng=None):
-    '''Return a callable that generates samples from a dataset.
+    '''Create a callable that generates samples from a dataset.
 
     Parameters
     ----------
@@ -168,16 +166,63 @@ class Text(object):
 class Autoencoder(feedforward.Autoencoder):
     '''An autoencoder network attempts to reproduce its input.
 
+    Examples
+    --------
+
+    To create a recurrent autoencoder, just create a new model instance. Often
+    you'll provide the layer configuration at this time:
+
+    >>> model = theanets.recurrent.Autoencoder([10, (20, 'rnn'), 10])
+
+    See :ref:`creating` for more information.
+
+    *Data*
+
+    Training data for a recurrent autoencoder takes the form of a
+    three-dimensional array. The shape of this array is (num-examples,
+    num-time-steps, num-variables): the first axis enumerates data points in a
+    batch, the second enumerates time steps, and the third enumerates the
+    variables in the model.
+
+    For instance, to create a training dataset containing 1000 examples, each
+    with 100 time steps:
+
+    >>> inputs = np.random.randn(1000, 100, 10).astype('f')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method:
+
+    >>> model.train([inputs])
+
+    See :ref:`training` for more information.
+
+    *Use*
+
+    A model can be used to :func:`predict() <theanets.graph.Network.predict>`
+    the output of some input data points:
+
+    >>> test = np.random.randn(3, 200, 10).astype('f')
+    >>> print(model.predict(test))
+
+    Note that the test data does not need to have the same number of time steps
+    as the training data.
+
+    Additionally, autoencoders can :func:`encode()
+    <theanets.feedforward.Autoencoder.encode>` a set of input data points:
+
+    >>> enc = model.encode(test)
+
+    See :ref:`using` for more information.
+
     Notes
     -----
 
-    A recurrent autoencoder model requires the following inputs during training:
-
-    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-      ``x`` is expected to be one sample in a minibatch. Each element of axis 1
-      of ``x`` represents a moment of time. Each element of axis 2 of ``x``
-      represents the measurements of a particular input variable across all
-      times and all data items.
+    Autoencoder models default to a :class:`MSE
+    <theanets.losses.MeanSquaredError>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
     '''
 
     def __init__(self, *args, **kwargs):
@@ -186,24 +231,62 @@ class Autoencoder(feedforward.Autoencoder):
 
 
 class Regressor(feedforward.Regressor):
-    '''A regressor attempts to produce a target output.
+    '''A regressor attempts to produce a target output given some inputs.
+
+    Examples
+    --------
+
+    To create a recurrent regression model, just create a new class instance.
+    Often you'll provide the layer configuration at this time:
+
+    >>> model = theanets.recurrent.Regressor([10, (20, 'rnn'), 3])
+
+    See :ref:`creating` for more information.
+
+    *Data*
+
+    Training data for a recurrent regression model takes the form of two
+    three-dimensional arrays. The shapes of these arrays are (num-examples,
+    num-time-steps, num-variables): the first axis enumerates data points in a
+    batch, the second enumerates time steps, and the third enumerates the
+    variables (input variables for the input array, and output variables for the
+    output array) in the model.
+
+    For instance, to create a training dataset containing 1000 examples, each
+    with 100 time steps:
+
+    >>> inputs = np.random.randn(1000, 100, 10).astype('f')
+    >>> outputs = np.random.randn(1000, 100, 3).astype('f')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method:
+
+    >>> model.train([inputs, outputs])
+
+    See :ref:`training` for more information.
+
+    *Use*
+
+    A model can be used to :func:`predict() <theanets.graph.Network.predict>`
+    the output of some input data points:
+
+    >>> test = np.random.randn(3, 200, 10).astype('f')
+    >>> print(model.predict(test))
+
+    Note that the test data does not need to have the same number of time steps
+    as the training data.
+
+    See :ref:`using` for more information.
 
     Notes
     -----
 
-    A recurrent regression model takes the following inputs:
-
-    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-      ``x`` is expected to be one moment in time. Each element of axis 1 of
-      ``x`` holds a single sample from a batch of data. Each element of axis 2
-      of ``x`` represents the measurements of a particular input variable across
-      all times and all data items.
-
-    - ``targets``: A three-dimensional array of target output data. Each element
-      of axis 0 of ``targets`` is expected to be one moment in time. Each
-      element of axis 1 of ``targets`` holds a single sample from a batch of
-      data. Each element of axis 2 of ``targets`` represents the measurements of
-      a particular output variable across all times and all data items.
+    Regressor models default to a :class:`MSE
+    <theanets.losses.MeanSquaredError>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
     '''
 
     def __init__(self, *args, **kwargs):
@@ -212,26 +295,87 @@ class Regressor(feedforward.Regressor):
 
 
 class Classifier(feedforward.Classifier):
-    '''A classifier attempts to match a 1-hot target output.
+    '''A classifier computes a distribution over labels, given an input.
+
+    Examples
+    --------
+
+    To create a recurrent classification model, just create a new class
+    instance. Often you'll provide the layer configuration at this time:
+
+    >>> model = theanets.recurrent.Classifier([10, (20, 'rnn'), 50])
+
+    See :ref:`creating` for more information.
+
+    *Data*
+
+    Training data for a recurrent classification model takes the form of two
+    three-dimensional arrays.
+
+    The first array provides the input data for the model. Its shape is
+    (num-examples, num-time-steps, num-variables): the first axis enumerates
+    data points in a batch, the second enumerates time steps, and the third
+    enumerates the input variables in the model.
+
+    The second array provides the target class labels for the inputs. Its shape
+    is (num-examples, num-time-steps), and each integer value in the array gives
+    the class label for the corresponding input example and time step.
+
+    For instance, to create a training dataset containing 1000 examples, each
+    with 100 time steps:
+
+    >>> inputs = np.random.randn(1000, 100, 10).astype('f')
+    >>> outputs = np.random.randint(50, size=(1000, 100)).astype('i')
+
+    *Training*
+
+    Training the model can be as simple as calling the :func:`train()
+    <theanets.graph.Network.train>` method:
+
+    >>> model.train([inputs, outputs])
+
+    See :ref:`training` for more information.
+
+    *Use*
+
+    A model can be used to :func:`predict() <theanets.graph.Network.predict>`
+    the output of some input data points:
+
+    >>> test = np.random.randn(3, 200, 10).astype('f')
+    >>> print(model.predict(test))
+
+    This method returns a two-dimensional array containing the most likely class
+    for each input example and time step.
+
+    Note that the test data does not need to have the same number of time steps
+    as the training data.
+
+    To retrieve the probabilities of the classes for each example, use
+    :func:`predict_proba() <theanets.feedforward.Classifier.predict_proba>`:
+
+    >>> model.predict_proba(test).shape
+    (3, 100, 50)
+
+    Recurrent classifiers have a :func:`predict_sequence` helper method that
+    predicts values in an ongoing sequence. Given a seed value, the model
+    predicts one time step ahead, then adds the prediction to the seed, predicts
+    one more step ahead, and so on:
+
+    >>> seed = np.random.randint(50, size=10).astype('i')
+    >>> print(model.predict_sequence(seed, 100))
+
+    See :class:`Text` for more utility code that is helpful for working with
+    sequences of class labels.
+
+    See also :ref:`using` for more information.
 
     Notes
     -----
 
-    Unlike a feedforward classifier, where the target labels are provided as a
-    single vector, a recurrent classifier requires a vector of target labels for
-    each time step in the input data. So a recurrent classifier model requires
-    the following inputs for training:
-
-    - ``x``: A three-dimensional array of input data. Each element of axis 0 of
-      ``x`` is expected to be one moment in time. Each element of axis 1 of
-      ``x`` holds a single sample in a batch of data. Each element of axis 2 of
-      ``x`` represents the measurements of a particular input variable across
-      all times and all data items in a batch.
-
-    - ``labels``: A two-dimensional array of integer target labels. Each element
-      of ``labels`` is expected to be the class index for a single batch item.
-      Axis 0 of this array represents time, and axis 1 represents data samples
-      in a batch.
+    Classifier models default to a :class:`cross-entropy
+    <theanets.losses.CrossEntropy>` loss. To use a different loss, provide a
+    non-default argument for the ``loss`` keyword argument when constructing
+    your model.
     '''
 
     def __init__(self, *args, **kwargs):

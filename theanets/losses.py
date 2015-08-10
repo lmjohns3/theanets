@@ -141,7 +141,10 @@ class MeanSquaredError(Loss):
     is computed as an average over the dimensionality of the data.
 
     For cases where :math:`x` and :math:`t` are matrices, the MSE computes the
-    average over corresponding rows in :math:`x` and :math:`t`.
+    average over corresponding rows in :math:`x` and :math:`t`:
+
+    .. math::
+       \mathcal{L}(X, T) = \frac{1}{dm} \sum_{j=1}^m \sum_{i=1}^d (x_{ji} - t_{ji})^2
     '''
 
     __extra_registration_keys__ = ['MSE']
@@ -522,8 +525,9 @@ class CrossEntropy(Loss):
 
     The cross-entropy between a "true" distribution over discrete classes
     :math:`p(t)` and a "model" distribution over predicted classes :math:`q(x)`
-    is the number of bits needed to store the model distribution, under the
-    expectation of the true distribution. Mathematically, this loss computes:
+    is the expected number of bits needed to store the model distribution, under
+    the expectation of the true distribution. Mathematically, this loss
+    computes:
 
     .. math::
        \mathcal{L}(x, t) = - \sum_{k=1}^K p(t=k) \log q(x=k)
@@ -531,9 +535,9 @@ class CrossEntropy(Loss):
     The loss value is similar to the KL divergence between :math:`p` and
     :math:`q`, but it is specifically aimed at classification models. When using
     this loss, targets are assumed to be integers in the half-open interval
-    :math:`[0, k)`; the loss is computed by first taking the log of the model
-    distributin and then summing up only the entries in the resulting array
-    corresponding to the true class.
+    :math:`[0, k)`; internally, the loss is computed by first taking the log of
+    the model distribution and then summing up only the entries in the resulting
+    array corresponding to the true class.
     '''
 
     __extra_registration_keys__ = ['XE']

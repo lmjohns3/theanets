@@ -67,40 +67,36 @@ logging = climate.get_logger(__name__)
 class Network(object):
     '''The network class encapsulates a network computation graph.
 
-    In addition to defining standard functionality for common types of
-    feedforward nets, there are also many options for specifying topology and
-    regularization, several of which must be provided to the constructor at
-    initialization time.
+    Computation graphs are organized into :class:`Layers
+    <theanets.layers.base.Layer>`. Each layer receives one or more arrays of
+    input data, transforms them, and generates one or more arrays of output
+    data. Outputs in a computation graph are named according to their layer and
+    output type, so the 'pre' output of a layer named 'hid1' would be named
+    'hid1:pre'. The 'out' output is the default output for a layer. By default
+    the last layer in a network is named 'out'.
+
+    The parameters in a network graph are optimized by minimizing a :class:`Loss
+    <theanets.losses.Loss>` function with respect to some set of training data.
+    Typically the value produced by 'out:out' is compared to some target value,
+    creating an error value of some sort. This error value is then propagated
+    back through the computation graph to update the parameters in the model.
 
     Parameters
     ----------
-    layers : sequence of int, tuple, dict, or :class:`Layer <layers.Layer>`
+    layers : sequence of int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
-    loss : str or :class:`Loss <losses.Loss>`
+    loss : str or :class:`Loss <theanets.losses.Loss>`
         The name of a loss function to optimize when training this network
         model.
-    weighted : bool, optional
-        If True, the network will require an additional input during training
-        that provides weights for the target outputs of the network; the weights
-        will be the last input argument to the network, and they must be the
-        same shape as the target output.
-
-        This can be particularly useful for recurrent networks, where the length
-        of each input sequence in a minibatch is not necessarily the same number
-        of time steps, or for classifier networks where the prior proabibility
-        of one class is significantly different than another. The default is not
-        to use weighted outputs.
-    sparse_input : bool
-        If True, create an input variable that can hold a sparse matrix.
-        Defaults to False, which assumes all arrays are dense.
 
     Attributes
     ----------
-    loss : :class:`Loss <losses.Loss>`
-        A loss to be computed when optimizing this network model.
-    layers : list of :class:`Layer <layers.Layer>`
+    layers : list of :class:`Layer <theanets.layers.base.Layer>`
         A list of the layers in this network model.
+    loss : :class:`Loss <theanets.losses.Loss>`
+        A loss to be computed when optimizing this network model.
+
     '''
 
     def __init__(self, layers, loss='mse', **kwargs):
@@ -123,7 +119,7 @@ class Network(object):
 
         Parameters
         ----------
-        layer : int, tuple, dict, or :class:`Layer <layers.Layer>`
+        layer : int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
             A value specifying the layer to add. For more information, please
             see :ref:`creating-specifying-layers`.
         is_output : bool, optional

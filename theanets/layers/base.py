@@ -44,6 +44,12 @@ logging = climate.get_logger(__name__)
 
 FLOAT = theano.config.floatX
 
+__all__ = [
+    'Input',
+    'Layer',
+    'Product',
+]
+
 
 def add_noise(expr, level, rng):
     '''Add noise to elements of the input expression as needed.
@@ -411,3 +417,62 @@ class Layer(util.Registrar(str('Base'), (), {})):
             activation=self.activation,
         )
         return spec
+
+
+class Input(Layer):
+    '''The input of a network is a special type of layer with no parameters.
+
+    Input layers essentially add only noise to the input data (if desired), but
+    otherwise reproduce their inputs exactly.
+    '''
+
+    def __init__(self, **kwargs):
+        kwargs['inputs'] = 0
+        kwargs['activation'] = 'linear'
+        super(Input, self).__init__(**kwargs)
+
+    def log(self):
+        '''Log some information about this layer.'''
+        logging.info('layer %s "%s": %s inputs',
+                     self.__class__.__name__, self.name, self.size)
+
+    def to_spec(self):
+        '''Create a specification for this layer.
+
+        Returns
+        -------
+        spec : int
+            A single integer specifying the size of this layer.
+        '''
+        return self.size
+
+
+class Product(Layer):
+    '''Multiply the outputs of multiple layers together elementwise.'''
+
+    __extra_registration_keys__ = ['prod']
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of Theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
+        '''
+        keys = sorted(self.inputs)
+        pre = inputs[keys.pop()]
+        for key in keys:
+            pre *= inputs[key]
+        return dict(pre=pre, out=self.activate(pre)), []

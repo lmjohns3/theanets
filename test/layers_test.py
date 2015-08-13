@@ -4,6 +4,7 @@ import theano.tensor as TT
 
 
 class Base(object):
+    BATCH = 8
     INPUTS = 2
     SIZE = 4
     OUTPUTS = 3
@@ -14,8 +15,8 @@ class Base(object):
 
     def test_feed_forward(self):
         net = theanets.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
-        assert out.shape == (8, Base.OUTPUTS)
+        out = net.predict(np.random.randn(Base.BATCH, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.OUTPUTS)
 
     def assert_param_names(self, expected):
         if expected and not expected[0].startswith('l'):
@@ -47,7 +48,7 @@ class TestLayer(Base):
             inputs=Base.INPUTS, size=Base.SIZE, name='l')
 
     def test_build(self):
-        for f in 'feedforward Feedforward classifier rnn lstm'.split():
+        for f in 'feedforward Feedforward classifier prod rnn lstm'.split():
             l = theanets.Layer.build(f, inputs=Base.INPUTS, size=Base.SIZE)
             assert isinstance(l, theanets.layers.Layer)
 
@@ -85,8 +86,8 @@ class TestMultiFeedforward(Base):
     def test_feed_forward(self):
         net = theanets.Regressor(
             (Base.INPUTS, self.a, self.b, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
-        assert out.shape == (8, Base.OUTPUTS)
+        out = net.predict(np.random.randn(Base.BATCH, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.OUTPUTS)
 
     def test_create(self):
         self.assert_param_names(['w_a:out', 'w_b:out', 'b'])
@@ -111,8 +112,8 @@ class TestProduct(Base):
     def test_feed_forward(self):
         net = theanets.Regressor(
             (Base.INPUTS, self.a, self.b, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
-        assert out.shape == (8, Base.OUTPUTS)
+        out = net.predict(np.random.randn(Base.BATCH, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.OUTPUTS)
 
     def test_create(self):
         self.assert_param_names([])
@@ -120,7 +121,35 @@ class TestProduct(Base):
 
     def test_transform(self):
         out, upd = self.l.transform({'a:out': self.x, 'b:out': self.x})
-        assert len(out) == 2
+        assert len(out) == 1
+        assert not upd
+
+
+class TestConcatenate(Base):
+    def _build(self):
+        self.a = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE // 2, name='a')
+        self.b = theanets.layers.Feedforward(
+            inputs={'in:out': Base.INPUTS}, size=Base.SIZE // 2, name='b')
+        return theanets.layers.Concatenate(
+            inputs={'a:out': Base.SIZE // 2, 'b:out': Base.SIZE // 2},
+            size=Base.SIZE, name='l')
+
+    def test_feed_forward(self):
+        net = theanets.Regressor(
+            (Base.INPUTS, self.a, self.b, self.l, Base.OUTPUTS))
+        for l in net.layers:
+            print(l.name, l.__class__, l.inputs, l.size)
+        out = net.predict(np.random.randn(Base.BATCH, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.OUTPUTS)
+
+    def test_create(self):
+        self.assert_param_names([])
+        self.assert_count(0)
+
+    def test_transform(self):
+        out, upd = self.l.transform({'a:out': self.x, 'b:out': self.x})
+        assert len(out) == 1
         assert not upd
 
 
@@ -132,8 +161,8 @@ class TestTied(Base):
 
     def test_feed_forward(self):
         net = theanets.Autoencoder((Base.INPUTS, self.l0, self.l))
-        out = net.predict(np.random.randn(8, Base.INPUTS).astype('f'))
-        assert out.shape == (8, Base.INPUTS)
+        out = net.predict(np.random.randn(Base.BATCH, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.INPUTS)
 
     def test_create(self):
         l = self._build()
@@ -162,14 +191,65 @@ class TestClassifier(Base):
 
 
 class BaseRecurrent(Base):
+    TIMES = 12
+
     def setUp(self):
         super(BaseRecurrent, self).setUp()
         self.x = TT.tensor3('x')
 
     def test_feed_forward(self):
         net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(8, 5, Base.INPUTS).astype('f'))
-        assert out.shape == (8, 5, Base.OUTPUTS)
+        out = net.predict(np.random.randn(
+            Base.BATCH, BaseRecurrent.TIMES, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, BaseRecurrent.TIMES, Base.OUTPUTS)
+
+
+class TestReshape(BaseRecurrent):
+    def _build(self):
+        # we get an input that's (BATCH, TIMES, INPUTS): (8, 12, 2).
+        # we'll reshape to (BATCH, 6, SIZE): (8, 6, 4).
+        return theanets.layers.Reshape(inputs=Base.INPUTS, shape=(6, Base.SIZE))
+
+    def test_create(self):
+        self.assert_param_names([])
+        self.assert_count(0)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 1
+        assert not upd
+
+    def test_spec(self):
+        self.assert_spec(shape=[6, Base.SIZE], size=Base.SIZE, form='reshape')
+
+    def test_feed_forward(self):
+        net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(
+            Base.BATCH, BaseRecurrent.TIMES, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, 6, Base.OUTPUTS)
+
+
+class TestFlatten(BaseRecurrent):
+    def _build(self):
+        # we get an input that's (BATCH, TIMES, INPUTS): (8, 12, 2).
+        # this gets flattened to (BATCH, TIMES * INPUTS): (8, 24).
+        return theanets.layers.Flatten(
+            inputs=Base.INPUTS, size=BaseRecurrent.TIMES * Base.INPUTS)
+
+    def test_create(self):
+        self.assert_param_names([])
+        self.assert_count(0)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 1
+        assert not upd
+
+    def test_feed_forward(self):
+        net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
+        out = net.predict(np.random.randn(
+            Base.BATCH, BaseRecurrent.TIMES, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, Base.OUTPUTS)
 
 
 class TestConv1(BaseRecurrent):
@@ -179,8 +259,9 @@ class TestConv1(BaseRecurrent):
 
     def test_feed_forward(self):
         net = theanets.recurrent.Regressor((Base.INPUTS, self.l, Base.OUTPUTS))
-        out = net.predict(np.random.randn(5, 8, Base.INPUTS).astype('f'))
-        assert out.shape == (5, 6, Base.OUTPUTS)
+        out = net.predict(np.random.randn(
+            Base.BATCH, BaseRecurrent.TIMES, Base.INPUTS).astype('f'))
+        assert out.shape == (Base.BATCH, BaseRecurrent.TIMES - 2, Base.OUTPUTS)
 
     def test_create(self):
         self.assert_param_names(['b', 'w'])

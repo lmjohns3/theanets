@@ -45,9 +45,12 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 __all__ = [
+    'Concatenate',
     'Input',
+    'Flatten',
     'Layer',
     'Product',
+    'Reshape',
 ]
 
 
@@ -472,7 +475,131 @@ class Product(Layer):
             An empty sequence of updates.
         '''
         keys = sorted(self.inputs)
-        pre = inputs[keys.pop()]
+        out = inputs[keys.pop()]
         for key in keys:
-            pre *= inputs[key]
-        return dict(pre=pre, out=self.activate(pre)), []
+            out *= inputs[key]
+        return dict(out=out), []
+
+
+class Flatten(Layer):
+    '''Flatten all but the batch index of the input.'''
+
+    __extra_registration_keys__ = ['flat']
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of Theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
+        '''
+        x = self._only_input(inputs)
+        return dict(out=x.reshape([x.shape[0], -1])), []
+
+
+class Concatenate(Layer):
+    '''Concatenate multiple inputs along the last axis.'''
+
+    __extra_registration_keys__ = ['concat']
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of Theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
+        '''
+        # using axis=-1 doesn't work with concatenate!
+        tensors = [inputs[k] for k in sorted(self.inputs)]
+        out = TT.concatenate(tensors, axis=tensors[0].ndim - 1)
+        return dict(out=out), []
+
+
+class Reshape(Layer):
+    '''Reshape an input to have different numbers of dimensions.
+
+    Notes
+    -----
+
+    In ``theanets``, the leading axis of a data array always runs over the
+    examples in a mini-batch. Since the number of examples in a mini-batch is
+    constant throughout a network graph, this layer always preserves the shape
+    of the leading axis of its inputs.
+
+    If you want to vectorize a data array, you could do that using (-1, ) as the
+    shape for this layer. But it's often easier to read if you use the
+    :class:`Flatten` layer type to reshape a layer's output into a flat vector.
+
+    Parameters
+    ----------
+    shape : sequence of int
+        The desired shape of the output "vectors" for this layer. This should
+        not include the leading axis of the actual shape of the data arrays
+        processed by the graph! For example, to reshape input vectors of length
+        a * b into 2D output "images," use (a, b) as the shape, not (batch-size,
+        a, b).
+    '''
+
+    def __init__(self, shape, **kwargs):
+        self.shape = list(shape)
+        kwargs['size'] = shape[-1]
+        super(Reshape, self).__init__(**kwargs)
+        assert self.size == self.shape[-1]
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of Theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function,
+            and an "out" output that gives the post-activation output.
+        updates : list of update pairs
+            An empty sequence of updates.
+        '''
+        x = self._only_input(inputs)
+        return dict(out=x.reshape([x.shape[0]] + self.shape)), []
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Reshape, self).to_spec()
+        spec['shape'] = self.shape
+        return spec

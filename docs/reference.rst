@@ -80,9 +80,12 @@ Layer types
 .. autosummary::
    :toctree: generated/
 
-   Layer
+   Concatenate
+   Flatten
    Input
+   Layer
    Product
+   Reshape
 
 Feedforward layers
 ------------------

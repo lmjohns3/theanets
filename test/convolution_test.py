@@ -81,7 +81,7 @@ class TestClassifier(Base):
     def test_sgd(self):
         self.exp = theanets.Experiment(
             theanets.convolution.Classifier,
-            layers=(self.NUM_INPUTS, (10, 'conv2'), self.NUM_CLASSES))
+            layers=(self.NUM_INPUTS, (10, 'conv2'), (100, 'flatten'), self.NUM_CLASSES))
         self.assert_progress('sgd', [self.INPUTS, self.CLASSES])
 
     def test_predict_onelayer(self):
@@ -112,23 +112,6 @@ class TestClassifier(Base):
         self.assert_shape(hs['hid1:out'].shape, 15)
         self.assert_shape(hs['hid2:out'].shape, 13)
         self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
-
-    def test_predict_sequence(self):
-        net = self._build(13)
-
-        count = 0
-        for cs in net.predict_sequence([0, 0, 1, 2], 4, streams=3):
-            assert isinstance(cs, list)
-            assert len(cs) == 3
-            count += 1
-        assert count == 4
-
-        count = 0
-        for cs in net.predict_sequence([0, 0, 1, 2], 4):
-            print(cs, type(cs))
-            assert isinstance(cs, int)
-            count += 1
-        assert count == 4
 
 
 class TestWeightedClassifier(TestClassifier):

@@ -62,13 +62,13 @@ Losses
    :toctree: generated/
 
    Loss
-   MeanSquaredError
-   MeanAbsoluteError
-   GaussianLogLikelihood
-   MaximumMeanDiscrepancy
-   KullbackLeiblerDivergence
    CrossEntropy
+   GaussianLogLikelihood
    Hinge
+   KullbackLeiblerDivergence
+   MaximumMeanDiscrepancy
+   MeanAbsoluteError
+   MeanSquaredError
 
 Layer types
 ===========
@@ -108,7 +108,6 @@ Convolution layers
 .. autosummary::
    :toctree: generated/
 
-   Convolution
    Conv1
 
 Recurrent layers
@@ -121,15 +120,15 @@ Recurrent layers
 .. autosummary::
    :toctree: generated/
 
-   Recurrent
-   RNN
    ARRNN
-   LRRNN
-   GRU
-   LSTM
-   Clockwork
-   MRNN
    Bidirectional
+   Clockwork
+   GRU
+   LRRNN
+   LSTM
+   MRNN
+   MUT1
+   RNN
 
 Activations
 ===========

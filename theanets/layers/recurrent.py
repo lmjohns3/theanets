@@ -21,15 +21,15 @@ logging = climate.get_logger(__name__)
 FLOAT = theano.config.floatX
 
 __all__ = [
-    'Recurrent',
-    'RNN',
     'ARRNN',
-    'LRRNN',
-    'GRU',
-    'LSTM',
-    'Clockwork',
-    'MRNN',
     'Bidirectional',
+    'Clockwork',
+    'GRU',
+    'LRRNN',
+    'LSTM',
+    'MRNN',
+    'MUT1',
+    'RNN',
 ]
 
 
@@ -756,7 +756,6 @@ class Clockwork(Recurrent):
         # scan wants: (time, batch, input)
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
-        n = self.size // len(self.periods)
 
         def fn(t, x_t, p_tm1, h_tm1):
             p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
@@ -782,6 +781,78 @@ class Clockwork(Recurrent):
         spec = super(Clockwork, self).to_spec()
         spec['periods'] = tuple(self.periods)
         return spec
+
+
+class MUT1(Recurrent):
+    '''"MUT1" evolved recurrent layer.
+
+    The update equations in this layer are given by [Joz15]_, page 7.
+
+    References
+    ----------
+
+    .. [Joz15] R. Jozefowicz, W. Zaremba, & I. Sutskever (2015) "An Empirical
+       Exploration of Recurrent Network Architectures."
+       http://jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
+    '''
+
+    def setup(self):
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xr', self.input_size, self.size)
+        self.add_weights('xz', self.input_size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_weights('hr', self.size, self.size)
+        self.add_bias('bh', self.size)
+        self.add_bias('br', self.size)
+        self.add_bias('bz', self.size)
+
+    def transform(self, inputs):
+        '''Transform inputs to this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`base.Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function, a
+            "hid" output that gives the post-activation values before applying
+            the rate mixing, and an "out" output that gives the overall output.
+        updates : sequence of update pairs
+            A sequence of updates to apply to this layer's state inside a theano
+            function.
+        '''
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        z = TT.nnet.sigmoid(TT.dot(x, self.find('xz')) + self.find('bz'))
+
+        def fn(x_t, r_t, z_t, h_tm1):
+            r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
+            pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
+            h_t = TT.tanh(pre)
+            return [pre, h_t, (1 - z_t) * h_tm1 + z_t * h_t]
+
+        (p, h, o), updates = self._scan(
+            fn,
+            [TT.tanh(TT.dot(x, self.find('xh'))) + self.find('bh'),
+             TT.dot(x, self.find('xr')) + self.find('br'),
+             z],
+            [None, None, None, x])
+
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        pre = p.dimshuffle(1, 0, 2)
+        hid = h.dimshuffle(1, 0, 2)
+        rate = z.dimshuffle(1, 0, 2)
+        out = o.dimshuffle(1, 0, 2)
+
+        return dict(pre=pre, hid=hid, rate=rate, out=out), updates
 
 
 class Bidirectional(base.Layer):

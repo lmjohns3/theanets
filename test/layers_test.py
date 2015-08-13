@@ -284,6 +284,23 @@ class TestGRU(BaseRecurrent):
         assert not upd
 
 
+class TestMUT1(BaseRecurrent):
+    def _build(self):
+        return theanets.layers.MUT1(
+            inputs=Base.INPUTS, size=Base.SIZE, name='l')
+
+    def test_create(self):
+        self.assert_param_names(['bh', 'br', 'bz',
+                                 'hh', 'hr',
+                                 'xh', 'xr', 'xz'])
+        self.assert_count(84)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 4
+        assert not upd
+
+
 class TestClockwork(BaseRecurrent):
     def _build(self):
         return theanets.layers.Clockwork(

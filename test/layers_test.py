@@ -293,7 +293,7 @@ class TestMUT1(BaseRecurrent):
         self.assert_param_names(['bh', 'br', 'bz',
                                  'hh', 'hr',
                                  'xh', 'xr', 'xz'])
-        self.assert_count(84)
+        self.assert_count(68)
 
     def test_transform(self):
         out, upd = self.l.transform(dict(out=self.x))

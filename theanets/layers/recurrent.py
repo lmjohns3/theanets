@@ -841,9 +841,8 @@ class MUT1(Recurrent):
         (p, h, o), updates = self._scan(
             fn,
             [TT.tanh(TT.dot(x, self.find('xh'))) + self.find('bh'),
-             TT.dot(x, self.find('xr')) + self.find('br'),
-             z],
-            [None, None, None, x])
+             TT.dot(x, self.find('xr')) + self.find('br'), z],
+            [None, None, x])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)

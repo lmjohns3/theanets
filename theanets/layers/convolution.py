@@ -4,12 +4,15 @@
 
 from __future__ import division
 
+import climate
 import numpy as np
 import theano
 import theano.tensor as TT
 
 from . import base
 from .. import util
+
+logging = climate.get_logger(__name__)
 
 __all__ = [
     'Conv1',
@@ -38,6 +41,20 @@ class Convolution(base.Layer):
         self.stride = stride
         self.border_mode = border_mode
         super(Convolution, self).__init__(**kwargs)
+
+    def log(self):
+        '''Log some information about this layer.'''
+        inputs = ', '.join('({}){}'.format(n, s) for n, s in self.inputs.items())
+        logging.info('layer %s "%s": %s -> %s, %s %s filters %s, %s, %d parameters',
+                     self.__class__.__name__,
+                     self.name,
+                     inputs,
+                     self.size,
+                     'x'.join(str(i) for i in self.filter_shape),
+                     self.border_mode,
+                     ''.join('+{}'.format(i) for i in self.stride),
+                     getattr(self.activate, 'name', self.activate),
+                     self.num_params)
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.

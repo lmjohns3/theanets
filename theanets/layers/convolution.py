@@ -176,7 +176,7 @@ class Conv2(Convolution):
     Parameters
     ----------
     filter_size : (int, int)
-        Size of the convolution filters for this layer. Defaults to (8, 8).
+        Size of the convolution filters for this layer.
     stride : (int, int), optional
         Apply convolutions with this stride; i.e., skip this many samples
         between convolutions. Defaults to (1, 1), i.e., no skipping.
@@ -184,7 +184,7 @@ class Conv2(Convolution):
         Compute convolutions with this border mode. Defaults to 'valid'.
     '''
 
-    def __init__(self, filter_size=(8, 8), stride=(1, 1), border_mode='valid', **kwargs):
+    def __init__(self, filter_size, stride=(1, 1), border_mode='valid', **kwargs):
         super(Conv2, self).__init__(
             filter_shape=filter_size,
             stride=stride,

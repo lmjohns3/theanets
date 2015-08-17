@@ -42,8 +42,6 @@ from .. import util
 
 logging = climate.get_logger(__name__)
 
-FLOAT = theano.config.floatX
-
 __all__ = [
     'Concatenate',
     'Input',
@@ -72,7 +70,7 @@ def add_noise(expr, level, rng):
     '''
     if level == 0:
         return expr
-    return expr + rng.normal(size=expr.shape, std=level, dtype=FLOAT)
+    return expr + rng.normal(size=expr.shape, std=level, dtype=util.FLOAT)
 
 
 def add_dropout(expr, probability, rng):
@@ -94,7 +92,7 @@ def add_dropout(expr, probability, rng):
     if probability == 0:
         return expr
     return expr * rng.binomial(
-        size=expr.shape, n=1, p=1-probability, dtype=FLOAT)
+        size=expr.shape, n=1, p=1-probability, dtype=util.FLOAT)
 
 
 class Layer(util.Registrar(str('Base'), (), {})):

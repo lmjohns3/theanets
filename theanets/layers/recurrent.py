@@ -18,8 +18,6 @@ from .. import util
 
 logging = climate.get_logger(__name__)
 
-FLOAT = theano.config.floatX
-
 __all__ = [
     'ARRNN',
     'Bidirectional',
@@ -85,7 +83,7 @@ class Recurrent(base.Layer):
             A variable containing the initial state of some recurrent variable.
         '''
         values = theano.shared(
-            np.zeros((1, self.size), FLOAT),
+            np.zeros((1, self.size), util.FLOAT),
             name=self._fmt('{}0'.format(name)))
         return TT.repeat(values, batch_size, axis=0)
 
@@ -709,7 +707,7 @@ class Clockwork(Recurrent):
 
     def setup(self):
         n = self.size // len(self.periods)
-        mask = np.zeros((self.size, self.size), FLOAT)
+        mask = np.zeros((self.size, self.size), util.FLOAT)
         period = np.zeros((self.size, ), 'i')
         for i, T in enumerate(self.periods):
             mask[i*n:(i+1)*n, i*n:] = 1

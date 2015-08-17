@@ -15,8 +15,6 @@ import theano.tensor as TT
 from . import base
 from .. import util
 
-FLOAT = theano.config.floatX
-
 __all__ = [
     'Conv1',
 ]
@@ -68,7 +66,7 @@ class Convolution(base.Layer):
         sparsity = self.kwargs.get(
             'sparsity_{}'.format(name),
             self.kwargs.get('sparsity', sparsity))
-        arr = np.zeros((nout, nin) + self.filter_shape, FLOAT)
+        arr = np.zeros((nout, nin) + self.filter_shape, util.FLOAT)
         for r in range(self.filter_shape[0]):
             for c in range(self.filter_shape[1]):
                 arr[:, :, r, c] = util.random_matrix(

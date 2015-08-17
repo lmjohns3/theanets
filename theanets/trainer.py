@@ -186,6 +186,13 @@ class SupervisedPretrainer(object):
     of the relevant settings of noise, dropouts, loss function and the like, in
     addition to removing the need for copying trained weights around between
     different :class:`Network <theanets.graph.Network>` instances.
+
+    References
+    ----------
+
+    .. [Ben06] Y. Bengio, P. Lamblin, D. Popovici, & H. Larochelle. (NIPS 2006)
+       "Greedy Layer-Wise Training of Deep Networks"
+       http://machinelearning.wustl.edu/mlpapers/paper_files/NIPS2006_739.pdf
     '''
 
     def __init__(self, algo, network):

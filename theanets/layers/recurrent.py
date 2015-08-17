@@ -124,10 +124,10 @@ class Recurrent(base.Layer):
         if nin == self.size and nout % nin == 0:
             arr = np.concatenate([
                 util.random_matrix(nin, nin, mean, std, sparsity=s, radius=r,
-                                   diagonal=d, rng=self.nrng)
+                                   diagonal=d, rng=self.rng)
                 for _ in range(nout // nin)], axis=1)
         else:
-            arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.nrng)
+            arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.rng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _scan(self, fn, inputs, inits=None, name='scan'):

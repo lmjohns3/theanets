@@ -130,7 +130,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
     activation : str, optional
         The name of an activation function to use for units in this layer. See
         :func:`build_activation`.
-    nrng : :class:`numpy.random.RandomState` or int, optional
+    rng : :class:`numpy.random.RandomState` or int, optional
         A numpy random number generator, or an integer seed for a random number
         generator. If not provided, the random number generator will be created
         with an automatically chosen seed.
@@ -183,9 +183,9 @@ class Layer(util.Registrar(str('Base'), (), {})):
             self.inputs = dict(out=self.inputs)
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
-        self.nrng = kwargs.get('nrng')
-        if self.nrng is None or isinstance(self.nrng, int):
-            self.nrng = np.random.RandomState(self.nrng)
+        self.rng = kwargs.get('rng', kwargs.get('nrng'))
+        if self.rng is None or isinstance(self.rng, int):
+            self.rng = np.random.RandomState(self.rng)
         self.activation = activation
         self.activate = activations.build(activation, self)
         self.kwargs = kwargs
@@ -378,7 +378,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
         self._params.append(theano.shared(
             util.random_matrix(nin, nout, mean=m, std=s, sparsity=p,
-                               diagonal=d, rng=self.nrng),
+                               diagonal=d, rng=self.rng),
             name=self._fmt(name)))
 
     def add_bias(self, name, size, mean=0, std=1):
@@ -398,7 +398,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         mean = self.kwargs.get('mean_{}'.format(name), mean)
         std = self.kwargs.get('std_{}'.format(name), std)
         self._params.append(theano.shared(
-            util.random_vector(size, mean, std, rng=self.nrng),
+            util.random_vector(size, mean, std, rng=self.rng),
             name=self._fmt(name)))
 
     def to_spec(self):

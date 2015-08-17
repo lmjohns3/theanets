@@ -2,6 +2,7 @@
 
 r'''Utility functions and classes.'''
 
+import fnmatch
 import numpy as np
 import theano
 
@@ -110,3 +111,53 @@ def random_vector(size, mean=0, std=1, rng=None):
     if rng is None or isinstance(rng, int):
         rng = np.random.RandomState(rng)
     return (mean + std * rng.randn(size)).astype(FLOAT)
+
+
+def outputs_matching(outputs, pattern):
+    '''Get the outputs from a network that match a pattern.
+
+    Parameters
+    ----------
+    outputs : dict or sequence of (str, theano expression)
+        Output expressions to filter for matches. If this is a dictionary, its
+        ``items()`` will be processed for matches.
+    pattern : str
+        A glob-style pattern to match against. ``'*'`` will match all outputs,
+        while ``'a:*'`` matches outputs named ``'a:b'`` ``'a:xyz'`` and so on.
+
+    Yields
+    ------
+    matches : pair of str, theano expression
+        Generates a sequence of (name, expression) pairs. The name is the name
+        of the output that matched, and the expression is the symbolic output in
+        the network graph.
+    '''
+    if isinstance(outputs, dict):
+        outputs = outputs.items()
+    for name, expr in outputs:
+        if fnmatch.fnmatch(name, pattern):
+            yield name, expr
+
+
+def params_matching(network, pattern):
+    '''Get the parameters from a network that match a pattern.
+
+    Parameters
+    ----------
+    network : :class:`theanets.graph.Network`
+        A network to retrieve parameters from.
+    pattern : str
+        A glob-style pattern to match against. ``'*'`` will match all
+        parameters, while ``'a.*'`` matches parameters named ``'a.b'``
+        ``'a.xyz'`` and so on.
+
+    Yields
+    ------
+    matches : pair of str, theano expression
+        Generates a sequence of (name, expression) pairs. The name is the name
+        of the parameter that matched, and the expression represents the
+        parameter symbolically.
+    '''
+    for p in network.params:
+        if fnmatch.fnmatch(p.name, pattern):
+            yield p.name, p

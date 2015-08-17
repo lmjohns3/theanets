@@ -1,4 +1,5 @@
 import numpy as np
+import theanets
 import theanets.util
 
 
@@ -30,3 +31,40 @@ class TestRandomVector:
         assert x.shape == (10000, )
         assert np.allclose(x.mean(), 0, atol=1e-2), x.mean()
         assert np.allclose(x.std(), 1, atol=1e-2), x.std()
+
+
+class TestMatching:
+    def test_params_matching(self):
+        net = theanets.Autoencoder([10, 20, 30, 10])
+
+        match = sorted(theanets.util.params_matching(net, '*'))
+        assert len(match) == 6
+        assert [n for n, _ in match] == [
+            'hid1.b', 'hid1.w', 'hid2.b', 'hid2.w', 'out.b', 'out.w']
+
+        match = sorted(theanets.util.params_matching(net, '*.w'))
+        assert len(match) == 3
+        assert [n for n, _ in match] == ['hid1.w', 'hid2.w', 'out.w']
+
+        match = sorted(theanets.util.params_matching(net, 'o*.?'))
+        assert len(match) == 2
+        assert [n for n, _ in match] == ['out.b', 'out.w']
+
+    def test_outputs_matching(self):
+        net = theanets.Autoencoder([10, 20, 30, 10])
+        outputs, _ = net.build_graph()
+
+        match = sorted(theanets.util.outputs_matching(outputs, '*'))
+        assert len(match) == 9
+        assert [n for n, _ in match] == [
+            'hid1:out', 'hid1:pre', 'hid2:out', 'hid2:pre',
+            'in:out', 'out', 'out:out', 'out:pre', 'x']
+
+        match = sorted(theanets.util.outputs_matching(outputs, 'hid?:*'))
+        assert len(match) == 4
+        assert [n for n, _ in match] == [
+            'hid1:out', 'hid1:pre', 'hid2:out', 'hid2:pre']
+
+        match = sorted(theanets.util.outputs_matching(outputs, '*:pre'))
+        assert len(match) == 3
+        assert [n for n, _ in match] == ['hid1:pre', 'hid2:pre', 'out:pre']

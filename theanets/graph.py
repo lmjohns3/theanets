@@ -47,7 +47,6 @@ the input nodes in the graph).
 
 import climate
 import downhill
-import fnmatch
 import gzip
 import hashlib
 import numpy as np
@@ -60,6 +59,7 @@ import warnings
 from . import layers
 from . import losses
 from . import trainer
+from . import util
 
 logging = climate.get_logger(__name__)
 
@@ -641,15 +641,12 @@ class Network(object):
         outputs, _ = self.build_graph(**kwargs)
         monitors = [('err', self.losses[0](outputs))]
 
-        def parse_pattern(pattern):
-            '''Yield graph expressions that match the given pattern.'''
-            for name, expr in outputs.items():
-                if fnmatch.fnmatch(name, pattern):
-                    yield name, expr
-            for l in self.layers:
-                for p in l.params:
-                    if fnmatch.fnmatch(p.name, pattern):
-                        yield p.name, p
+        def matching(pattern):
+            '''Yield all matching outputs or parameters from the graph.'''
+            for name, expr in util.outputs_matching(outputs, pattern):
+                yield name, expr
+            for name, expr in util.params_matching(self, pattern):
+                yield name, expr
 
         def parse_levels(levels):
             '''Yield named monitor callables.'''
@@ -670,7 +667,7 @@ class Network(object):
         if isinstance(inputs, dict):
             inputs = inputs.items()
         for pattern, levels in inputs:
-            for name, expr in parse_pattern(pattern):
+            for name, expr in matching(pattern):
                 for key, value in parse_levels(levels):
                     monitors.append(('{}{}'.format(name, key), value(expr)))
 

@@ -94,9 +94,8 @@ class Network(object):
     ----------
     layers : list of :class:`Layer <theanets.layers.base.Layer>`
         A list of the layers in this network model.
-    loss : :class:`Loss <theanets.losses.Loss>`
-        A loss to be computed when optimizing this network model.
-
+    losses : list of :class:`Loss <theanets.losses.Loss>`
+        A list of losses to be computed when optimizing this network model.
     '''
 
     def __init__(self, layers, loss='mse', **kwargs):
@@ -112,7 +111,7 @@ class Network(object):
 
         if 'output_name' not in kwargs:
             kwargs['output_name'] = last_output
-        self.loss = losses.Loss.build(loss, **kwargs)
+        self.losses = [losses.Loss.build(loss, **kwargs)]
 
     def add_layer(self, layer, is_output=False):
         '''Add a layer to our network graph.
@@ -361,7 +360,8 @@ class Network(object):
         def add(s):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
-        add(self.loss.__class__.__name__)
+        for loss in self.losses:
+            add(loss.__class__.__name__)
         # See discussions
         # https://groups.google.com/forum/#!topic/theanets/nL6Nis29B7Q
         add(sorted(kwargs.items(), key=lambda x: x[0]))
@@ -415,7 +415,7 @@ class Network(object):
                     if i == len(self.layers) - 1:
                         which = 'output_dropouts'
                     dropout[l.output_name()] = kwargs.get(which, 0)
-            outputs, updates = dict(x=self.loss.input), []
+            outputs, updates = dict(x=self.losses[0].input), []
             for i, layer in enumerate(self.layers):
                 out, upd = layer.connect(outputs, noise, dropout)
                 outputs.update(out)
@@ -494,7 +494,7 @@ class Network(object):
             outputs, updates = self.build_graph(**kwargs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
             self._functions[key] = (labels, theano.function(
-                [self.loss.input], exprs, updates=updates))
+                [self.losses[0].input], exprs, updates=updates))
         labels, f = self._functions[key]
         return dict(zip(labels, f(x)))
 
@@ -544,10 +544,10 @@ class Network(object):
         return 1 - (w * u * u).sum() / (w * v * v).sum()
 
     def __getstate__(self):
-        return (self.layers, self.loss)
+        return (self.layers, self.losses)
 
     def __setstate__(self, state):
-        self.layers, self.loss = state
+        self.layers, self.losses = state
         self._graphs = {}
         self._functions = {}
 
@@ -622,10 +622,10 @@ class Network(object):
                        for w in l.params if w.ndim > 1),
             hidden_l1=(abs(h).mean() for h in hiddens),
             hidden_l2=((h * h).mean() for h in hiddens),
-            contractive=(TT.sqr(TT.grad(h.mean(), self.loss.input)).mean()
+            contractive=(TT.sqr(TT.grad(h.mean(), self.losses[0].input)).mean()
                          for h in hiddens),
         )
-        return self.loss(outputs) + sum(
+        return sum(loss(outputs) for loss in self.losses) + sum(
             kwargs[weight] * sum(expr)
             for weight, expr in regularizers.items()
             if kwargs.get(weight, 0) > 0)
@@ -639,7 +639,7 @@ class Network(object):
             A list of named monitor expressions to compute for this network.
         '''
         outputs, _ = self.build_graph(**kwargs)
-        monitors = [('err', self.loss(outputs))]
+        monitors = [('err', self.losses[0](outputs))]
 
         def parse_pattern(pattern):
             '''Yield graph expressions that match the given pattern.'''

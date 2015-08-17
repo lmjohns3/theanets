@@ -372,7 +372,7 @@ class Classifier(graph.Network):
         '''
         monitors = super(Classifier, self).monitors(**kwargs)
         outputs, _ = self.build_graph(**kwargs)
-        return monitors + [('acc', self.loss.accuracy(outputs))]
+        return monitors + [('acc', self.losses[0].accuracy(outputs))]
 
     def predict(self, x):
         '''Compute a greedy classification for the given set of data.

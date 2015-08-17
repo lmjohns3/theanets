@@ -60,7 +60,7 @@ class DownhillTrainer(object):
                 loss=self.network.regularized_loss(**kwargs),
                 updates=self.network.updates(**kwargs),
                 monitors=self.network.monitors(**kwargs),
-                inputs=self.network.loss.variables,
+                inputs=self.network.losses[0].variables,
                 params=self.network.params,
                 monitor_gradients=kwargs.get('monitor_gradients', False),
         ).iterate(train, valid=valid, **kwargs):
@@ -238,12 +238,12 @@ class SupervisedPretrainer(object):
                     activation=original[-1].activation)]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
-            net.loss.output_name = net.layers[-1].output_name()
+            net.losses[0].output_name = net.layers[-1].output_name()
             trainer = DownhillTrainer(self.algo, net)
             for monitors in trainer.itertrain(train, valid, **kwargs):
                 yield monitors
         net.layers = original
-        net.loss.output_name = output_name
+        net.losses[0].output_name = output_name
 
 
 class UnsupervisedPretrainer(object):

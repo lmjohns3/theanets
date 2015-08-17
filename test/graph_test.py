@@ -39,11 +39,11 @@ class TestNetwork:
 
     def test_default_output_name(self):
         m = theanets.Regressor((1, 2, (1, 'tied')))
-        assert m.loss.output_name == 'tied-hid1:out'
+        assert m.losses[0].output_name == 'tied-hid1:out'
         m = theanets.Regressor((1, 2, 1))
-        assert m.loss.output_name == 'out:out'
+        assert m.losses[0].output_name == 'out:out'
         m = theanets.Regressor((1, 2, 1), output_name='foo')
-        assert m.loss.output_name == 'foo:out'
+        assert m.losses[0].output_name == 'foo:out'
 
     def test_find_number(self):
         m = theanets.Regressor((1, 2, 1))

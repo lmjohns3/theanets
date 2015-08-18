@@ -70,6 +70,24 @@ Losses
    MeanAbsoluteError
    MeanSquaredError
 
+Regularizers
+------------
+
+.. automodule:: theanets.regularizers
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Regularizer
+   HiddenL1
+   WeightL1
+   WeightL2
+   Contractive
+   Dropout
+   GaussianNoise
+
 Layer types
 ===========
 

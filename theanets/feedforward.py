@@ -9,6 +9,7 @@ import warnings
 from . import graph
 from . import layers
 from . import losses
+from . import regularizers
 
 
 class Autoencoder(graph.Network):
@@ -366,7 +367,8 @@ class Classifier(graph.Network):
             A list of named monitor expressions to compute for this network.
         '''
         monitors = super(Classifier, self).monitors(**kwargs)
-        outputs, _ = self.build_graph(**kwargs)
+        regs = regularizers.from_kwargs(self, **kwargs)
+        outputs, _ = self.build_graph(regs)
         return monitors + [('acc', self.losses[0].accuracy(outputs))]
 
     def predict(self, x):

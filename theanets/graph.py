@@ -44,12 +44,12 @@ import hashlib
 import numpy as np
 import pickle
 import theano
-import theano.tensor as TT
 import time
 import warnings
 
 from . import layers
 from . import losses
+from . import regularizers
 from . import trainer
 from . import util
 
@@ -401,11 +401,11 @@ class Network(object):
             pass
         return monitors
 
-    def _hash(self, **kwargs):
+    def _hash(self, regularizers=()):
         '''Construct a string key for representing a computation graph.
 
-        This key will be unique for a given network topology and set of keyword
-        arguments.
+        This key will be unique for a given (a) network topology, (b) set of
+        losses, and (c) set of regularizers.
 
         Returns
         -------
@@ -415,29 +415,22 @@ class Network(object):
         def add(s):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
+        for r in regularizers:
+            add('{}{}'.format(r.__class__.__name__, r.weight))
         for l in self.losses:
             add('{}{}'.format(l.__class__.__name__, l.weight))
         for l in self.layers:
             add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
-        # https://groups.google.com/forum/#!topic/theanets/nL6Nis29B7Q
-        add(sorted(kwargs.items()))
         return h.hexdigest()
 
-    def build_graph(self, **kwargs):
+    def build_graph(self, regularizers=()):
         '''Connect the layers in this network to form a computation graph.
 
         Parameters
         ----------
-        noise : dict mapping str to float, optional
-            A dictionary that maps layer output names to standard deviation
-            values. For an output "layer:output" in the graph, white noise with
-            the given standard deviation will be added to the output. Defaults
-            to 0 for all layer outputs.
-        dropout : dict mapping str to float in [0, 1], optional
-            A dictionary that maps layer output names to dropout values. For an
-            output "layer:output" in the graph, the given fraction of units in
-            the output will be randomly set to 0. Default to 0 for all layer
-            outputs.
+        regularizers : list of :class:`theanets.regularizers.Regularizer`
+            A list of the regularizers to apply while building the computation
+            graph.
 
         Returns
         -------
@@ -447,32 +440,15 @@ class Network(object):
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
-        key = self._hash(**kwargs)
+        regularizers = tuple(regularizers)
+        key = self._hash(regularizers)
         if key not in self._graphs:
-            noise = kwargs.get('noise')
-            if noise is None:
-                noise = {}
-                for i, l in enumerate(self.layers):
-                    which = 'hidden_noise'
-                    if i == 0:
-                        which = 'input_noise'
-                    if i == len(self.layers) - 1:
-                        which = 'output_noise'
-                    noise[l.output_name()] = kwargs.get(which, 0)
-            dropout = kwargs.get('dropout')
-            if dropout is None:
-                dropout = {}
-                for i, l in enumerate(self.layers):
-                    which = 'hidden_dropouts'
-                    if i == 0:
-                        which = 'input_dropouts'
-                    if i == len(self.layers) - 1:
-                        which = 'output_dropouts'
-                    dropout[l.output_name()] = kwargs.get(which, 0)
             outputs = {i.name: i for i in self.inputs}
             updates = []
             for layer in self.layers:
-                out, upd = layer.connect(outputs, noise, dropout)
+                out, upd = layer.connect(outputs)
+                for reg in regularizers:
+                    reg.modify_graph(out)
                 outputs.update(out)
                 updates.extend(upd)
                 outputs['out'] = outputs[layer.output_name()]
@@ -561,9 +537,10 @@ class Network(object):
             correspond to units in the respective layer. The "output" of the
             network is the last element of this list.
         '''
-        key = self._hash(**kwargs)
+        regs = regularizers.from_kwargs(self, **kwargs)
+        key = self._hash(regs)
         if key not in self._functions:
-            outputs, updates = self.build_graph(**kwargs)
+            outputs, updates = self.build_graph(regs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
             self._functions[key] = (labels, theano.function(
                 self.inputs, exprs, updates=updates))
@@ -687,23 +664,10 @@ class Network(object):
         loss : theano expression
             A theano expression representing the loss of this network.
         '''
-        outputs, _ = self.build_graph(**kwargs)
-        hiddens = [outputs[l.output_name()] for l in self.layers[1:-1]]
-        regularizers = dict(
-            weight_l1=(abs(w).mean() for l in self.layers
-                       for w in l.params if w.ndim > 1),
-            weight_l2=((w * w).mean() for l in self.layers
-                       for w in l.params if w.ndim > 1),
-            hidden_l1=(abs(h).mean() for h in hiddens),
-            hidden_l2=((h * h).mean() for h in hiddens),
-            contractive=(TT.sqr(TT.grad(h.mean(), self.inputs)).mean()
-                         for h in hiddens),
-        )
-        losses = (loss.weight * loss(outputs) for loss in self.losses)
-        regs = (kwargs[weight] * sum(expr)
-                for weight, expr in regularizers.items()
-                if kwargs.get(weight, 0) > 0)
-        return sum(losses) + sum(regs)
+        regs = regularizers.from_kwargs(self, **kwargs)
+        outputs, _ = self.build_graph(regs)
+        return sum(l.weight * l(outputs) for l in self.losses) + \
+            sum(r.weight * r.loss(self.layers, outputs) for r in regs)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.
@@ -713,7 +677,8 @@ class Network(object):
         monitors : list of (name, expression) pairs
             A list of named monitor expressions to compute for this network.
         '''
-        outputs, _ = self.build_graph(**kwargs)
+        regs = regularizers.from_kwargs(self, **kwargs)
+        outputs, _ = self.build_graph(regs)
         monitors = [('err', self.losses[0](outputs))]
 
         def matching(pattern):
@@ -756,5 +721,6 @@ class Network(object):
         updates : list of (parameter, expression) pairs
             A list of named parameter update expressions for this network.
         '''
-        _, updates = self.build_graph(**kwargs)
+        regs = regularizers.from_kwargs(self, **kwargs)
+        _, updates = self.build_graph(regs)
         return updates

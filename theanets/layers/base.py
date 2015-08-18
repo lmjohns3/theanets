@@ -35,8 +35,6 @@ import theano
 import theano.sparse as SS
 import theano.tensor as TT
 
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from .. import activations
 from .. import util
 
@@ -50,49 +48,6 @@ __all__ = [
     'Product',
     'Reshape',
 ]
-
-
-def add_noise(expr, level, rng):
-    '''Add noise to elements of the input expression as needed.
-
-    Parameters
-    ----------
-    expr : Theano expression
-        Input expression to add noise to.
-    level : float
-        Standard deviation of gaussian noise to add to the expression. If this
-        is 0, then no gaussian noise is added.
-
-    Returns
-    -------
-    expr : Theano expression
-        The input expression, plus additional noise as specified.
-    '''
-    if level == 0:
-        return expr
-    return expr + rng.normal(size=expr.shape, std=level, dtype=util.FLOAT)
-
-
-def add_dropout(expr, probability, rng):
-    '''Add dropouts to elements of the input expression as needed.
-
-    Parameters
-    ----------
-    expr : Theano expression
-        Input expression to add dropouts to.
-    probability : float, in [0, 1]
-        Probability of dropout for each element of the input. If this is 0,
-        then no elements of the input are set randomly to 0.
-
-    Returns
-    -------
-    expr : Theano expression
-        The input expression, plus additional dropouts as specified.
-    '''
-    if probability == 0:
-        return expr
-    return expr * rng.binomial(
-        size=expr.shape, n=1, p=1-probability, dtype=util.FLOAT)
 
 
 class Layer(util.Registrar(str('Base'), (), {})):
@@ -134,10 +89,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
         A numpy random number generator, or an integer seed for a random number
         generator. If not provided, the random number generator will be created
         with an automatically chosen seed.
-    trng : Theano random number generator, optional
-        A Theano random number generator to use for creating noise and dropout
-        values. If not provided, a new generator will be produced for this
-        layer.
     mean, mean_XYZ : float, optional
         Initialize parameters for this layer to have the given mean value. If
         ``mean_XYZ`` is specified, it will apply only to the parameter named
@@ -218,7 +169,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''
         return '{}:{}'.format(self.name, name)
 
-    def connect(self, inputs, noise=0, dropout=0):
+    def connect(self, inputs):
         '''Create Theano variables representing the outputs of this layer.
 
         Parameters
@@ -228,14 +179,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
             names to Theano expressions. Each string key should be of the form
             "{layer_name}:{output_name}" and refers to a specific output from
             a specific layer in the graph.
-        noise : dict of noise values, optional
-            This dictionary should map the names of outputs from this layer to
-            the zero-mean, isotropic noise to add to that output. Defaults to 0,
-            which does not add noise to any outputs.
-        dropout : dict of dropout values, optional
-            This dictionary should map the names of outputs in this layer to
-            dropout values for that output. Defaults to 0, which does not drop
-            out any units in any outputs.
 
         Returns
         -------
@@ -247,26 +190,12 @@ class Layer(util.Registrar(str('Base'), (), {})):
             something using this layer.
         '''
         outputs, updates = self.transform(inputs)
-
         # transform the outputs to be a list of ordered pairs if needed.
         if isinstance(outputs, dict):
             outputs = sorted(outputs.items())
         if isinstance(outputs, (TT.TensorVariable, SS.SparseVariable)):
             outputs = [('out', outputs)]
-
-        # set up outputs for this layer by adding noise and dropout as needed.
-        rng = self.kwargs.get('trng') or RandomStreams()
-        if not isinstance(noise, dict):
-            noise = {self.output_name(): noise}
-        if not isinstance(dropout, dict):
-            dropout = {self.output_name(): dropout}
-        outs = {}
-        for name, expr in outputs:
-            scoped = self.output_name(name)
-            noisy = add_noise(expr, noise.get(scoped, 0), rng)
-            dropped = add_dropout(noisy, dropout.get(scoped, 0), rng)
-            outs[scoped] = dropped
-
+        outs = {self.output_name(name): expr for name, expr in outputs}
         return outs, updates
 
     def transform(self, inputs):

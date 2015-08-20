@@ -498,8 +498,10 @@ class Network(object):
         labels, f = self._functions[key]
         return dict(zip(labels, f(x)))
 
-    def predict(self, x):
+    def predict(self, x, **kwargs):
         '''Compute a forward pass of the inputs, returning the network output.
+
+        All keyword arguments end up being passed to :func:`build_graph`.
 
         Parameters
         ----------
@@ -515,7 +517,7 @@ class Network(object):
             Rows in this array correspond to examples, and columns to output
             variables.
         '''
-        return self.feed_forward(x)[self.layers[-1].output_name()]
+        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name()]
 
     def score(self, x, y, w=None):
         '''Compute R^2 coefficient of determination for a given labeled input.

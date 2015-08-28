@@ -467,6 +467,9 @@ class LSTM(Recurrent):
       to the next layer.
     - The "forget" gate turns on when the cell's stored value should be reset.
 
+    Notes
+    -----
+
     The output :math:`h_t` of the LSTM layer at time :math:`t` is given as a
     function of the input :math:`x_t` and the previous states of the layer
     :math:`h_{t-1}` and the internal cell :math:`c_{t-1}` by:
@@ -498,6 +501,28 @@ class LSTM(Recurrent):
 
     The implementation details for this layer come from the specification given
     on page 5 of [Gra13a]_.
+
+    Examples
+    --------
+
+    LSTM layers can be incorporated into classification models:
+
+    >>> cls = theanets.recurrent.Classifier((28, (100, 'lstm'), 10))
+
+    or regression models:
+
+    >>> reg = theanets.recurrent.Regressor((28, dict(size=100, form='lstm'), 10))
+
+    The layer instance can be retrieved using
+    :func:`find <theanets.graph.Network.find>`:
+
+    >>> lstm = cls.find('hid1')
+
+    Its parameters can also be retrieved using
+    :func:`find <theanets.layers.base.Layer.find>`:
+
+    >>> bias = cls.find('hid1', 'b')
+    >>> bias = lstm.find('b')
 
     References
     ----------

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''Loss functions for neural network models.
-'''
+r'''Loss functions for neural network models.'''
 
 import numpy as np
 import theano.sparse as SS
@@ -11,7 +10,7 @@ from . import util
 
 
 class Loss(util.Registrar(str('Base'), (), {})):
-    r'''A loss function for a neural network model.
+    r'''A loss function base class for neural network models.
 
     Parameters
     ----------

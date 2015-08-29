@@ -548,8 +548,8 @@ class Reshape(Layer):
     constant throughout a network graph, this layer always preserves the shape
     of the leading axis of its inputs.
 
-    If you want to vectorize a data array, you could do that using (-1, ) as the
-    shape for this layer. But it's often easier to read if you use the
+    If you want to vectorize a data array, you could do that using ``(-1, )`` as
+    the shape for this layer. But it's often easier to read if you use the
     :class:`Flatten` layer type to reshape a layer's output into a flat vector.
 
     Parameters
@@ -558,8 +558,8 @@ class Reshape(Layer):
         The desired shape of the output "vectors" for this layer. This should
         not include the leading axis of the actual shape of the data arrays
         processed by the graph! For example, to reshape input vectors of length
-        a * b into 2D output "images," use (a, b) as the shape, not (batch-size,
-        a, b).
+        a * b into 2D output "images" use ``(a, b)`` as the shape---not
+        ``(batch-size, a, b)``.
     '''
 
     def __init__(self, shape, **kwargs):

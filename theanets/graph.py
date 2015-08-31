@@ -116,10 +116,11 @@ class Network(object):
         logging.info('network has %d total parameters', self.num_params)
 
         self.losses = []
-        self.set_loss(loss,
-                      weighted=weighted,
-                      target=self.INPUT_NDIM,
-                      output_name=self.layers[-1].output_name())
+        if loss and self.layers:
+            self.set_loss(loss,
+                          weighted=weighted,
+                          target=self.INPUT_NDIM,
+                          output_name=self.layers[-1].output_name())
 
     def add_layer(self, layer=None, is_output=False, **kwargs):
         '''Add a layer to our network graph.

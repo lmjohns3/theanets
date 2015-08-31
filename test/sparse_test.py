@@ -11,15 +11,13 @@ class Base(util.Base):
 
 class TestRegressor(Base):
     def _build(self, *hiddens):
-        return theanets.Regressor(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_OUTPUTS],
-            sparse_input='csr')
+        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
+        return theanets.Regressor([input] + list(hiddens) + [self.NUM_OUTPUTS])
 
     def test_sgd(self):
+        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
         self.exp = theanets.Experiment(
-            theanets.Regressor,
-            layers=[self.NUM_INPUTS, 10, self.NUM_OUTPUTS],
-            sparse_input='csr')
+            theanets.Regressor, layers=[input, 10, self.NUM_OUTPUTS])
         self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS])
 
     def test_predict(self):
@@ -53,15 +51,13 @@ class TestRegressor(Base):
 
 class TestClassifier(Base):
     def _build(self, *hiddens):
-        return theanets.Classifier(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_CLASSES],
-            sparse_input='csr')
+        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
+        return theanets.Classifier([input] + list(hiddens) + [self.NUM_CLASSES])
 
     def test_sgd(self):
+        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
         self.exp = theanets.Experiment(
-            theanets.Classifier,
-            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES),
-            sparse_input='csr')
+            theanets.Classifier, layers=(input, 10, self.NUM_CLASSES))
         self.assert_progress('sgd', [self.INPUTS, self.CLASSES])
 
     def test_predict_onelayer(self):

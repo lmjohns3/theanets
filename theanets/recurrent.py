@@ -7,6 +7,7 @@ import numpy as np
 import re
 
 from . import feedforward
+from . import losses
 
 
 def batches(arrays, steps=100, batch_size=64, rng=None):
@@ -225,9 +226,8 @@ class Autoencoder(feedforward.Autoencoder):
     your model.
     '''
 
-    def __init__(self, *args, **kwargs):
-        kwargs.update(in_dim=3)
-        super(feedforward.Autoencoder, self).__init__(*args, **kwargs)
+    INPUT_NDIM = 3
+    '''Number of dimensions for holding input data arrays.'''
 
 
 class Regressor(feedforward.Regressor):
@@ -289,9 +289,8 @@ class Regressor(feedforward.Regressor):
     your model.
     '''
 
-    def __init__(self, *args, **kwargs):
-        kwargs.update(in_dim=3, out_dim=3)
-        super(feedforward.Regressor, self).__init__(*args, **kwargs)
+    INPUT_NDIM = 3
+    '''Number of dimensions for holding input data arrays.'''
 
 
 class Classifier(feedforward.Classifier):
@@ -378,9 +377,13 @@ class Classifier(feedforward.Classifier):
     your model.
     '''
 
-    def __init__(self, *args, **kwargs):
-        kwargs.update(loss='xe', in_dim=3, out_dim=2)
-        super(feedforward.Classifier, self).__init__(*args, **kwargs)
+    INPUT_NDIM = 3
+    '''Number of dimensions for holding input data arrays.'''
+
+    def __init__(self, layers, loss='xe', weighted=False):
+        super(Classifier, self).__init__(layers)
+        self.losses = [losses.Loss.build(
+            loss, target=2, weighted=weighted)]
 
     def predict_sequence(self, labels, steps, streams=1, rng=None):
         '''Draw a sequential sample of class labels from this network.

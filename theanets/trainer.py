@@ -60,7 +60,7 @@ class DownhillTrainer(object):
                 loss=self.network.regularized_loss(**kwargs),
                 updates=self.network.updates(**kwargs),
                 monitors=self.network.monitors(**kwargs),
-                inputs=self.network.losses[0].variables,
+                inputs=self.network.variables,
                 params=self.network.params,
                 monitor_gradients=kwargs.get('monitor_gradients', False),
         ).iterate(train, valid=valid, **kwargs):
@@ -312,8 +312,8 @@ class UnsupervisedPretrainer(object):
             'tied', partner=layers_[1], activation='linear'))
 
         logging.info('creating shadow network')
-        ae = feedforward.Autoencoder(
-            layers=layers_, output_name=layers_[-1].output_name())
+        ae = feedforward.Autoencoder(layers=layers_)
+        ae.losses[0].output_name = layers_[-1].output_name()
 
         # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(self.algo, ae)

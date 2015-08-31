@@ -58,7 +58,7 @@ class TestMatching:
         assert len(match) == 9
         assert [n for n, _ in match] == [
             'hid1:out', 'hid1:pre', 'hid2:out', 'hid2:pre',
-            'in:out', 'out', 'out:out', 'out:pre', 'x']
+            'in', 'in:out', 'out', 'out:out', 'out:pre']
 
         match = sorted(theanets.util.outputs_matching(outputs, 'hid?:*'))
         assert len(match) == 4

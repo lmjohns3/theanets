@@ -285,7 +285,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         updates : list
             An empty updates list.
         '''
-        return inputs['x'], []
+        raise NotImplementedError
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -425,17 +425,59 @@ class Input(Layer):
 
     Input layers essentially add only noise to the input data (if desired), but
     otherwise reproduce their inputs exactly.
+
+    Parameters
+    ----------
+    ndim : int
+        Number of dimensions required to store the input data for this layer.
+    sparse : bool or str, optional
+        If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
+        stored as sparse matrices in the CSR or CSC format (respectively). If
+        this is True, sparse input will be enabled in CSR format. By default
+        this is False, which means inputs are dense.
+
+    Raises
+    ------
+    AssertionError :
+        If ``sparse`` is enabled and ``ndim`` is not 2.
     '''
 
-    def __init__(self, **kwargs):
-        kwargs['inputs'] = 0
-        kwargs['activation'] = 'linear'
-        super(Input, self).__init__(**kwargs)
+    def __init__(self, size, name='in', ndim=2, sparse=False):
+        self.input = util.FLOAT_CONTAINERS[ndim](name)
+        if sparse is True or \
+           isinstance(sparse, str) and sparse.lower() == 'csr':
+            assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csr_matrix('input')
+        if isinstance(sparse, str) and sparse.lower() == 'csc':
+            assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
+            self.input = SS.csc_matrix('input')
+        super(Input, self).__init__(
+            size=size, name=name, inputs=0, activation='linear',
+            ndim=ndim, sparse=sparse,
+        )
 
     def log(self):
         '''Log some information about this layer.'''
         logging.info('layer %s "%s": %s inputs',
                      self.__class__.__name__, self.name, self.size)
+
+    def transform(self, inputs):
+        '''Transform the inputs for this layer into an output for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of Theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`Layer.connect`.
+
+        Returns
+        -------
+        output : Theano expression
+            The output for this layer is the same as the input.
+        updates : list
+            An empty updates list.
+        '''
+        return inputs[self.input.name], []
 
     def to_spec(self):
         '''Create a specification for this layer.
@@ -445,7 +487,10 @@ class Input(Layer):
         spec : int
             A single integer specifying the size of this layer.
         '''
-        return self.size
+        spec = super(Input, self).to_spec()
+        del spec['inputs']
+        del spec['activation']
+        return spec
 
 
 class Product(Layer):

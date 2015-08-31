@@ -244,10 +244,9 @@ information.
 Input Layer
 -----------
 
-The first element in the layers configuration sequence should normally be a
-single integer specifying the size of the expected input data. The ``theanets``
-code creates an :class:`Input <theanets.layers.Input>` layer from this integer
-value.
+The first element in the layers configuration sequence is normally a single
+integer specifying the size of the expected input data. The ``theanets`` code
+creates an :class:`Input <theanets.layers.Input>` layer from this integer value.
 
 The input layer in a model is almost a no-op. It doesn't have any learnable
 parameters, and effectively it just passes data along to the first hidden layer.

@@ -3,7 +3,6 @@
 r'''Loss functions for neural network models.'''
 
 import numpy as np
-import theano.sparse as SS
 import theano.tensor as TT
 
 from . import util
@@ -14,39 +13,23 @@ class Loss(util.Registrar(str('Base'), (), {})):
 
     Parameters
     ----------
-    in_dim : int
-        Number of dimensions required to store the input data to compute the
-        loss.
-    out_dim : int, optional
-        Number of dimensions required to store the target values for computing
-        the loss. If this is None (the default), no target values are required
-        for this loss.
+    target : int or Theano variable
+        If this is an integer, it specifies the number of dimensions required to
+        store the target values for computing the loss. If it is a Theano
+        variable, this variable will be used directly to access target values.
     weighted : bool, optional
         If True, a floating-point array of weights with the same dimensions as
-        ``out_dim`` will be required to compute the "weighted" loss. Defaults
+        ``target`` will be required to compute the "weighted" loss. Defaults
         to False.
-    sparse_input : bool or str, optional
-        If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
-        stored as sparse matrices in the CSR or CSC format (respectively). If
-        this is True, sparse input will be enabled in CSR format. By default
-        this is False, which means inputs are dense.
     output_name : str, optional
         Name of the network output to tap for computing the loss. Defaults to
         'out:out', the name of the default output of the last layer in a linear
         network.
 
-    Raises
-    ------
-    AssertionError :
-        If ``sparse_input`` is enabled and ``in_dim`` is not 2.
-
     Attributes
     ----------
-    input : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing input data.
     target : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing target output data. None if no
-        target values are required to compute the loss.
+        A symbolic Theano variable representing target output data.
     weight : :class:`theano.TensorVariable`
         A symbolic Theano variable representing target weights. None if no
         weights are required to compute the loss.
@@ -56,51 +39,19 @@ class Loss(util.Registrar(str('Base'), (), {})):
         Name of the network output to tap for computing the loss.
     '''
 
-    F_CONTAINERS = (TT.scalar, TT.vector, TT.matrix, TT.tensor3, TT.tensor4)
-    I_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
+    def __init__(self, target, weighted=False, output_name='out'):
+        self.target = (util.FLOAT_CONTAINERS[target]('target')
+                       if isinstance(target, int) else target)
+        self.variables = [self.target]
 
-    def __init__(self, in_dim, out_dim=None, weighted=False, sparse_input=False,
-                 output_name='out'):
-        self.input = Loss.F_CONTAINERS[in_dim]('input')
-        if sparse_input is True or \
-           isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
-            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
-            self.input = SS.csr_matrix('input')
-        if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':
-            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
-            self.input = SS.csc_matrix('input')
-        self.variables = [self.input]
-        self.target = None
-        if out_dim:
-            self.target = Loss.F_CONTAINERS[out_dim]('target')
-            self.variables.append(self.target)
         self.weight = None
         if weighted:
-            self.weight = Loss.F_CONTAINERS[out_dim or in_dim]('weight')
+            self.weight = util.FLOAT_CONTAINERS[self.target.ndim]('weight')
             self.variables.append(self.weight)
+
         self.output_name = output_name
         if ':' not in self.output_name:
             self.output_name += ':out'
-
-    def diff(self, outputs):
-        '''Compute the symbolic output difference from our target.
-
-        Parameters
-        ----------
-        outputs : dict of Theano expressions
-            A dictionary mapping network output names to Theano expressions
-            representing the outputs of a computation graph.
-
-        Returns
-        -------
-        diff : Theano expression
-            The difference between the graph output (as specified by the
-            instance ``output_name``) and the target data (if provided) or the
-            input data (otherwise).
-        '''
-        output = outputs[self.output_name]
-        target = self.input if self.target is None else self.target
-        return output - target
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -162,7 +113,7 @@ class MeanSquaredError(Loss):
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = self.diff(outputs)
+        err = outputs[self.output_name] - self.target
         if self.weight is not None:
             return (self.weight * err * err).sum() / self.weight.sum()
         return (err * err).mean()
@@ -207,7 +158,7 @@ class MeanAbsoluteError(Loss):
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = self.diff(outputs)
+        err = outputs[self.output_name] - self.target
         if self.weight is not None:
             return abs(self.weight * err).sum() / self.weight.sum()
         return abs(err).mean()
@@ -311,10 +262,9 @@ class GaussianLogLikelihood(Loss):
         '''
         # this code is going to look weird to people who are used to seeing
         # implementations of the gaussian likelihood function. our mean, covar,
-        # and self.target arrays are all of shape (batch-size, dimensionality).
-        # each of these arrays codes an independent input/output pair for the
-        # loss, but they're stacked together in matrices for computational
-        # efficiency.
+        # and self.target arrays are all of shape (batch-size, dims). each of
+        # these arrays codes an independent input/output pair for the loss, but
+        # they're stacked together in matrices for computational efficiency.
         #
         # what's worse, the covariance is encoded as a vector of the diagonal
         # elements, again one per input/output pair in the batch.
@@ -423,9 +373,8 @@ class MaximumMeanDiscrepancy(Loss):
             The values of the loss given the network output.
         '''
         output = outputs[self.output_name]
-        target = self.input if self.target is None else self.target
-        xx = self.kernel(target, target)
-        xy = self.kernel(target, output)
+        xx = self.kernel(self.target, self.target)
+        xy = self.kernel(self.target, output)
         yy = self.kernel(output, output)
         return xx.mean() - 2 * xy.mean() + yy.mean()
 
@@ -479,35 +428,20 @@ class CrossEntropy(Loss):
 
     Parameters
     ----------
-    in_dim : int
-        Number of dimensions required to store the input data to compute the
-        loss.
-    out_dim : int, optional
+    ndim : int
         Number of dimensions required to store the target values for computing
-        the loss. If this is None (the default), no target values are required
-        for this loss.
+        the loss.
     weighted : bool, optional
         If True, a floating-point array of weights with the same dimensions as
         ``out_dim`` will be required to compute the "weighted" loss. Defaults
         to False.
-    sparse_input : str, optional
-        If this is ``'csr'`` or ``'csc'``, then the inputs to the loss will be
-        stored as sparse matrices in the CSR or CSC format (respectively). By
-        default this is None, which means inputs are dense.
     output_name : str, optional
         Name of the network output to tap for computing the loss. Defaults to
         'out:out', the name of the default output of the last layer in a linear
         network.
 
-    Raises
-    ------
-    AssertionError :
-        If ``sparse_input`` is True and ``in_dim`` is not 2.
-
     Attributes
     ----------
-    input : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing input data.
     target : :class:`theano.TensorVariable`
         A symbolic Theano variable representing target output data. None if no
         target values are required to compute the loss.
@@ -541,23 +475,18 @@ class CrossEntropy(Loss):
 
     __extra_registration_keys__ = ['XE']
 
-    def __init__(self, in_dim, out_dim, weighted=False, sparse_input=False,
-                 output_name='out:out'):
-        self.input = Loss.F_CONTAINERS[in_dim]('input')
-        if sparse_input is True or \
-           isinstance(sparse_input, str) and sparse_input.lower() == 'csr':
-            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
-            self.input = SS.csr_matrix('input')
-        if isinstance(sparse_input, str) and sparse_input.lower() == 'csc':
-            assert in_dim == 2, 'Theano only supports sparse arrays with 2 dims'
-            self.input = SS.csc_matrix('input')
-        self.target = Loss.I_CONTAINERS[out_dim]('target')
-        self.variables = [self.input, self.target]
+    def __init__(self, target, weighted=False, output_name='out'):
+        self.target = util.INT_CONTAINERS[target]('target')
+        self.variables = [self.target]
+
         self.weight = None
         if weighted:
-            self.weight = Loss.F_CONTAINERS[out_dim]('weight')
+            self.weight = util.FLOAT_CONTAINERS[target]('weight')
             self.variables.append(self.weight)
+
         self.output_name = output_name
+        if ':' not in self.output_name:
+            self.output_name += ':out'
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.

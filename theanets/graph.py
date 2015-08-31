@@ -15,25 +15,17 @@ of :math:`\mathcal{S} = \mathbb{R}^{28 \times 28} = \mathbb{R}^{784}` (i.e., the
 space of all 28×28 images), and for classifying the MNIST digits we could think
 of :math:`\mathcal{T} = \mathbb{R}^{10}`.
 
-This mapping is assumed to be fairly complex. If it were not -- if you could
-capture the mapping using a simple expression like :math:`F_{\{a\}}(x) = ax^2`
--- then we would just use the expression directly and not need to deal with an
-entire network. So if the mapping is complex, we will do a couple of things to
-make our problem tractable. First, we will assume some structure for
-:math:`F_\theta`. Second, we will fit our model to some set of data that we have
-obtained, so that our parameters :math:`\theta` are tuned to the problem at
-hand.
-
 Graph structure
 ---------------
 
 .. image:: _static/feedforward_layers.svg
 
 The mapping :math:`F_\theta` is implemented in neural networks by assuming a
-specific, layered form. Computation nodes -- also called units or (sometimes)
-neurons -- are arranged in a :math:`k+1` partite graph, with layer :math:`k`
-containing :math:`n_k` nodes. The number of input nodes in the graph is referred
-to as :math:`n_0`.
+specific, layered form. Computation nodes -- also called units or neurons -- are
+arranged in a :math:`k+1` partite graph, with layer :math:`k` containing
+:math:`n_k` nodes. Classically, one layer is designated as an "input" and
+receives data from :math:`n_0` variables representing the world; however, modern
+networks are capable of processing multiple inputs simultaneously.
 
 Most layers are connected together using a set of weights. A **weight matrix**
 :math:`W^k \in \mathbb{R}^{n_{k-1} \times n_k}` specifies the strength of the
@@ -67,13 +59,18 @@ logging = climate.get_logger(__name__)
 class Network(object):
     '''The network class encapsulates a network computation graph.
 
+    Notes
+    -----
+
     Computation graphs are organized into :class:`Layers
     <theanets.layers.base.Layer>`. Each layer receives one or more arrays of
     input data, transforms them, and generates one or more arrays of output
-    data. Outputs in a computation graph are named according to their layer and
-    output type, so the 'pre' output of a layer named 'hid1' would be named
-    'hid1:pre'. The 'out' output is the default output for a layer. By default
-    the last layer in a network is named 'out'.
+    data.
+
+    Outputs in a computation graph are named according to their layer and output
+    type, so the 'pre' output of a layer named 'hid1' would be named 'hid1:pre'.
+    The 'out' output is the default output for a layer. By default the last
+    layer in a network is named 'out'.
 
     The parameters in a network graph are optimized by minimizing a :class:`Loss
     <theanets.losses.Loss>` function with respect to some set of training data.
@@ -83,12 +80,17 @@ class Network(object):
 
     Parameters
     ----------
-    layers : sequence of int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
+    layers : int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
         A sequence of values specifying the layer configuration for the network.
         For more information, please see :ref:`creating-specifying-layers`.
     loss : str or :class:`Loss <theanets.losses.Loss>`
         The name of a loss function to optimize when training this network
         model.
+    weighted : bool, optional
+        If True, optimize this model using a "weighted" loss. Weighted losses
+        typically require an additional array as input during optimization.
+        For more information, see :ref:`creating-using-weighted-targets`.
+        Defaults to False.
 
     Attributes
     ----------
@@ -98,22 +100,28 @@ class Network(object):
         A list of losses to be computed when optimizing this network model.
     '''
 
-    def __init__(self, layers, loss='mse', **kwargs):
+    DEFAULT_OUTPUT_ACTIVATION = 'linear'
+    '''Default activation for the output layer.'''
+
+    INPUT_NDIM = 2
+    '''Number of dimensions for holding input data arrays.'''
+
+    def __init__(self, layers, loss='mse', weighted=False):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
 
-        last_output = None
         self.layers = []
         for i, layer in enumerate(layers):
-            self.add_layer(layer, is_output=i == len(layers) - 1)
-            last_output = self.layers[-1].output_name()
+            self.add_layer(layer=layer, is_output=i == len(layers) - 1)
         logging.info('network has %d total parameters', self.num_params)
 
-        if 'output_name' not in kwargs:
-            kwargs['output_name'] = last_output
-        self.losses = [losses.Loss.build(loss, **kwargs)]
+        self.losses = []
+        self.set_loss(loss,
+                      weighted=weighted,
+                      target=self.INPUT_NDIM,
+                      output_name=self.layers[-1].output_name())
 
-    def add_layer(self, layer, is_output=False):
+    def add_layer(self, layer=None, is_output=False, **kwargs):
         '''Add a layer to our network graph.
 
         Parameters
@@ -132,21 +140,24 @@ class Network(object):
             self.layers.append(layer)
             return
 
-        # for the first layer, create an 'input' layer.
-        if len(self.layers) == 0:
-            assert isinstance(layer, int), 'first layer must be an int'
-            self.layers.append(layers.Layer.build('input', size=layer, name='in'))
-            return
-
         # here we set up some defaults for constructing a new layer.
-        act = getattr(self, 'DEFAULT_OUTPUT_ACTIVATION', 'linear')
-        form = 'feedforward'
-        kwargs = dict(
-            name='out' if is_output else 'hid{}'.format(len(self.layers)),
-            activation=act if is_output else 'relu',
-            inputs={self.layers[-1].output_name(): self.layers[-1].size},
-            size=layer,
-        )
+        form = 'feedforward' if self.layers else 'input'
+        if 'form' in kwargs:
+            form = kwargs.pop('form').lower()
+
+        kw = dict(size=layer)
+        if not self.layers:
+            kw['name'] = 'in'
+            kw['ndim'] = self.INPUT_NDIM
+        else:
+            kw['inputs'] = {self.layers[-1].output_name(): self.layers[-1].size}
+            if is_output:
+                kw['activation'] = self.DEFAULT_OUTPUT_ACTIVATION
+                kw['name'] = 'out'
+            else:
+                kw['activation'] = 'relu'
+                kw['name'] = 'hid{}'.format(len(self.layers))
+        kw.update(kwargs)
 
         # if layer is a tuple, assume that it contains one or more of the following:
         # - a layers.Layer subclass to construct (type)
@@ -164,9 +175,9 @@ class Network(object):
                     if layers.Layer.is_registered(el):
                         form = el
                     else:
-                        kwargs['activation'] = el
+                        kw['activation'] = el
                 if isinstance(el, int):
-                    kwargs['size'] = el
+                    kw['size'] = el
 
         # if layer is a dictionary, try to extract a form for the layer, and
         # override our default keyword arguments with the rest.
@@ -174,15 +185,10 @@ class Network(object):
             layer = dict(layer)
             if 'form' in layer:
                 form = layer.pop('form').lower()
-            kwargs.update(layer)
-
-        if isinstance(form, str) and form.lower() == 'bidirectional':
-            if not (isinstance(layer, dict) and 'name' in layer):
-                kwargs['name'] = 'bd{}{}'.format(
-                    kwargs.get('worker', 'rnn'), len(self.layers))
+            kw.update(layer)
 
         if isinstance(form, str) and form.lower() == 'tied':
-            partner = kwargs.get('partner')
+            partner = kw.get('partner')
             if isinstance(partner, str):
                 # if the partner is named, just get that layer.
                 partner = [l for l in self.layers if l.name == partner][0]
@@ -204,9 +210,57 @@ class Network(object):
                 assert partner is not None, \
                     'could not find tied layer partner for {} in {}'.format(
                         layer, self.layers)
-            kwargs['partner'] = partner
+            kw['partner'] = partner
 
-        self.layers.append(layers.Layer.build(form, **kwargs))
+        layer = layers.Layer.build(form, **kw)
+
+        if isinstance(layer, layers.Input):
+            names = set(i.name for i in self.inputs)
+            assert layer.name not in names, \
+                '"{}": duplicate input name!'.format(layer.name)
+
+        self.layers.append(layer)
+
+    def add_loss(self, loss=None, **kwargs):
+        '''Add a :class:`loss function <theanets.losses.Loss>` to the model.
+
+        Parameters
+        ----------
+        loss : str, dict, or :class:`theanets.losses.Loss`
+            A loss function to add. If this is a Loss instance, it will be added
+            immediately. If this is a string, it names a loss function to build
+            and add. If it is a dictionary, it should contain a ``'form'`` key
+            whose string value names the loss function to add. Other arguments
+            will be passed to :func:`theanets.losses.Loss.build`.
+        '''
+        if isinstance(loss, losses.Loss):
+            self.losses.append(loss)
+            return
+
+        form = loss
+        if 'form' in kwargs:
+            form = kwargs.pop('form').lower()
+
+        kw = dict(target=self.INPUT_NDIM,
+                  output_name=self.layers[-1].output_name())
+        kw.update(kwargs)
+
+        if isinstance(loss, dict):
+            loss = dict(loss)
+            if 'form' in loss:
+                form = loss.pop('form').lower()
+            kw.update(loss)
+
+        self.losses.append(losses.Loss.build(form, **kw))
+
+    def set_loss(self, *args, **kwargs):
+        '''Clear the current loss functions from the network and add a new one.
+
+        All parameters and keyword arguments are passed to :func:`add_loss`
+        after clearing the current losses.
+        '''
+        self.losses = []
+        self.add_loss(*args, **kwargs)
 
     def itertrain(self, train, valid=None, algo='rmsprop', subalgo='rmsprop',
                   save_every=0, save_progress=None, **kwargs):
@@ -415,8 +469,9 @@ class Network(object):
                     if i == len(self.layers) - 1:
                         which = 'output_dropouts'
                     dropout[l.output_name()] = kwargs.get(which, 0)
-            outputs, updates = dict(x=self.losses[0].input), []
-            for i, layer in enumerate(self.layers):
+            outputs = {i.name: i for i in self.inputs}
+            updates = []
+            for layer in self.layers:
                 out, upd = layer.connect(outputs, noise, dropout)
                 outputs.update(out)
                 updates.extend(upd)
@@ -425,8 +480,25 @@ class Network(object):
         return self._graphs[key]
 
     @property
+    def inputs(self):
+        '''A list of Theano variables for feedforward computations.'''
+        return [l.input for l in self.layers if isinstance(l, layers.Input)]
+
+    @property
+    def variables(self):
+        '''A list of Theano variables for loss computations.'''
+        u = set(i.name for i in self.inputs)
+        vs = self.inputs
+        for loss in self.losses:
+            for v in loss.variables:
+                if v.name not in u:
+                    u.add(v.name)
+                    vs.append(v)
+        return vs
+
+    @property
     def params(self):
-        '''A list of the learnable theano parameters for this network.'''
+        '''A list of the learnable Theano parameters for this network.'''
         return [p for l in self.layers for p in l.params]
 
     @property
@@ -494,7 +566,7 @@ class Network(object):
             outputs, updates = self.build_graph(**kwargs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
             self._functions[key] = (labels, theano.function(
-                [self.losses[0].input], exprs, updates=updates))
+                self.inputs, exprs, updates=updates))
         labels, f = self._functions[key]
         return dict(zip(labels, f(x)))
 
@@ -624,7 +696,7 @@ class Network(object):
                        for w in l.params if w.ndim > 1),
             hidden_l1=(abs(h).mean() for h in hiddens),
             hidden_l2=((h * h).mean() for h in hiddens),
-            contractive=(TT.sqr(TT.grad(h.mean(), self.losses[0].input)).mean()
+            contractive=(TT.sqr(TT.grad(h.mean(), self.inputs)).mean()
                          for h in hiddens),
         )
         return sum(loss(outputs) for loss in self.losses) + sum(

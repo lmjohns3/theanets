@@ -8,6 +8,7 @@ import warnings
 
 from . import graph
 from . import layers
+from . import losses
 
 
 class Autoencoder(graph.Network):
@@ -116,9 +117,10 @@ class Autoencoder(graph.Network):
     In this light, "nonlinear PCA" is quite easy to formulate as well!
     '''
 
-    def __init__(self, *args, **kwargs):
-        kwargs.update(in_dim=2)
-        super(Autoencoder, self).__init__(*args, **kwargs)
+    def __init__(self, layers, loss='mse', weighted=False):
+        super(Autoencoder, self).__init__(layers)
+        self.losses = [losses.Loss.build(
+            loss, target=self.inputs[0], weighted=weighted)]
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.
@@ -132,8 +134,7 @@ class Autoencoder(graph.Network):
         layer : str, optional
             The name of the hidden layer output to use. By default, we use
             the "middle" hidden layer---for example, for a 4,2,4 or 4,3,2,3,4
-            autoencoder, we use the "2" layer (typically named "hid1" or "hid2",
-            respectively).
+            autoencoder, we use the layer with size 2.
 
         sample : bool, optional
             If True, then draw a sample using the hidden activations as
@@ -280,10 +281,6 @@ class Regressor(graph.Network):
     your model.
     '''
 
-    def __init__(self, *args, **kwargs):
-        kwargs.update(in_dim=2, out_dim=2)
-        super(Regressor, self).__init__(*args, **kwargs)
-
 
 class Classifier(graph.Network):
     '''A classifier computes a distribution over labels, given an input.
@@ -354,13 +351,11 @@ class Classifier(graph.Network):
     '''
 
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
-    '''Classifiers set the default activation for the output layer.'''
+    '''Default activation for the output layer.'''
 
-    def __init__(self, *args, **kwargs):
-        if 'loss' not in kwargs:
-            kwargs['loss'] = 'xe'
-        kwargs.update(in_dim=2, out_dim=1)
-        super(Classifier, self).__init__(*args, **kwargs)
+    def __init__(self, layers, loss='xe', weighted=False):
+        super(Classifier, self).__init__(layers)
+        self.losses = [losses.Loss.build(loss, target=1, weighted=weighted)]
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.

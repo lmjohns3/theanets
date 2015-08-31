@@ -5,8 +5,13 @@ r'''Utility functions and classes.'''
 import fnmatch
 import numpy as np
 import theano
+import theano.tensor as TT
 
 FLOAT = theano.config.floatX
+
+FLOAT_CONTAINERS = (TT.scalar, TT.vector, TT.matrix, TT.tensor3, TT.tensor4)
+
+INT_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
 
 class Registrar(type):

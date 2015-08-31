@@ -5,17 +5,12 @@ import util
 
 class TestBuild:
     def test_build_mse(self):
-        l = theanets.Loss.build('mse', in_dim=2, out_dim=1)
-        assert callable(l)
-        assert len(l.variables) == 2
-
-    def test_build_mae(self):
-        l = theanets.Loss.build('mae', in_dim=2)
+        l = theanets.Loss.build('mse', target=2)
         assert callable(l)
         assert len(l.variables) == 1
 
-    def test_build_mae_weighted(self):
-        l = theanets.Loss.build('mae', in_dim=2, weighted=True)
+    def test_build_mse_weighted(self):
+        l = theanets.Loss.build('mse', target=2, weighted=True)
         assert callable(l)
         assert len(l.variables) == 2
 
@@ -34,7 +29,9 @@ class TestNetwork(util.Base):
             dict(name='hid', size=10),
             dict(name='covar', activation='relu', **kw),
             dict(name='mean', activation='linear', **kw),
-        ], loss='gll', mean_name='mean', covar_name='covar')
+        ])
+        self.exp.set_loss(
+            'gll', target=2, mean_name='mean', covar_name='covar')
         assert self.exp.losses[0].__class__.__name__ == 'GaussianLogLikelihood'
         self.assert_progress('sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
 
@@ -46,8 +43,8 @@ class TestNetwork(util.Base):
 
     def test_hinge(self):
         self.exp = theanets.Network(
-            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES),
-            in_dim=2, out_dim=1, loss='hinge')
+            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES))
+        self.exp.set_loss(dict(form='hinge', target=1))
         assert self.exp.losses[0].__class__.__name__ == 'Hinge'
         self.assert_progress('sgd', [self.INPUTS, self.CLASSES])
 

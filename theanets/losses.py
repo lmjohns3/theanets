@@ -17,6 +17,8 @@ class Loss(util.Registrar(str('Base'), (), {})):
         If this is an integer, it specifies the number of dimensions required to
         store the target values for computing the loss. If it is a Theano
         variable, this variable will be used directly to access target values.
+    weight : float, optional
+        The importance of this loss for the model being trained. Defaults to 1.
     weighted : bool, optional
         If True, a floating-point array of weights with the same dimensions as
         ``target`` will be required to compute the "weighted" loss. Defaults
@@ -28,30 +30,33 @@ class Loss(util.Registrar(str('Base'), (), {})):
 
     Attributes
     ----------
-    target : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing target output data.
-    weight : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing target weights. None if no
-        weights are required to compute the loss.
-    variables : list of :class:`theano.TensorVariable`
-        A list of all variables required to compute the loss.
+    weight : float
+        The importance of this loss for the model being trained.
     output_name : str
         Name of the network output to tap for computing the loss.
     '''
 
-    def __init__(self, target, weighted=False, output_name='out'):
-        self.target = (util.FLOAT_CONTAINERS[target]('target')
-                       if isinstance(target, int) else target)
-        self.variables = [self.target]
+    def __init__(self, target, weight=1., weighted=False, output_name='out'):
+        self.weight = weight
 
-        self.weight = None
+        self._target = (util.FLOAT_CONTAINERS[target]('target')
+                        if isinstance(target, int) else target)
+
+        self._weights = None
         if weighted:
-            self.weight = util.FLOAT_CONTAINERS[self.target.ndim]('weight')
-            self.variables.append(self.weight)
+            self._weights = util.FLOAT_CONTAINERS[self._target.ndim]('weights')
 
         self.output_name = output_name
         if ':' not in self.output_name:
             self.output_name += ':out'
+
+    @property
+    def variables(self):
+        '''A list of Theano variables used in this loss.'''
+        result = [self._target]
+        if self._weights is not None:
+            result.append(self._weights)
+        return result
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -113,9 +118,9 @@ class MeanSquaredError(Loss):
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = outputs[self.output_name] - self.target
-        if self.weight is not None:
-            return (self.weight * err * err).sum() / self.weight.sum()
+        err = outputs[self.output_name] - self._target
+        if self._weights is not None:
+            return (self._weights * err * err).sum() / self._weights.sum()
         return (err * err).mean()
 
 
@@ -158,9 +163,9 @@ class MeanAbsoluteError(Loss):
         loss : Theano expression
             The values of the loss given the network output.
         '''
-        err = outputs[self.output_name] - self.target
-        if self.weight is not None:
-            return abs(self.weight * err).sum() / self.weight.sum()
+        err = outputs[self.output_name] - self._target
+        if self._weights is not None:
+            return abs(self._weights * err).sum() / self._weights.sum()
         return abs(err).mean()
 
 
@@ -262,7 +267,7 @@ class GaussianLogLikelihood(Loss):
         '''
         # this code is going to look weird to people who are used to seeing
         # implementations of the gaussian likelihood function. our mean, covar,
-        # and self.target arrays are all of shape (batch-size, dims). each of
+        # and self._target arrays are all of shape (batch-size, dims). each of
         # these arrays codes an independent input/output pair for the loss, but
         # they're stacked together in matrices for computational efficiency.
         #
@@ -282,8 +287,8 @@ class GaussianLogLikelihood(Loss):
         logpi = TT.cast(mean.shape[-1] * np.log(2 * np.pi), 'float32')
         logdet = TT.log(prec.sum(axis=-1))
         const = logpi - logdet + (eta * prec * eta).sum(axis=-1)
-        squared = (self.target * prec * self.target).sum(axis=-1)
-        nll = 0.5 * (const + squared) - (eta * self.target).sum(axis=-1)
+        squared = (self._target * prec * self._target).sum(axis=-1)
+        nll = 0.5 * (const + squared) - (eta * self._target).sum(axis=-1)
         return nll.mean()
 
 
@@ -373,8 +378,8 @@ class MaximumMeanDiscrepancy(Loss):
             The values of the loss given the network output.
         '''
         output = outputs[self.output_name]
-        xx = self.kernel(self.target, self.target)
-        xy = self.kernel(self.target, output)
+        xx = self.kernel(self._target, self._target)
+        xy = self.kernel(self._target, output)
         yy = self.kernel(output, output)
         return xx.mean() - 2 * xy.mean() + yy.mean()
 
@@ -416,10 +421,10 @@ class KullbackLeiblerDivergence(Loss):
         '''
         output = outputs[self.output_name]
         eps = 1e-8
-        t = TT.clip(self.target, eps, 1 - eps)
+        t = TT.clip(self._target, eps, 1 - eps)
         kl = t * TT.log(t / TT.clip(output, eps, 1 - eps))
-        if self.weight is not None:
-            return abs(self.weight * kl).sum() / self.weight.sum()
+        if self._weights is not None:
+            return abs(self._weights * kl).sum() / self._weights.sum()
         return abs(kl).mean()
 
 
@@ -428,9 +433,11 @@ class CrossEntropy(Loss):
 
     Parameters
     ----------
-    ndim : int
+    target : int
         Number of dimensions required to store the target values for computing
         the loss.
+    weight : float, optional
+        The importance of this loss for the model being trained. Defaults to 1.
     weighted : bool, optional
         If True, a floating-point array of weights with the same dimensions as
         ``out_dim`` will be required to compute the "weighted" loss. Defaults
@@ -442,14 +449,8 @@ class CrossEntropy(Loss):
 
     Attributes
     ----------
-    target : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing target output data. None if no
-        target values are required to compute the loss.
-    weight : :class:`theano.TensorVariable`
-        A symbolic Theano variable representing target weights. None if no
-        weights are required to compute the loss.
-    variables : list of :class:`theano.TensorVariable`
-        A list of all variables required to compute the loss.
+    weight : float, optional
+        The importance of this loss for the model being trained.
     output_name : str
         Name of the network output to tap for computing the loss.
 
@@ -475,18 +476,10 @@ class CrossEntropy(Loss):
 
     __extra_registration_keys__ = ['XE']
 
-    def __init__(self, target, weighted=False, output_name='out'):
-        self.target = util.INT_CONTAINERS[target]('target')
-        self.variables = [self.target]
-
-        self.weight = None
-        if weighted:
-            self.weight = util.FLOAT_CONTAINERS[target]('weight')
-            self.variables.append(self.weight)
-
-        self.output_name = output_name
-        if ':' not in self.output_name:
-            self.output_name += ':out'
+    def __init__(self, target, weight=1., weighted=False, output_name='out'):
+        super(CrossEntropy, self).__init__(
+            target, weight=weight, weighted=weighted, output_name=output_name)
+        self._target = util.INT_CONTAINERS[target]('target')
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -505,10 +498,10 @@ class CrossEntropy(Loss):
         output = outputs[self.output_name]
         k = output.shape[-1]
         n = TT.prod(output.shape) // k
-        prob = output.reshape((n, k))[TT.arange(n), self.target.reshape((n, ))]
+        prob = output.reshape((n, k))[TT.arange(n), self._target.reshape((n, ))]
         nlp = -TT.log(TT.clip(prob, 1e-8, 1))
-        if self.weight is not None:
-            return (self.weight.reshape((n, )) * nlp).sum() / self.weight.sum()
+        if self._weights is not None:
+            return (self._weights.reshape((n, )) * nlp).sum() / self._weights.sum()
         return nlp.mean()
 
     def accuracy(self, outputs):
@@ -528,10 +521,10 @@ class CrossEntropy(Loss):
         '''
         output = outputs[self.output_name]
         predict = TT.argmax(output, axis=-1)
-        correct = TT.eq(predict, self.target)
+        correct = TT.eq(predict, self._target)
         acc = correct.mean()
-        if self.weight is not None:
-            acc = (self.weight * correct).sum() / self.weight.sum()
+        if self._weights is not None:
+            acc = (self._weights * correct).sum() / self._weights.sum()
         return acc
 
 
@@ -573,8 +566,8 @@ class Hinge(CrossEntropy):
         k = output.shape[-1]
         n = TT.prod(output.shape) // k
         output = output.reshape((n, k))
-        true = output[TT.arange(n), self.target.reshape((n, ))]
+        true = output[TT.arange(n), self._target.reshape((n, ))]
         err = TT.maximum(0, (output - true[:, None]).max(axis=-1))
-        if self.weight is not None:
-            return (self.weight.reshape((n, )) * err).sum() / self.weight.sum()
+        if self._weights is not None:
+            return (self._weights.reshape((n, )) * err).sum() / self._weights.sum()
         return err.mean()

@@ -415,13 +415,12 @@ class Network(object):
         def add(s):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
-        for loss in self.losses:
-            add(loss.__class__.__name__)
-        # See discussions
-        # https://groups.google.com/forum/#!topic/theanets/nL6Nis29B7Q
-        add(sorted(kwargs.items(), key=lambda x: x[0]))
+        for l in self.losses:
+            add('{}{}'.format(l.__class__.__name__, l.weight))
         for l in self.layers:
             add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
+        # https://groups.google.com/forum/#!topic/theanets/nL6Nis29B7Q
+        add(sorted(kwargs.items()))
         return h.hexdigest()
 
     def build_graph(self, **kwargs):
@@ -700,10 +699,11 @@ class Network(object):
             contractive=(TT.sqr(TT.grad(h.mean(), self.inputs)).mean()
                          for h in hiddens),
         )
-        return sum(loss(outputs) for loss in self.losses) + sum(
-            kwargs[weight] * sum(expr)
-            for weight, expr in regularizers.items()
-            if kwargs.get(weight, 0) > 0)
+        losses = (loss.weight * loss(outputs) for loss in self.losses)
+        regs = (kwargs[weight] * sum(expr)
+                for weight, expr in regularizers.items()
+                if kwargs.get(weight, 0) > 0)
+        return sum(losses) + sum(regs)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.

@@ -488,14 +488,14 @@ class Network(object):
     @property
     def variables(self):
         '''A list of Theano variables for loss computations.'''
-        u = set(i.name for i in self.inputs)
-        vs = self.inputs
+        result = self.inputs
+        seen = set(i.name for i in result)
         for loss in self.losses:
             for v in loss.variables:
-                if v.name not in u:
-                    u.add(v.name)
-                    vs.append(v)
-        return vs
+                if v.name not in seen:
+                    result.append(v)
+                    seen.add(v.name)
+        return result
 
     @property
     def params(self):

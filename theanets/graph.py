@@ -238,7 +238,7 @@ class Network(object):
             self.losses.append(loss)
             return
 
-        form = loss
+        form = loss or 'mse'
         if 'form' in kwargs:
             form = kwargs.pop('form').lower()
 

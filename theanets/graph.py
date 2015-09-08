@@ -260,6 +260,7 @@ class Network(object):
         All parameters and keyword arguments are passed to :func:`add_loss`
         after clearing the current losses.
         '''
+        logging.info('resetting model losses!')
         self.losses = []
         self.add_loss(*args, **kwargs)
 

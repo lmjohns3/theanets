@@ -2,10 +2,13 @@
 
 r'''Loss functions for neural network models.'''
 
+import climate
 import numpy as np
 import theano.tensor as TT
 
 from . import util
+
+logging = climate.get_logger(__name__)
 
 
 class Loss(util.Registrar(str('Base'), (), {})):
@@ -50,6 +53,8 @@ class Loss(util.Registrar(str('Base'), (), {})):
         if ':' not in self.output_name:
             self.output_name += ':out'
 
+        self.log()
+
     @property
     def variables(self):
         '''A list of Theano variables used in this loss.'''
@@ -57,6 +62,11 @@ class Loss(util.Registrar(str('Base'), (), {})):
         if self._weights is not None:
             result.append(self._weights)
         return result
+
+    def log(self):
+        '''Log some diagnostic info about this loss.'''
+        logging.info('using loss: %s * %s (output %s)',
+                     self.weight, self.__class__.__name__, self.output_name)
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -242,7 +252,6 @@ class GaussianLogLikelihood(Loss):
     __extra_registration_keys__ = ['GLL']
 
     def __init__(self, mean_name='mean', covar_name='covar', covar_eps=1e-3, **kwargs):
-        super(GaussianLogLikelihood, self).__init__(**kwargs)
         self.mean_name = mean_name
         if ':' not in self.mean_name:
             self.mean_name += ':out'
@@ -250,6 +259,13 @@ class GaussianLogLikelihood(Loss):
         if ':' not in self.covar_name:
             self.covar_name += ':out'
         self.covar_eps = covar_eps
+        super(GaussianLogLikelihood, self).__init__(**kwargs)
+
+    def log(self):
+        '''Log some diagnostic info about this loss.'''
+        logging.info('using loss: %s * %s (mean %s, covar %s)',
+                     self.weight, self.__class__.__name__,
+                     self.mean_name, self.covar_name)
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.

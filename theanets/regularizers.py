@@ -152,7 +152,6 @@ class Regularizer(util.Registrar(str('Base'), (), {})):
     def __init__(self, pattern=None, weight=0.):
         self.pattern = pattern
         self.weight = weight
-        self.log()
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
@@ -396,7 +395,6 @@ class HiddenL1(Regularizer):
             pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
         matches = util.outputs_matching(outputs, pattern)
         hiddens = [expr for _, expr in matches]
-        logging.info('found %s matching %s', hiddens, pattern)
         if not hiddens:
             return 0
         return sum(abs(h).mean() for h in hiddens) / len(hiddens)
@@ -490,9 +488,7 @@ class Contractive(Regularizer):
             ns = [l.output_name() for l in layers_[1:-1]]
             pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
         targets = [expr for _, expr in util.outputs_matching(outputs, pattern)]
-        logging.info('found %s matching %s', targets, pattern)
         if not targets:
-            raise ValueError
             return 0
         wrt = [l.input for l in layers_
                if isinstance(l, layers.Input) and

@@ -260,7 +260,6 @@ class Network(object):
         All parameters and keyword arguments are passed to :func:`add_loss`
         after clearing the current losses.
         '''
-        logging.info('resetting model losses!')
         self.losses = []
         self.add_loss(*args, **kwargs)
 
@@ -441,9 +440,13 @@ class Network(object):
             A list of updates that should be performed by a theano function that
             computes something using this graph.
         '''
-        regularizers = tuple(regularizers)
         key = self._hash(regularizers)
         if key not in self._graphs:
+            logging.info('building computation graph')
+            for loss in self.losses:
+                loss.log()
+            for reg in regularizers:
+                reg.log()
             outputs = {i.name: i for i in self.inputs}
             updates = []
             for layer in self.layers:
@@ -543,6 +546,7 @@ class Network(object):
         if key not in self._functions:
             outputs, updates = self.build_graph(regs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
+            logging.info('compiling feed_forward function')
             self._functions[key] = (labels, theano.function(
                 self.inputs, exprs, updates=updates))
         labels, f = self._functions[key]

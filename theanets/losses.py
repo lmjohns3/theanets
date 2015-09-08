@@ -53,8 +53,6 @@ class Loss(util.Registrar(str('Base'), (), {})):
         if ':' not in self.output_name:
             self.output_name += ':out'
 
-        self.log()
-
     @property
     def variables(self):
         '''A list of Theano variables used in this loss.'''

@@ -120,8 +120,7 @@ class Autoencoder(graph.Network):
 
     def __init__(self, layers, loss='mse', weighted=False):
         super(Autoencoder, self).__init__(layers)
-        self.losses = [losses.Loss.build(
-            loss, target=self.inputs[0], weighted=weighted)]
+        self.set_loss(form=loss, target=self.inputs[0], weighted=weighted)
 
     def encode(self, x, layer=None, sample=False):
         '''Encode a dataset using the hidden layer activations of our network.
@@ -356,7 +355,7 @@ class Classifier(graph.Network):
 
     def __init__(self, layers, loss='xe', weighted=False):
         super(Classifier, self).__init__(layers)
-        self.losses = [losses.Loss.build(loss, target=1, weighted=weighted)]
+        self.set_loss(form=loss, target=1, weighted=weighted)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.

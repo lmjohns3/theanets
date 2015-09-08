@@ -382,8 +382,7 @@ class Classifier(feedforward.Classifier):
 
     def __init__(self, layers, loss='xe', weighted=False):
         super(Classifier, self).__init__(layers)
-        self.losses = [losses.Loss.build(
-            loss, target=2, weighted=weighted)]
+        self.set_loss(loss, target=2, weighted=weighted)
 
     def predict_sequence(self, labels, steps, streams=1, rng=None):
         '''Draw a sequential sample of class labels from this network.

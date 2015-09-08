@@ -12,14 +12,11 @@ logging = climate.get_logger('mnist-rica')
 climate.enable_default_logging()
 
 
-class RICA(theanets.Autoencoder):
-    def loss(self, weight_inverse=0, **kwargs):
-        loss = super(RICA, self).loss(**kwargs)
-        if weight_inverse > 0:
-            loss += sum((weight_inverse / (w * w).sum(axis=0)).sum()
-                        for l in self.layers for w in l.params
-                        if w.ndim > 1)
-        return loss
+class WeightInverse(theanets.Regularizer):
+    def loss(self, layers, outputs):
+        return sum((1 / (w * w).sum(axis=0)).sum()
+                   for l in layers for w in l.params
+                   if w.ndim > 1)
 
 
 train, valid, _ = load_mnist()
@@ -50,12 +47,12 @@ def color(z):
 
 N = 20
 
-net = RICA([K, (N * N, 'linear'), (K, 'tied')])
+net = theanets.Autoencoder([K, (N * N, 'linear'), (K, 'tied')])
 
 net.train(whiten(train),
           whiten(valid),
           hidden_l1=0.5,
-          weight_inverse=1e-6,
+          weightinverse=1e-6,
           train_batches=300,
           monitors={'hid1:out': (-0.9, -0.1, 0.1, 0.9)})
 

@@ -491,12 +491,12 @@ spanned by the principal components.
 Defining Custom Regularizers
 ----------------------------
 
-To create a custom regularizer in ``theanets``, you need to subclass the
-appropriate model and provide an implementation of the
-:func:`theanets.graph.Network.loss` method.
+To create a custom regularizer in ``theanets``, you need to create a custom
+subclass of the :class:`Regularizer <theanets.regularizers.Regularizer>` class,
+and then provide this regularizer when you run your model.
 
-Let's keep going with the example above. Suppose you created a linear autoencoder
-model that had a larger hidden layer than your dataset::
+To illustrate, let's continue with the example above. Suppose you created a
+linear autoencoder model that had a larger hidden layer than your dataset::
 
   net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
 
@@ -512,18 +512,14 @@ of the hidden units in the model to zero, to "save" loss during training.
 Zero-valued features are probably not so interesting, so we can introduce
 another penalty to prevent feature weights from going to zero::
 
-  class RICA(theanets.Autoencoder):
-      def loss(self, **kwargs):
-          loss = super(RICA, self).loss(**kwargs)
-          w = kwargs.get('weight_inverse', 0)
-          if w > 0:
-              loss += w * sum((1 / (p * p).sum(axis=0)).sum()
-                              for l in self.layers for p in l.params
-                              if p.ndim == 2)
-          return loss
+  class WeightInverse(theanets.Regularizer):
+      def loss(self, layers, outputs):
+          return sum((1 / (p * p).sum(axis=0)).sum()
+                     for l in layers for p in l.params
+                     if p.ndim == 2)
 
-  net = RICA([4, (8, 'linear'), (4, 'tied')])
-  net.train(..., hidden_l1=0.001, weight_inverse=0.001)
+  net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
+  net.train(..., hidden_l1=0.001, weightinverse=0.001)
 
 This code adds a new regularizer that penalizes the inverse of the squared
 length of each of the weights in the model's layers. Here we detect weights by
@@ -536,10 +532,11 @@ Defining Custom Error Functions
 
 It's pretty straightforward to create models in ``theanets`` that use different
 error functions from the predefined :class:`Classifier
-<theanets.feedforward.Classifier>` (which uses categorical cross-entropy) and
-:class:`Autoencoder <theanets.feedforward.Autoencoder>` and :class:`Regressor
-<theanets.feedforward.Regressor>` (which both use mean squared error, MSE)
-models.
+<theanets.feedforward.Classifier>` and :class:`Autoencoder
+<theanets.feedforward.Autoencoder>` and :class:`Regressor
+<theanets.feedforward.Regressor>` models. (The classifier uses categorical
+cross-entropy (XE) as its default loss, and the other two both use mean squared
+error, MSE.)
 
 To define a model with a new loss, just create a new :class:`Loss
 <theanets.losses.Loss>` subclass and specify its name when you create your

@@ -37,22 +37,22 @@ class TestMatching:
     def test_params_matching(self):
         net = theanets.Autoencoder([10, 20, 30, 10])
 
-        match = sorted(theanets.util.params_matching(net, '*'))
+        match = sorted(theanets.util.params_matching(net.layers, '*'))
         assert len(match) == 6
         assert [n for n, _ in match] == [
             'hid1.b', 'hid1.w', 'hid2.b', 'hid2.w', 'out.b', 'out.w']
 
-        match = sorted(theanets.util.params_matching(net, '*.w'))
+        match = sorted(theanets.util.params_matching(net.layers, '*.w'))
         assert len(match) == 3
         assert [n for n, _ in match] == ['hid1.w', 'hid2.w', 'out.w']
 
-        match = sorted(theanets.util.params_matching(net, 'o*.?'))
+        match = sorted(theanets.util.params_matching(net.layers, 'o*.?'))
         assert len(match) == 2
         assert [n for n, _ in match] == ['out.b', 'out.w']
 
     def test_outputs_matching(self):
         net = theanets.Autoencoder([10, 20, 30, 10])
-        outputs, _ = net.build_graph()
+        outputs = net.build_graph()[0]
 
         match = sorted(theanets.util.outputs_matching(outputs, '*'))
         assert len(match) == 9

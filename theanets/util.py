@@ -144,13 +144,13 @@ def outputs_matching(outputs, pattern):
             yield name, expr
 
 
-def params_matching(network, pattern):
+def params_matching(layers, pattern):
     '''Get the parameters from a network that match a pattern.
 
     Parameters
     ----------
-    network : :class:`theanets.graph.Network`
-        A network to retrieve parameters from.
+    layers : list of :class:`theanets.layers.Layer`
+        A list of network layers to retrieve parameters from.
     pattern : str
         A glob-style pattern to match against. ``'*'`` will match all
         parameters, while ``'a.*'`` matches parameters named ``'a.b'``
@@ -163,6 +163,7 @@ def params_matching(network, pattern):
         of the parameter that matched, and the expression represents the
         parameter symbolically.
     '''
-    for p in network.params:
-        if fnmatch.fnmatch(p.name, pattern):
-            yield p.name, p
+    for layer in layers:
+        for p in layer.params:
+            if fnmatch.fnmatch(p.name, pattern):
+                yield p.name, p

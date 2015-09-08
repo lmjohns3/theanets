@@ -686,7 +686,7 @@ class Network(object):
             '''Yield all matching outputs or parameters from the graph.'''
             for name, expr in util.outputs_matching(outputs, pattern):
                 yield name, expr
-            for name, expr in util.params_matching(self, pattern):
+            for name, expr in util.params_matching(self.layers, pattern):
                 yield name, expr
 
         def parse_levels(levels):

@@ -493,7 +493,7 @@ Defining Custom Regularizers
 
 To create a custom regularizer in ``theanets``, you need to subclass the
 appropriate model and provide an implementation of the
-:func:`theanets.feedforward.Network.regularized_loss` method.
+:func:`theanets.graph.Network.loss` method.
 
 Let's keep going with the example above. Suppose you created a linear autoencoder
 model that had a larger hidden layer than your dataset::
@@ -513,8 +513,8 @@ Zero-valued features are probably not so interesting, so we can introduce
 another penalty to prevent feature weights from going to zero::
 
   class RICA(theanets.Autoencoder):
-      def regularized_loss(self, **kwargs):
-          loss = super(RICA, self).regularized_loss(**kwargs)
+      def loss(self, **kwargs):
+          loss = super(RICA, self).loss(**kwargs)
           w = kwargs.get('weight_inverse', 0)
           if w > 0:
               loss += w * sum((1 / (p * p).sum(axis=0)).sum()

@@ -57,7 +57,7 @@ class DownhillTrainer(object):
         '''
         for monitors in downhill.build(
                 algo=self.algo,
-                loss=self.network.regularized_loss(**kwargs),
+                loss=self.network.loss(**kwargs),
                 updates=self.network.updates(**kwargs),
                 monitors=self.network.monitors(**kwargs),
                 inputs=self.network.variables,

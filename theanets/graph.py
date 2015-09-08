@@ -637,7 +637,7 @@ class Network(object):
         logging.info('%s: loaded model', filename)
         return model
 
-    def regularized_loss(self, **kwargs):
+    def loss(self, **kwargs):
         '''Return a variable representing the regularized loss for this network.
 
         The regularized loss includes both the loss computation (the "error")

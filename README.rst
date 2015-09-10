@@ -280,9 +280,9 @@ from almost-random character generation, to producing groups of letters
 separated by spaces, to generating words that seem like they might belong in
 *Moby Dick*, things like "captain," "ahab, too," and "constantly used the coil."
 
-Much amusement can (and should) be derived from a temporal model extending
-itself forward in this way. After all, how else would we ever think of
-"Pequodeers," "Starbuckably," or "Ginqueg"?!
+Much amusement can be derived from a temporal model extending itself forward in
+this way. After all, how else would we ever think of "Pequodeers,"
+"Starbuckably," or "Ginqueg"?!
 
 More Information
 ================

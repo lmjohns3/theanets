@@ -85,7 +85,7 @@ Regularizers
    WeightL1
    WeightL2
    Contractive
-   Dropout
+   BernoulliDropout
    GaussianNoise
 
 Layer types

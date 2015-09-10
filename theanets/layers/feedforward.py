@@ -30,6 +30,8 @@ class Feedforward(base.Layer):
     network models are built.
     '''
 
+    __extra_registration_keys__ = ['ff']
+
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.
 

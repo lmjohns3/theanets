@@ -1,3 +1,5 @@
+.. _layers:
+
 ======
 Layers
 ======
@@ -191,65 +193,6 @@ keyword arguments specific to that layer. For example, the :class:`MRNN
 argument, and the :class:`Conv1 <theanets.layers.convolution.Conv1>` 1D
 convolutional layer requires a ``filter_size`` argument.
 
-.. _layers-activation:
-
-Activation Functions
-====================
-
-An activation function (sometimes also called a transfer function) specifies how
-the final output of a layer is computed from the weighted sums of the inputs. By
-default, hidden layers in ``theanets`` use a rectified linear activation
-function: :math:`g(z) = \max(0, z)`. Output layers in :class:`Regressor
-<theanets.feedforward.Regressor>` and :class:`Autoencoder
-<theanets.feedforward.Autoencoder>` models use linear activations (i.e., the
-output is just the weighted sum of the inputs from the previous layer:
-:math:`g(z) = z`), and the output layer in :class:`Classifier
-<theanets.feedforward.Classifier>` models uses a softmax activation: :math:`g(z)
-= \exp(z) / \sum\exp(z)`.
-
-To specify a different activation function for a layer, include an activation
-key chosen from the table below, or :ref:`create a custom activation
-<creating-custom-activations>`. As described above, the activation key can be
-included in your model specification either using the ``activation`` keyword
-argument in a layer dictionary, or by including the key in a tuple with the
-layer size::
-
-  net = theanets.Regressor([10, (10, 'tanh'), 10])
-
-=========  ============================  ===============================================
-Key        Description                   :math:`g(z) =`
-=========  ============================  ===============================================
-linear     linear                        :math:`z`
-sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
-logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
-tanh       hyperbolic tangent            :math:`\tanh(z)`
-softplus   smooth relu approximation     :math:`\log(1 + \exp(z))`
-softmax    categorical distribution      :math:`e^z / \sum e^z`
-relu       rectified linear              :math:`\max(0, z)`
-trel       truncated rectified linear    :math:`\max(0, \min(1, z))`
-trec       thresholded rectified linear  :math:`z \mbox{ if } z > 1 \mbox{ else } 0`
-tlin       thresholded linear            :math:`z \mbox{ if } |z| > 1 \mbox{ else } 0`
-rect:min   truncation                    :math:`\min(1, z)`
-rect:max   rectification                 :math:`\max(0, z)`
-norm:mean  mean-normalization            :math:`z - \bar{z}`
-norm:max   max-normalization             :math:`z / \max |z|`
-norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
-norm:z     z-score normalization         :math:`(z-\bar{z}) / \mathbb{E}[(z-\bar{z})^2]`
-=========  ============================  ===============================================
-
-Composition
------------
-
-Activation functions can also be composed by concatenating multiple function
-names togather using a ``+``. For example, to create a layer that uses a
-batch-normalized hyperbolic tangent activation::
-
-  net = theanets.Regressor([10, (10, 'tanh+norm:z'), 10])
-
-Just like function composition, the order of the components matters! Unlike the
-notation for mathematical function composition, the functions will be applied
-from left-to-right.
-
 .. _layers-predefined:
 
 Predefined Layers
@@ -258,7 +201,7 @@ Predefined Layers
 There are many types of layers available out of the box in ``theanets``.
 
 Input
-~~~~~
+-----
 
 :Key: :class:`input <theanets.layers.base.Input>`
 :Parameters:
@@ -273,7 +216,7 @@ Input layers accept an ``ndim`` argument that specifies the number of dimensions
 required to hold mini-batches of the input data. This defaults to 2.
 
 Feedforward
-~~~~~~~~~~~
+-----------
 
 :Key: :class:`feedforward <theanets.layers.feedforward.Feedforward>`
 :Parameters: b w (with one input), b w_1 w_2 ... w_N (with N inputs)
@@ -301,7 +244,7 @@ Often this type of layer is used in autoencoder models to reduce the number of
 parameters.
 
 Recurrent
-~~~~~~~~~
+---------
 
 Recurrent layers must be used with :mod:`recurrent models <theanets.recurrent>`.
 They represent layers that incorporate the layer's state from previous time
@@ -370,7 +313,7 @@ modulated by the input to the network at each time step.
 :Arguments: ``worker``
 
 Graph
-~~~~~
+-----
 
 Several ``theanets`` layers manipulate data for further processing in the graph.
 None of these layer types applies an activation function.
@@ -401,4 +344,43 @@ for this layer, equal to the product of the shapes of its input!
 
 This layer reshapes its input along all but the first dimension to a new shape.
 The shape must be consistent with the shape of the input array.
+
+.. _layers-custom:
+
+Custom Layers
+=============
+
+Layers are the real workhorse in ``theanets``; custom layers can be created to
+do all sorts of fun stuff. To create a custom layer, just create a subclass of
+:class:`Layer <theanets.layers.base.Layer>` and give it the functionality you
+want.
+
+As a very simple example, let's suppose you wanted to create a normal
+feedforward layer but did not want to include a bias term::
+
+  import theanets
+  import theano.tensor as TT
+
+  class NoBias(theanets.Layer):
+      def transform(self, inputs):
+          return TT.dot(inputs, self.find('w'))
+
+      def setup(self):
+          self.add_weights('w', nin=self.input_size, nout=self.size)
+
+Once you've set up your new layer class, it will automatically be registered and
+available in :func:`theanets.Layer.build <theanets.layers.base.Layer.build>`
+using the name of your class::
+
+  layer = theanets.Layer.build('nobias', inputs=3, size=4)
+
+or, while creating a model::
+
+  net = theanets.Autoencoder(
+      layers=(4, (3, 'nobias', 'linear'), (4, 'tied', 'linear')),
+  )
+
+This example shows how fast it is to create a PCA-like model that will learn the
+subspace of your dataset that spans the most variance---the same subspace
+spanned by the principal components.
 

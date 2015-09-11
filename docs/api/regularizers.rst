@@ -1,127 +1,10 @@
-.. _training:
+.. _regularizers:
 
-================
-Training a Model
-================
+============
+Regularizers
+============
 
-When most neural network models are created, their parameters are set to small
-random values. These values are not particularly well-suited to perform most
-tasks, so some sort of training process is needed to optimize the parameters for
-the task that the network should perform.
-
-The neural networks research literature is filled with exciting advances in
-optimization algorithms for neural networks. In ``theanets`` several optimizers
-are available; each one has different performance characteristics and might be
-better or worse suited for a particular model or task.
-
-To train a network, you must first specify a trainer and then provide some data
-to the trainer. You can also save the model periodically during training.
-
-.. _training-specifying-trainer:
-
-Specifying a Trainer
-====================
-
-The easiest way train a model with ``theanets`` is to invoke the :func:`train()
-<theanets.graph.Network.train>` method::
-
-  net = theanets.Classifier(layers=[10, 5, 2])
-  net.train(training_data,
-            validation_data,
-            algo='nag',
-            learning_rate=0.01,
-            momentum=0.9)
-
-Here, a classifier model is being trained using `Nesterov's accelerated
-gradient`_, with a learning rate of 0.01 and momentum of 0.9. The training and
-validation datasets must be provided to any of the available training
-algorithms. The algorithm itself is selected using the ``algorithm`` keyword
-argument, and any other keyword arguments provided to ``train()`` are passed to
-the algorithm implementation.
-
-Multiple calls to ``train()`` are possible and can be used to implement things
-like custom annealing schedules (e.g., the "newbob" training strategy)::
-
-  net = theanets.Classifier(layers=[10, 5, 2])
-
-  for e in (-2, -3, -4):
-      net.train(training_data,
-                validation_data,
-                algo='nag',
-                learning_rate=10 ** e,
-                momentum=1 - 10 ** (e + 1))
-
-  net.train(training_data,
-            validation_data,
-            algo='rmsprop',
-            learning_rate=0.0001,
-            momentum=0.9)
-
-The available training methods are described below, followed by some details on
-additional functionality available for training models.
-
-.. _training-available-trainers:
-
-Available Trainers
-==================
-
-The most common method for training a neural network model is to use a
-stochastic gradient-based optimizer. In ``theanets`` many of these algorithms
-are available by interfacing with the ``downhill`` package:
-
-- ``sgd``: `Stochastic gradient descent`_
-- ``nag``: `Nesterov's accelerated gradient`_
-- ``rprop``: `Resilient backpropagation`_
-- ``rmsprop``: RMSProp_
-- ``adadelta``: ADADELTA_
-- ``esgd``: `Equilibrated SGD`_
-- ``adam``: Adam_
-
-.. _Stochastic gradient descent: http://downhill.readthedocs.org/en/stable/generated/downhill.first_order.SGD.html
-.. _Nesterov's accelerated gradient: http://downhill.readthedocs.org/en/stable/generated/downhill.first_order.NAG.html
-.. _Resilient backpropagation: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.RProp.html
-.. _RMSProp: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.RMSProp.html
-.. _ADADELTA: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.ADADELTA.html
-.. _Equilibrated SGD: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.ESGD.html
-.. _Adam: http://downhill.readthedocs.org/en/stable/generated/downhill.adaptive.Adam.html
-
-In addition to the optimization algorithms provided by ``downhill``,
-``theanets`` defines a few algorithms that are more specific to neural networks.
-These trainers tend to take advantage of the layered structure of the loss
-function for a network.
-
-- ``sample``: :class:`Sample trainer <theanets.trainer.SampleTrainer>`
-
-This trainer sets model parameters directly to samples drawn from the training
-data. This is a very fast "training" algorithm since all updates take place at
-once; however, often features derived directly from the training data require
-further tuning to perform well.
-
-- ``layerwise``: :class:`Layerwise (supervised) pretrainer <theanets.trainer.SupervisedPretrainer>`
-
-Greedy supervised layerwise pre-training: This trainer applies RMSProp to each
-layer sequentially.
-
-- ``pretrain``: :class:`Unsupervised pretrainer <theanets.trainer.UnsupervisedPretrainer>`
-
-Greedy unsupervised layerwise pre-training: This trainer applies RMSProp to a
-tied-weights "shadow" autoencoder using an unlabeled dataset, and then transfers
-the learned autoencoder weights to the model being trained.
-
-.. _training-providing-data:
-
-Providing Data
-==============
-
-To train a model in ``theanets``, you will need to provide a set of data that
-can be used to compute the value of the loss function and its derivatives. Data
-can be passed to the trainer using either arrays_ or callables_; the
-``downhill`` documentation describes how this works.
-
-.. _arrays: http://downhill.rtfd.org/en/stable/guide.html#data-using-arrays
-.. _callables: http://downhill.rtfd.org/en/stable/guide.html#data-using-callables
-
-.. _training-specifying-regularizers:
+.. _regularizers-specifying:
 
 Specifying Regularizers
 =======================
@@ -324,56 +207,42 @@ but the loss is computed with respect to the uncorrupted input. This is thought
 to encourage the model to develop representations that push towards the true
 manifold of the data.
 
-.. _training-training:
+.. _regularizers-custom:
 
-Training
-========
+Custom Regularizers
+===================
 
-.. _training-iteration:
+To create a custom regularizer in ``theanets``, you need to create a custom
+subclass of the :class:`Regularizer <theanets.regularizers.Regularizer>` class,
+and then provide this regularizer when you run your model.
 
-Training as Iteration
----------------------
+To illustrate, let's suppose you created a linear autoencoder model that had a
+larger hidden layer than your dataset::
 
-The :func:`Network.train() <theanets.graph.Network.train>` method is actually
-just a thin wrapper over the underlying :func:`Network.itertrain()
-<theanets.graph.Network.itertrain>` method, which you can use directly if you
-want to do something special during training::
+  net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
 
-  for train, valid in net.itertrain(train_data, valid_data, **kwargs):
-      print('training loss:', train['loss'])
-      print('most recent validation loss:', valid['loss'])
+Then, at least in theory, you risk learning an uninteresting "identity" model
+such that some hidden units are never used, and the ones that are have weights
+equal to the identity matrix. To prevent this from happening, you can impose a
+sparsity penalty when you train your model::
 
-Trainers yield a dictionary after each training iteration. The keys and values
-in each dictionary give the costs and monitors that are computed during
-training, which will vary depending on the model being trained. However, there
-will always be a ``'loss'`` key that gives the value of the loss function being
-optimized. Many types of models have an ``'err'`` key that gives the values of
-the unregularized error (e.g., the mean squared error for regressors). For
-classifier models, the dictionary will also have an ``'acc'`` key, which
-contains the percent accuracy of the classifier model.
+  net.train(..., hidden_l1=0.001)
 
-.. _training-saving-progress:
+But then you might run into a situation where the sparsity penalty drives some
+of the hidden units in the model to zero, to "save" loss during training.
+Zero-valued features are probably not so interesting, so we can introduce
+another penalty to prevent feature weights from going to zero::
 
-Saving Progress
----------------
+  class WeightInverse(theanets.Regularizer):
+      def loss(self, layers, outputs):
+          return sum((1 / (p * p).sum(axis=0)).sum()
+                     for l in layers for p in l.params
+                     if p.ndim == 2)
 
-The :class:`Network <theanets.graph.Network>` base class can snapshot your model
-automatically during training. When you call :func:`Network.train()
-<theanets.graph.Network.train>`, you can provide the following keyword
-arguments:
+  net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
+  net.train(..., hidden_l1=0.001, weightinverse=0.001)
 
-- ``save_progress``: This should be a string containing a filename where the
-  model should be saved. If you want to save models in separate files during
-  training, you can include an empty format string ``{}`` in your filename, and
-  it will be formatted with the UTC Unix timestamp at the moment the model is
-  saved.
+This code adds a new regularizer that penalizes the inverse of the squared
+length of each of the weights in the model's layers. Here we detect weights by
+only including parameters with 2 dimensions.
 
-- ``save_every``: This should be a numeric value specifying how often the model
-  should be saved during training. If this value is an integer, it specifies the
-  number of training iterations between checkpoints; if it is a float, it
-  specifies the number of minutes that are allowed to elapse between
-  checkpoints.
-
-You can also save and load models manually by calling :func:`Network.save()
-<theanets.graph.Network.save>` and :func:`theanets.load()
-<theanets.graph.load>`, respectively.

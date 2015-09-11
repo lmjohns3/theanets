@@ -1,11 +1,13 @@
-=================
-Specifying a Loss
-=================
+.. _losses:
+
+==============
+Network Losses
+==============
 
 .. _losses-weighted:
 
 Using Weighted Targets
-----------------------
+======================
 
 By default, the network models available in ``theanets`` treat all inputs as
 equal when computing the loss for the model. For example, a regression model
@@ -51,3 +53,39 @@ would require a weight vector with each minibatch, of the same shape as the
 labels array, so that the training and validation datasets would each have three
 pieces: ``sample``, ``label``, and ``weight``. Each value in the weight array is
 used as the weight for the corresponding error when computing the loss.
+
+.. _losses-custom:
+
+Custom Losses
+=============
+
+It's pretty straightforward to create models in ``theanets`` that use different
+losses from the predefined :class:`Classifier <theanets.feedforward.Classifier>`
+and :class:`Autoencoder <theanets.feedforward.Autoencoder>` and
+:class:`Regressor <theanets.feedforward.Regressor>` models. (The classifier uses
+categorical cross-entropy (XE) as its default loss, and the other two both use
+mean squared error, MSE.)
+
+To define a model with a new loss, just create a new :class:`Loss
+<theanets.losses.Loss>` subclass and specify its name when you create your
+model. For example, to create a regression model that uses a step function
+averaged over all of the model inputs::
+
+  class Step(theanets.Loss):
+      def __call__(self, outputs):
+          return (outputs[self.output_name] > 0).mean()
+
+  net = theanets.Regressor([5, 6, 7], loss='step')
+
+Your loss function implementation must return a Theano expression that reflects
+the loss for your model. If you wish to make your loss work with weighted
+outputs, you will also need to include a case for having weights::
+
+  class Step(theanets.Loss):
+      def __call__(self, outputs):
+          step = outputs[self.output_name] > 0
+          if self._weights:
+              return (self._weights * step).sum() / self._weights.sum()
+          else:
+              return step.mean()
+

@@ -1,0 +1,65 @@
+.. _activations:
+
+====================
+Activation Functions
+====================
+
+An activation function (sometimes also called a transfer function) specifies how
+the final output of a layer is computed from the weighted sums of the inputs. By
+default, hidden layers in ``theanets`` use a rectified linear activation
+function: :math:`g(z) = \max(0, z)`. Output layers in :class:`Regressor
+<theanets.feedforward.Regressor>` and :class:`Autoencoder
+<theanets.feedforward.Autoencoder>` models use linear activations (i.e., the
+output is just the weighted sum of the inputs from the previous layer:
+:math:`g(z) = z`), and the output layer in :class:`Classifier
+<theanets.feedforward.Classifier>` models uses a softmax activation: :math:`g(z)
+= \exp(z) / \sum\exp(z)`.
+
+To specify a different activation function for a layer, include an activation
+key chosen from the table below, or :ref:`create a custom activation
+<creating-custom-activations>`. As described above, the activation key can be
+included in your model specification either using the ``activation`` keyword
+argument in a layer dictionary, or by including the key in a tuple with the
+layer size::
+
+  net = theanets.Regressor([10, (10, 'tanh'), 10])
+
+=========  ============================  ===============================================
+Key        Description                   :math:`g(z) =`
+=========  ============================  ===============================================
+linear     linear                        :math:`z`
+sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
+logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
+tanh       hyperbolic tangent            :math:`\tanh(z)`
+softplus   smooth relu approximation     :math:`\log(1 + \exp(z))`
+softmax    categorical distribution      :math:`e^z / \sum e^z`
+relu       rectified linear              :math:`\max(0, z)`
+trel       truncated rectified linear    :math:`\max(0, \min(1, z))`
+trec       thresholded rectified linear  :math:`z \mbox{ if } z > 1 \mbox{ else } 0`
+tlin       thresholded linear            :math:`z \mbox{ if } |z| > 1 \mbox{ else } 0`
+rect:min   truncation                    :math:`\min(1, z)`
+rect:max   rectification                 :math:`\max(0, z)`
+norm:mean  mean-normalization            :math:`z - \bar{z}`
+norm:max   max-normalization             :math:`z / \max |z|`
+norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
+norm:z     z-score normalization         :math:`(z-\bar{z}) / \mathbb{E}[(z-\bar{z})^2]`
+=========  ============================  ===============================================
+
+Composition
+===========
+
+Activation functions can also be composed by concatenating multiple function
+names togather using a ``+``. For example, to create a layer that uses a
+batch-normalized hyperbolic tangent activation::
+
+  net = theanets.Regressor([10, (10, 'tanh+norm:z'), 10])
+
+Just like function composition, the order of the components matters! Unlike the
+notation for mathematical function composition, the functions will be applied
+from left-to-right.
+
+.. _activations-custom:
+
+Custom Activations
+==================
+

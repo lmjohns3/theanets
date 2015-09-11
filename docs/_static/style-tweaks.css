@@ -19,3 +19,6 @@ th.field-name { background: #ffd; }
 dl.method dt { background: #def; }
 
 .rubric { font-size: 2rem; font-weight: bold; }
+
+.sphinxsidebar ul + ul:before { content: 'Examples'; font-weight: bold; }
+.sphinxsidebar ul + ul + ul:before { content: 'API'; }

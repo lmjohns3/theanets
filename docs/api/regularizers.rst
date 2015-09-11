@@ -246,3 +246,20 @@ This code adds a new regularizer that penalizes the inverse of the squared
 length of each of the weights in the model's layers. Here we detect weights by
 only including parameters with 2 dimensions.
 
+Source
+======
+
+.. automodule:: theanets.regularizers
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Regularizer
+   HiddenL1
+   WeightL1
+   WeightL2
+   Contractive
+   BernoulliDropout
+   GaussianNoise

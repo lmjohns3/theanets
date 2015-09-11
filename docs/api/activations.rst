@@ -63,3 +63,18 @@ from left-to-right.
 Custom Activations
 ==================
 
+Activations
+===========
+
+.. automodule:: theanets.activations
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   build
+   Activation
+   Prelu
+   LGrelu
+   Maxout

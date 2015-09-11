@@ -384,3 +384,65 @@ This example shows how fast it is to create a PCA-like model that will learn the
 subspace of your dataset that spans the most variance---the same subspace
 spanned by the principal components.
 
+Layer types
+===========
+
+.. automodule:: theanets.layers.base
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Concatenate
+   Flatten
+   Input
+   Layer
+   Product
+   Reshape
+
+Feedforward layers
+------------------
+
+.. automodule:: theanets.layers.feedforward
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Classifier
+   Feedforward
+   Tied
+
+Convolution layers
+------------------
+
+.. automodule:: theanets.layers.convolution
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Conv1
+
+Recurrent layers
+----------------
+
+.. automodule:: theanets.layers.recurrent
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   ARRNN
+   Bidirectional
+   Clockwork
+   GRU
+   LRRNN
+   LSTM
+   MRNN
+   MUT1
+   RNN

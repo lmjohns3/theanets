@@ -1,7 +1,7 @@
 .. _losses:
 
 ==============
-Network Losses
+Loss Functions
 ==============
 
 .. _losses-weighted:
@@ -88,4 +88,23 @@ outputs, you will also need to include a case for having weights::
               return (self._weights * step).sum() / self._weights.sum()
           else:
               return step.mean()
+
+Source
+======
+
+.. automodule:: theanets.losses
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Loss
+   CrossEntropy
+   GaussianLogLikelihood
+   Hinge
+   KullbackLeiblerDivergence
+   MaximumMeanDiscrepancy
+   MeanAbsoluteError
+   MeanSquaredError
 

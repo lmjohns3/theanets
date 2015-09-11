@@ -1,6 +1,6 @@
-================
-Choosing a Model
-================
+======
+Models
+======
 
 There are three major types of neural network models, each defined primarily by
 the :ref:`loss function <losses>` that the model attempts to optimize. While
@@ -179,4 +179,44 @@ cross-entropy between the network output and the target labels.
 To create a model of this type, just invoke its constructor::
 
    net = theanets.recurrent.Classifier()
+
+Computation graphs
+==================
+
+.. automodule:: theanets.graph
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Network
+
+Feedforward networks
+====================
+
+.. automodule:: theanets.feedforward
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Autoencoder
+   Classifier
+   Regressor
+
+Recurrent networks
+==================
+
+.. automodule:: theanets.recurrent
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Autoencoder
+   Classifier
+   Regressor
 

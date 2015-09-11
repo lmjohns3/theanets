@@ -1,8 +1,8 @@
 .. _trainers:
 
-==================
-Available Trainers
-==================
+========
+Trainers
+========
 
 The most common method for training a neural network model is to use a
 stochastic gradient-based optimizer. In ``theanets`` many of these algorithms
@@ -47,3 +47,17 @@ Greedy unsupervised layerwise pre-training: This trainer applies RMSProp to a
 tied-weights "shadow" autoencoder using an unlabeled dataset, and then transfers
 the learned autoencoder weights to the model being trained.
 
+Training strategies
+===================
+
+.. automodule:: theanets.trainer
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   DownhillTrainer
+   SampleTrainer
+   SupervisedPretrainer
+   UnsupervisedPretrainer

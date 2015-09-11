@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''Recurrent layers for neural network computation graphs.
-
-Recurrent layers are basically defined by the presence of explicitly modeled
-time dependencies in the computation graph.
-'''
+'''Recurrent layers allow time dependencies in the computation graph.'''
 
 from __future__ import division
 

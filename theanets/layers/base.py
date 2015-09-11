@@ -1,31 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''This module contains classes for different types of network layers.
-
-.. image:: _static/feedforward_neuron.svg
-
-In a standard feedforward neural network layer, each node :math:`i` in layer
-:math:`k` receives inputs from all nodes in layer :math:`k-1`, then transforms
-the weighted sum of these inputs:
-
-.. math::
-   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
-
-where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an :mod:`activation function
-<theanets.activations>`.
-
-In addition to standard feedforward layers, other types of layers are also
-commonly used:
-
-- For recurrent models, :mod:`recurrent layers <theanets.layers.recurrent>`
-  permit a cycle in the computation graph that depends on a previous time step.
-
-- For models that process images, :mod:`convolution layers
-  <theanets.layers.convolution>` are common.
-
-- For some types of autoencoder models, it is common to :class:`tie layer weights to
-  another layer <theanets.layers.feedforward.Tied>`.
-'''
+r'''This module contains classes for different types of network layers.'''
 
 from __future__ import division
 
@@ -575,3 +550,156 @@ class Reshape(Layer):
         spec = super(Reshape, self).to_spec()
         spec['shape'] = self.shape
         return spec
+
+
+r'''
+Predefined Layers
+=================
+
+There are many types of layers available out of the box in ``theanets``.
+
+Input
+-----
+
+:Key: :class:`input <theanets.layers.base.Input>`
+:Parameters:
+:Outputs: out
+:Arguments: ``ndim``
+
+Input layers are responsible for the Theano variables that represent input to a
+network. The name of the layer is passed along to the symbolic Theano input
+variable.
+
+Input layers accept an ``ndim`` argument that specifies the number of dimensions
+required to hold mini-batches of the input data. This defaults to 2.
+
+Feedforward
+-----------
+
+:Key: :class:`feedforward <theanets.layers.feedforward.Feedforward>`
+:Parameters: b w (with one input), b w_1 w_2 ... w_N (with N inputs)
+:Outputs: out pre
+
+The vanilla feedforward layer computes a weighted sum of its inputs.
+
+:Key: :class:`classifier <theanets.layers.feedforward.Classifier>`
+:Parameters:
+:Outputs: out pre
+
+The classifier layer is just a vanilla feedforward layer that uses a softmax
+output activation.
+
+:Key: :class:`tied <theanets.layers.feedforward.Tied>`
+:Parameters: b
+:Outputs: out pre
+:Arguments: ``partner``
+
+A "tied" layer is a feedforward layer that uses the transposed weight matrix
+from a ``partner`` layer, which can be specified as a string inside a layers
+list, or as a direct reference to the partner layer.
+
+Often this type of layer is used in autoencoder models to reduce the number of
+parameters.
+
+Recurrent
+---------
+
+Recurrent layers must be used with :mod:`recurrent models <theanets.recurrent>`.
+They represent layers that incorporate the layer's state from previous time
+steps.
+
+:Key: :class:`rnn <theanets.layers.recurrent.RNN>`
+:Parameters: b xh hh
+:Outputs: out pre
+
+A vanilla recurrent layer.
+
+:Key: :class:`arrnn <theanets.layers.recurrent.ARRNN>`
+:Parameters: b r xh xr hh
+:Outputs: out pre hid rate
+
+A recurrent layer that has an "adaptive" rate parameter for each neuron in the
+layer. The rates are adaptive because they are computed based on the current
+input to the network.
+
+This layer type is between the :class:`GRU <theanets.layers.recurrent.GRU>` and
+the :class:`LRRNN <theanets.layers.recurrent.LRRNN>` in complexity.
+
+:Key: :class:`lrrnn <theanets.layers.recurrent.LRRNN>`
+:Parameters: b r xh hh
+:Outputs: out pre hid rate
+
+A recurrent layer that has a "learned" rate parameter for each neuron in the
+layer. The vector of rates is learnable but independent of the hidden state and
+the input to the network.
+
+The :class:`LRRNN <theanets.layers.recurrent.LRRNN>` is a more complex version
+of this layer.
+
+:Key: :class:`lstm <theanets.layers.recurrent.LSTM>`
+:Parameters: b ci cf co xh hh
+:Outputs: out cell
+
+A Long Short-Term Memory (LSTM) layer is a complex arrangement of parameters
+with several dedicated "gates" that permit information to flow into and out of
+the "cell" that each neuron represents.
+
+:Key: :class:`mrnn <theanets.layers.recurrent.MRNN>`
+:Parameters: b xh xf hf fh
+:Outputs: out pre factors
+
+A Multiplicative RNN factors the hidden dynamics of a vanilla RNN into a product
+of two matrices. Often this factored representation is a lower rank than the
+full dynamics. Furthermore, the factor activations of the hidden dynamics are
+modulated by the input to the network at each time step.
+
+:Key: :class:`mut1 <theanets.layers.recurrent.MUT1>`
+:Parameters: b xh xr xz hh hr bh br bz
+:Outputs: out pre
+
+:Key: :class:`gru <theanets.layers.recurrent.GRU>`
+:Parameters: b xh xr xz hh hr hz bh br bz
+:Outputs: out pre hid rate
+
+:Key: :class:`clockwork <theanets.layers.recurrent.Clockwork>`
+:Parameters: b xh hh
+:Outputs: out pre
+:Arguments: ``periods``
+
+:Key: :class:`bidirectional <theanets.layers.recurrent.Bidirectional>`
+:Outputs: out pre fw_XYZ bw_XYZ
+:Arguments: ``worker``
+
+Graph
+-----
+
+Several ``theanets`` layers manipulate data for further processing in the graph.
+None of these layer types applies an activation function.
+
+:Key: :class:`product <theanets.layers.base.Product>`
+:Outputs: out
+
+This layer performs an elementwise multiplication of multiple inputs; all inputs
+must be the same shape.
+
+:Key: :class:`concatenate <theanets.layers.base.Concatenate>`
+:Outputs: out
+
+This layer concatenates multiple inputs along their last dimension; all inputs
+must have the same dimensionality and the same shape along all but the last
+dimension. The size of this layer must equal the sum of the sizes of the inputs.
+
+:Key: :class:`flatten <theanets.layers.base.Flatten>`
+:Outputs: out
+
+This layer flattens its inputs along all but the first dimension, so that the
+layer always outputs an array of dimension 2. The ``size`` value must be correct
+for this layer, equal to the product of the shapes of its input!
+
+:Key: :class:`reshape <theanets.layers.base.Reshape>`
+:Outputs: out
+:Arguments: ``shape``
+
+This layer reshapes its input along all but the first dimension to a new shape.
+The shape must be consistent with the shape of the input array.
+'''

@@ -175,7 +175,7 @@ class Autoencoder(feedforward.Autoencoder):
 
     >>> model = theanets.recurrent.Autoencoder([10, (20, 'rnn'), 10])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -197,7 +197,7 @@ class Autoencoder(feedforward.Autoencoder):
 
     >>> model.train([inputs])
 
-    See :ref:`training` for more information.
+    See :ref:`guide-training` for more information.
 
     *Use*
 
@@ -215,7 +215,7 @@ class Autoencoder(feedforward.Autoencoder):
 
     >>> enc = model.encode(test)
 
-    See :ref:`using` for more information.
+    See :ref:`guide-using` for more information.
 
     Notes
     -----
@@ -241,7 +241,7 @@ class Regressor(feedforward.Regressor):
 
     >>> model = theanets.recurrent.Regressor([10, (20, 'rnn'), 3])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -265,7 +265,7 @@ class Regressor(feedforward.Regressor):
 
     >>> model.train([inputs, outputs])
 
-    See :ref:`training` for more information.
+    See :ref:`guide-training` for more information.
 
     *Use*
 
@@ -278,7 +278,7 @@ class Regressor(feedforward.Regressor):
     Note that the test data does not need to have the same number of time steps
     as the training data.
 
-    See :ref:`using` for more information.
+    See :ref:`guide-using` for more information.
 
     Notes
     -----
@@ -304,7 +304,7 @@ class Classifier(feedforward.Classifier):
 
     >>> model = theanets.recurrent.Classifier([10, (20, 'rnn'), 50])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -333,7 +333,7 @@ class Classifier(feedforward.Classifier):
 
     >>> model.train([inputs, outputs])
 
-    See :ref:`training` for more information.
+    See :ref:`guide-training` for more information.
 
     *Use*
 
@@ -366,7 +366,7 @@ class Classifier(feedforward.Classifier):
     See :class:`Text` for more utility code that is helpful for working with
     sequences of class labels.
 
-    See also :ref:`using` for more information.
+    See also :ref:`guide-using` for more information.
 
     Notes
     -----

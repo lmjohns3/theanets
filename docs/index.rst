@@ -83,7 +83,7 @@ By passing a dictionary instead, you can specify even more attributes of each
       100, foo, (1000, 'maxout:4'), (1000, 'tanh'), 10])
 
 Specifying layers is the heart of building models in ``theanets``. Read more
-about this in :doc:`creating`.
+about this in :ref:`guide-creating-specifying-layers`.
 
 Regularization
 --------------
@@ -137,7 +137,7 @@ and different regularization hyperparameters::
 
 Training models is a bit more art than science, but ``theanets`` tries to make
 it easy to evaluate different training approaches. Read more about this in
-:doc:`training`.
+:ref:`guide-training`.
 
 Quick Start: Recurrent Models
 =============================

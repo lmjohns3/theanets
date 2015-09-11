@@ -36,8 +36,8 @@ network produces.
 
 In theory this could be trivial---if, for example, :math:`F_\theta(x) = x`---but
 in practice this doesn't actually happen very often. In addition, a
-:ref:`regularizer <training-specifying-regularizers>` :math:`R(X, \theta)` can
-be added to the overall loss for the model to prevent this sort of trivial
+:ref:`regularizer <guide-training-specifying-regularizers>` :math:`R(X, \theta)`
+can be added to the overall loss for the model to prevent this sort of trivial
 solution.
 
 To create an autoencoder in ``theanets``, just create an instance of the
@@ -46,7 +46,7 @@ appropriate network subclass::
   net = theanets.Autoencoder()
 
 Of course you'll also need to specify which types of layers you'd like in your
-model; this is discussed in :ref:`creating-specifying-layers`.
+model; this is discussed in :ref:`guide-creating-specifying-layers`.
 
 Regression
 ==========
@@ -70,7 +70,7 @@ To create a regression model in theanets, just invoke the constructor::
   net = theanets.Regressor()
 
 Again, you'll need to specify which types of layers you'd like in your model;
-this is discussed in :ref:`creating-specifying-layers`.
+this is discussed in :ref:`guide-creating-specifying-layers`.
 
 Classification
 ==============
@@ -97,7 +97,8 @@ To create a classifier model in ``theanets``, invoke its constructor::
   net = theanets.Classifier()
 
 As with the other models, you'll need to specify which types of layers you'd
-like in your model; this is discussed in :ref:`creating-specifying-layers`.
+like in your model; this is discussed in
+:ref:`guide-creating-specifying-layers`.
 
 Recurrent Models
 ================

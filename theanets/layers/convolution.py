@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''Convolutional layers for neural network computation graphs.
-
-Convolutional layers are characterized by computations that use a convolution
-operation on their inputs.
-'''
+'''Convolutional layers "scan" over input data.'''
 
 from __future__ import division
 

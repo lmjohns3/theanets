@@ -4,107 +4,94 @@
 Layers
 ======
 
-Probably the most important part of a neural network model is the
-*architecture*---the number and configuration of layers---of the model. There
-are very few limits to the complexity of possible neural network architectures,
-and ``theanets`` tries to make it possible to create a wide variety of
-architectures with minimal effort. The easiest architecture to create, however,
-is also the most common: networks with a single "chain" of layers.
+.. image:: ../_static/feedforward_neuron.svg
 
-For the time being we'll assume that you want to create a regression model with
-a single layer chain. To do this, you invoke the constructor of the model class
-you wish to create and specify layers you want in the model. For example::
+In a standard feedforward neural network layer, each node :math:`i` in layer
+:math:`k` receives inputs from all nodes in layer :math:`k-1`, then transforms
+the weighted sum of these inputs:
 
-  net = theanets.Regressor(layers=[10, 20, 3])
+.. math::
+   z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
 
-Here we've invoked the :class:`theanets.Regressor
-<theanets.feedforward.Regressor>` constructor and specified that we want an
-input layer with 10 neurons, a hidden layer with 20 neurons, and an output layer
-with 3 outputs.
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an :mod:`activation function
+<theanets.activations>`.
 
-Specifying Layers
-=================
+In addition to standard feedforward layers, other types of layers are also
+commonly used:
 
-In general, the ``layers`` argument to the constructor must be a sequence of
-values, each of which specifies the configuration of a single layer in the
-model::
+- For recurrent models, :mod:`recurrent layers <theanets.layers.recurrent>`
+  permit a cycle in the computation graph that depends on a previous time step.
 
-  net = theanets.Regressor([A, B, ..., Z])
+- For models that process images, :mod:`convolution layers
+  <theanets.layers.convolution>` are common.
 
-Here, the ``A`` through ``Z`` variables represent layer configuration settings.
-As we've seen, these can be plain integers, but if you need to customize one or
-more of the layers in your model, you can provide variables of different types.
-The different possibilities are discussed below.
+- For some types of autoencoder models, it is common to :class:`tie layer weights to
+  another layer <theanets.layers.feedforward.Tied>`.
 
-Layer Instances
----------------
+.. _layers-forms:
 
-Any of the values in the layer configuration sequence can be a :class:`Layer
-<theanets.layers.base.Layer>` instance. In this case, the given layer instance
-is simply added to the network model as-is.
+Available Layers
+================
 
-Integers
---------
+.. automodule:: theanets.layers.base
+   :no-members:
+   :no-inherited-members:
 
-If a layer configuration value is an integer, that value is interpreted as the
-``size`` of a vanilla :class:`Feedforward
-<theanets.layers.feedforward.Feedforward>` layer. All other attributes for the
-layer---summarized below in :ref:`creating-default-attributes`---are set to
-their defaults (e.g., the activation function defaults to "relu").
+.. autosummary::
+   :toctree: generated/
 
-For example, as we saw above, to create a network with an input layer containing
-4 units, hidden layers with 5 and 6 units, and an output layer with 2 units, you
-can just use integers to specify all of your layers::
+   Concatenate
+   Flatten
+   Input
+   Layer
+   Product
+   Reshape
 
-  net = theanets.Regressor([4, 5, 6, 2])
+Feedforward
+-----------
 
-The :class:`Network <theanets.graph.Network>` constructor creates layers for
-each of these integer values and "connects" them together in a chain for you.
+.. automodule:: theanets.layers.feedforward
+   :no-members:
+   :no-inherited-members:
 
-Tuples
-------
+.. autosummary::
+   :toctree: generated/
 
-Sometimes you will want to specify more than just the size of a layer. Commonly,
-modelers want to change the "form" (i.e., the type of the layer), or its
-activation function. A tuple is a good way to specify these attributes. If a
-layer configuration value is a tuple, it must contain an integer and may contain
-one or more strings.
+   Classifier
+   Feedforward
+   Tied
 
-The integer in the tuple specifies the ``size`` of the layer.
+Convolution
+-----------
 
-If there is a string in the tuple that names a registered layer type (e.g.,
-``'tied'``, ``'rnn'``, etc.), then this type of layer will be created.
+.. automodule:: theanets.layers.convolution
+   :no-members:
+   :no-inherited-members:
 
-If there is a string in the tuple and it does not name a registered layer type,
-the string is assumed to name an activation function---for example,
-``'logistic'``, ``'relu+norm:z'``, and so on.
+.. autosummary::
+   :toctree: generated/
 
-For example, to create a regression model with a logistic sigmoid activation in
-the middle layer and a softmax output layer::
+   Conv1
 
-  net = theanets.Regressor([4, (5, 'sigmoid'), (6, 'softmax')])
+Recurrent
+---------
 
-Dictionaries
-------------
+.. automodule:: theanets.layers.recurrent
+   :no-members:
+   :no-inherited-members:
 
-If a layer configuration value is a dictionary, its keyword arguments are passed
-directly to :func:`theanets.Layer.build() <theanets.util.Registrar.build>` to
-construct a new layer instance.
+.. autosummary::
+   :toctree: generated/
 
-The dictionary must contain a ``form`` key, which specifies the name of the
-layer type to build, as well as a ``size`` key, which specifies the number of
-units in the layer. It can additionally contain any other keyword arguments that
-you wish to use when constructing the layer.
-
-For example, you can use a dictionary to specify a non-default activation
-function for a layer in your model::
-
-  net = theanets.Regressor([4, dict(size=5, activation='tanh'), 2])
-
-You could also create a layer with a sparsely-initialized weight matrix by
-providing the ``sparsity`` key::
-
-  net = theanets.Regressor([4, dict(size=5, sparsity=0.9), 2])
+   ARRNN
+   Bidirectional
+   Clockwork
+   GRU
+   LRRNN
+   LSTM
+   MRNN
+   MUT1
+   RNN
 
 .. _layers-attributes:
 
@@ -193,158 +180,6 @@ keyword arguments specific to that layer. For example, the :class:`MRNN
 argument, and the :class:`Conv1 <theanets.layers.convolution.Conv1>` 1D
 convolutional layer requires a ``filter_size`` argument.
 
-.. _layers-predefined:
-
-Predefined Layers
-=================
-
-There are many types of layers available out of the box in ``theanets``.
-
-Input
------
-
-:Key: :class:`input <theanets.layers.base.Input>`
-:Parameters:
-:Outputs: out
-:Arguments: ``ndim``
-
-Input layers are responsible for the Theano variables that represent input to a
-network. The name of the layer is passed along to the symbolic Theano input
-variable.
-
-Input layers accept an ``ndim`` argument that specifies the number of dimensions
-required to hold mini-batches of the input data. This defaults to 2.
-
-Feedforward
------------
-
-:Key: :class:`feedforward <theanets.layers.feedforward.Feedforward>`
-:Parameters: b w (with one input), b w_1 w_2 ... w_N (with N inputs)
-:Outputs: out pre
-
-The vanilla feedforward layer computes a weighted sum of its inputs.
-
-:Key: :class:`classifier <theanets.layers.feedforward.Classifier>`
-:Parameters:
-:Outputs: out pre
-
-The classifier layer is just a vanilla feedforward layer that uses a softmax
-output activation.
-
-:Key: :class:`tied <theanets.layers.feedforward.Tied>`
-:Parameters: b
-:Outputs: out pre
-:Arguments: ``partner``
-
-A "tied" layer is a feedforward layer that uses the transposed weight matrix
-from a ``partner`` layer, which can be specified as a string inside a layers
-list, or as a direct reference to the partner layer.
-
-Often this type of layer is used in autoencoder models to reduce the number of
-parameters.
-
-Recurrent
----------
-
-Recurrent layers must be used with :mod:`recurrent models <theanets.recurrent>`.
-They represent layers that incorporate the layer's state from previous time
-steps.
-
-:Key: :class:`rnn <theanets.layers.recurrent.RNN>`
-:Parameters: b xh hh
-:Outputs: out pre
-
-A vanilla recurrent layer.
-
-:Key: :class:`arrnn <theanets.layers.recurrent.ARRNN>`
-:Parameters: b r xh xr hh
-:Outputs: out pre hid rate
-
-A recurrent layer that has an "adaptive" rate parameter for each neuron in the
-layer. The rates are adaptive because they are computed based on the current
-input to the network.
-
-This layer type is between the :class:`GRU <theanets.layers.recurrent.GRU>` and
-the :class:`LRRNN <theanets.layers.recurrent.LRRNN>` in complexity.
-
-:Key: :class:`lrrnn <theanets.layers.recurrent.LRRNN>`
-:Parameters: b r xh hh
-:Outputs: out pre hid rate
-
-A recurrent layer that has a "learned" rate parameter for each neuron in the
-layer. The vector of rates is learnable but independent of the hidden state and
-the input to the network.
-
-The :class:`LRRNN <theanets.layers.recurrent.LRRNN>` is a more complex version
-of this layer.
-
-:Key: :class:`lstm <theanets.layers.recurrent.LSTM>`
-:Parameters: b ci cf co xh hh
-:Outputs: out cell
-
-A Long Short-Term Memory (LSTM) layer is a complex arrangement of parameters
-with several dedicated "gates" that permit information to flow into and out of
-the "cell" that each neuron represents.
-
-:Key: :class:`mrnn <theanets.layers.recurrent.MRNN>`
-:Parameters: b xh xf hf fh
-:Outputs: out pre factors
-
-A Multiplicative RNN factors the hidden dynamics of a vanilla RNN into a product
-of two matrices. Often this factored representation is a lower rank than the
-full dynamics. Furthermore, the factor activations of the hidden dynamics are
-modulated by the input to the network at each time step.
-
-:Key: :class:`mut1 <theanets.layers.recurrent.MUT1>`
-:Parameters: b xh xr xz hh hr bh br bz
-:Outputs: out pre
-
-:Key: :class:`gru <theanets.layers.recurrent.GRU>`
-:Parameters: b xh xr xz hh hr hz bh br bz
-:Outputs: out pre hid rate
-
-:Key: :class:`clockwork <theanets.layers.recurrent.Clockwork>`
-:Parameters: b xh hh
-:Outputs: out pre
-:Arguments: ``periods``
-
-:Key: :class:`bidirectional <theanets.layers.recurrent.Bidirectional>`
-:Outputs: out pre fw_XYZ bw_XYZ
-:Arguments: ``worker``
-
-Graph
------
-
-Several ``theanets`` layers manipulate data for further processing in the graph.
-None of these layer types applies an activation function.
-
-:Key: :class:`product <theanets.layers.base.Product>`
-:Outputs: out
-
-This layer performs an elementwise multiplication of multiple inputs; all inputs
-must be the same shape.
-
-:Key: :class:`concatenate <theanets.layers.base.Concatenate>`
-:Outputs: out
-
-This layer concatenates multiple inputs along their last dimension; all inputs
-must have the same dimensionality and the same shape along all but the last
-dimension. The size of this layer must equal the sum of the sizes of the inputs.
-
-:Key: :class:`flatten <theanets.layers.base.Flatten>`
-:Outputs: out
-
-This layer flattens its inputs along all but the first dimension, so that the
-layer always outputs an array of dimension 2. The ``size`` value must be correct
-for this layer, equal to the product of the shapes of its input!
-
-:Key: :class:`reshape <theanets.layers.base.Reshape>`
-:Outputs: out
-:Arguments: ``shape``
-
-This layer reshapes its input along all but the first dimension to a new shape.
-The shape must be consistent with the shape of the input array.
-
 .. _layers-custom:
 
 Custom Layers
@@ -383,66 +218,3 @@ or, while creating a model::
 This example shows how fast it is to create a PCA-like model that will learn the
 subspace of your dataset that spans the most variance---the same subspace
 spanned by the principal components.
-
-Layer types
-===========
-
-.. automodule:: theanets.layers.base
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Concatenate
-   Flatten
-   Input
-   Layer
-   Product
-   Reshape
-
-Feedforward layers
-------------------
-
-.. automodule:: theanets.layers.feedforward
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Classifier
-   Feedforward
-   Tied
-
-Convolution layers
-------------------
-
-.. automodule:: theanets.layers.convolution
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Conv1
-
-Recurrent layers
-----------------
-
-.. automodule:: theanets.layers.recurrent
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   ARRNN
-   Bidirectional
-   Clockwork
-   GRU
-   LRRNN
-   LSTM
-   MRNN
-   MUT1
-   RNN

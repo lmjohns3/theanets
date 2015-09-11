@@ -5,14 +5,7 @@
 The ``theanets`` package provides tools for defining and optimizing several
 common types of neural network models. It uses Python for rapid development, and
 under the hood Theano_ provides graph optimization and fast computations on the
-GPU.
-
-This page provides a quick overview of the ``theanets`` package. It is aimed at
-getting you up and running with a few examples. Once you understand the basic
-workflow, you will be able to extend the examples to your own datasets and
-modeling problems. After you've finished reading through this document, have a
-look at :doc:`creating`, :doc:`training`, and :doc:`using` for more detailed
-documentation.
+GPU. This document describes the high-level ways of using ``theanets``.
 
 .. _Theano: http://deeplearning.net/software/theano/
 
@@ -117,6 +110,115 @@ Most of the effort of creating a network model goes into specifying the layers
 in the model. We'll take a look at the ways of specifying layers below, and then
 talk about how to specify losses and regularizers after that.
 
+Probably the most important part of a neural network model is the
+*architecture*---the number and configuration of layers---of the model. There
+are very few limits to the complexity of possible neural network architectures,
+and ``theanets`` tries to make it possible to create a wide variety of
+architectures with minimal effort. The easiest architecture to create, however,
+is also the most common: networks with a single "chain" of layers.
+
+For the time being we'll assume that you want to create a regression model with
+a single layer chain. To do this, you invoke the constructor of the model class
+you wish to create and specify layers you want in the model. For example::
+
+  net = theanets.Regressor(layers=[10, 20, 3])
+
+Here we've invoked the :class:`theanets.Regressor
+<theanets.feedforward.Regressor>` constructor and specified that we want an
+input layer with 10 neurons, a hidden layer with 20 neurons, and an output layer
+with 3 outputs.
+
+.. _guide-creating-specifying-layers:
+
+Specifying Layers
+-----------------
+
+In general, the ``layers`` argument to the constructor must be a sequence of
+values, each of which specifies the configuration of a single layer in the
+model::
+
+  net = theanets.Regressor([A, B, ..., Z])
+
+Here, the ``A`` through ``Z`` variables represent layer configuration settings.
+As we've seen, these can be plain integers, but if you need to customize one or
+more of the layers in your model, you can provide variables of different types.
+The different possibilities are discussed below.
+
+Layer Instances
+~~~~~~~~~~~~~~~
+
+Any of the values in the layer configuration sequence can be a :class:`Layer
+<theanets.layers.base.Layer>` instance. In this case, the given layer instance
+is simply added to the network model as-is.
+
+Integers
+~~~~~~~~
+
+If a layer configuration value is an integer, that value is interpreted as the
+``size`` of a vanilla :class:`Feedforward
+<theanets.layers.feedforward.Feedforward>` layer. All other attributes for the
+layer---summarized below in :ref:`layers-attributes`---are set to their defaults
+(e.g., the activation function defaults to "relu").
+
+For example, as we saw above, to create a network with an input layer containing
+4 units, hidden layers with 5 and 6 units, and an output layer with 2 units, you
+can just use integers to specify all of your layers::
+
+  net = theanets.Regressor([4, 5, 6, 2])
+
+The :class:`Network <theanets.graph.Network>` constructor creates layers for
+each of these integer values and "connects" them together in a chain for you.
+
+Tuples
+~~~~~~
+
+Sometimes you will want to specify more than just the size of a layer. Commonly,
+modelers want to change the "form" (i.e., the type of the layer), or its
+activation function. A tuple is a good way to specify these attributes. If a
+layer configuration value is a tuple, it must contain an integer and may contain
+one or more strings.
+
+The integer in the tuple specifies the ``size`` of the layer.
+
+If there is a string in the tuple that names a registered layer type (e.g.,
+``'tied'``, ``'rnn'``, etc.), then this type of layer will be created.
+
+If there is a string in the tuple and it does not name a registered layer type,
+the string is assumed to name an activation function---for example,
+``'logistic'``, ``'relu+norm:z'``, and so on.
+
+For example, to create a regression model with a logistic sigmoid activation in
+the middle layer and a softmax output layer::
+
+  net = theanets.Regressor([4, (5, 'sigmoid'), (6, 'softmax')])
+
+Dictionaries
+~~~~~~~~~~~~
+
+If a layer configuration value is a dictionary, its keyword arguments are passed
+directly to :func:`theanets.Layer.build() <theanets.util.Registrar.build>` to
+construct a new layer instance.
+
+The dictionary must contain a ``form`` key, which specifies the name of the
+layer type to build, as well as a ``size`` key, which specifies the number of
+units in the layer. It can additionally contain any other keyword arguments that
+you wish to use when constructing the layer.
+
+For example, you can use a dictionary to specify a non-default activation
+function for a layer in your model::
+
+  net = theanets.Regressor([4, dict(size=5, activation='tanh'), 2])
+
+You could also create a layer with a sparsely-initialized weight matrix by
+providing the ``sparsity`` key::
+
+  net = theanets.Regressor([4, dict(size=5, sparsity=0.9), 2])
+
+Specifying a Loss
+-----------------
+
+
+
 .. _guide-training:
 
 Training a Model
@@ -190,6 +292,11 @@ can be passed to the trainer using either arrays_ or callables_; the
 
 .. _arrays: http://downhill.rtfd.org/en/stable/guide.html#data-using-arrays
 .. _callables: http://downhill.rtfd.org/en/stable/guide.html#data-using-callables
+
+.. _guide-training-specifying-regularizers:
+
+Specifying Regularizers
+-----------------------
 
 .. _guide-training-iteration:
 
@@ -281,8 +388,8 @@ This method returns a dictionary that maps layer output names to their
 corresponding values for the given input. Like ``predict()``, each output array
 contains one row for every row of input data.
 
-Inspecting Learned Parameters
------------------------------
+Inspecting Parameters
+---------------------
 
 The parameters in each layer of the model are available using
 :func:`Network.find() <theanets.feedforward.Network.find>`. This method takes

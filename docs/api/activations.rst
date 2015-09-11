@@ -24,15 +24,17 @@ layer size::
 
   net = theanets.Regressor([10, (10, 'tanh'), 10])
 
+The activations that ``theanets`` provides are:
+
 =========  ============================  ===============================================
 Key        Description                   :math:`g(z) =`
 =========  ============================  ===============================================
 linear     linear                        :math:`z`
-sigmoid    logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
-logistic   logistic sigmoid              :math:`(1 + e^{-z})^{-1}`
+sigmoid    logistic sigmoid              :math:`(1 + \exp(-z))^{-1}`
+logistic   logistic sigmoid              :math:`(1 + \exp(-z))^{-1}`
 tanh       hyperbolic tangent            :math:`\tanh(z)`
 softplus   smooth relu approximation     :math:`\log(1 + \exp(z))`
-softmax    categorical distribution      :math:`e^z / \sum e^z`
+softmax    categorical distribution      :math:`\exp(z) / \sum\exp(z)`
 relu       rectified linear              :math:`\max(0, z)`
 trel       truncated rectified linear    :math:`\max(0, \min(1, z))`
 trec       thresholded rectified linear  :math:`z \mbox{ if } z > 1 \mbox{ else } 0`
@@ -43,7 +45,14 @@ norm:mean  mean-normalization            :math:`z - \bar{z}`
 norm:max   max-normalization             :math:`z / \max |z|`
 norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
 norm:z     z-score normalization         :math:`(z-\bar{z}) / \mathbb{E}[(z-\bar{z})^2]`
+prelu_     parametric relu with leak     :math:`\max(0, z) - \max(0, -rz)`
+lgrelu_    relu with leak and gain       :math:`\max(0, gz) - \max(0, -rz)`
+maxout_    piecewise linear              :math:`\max_i m_i z`
 =========  ============================  ===============================================
+
+.. _prelu: generated/theanets.activations.Prelu.html
+.. _lgrelu: generated/theanets.activations.LGrelu.html
+.. _maxout: generated/theanets.activations.Maxout.html
 
 Composition
 ===========
@@ -63,18 +72,7 @@ from left-to-right.
 Custom Activations
 ==================
 
-Activations
-===========
-
-.. automodule:: theanets.activations
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   build
-   Activation
-   Prelu
-   LGrelu
-   Maxout
+To define a custom activation, create a subclass of :class:`theanets.Activation
+<theanets.activations.Activation>`, and implement the ``__call__`` method to
+make the class instance callable. The callable will be given one argument, the
+array of layer outputs to activate.

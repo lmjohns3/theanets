@@ -8,7 +8,6 @@ import warnings
 
 from . import graph
 from . import layers
-from . import losses
 from . import regularizers
 
 
@@ -28,7 +27,7 @@ class Autoencoder(graph.Network):
 
     >>> model = theanets.Autoencoder([10, 20, (10, 'tied')])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -48,7 +47,7 @@ class Autoencoder(graph.Network):
 
     >>> model.train([inputs])
 
-    See :ref:`training` for more information about training.
+    See :ref:`guide-training` for more information about training.
 
     *Use*
 
@@ -70,7 +69,7 @@ class Autoencoder(graph.Network):
 
     >>> model.decode(enc)
 
-    See :ref:`using` for more information about using models.
+    See :ref:`guide-using` for more information about using models.
 
     Notes
     -----
@@ -237,7 +236,7 @@ class Regressor(graph.Network):
 
     >>> model = theanets.Regressor([10, 20, 3])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -260,7 +259,7 @@ class Regressor(graph.Network):
 
     >>> model.train([inputs, outputs])
 
-    See :ref:`training` for more information.
+    See :ref:`guide-training` for more information.
 
     *Use*
 
@@ -270,7 +269,7 @@ class Regressor(graph.Network):
     >>> test = np.random.randn(3, 10).astype('f')
     >>> print(model.predict(test))
 
-    See :ref:`using` for more information.
+    See :ref:`guide-using` for more information.
 
     Notes
     -----
@@ -293,7 +292,7 @@ class Classifier(graph.Network):
 
     >>> model = theanets.Classifier([10, (20, 'rnn'), 50])
 
-    See :ref:`creating` for more information.
+    See :ref:`guide-creating` for more information.
 
     *Data*
 
@@ -320,7 +319,7 @@ class Classifier(graph.Network):
 
     >>> model.train([inputs, outputs])
 
-    See :ref:`training` for more information.
+    See :ref:`guide-training` for more information.
 
     *Use*
 
@@ -339,7 +338,7 @@ class Classifier(graph.Network):
     >>> model.predict_proba(test).shape
     (3, 50)
 
-    See also :ref:`using` for more information.
+    See also :ref:`guide-using` for more information.
 
     Notes
     -----

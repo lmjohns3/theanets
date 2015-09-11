@@ -82,15 +82,14 @@ class Network(object):
     ----------
     layers : int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
         A sequence of values specifying the layer configuration for the network.
-        For more information, please see :ref:`creating-specifying-layers`.
+        For more information, please see :ref:`guide-creating-specifying-layers`.
     loss : str or :class:`Loss <theanets.losses.Loss>`
         The name of a loss function to optimize when training this network
         model.
     weighted : bool, optional
         If True, optimize this model using a "weighted" loss. Weighted losses
         typically require an additional array as input during optimization.
-        For more information, see :ref:`creating-using-weighted-targets`.
-        Defaults to False.
+        For more information, see :ref:`losses-weighted`. Defaults to False.
 
     Attributes
     ----------
@@ -129,7 +128,7 @@ class Network(object):
         ----------
         layer : int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
             A value specifying the layer to add. For more information, please
-            see :ref:`creating-specifying-layers`.
+            see :ref:`guide-creating-specifying-layers`.
         is_output : bool, optional
             True iff this is the output layer for the graph. This influences the
             default activation function used for the layer: output layers in

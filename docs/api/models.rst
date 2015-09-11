@@ -5,8 +5,8 @@ Models
 There are three major types of neural network models, each defined primarily by
 the :ref:`loss function <losses>` that the model attempts to optimize. While
 other types of models are certainly possible, ``theanets`` only tries to handle
-the common cases with built-in model classes. (If you want to define a new type
-of model, see :ref:`customizing`.)
+the common cases with built-in model classes. If you want to define a new type
+of model, see :ref:`models-custom`.
 
 To describe the predefined models, we assume that a neural network has some set
 of parameters :math:`\theta`. In the feedforward pass, the network computes some
@@ -181,43 +181,10 @@ To create a model of this type, just invoke its constructor::
 
    net = theanets.recurrent.Classifier()
 
-Computation graphs
-==================
+.. _models-custom:
 
-.. automodule:: theanets.graph
-   :no-members:
-   :no-inherited-members:
+Custom Models
+=============
 
-.. autosummary::
-   :toctree: generated/
-
-   Network
-
-Feedforward networks
-====================
-
-.. automodule:: theanets.feedforward
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Autoencoder
-   Classifier
-   Regressor
-
-Recurrent networks
-==================
-
-.. automodule:: theanets.recurrent
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Autoencoder
-   Classifier
-   Regressor
-
+To create a custom model, just define a new subclass of :class:`theanets.Network
+<theanets.graph.Network>`.

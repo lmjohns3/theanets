@@ -17,6 +17,8 @@ a.internal span.pre {
 th.field-name { background: #ffd; }
 
 dl.method dt { background: #def; }
+dl.attribute dt { background: #efd; }
+dl.classmethod dt { background: #fed; }
 
 .rubric { font-size: 2rem; font-weight: bold; }
 

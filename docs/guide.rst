@@ -2,6 +2,106 @@
 
 .. rubric:: User Guide
 
+The ``theanets`` package provides tools for defining and optimizing several
+common types of neural network models. It uses Python for rapid development, and
+under the hood Theano_ provides graph optimization and fast computations on the
+GPU.
+
+This page provides a quick overview of the ``theanets`` package. It is aimed at
+getting you up and running with a few examples. Once you understand the basic
+workflow, you will be able to extend the examples to your own datasets and
+modeling problems. After you've finished reading through this document, have a
+look at :doc:`creating`, :doc:`training`, and :doc:`using` for more detailed
+documentation.
+
+.. _Theano: http://deeplearning.net/software/theano/
+
+Installation
+============
+
+If you haven't already, the first thing you should do is download and install
+``theanets``. The easiest way to do this is by using ``pip``::
+
+  pip install theanets
+
+This command will automatically install all of the dependencies for
+``theanets``, including ``numpy`` and ``theano``.
+
+If you're feeling adventurous, you can also check out the latest version of
+``theanets`` and run the code from your local copy::
+
+  git clone https://github.com/lmjohns3/theanets
+  cd theanets
+  python setup.py develop
+
+This can be risky, however, since ``theanets`` is in active development---the
+API might change in the development branch from time to time.
+
+To work through the documentation you should also install a couple of supporting
+packages::
+
+  pip install skdata
+  pip install matplotlib
+
+These will help you obtain the example dataset described below, and also help in
+making plots of various things.
+
+Package Overview
+================
+
+At a high level, the ``theanets`` package is a tool for (a) defining and (b)
+optimizing cost functions over a set of data. The workflow in ``theanets``
+typically involves three basic steps:
+
+#. First, you *define* the structure of the model that you'll use for your task.
+   For instance, if you're trying to classify MNIST digits, you'll want
+   something that takes in pixels and outputs digit classes (a "classifier"). If
+   you're trying to model the unlabeled digit images, you might want to use a
+   model that uses the same data for input and output (an "autoencoder").
+#. Second, you *train* or adjust the parameters in your model so that it has a
+   low cost or performs well with respect to some task. For classification, you
+   might want to adjust your model parameters to minimize the negative
+   log-likelihood of the correct image class given the pixels, and for
+   autoencoders you might want to minimize the reconstruction error.
+
+   A significant component of this step usually involves preparing the data that
+   you'll use to train your model.
+#. Finally, you *use* the trained model in some way, probably by predicting
+   results on a test dataset, visualizing the learned features, and so on.
+
+You typically define a model in ``theanets`` by creating an instance of a model
+subclass. You would include a number of *model hyperparameters* that define the
+specific behavior of your model, and then train your model using another set of
+*optimization hyperparameters* that define the behavior of the optimization
+algorithm.
+
+The skeleton of your code will usually look something like this::
+
+  import theanets
+
+  # create a model.
+  net = theanets.Model(
+      layers=...,
+  )
+
+  # train the model.
+  net.train(
+      training_data,
+      validation_data,
+      algo='foo',
+      # ...
+  )
+
+  # use the trained model.
+  net.predict(test_data)
+
+This user guide describes how to implement these stages.
+
+.. _guide-creating:
+
+Creating a Model
+================
+
 To use ``theanets``, you will first need to create a neural network model. All
 network models in ``theanets`` are instances of the :class:`Network
 <theanets.graph.Network>` base class, which maintains two important pieces of
@@ -16,11 +116,6 @@ information:
 Most of the effort of creating a network model goes into specifying the layers
 in the model. We'll take a look at the ways of specifying layers below, and then
 talk about how to specify losses and regularizers after that.
-
-.. _guide-creating:
-
-Creating a Model
-================
 
 .. _guide-training:
 
@@ -288,3 +383,14 @@ lines of code. For more complex cases, you should be able to create an
 appropriate subclass and integrate it into your workflow with just a little more
 effort.
 
+More Information
+================
+
+This concludes the user guide! Please read more information about ``theanets``
+in the API documentation.
+
+The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets.
+Please fork, explore, and send pull requests!
+
+Finally, there is also a mailing list for project discussion and announcements.
+Subscribe online at https://groups.google.com/forum/#!forum/theanets.

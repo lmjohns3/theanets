@@ -112,9 +112,9 @@ layer_, like how its parameters are initialized:
 .. _layer: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers.base
 
 Specifying layers is the heart of building models in ``theanets``. Read more
-about this in `Creating a Model`_.
+about this in `Specifying Layers`_.
 
-.. _Creating a Model: http://theanets.readthedocs.org/en/latest/creating.html
+.. _Specifying Layers: http://localhost:8080/guide.html#guide-creating-specifying-layers
 
 Regularization
 --------------
@@ -183,7 +183,7 @@ Training models is a bit more art than science, but ``theanets`` tries to make
 it easy to evaluate different training approaches. Read more about this in
 `Training a Model`_.
 
-.. _Training a Model: http://theanets.readthedocs.org/en/latest/training.html
+.. _Training a Model: http://theanets.readthedocs.org/en/latest/guide.html#guide-training
 
 Quick Start: Recurrent Models
 =============================

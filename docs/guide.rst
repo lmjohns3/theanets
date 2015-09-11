@@ -252,12 +252,12 @@ The easiest way train a model with ``theanets`` is to invoke the :func:`train()
             learning_rate=0.01,
             momentum=0.9)
 
-Here, a classifier model is being trained using `Nesterov's accelerated
-gradient`_, with a learning rate of 0.01 and momentum of 0.9. The training and
-validation datasets must be provided to any of the available training
-algorithms. The algorithm itself is selected using the ``algorithm`` keyword
-argument, and any other keyword arguments provided to ``train()`` are passed to
-the algorithm implementation.
+Here, a classifier model is being trained using Nesterov's accelerated gradient,
+with a learning rate of 0.01 and momentum of 0.9. The training and validation
+datasets must be provided to any of the available training algorithms. The
+algorithm itself is selected using the ``algorithm`` keyword argument, and any
+other keyword arguments provided to ``train()`` are passed to the algorithm
+implementation.
 
 Multiple calls to ``train()`` are possible and can be used to implement things
 like custom annealing schedules (e.g., the "newbob" training strategy)::

@@ -236,17 +236,24 @@ Much amusement can be derived from a temporal model extending itself forward in
 this way. After all, how else would we ever think of "Pequodeers,"
 "Starbuckably," or "Ginqueg"?!
 
-Documentation
-=============
+User Guide
+==========
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   models
-   layers
-   losses
-   regularizers
+   creating
+   training
+   using
    examples
+
+API Documentation
+=================
+
+.. toctree::
+   :maxdepth: 2
+
+   api/*
    reference
 
 Indices and tables

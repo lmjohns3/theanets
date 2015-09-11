@@ -240,12 +240,13 @@ Documentation
 =============
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   quickstart
-   creating
-   training
-   using
+   models
+   layers
+   losses
+   regularizers
+   examples
    reference
 
 Indices and tables

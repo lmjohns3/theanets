@@ -677,7 +677,7 @@ class BernoulliDropout(Regularizer):
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s(%s) ~ N(0, %s^2)',
+        logging.info('regularizer: %s(%s) ~ B(%s)',
                      self.__class__.__name__, self.pattern, self.weight)
 
     def modify_graph(self, outputs):

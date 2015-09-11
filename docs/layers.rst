@@ -340,14 +340,17 @@ of this layer.
 :Outputs: out cell
 
 A Long Short-Term Memory (LSTM) layer is a complex arrangement of parameters
-that yields a surprisingly performant layer for modeling long-term dependencies
-in temporal data.
+with several dedicated "gates" that permit information to flow into and out of
+the "cell" that each neuron represents.
 
 :Key: :class:`mrnn <theanets.layers.recurrent.MRNN>`
 :Parameters: b xh xf hf fh
 :Outputs: out pre factors
 
-A Multiplicative RNN factors the hidden dynamics of a vanilla RNN into a 
+A Multiplicative RNN factors the hidden dynamics of a vanilla RNN into a product
+of two matrices. Often this factored representation is a lower rank than the
+full dynamics. Furthermore, the factor activations of the hidden dynamics are
+modulated by the input to the network at each time step.
 
 :Key: :class:`mut1 <theanets.layers.recurrent.MUT1>`
 :Parameters: b xh xr xz hh hr bh br bz

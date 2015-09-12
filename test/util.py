@@ -1,7 +1,6 @@
 '''Helper code for theanets unit tests.'''
 
 import numpy as np
-import theanets
 
 
 class Base(object):

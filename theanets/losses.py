@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''Loss functions for neural network models.'''
+r'''These loss functions are available for neural network models.'''
 
 import climate
 import numpy as np
@@ -12,7 +12,7 @@ logging = climate.get_logger(__name__)
 
 
 class Loss(util.Registrar(str('Base'), (), {})):
-    r'''A loss function base class for neural network models.
+    r'''A loss function base class.
 
     Parameters
     ----------

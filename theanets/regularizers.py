@@ -481,16 +481,16 @@ class Contractive(Regularizer):
                      self.weight, self.__class__.__name__,
                      self.pattern, self.wrt)
 
-    def loss(self, layers_, outputs):
+    def loss(self, layer_list, outputs):
         pattern = self.pattern
         if pattern is None:
             # default pattern matches output from "middle" layers.
-            ns = [l.output_name() for l in layers_[1:-1]]
+            ns = [l.output_name() for l in layer_list[1:-1]]
             pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
         targets = [expr for _, expr in util.outputs_matching(outputs, pattern)]
         if not targets:
             return 0
-        wrt = [l.input for l in layers_
+        wrt = [l.input for l in layer_list
                if isinstance(l, layers.Input) and
                fnmatch.fnmatch(l.input.name, self.wrt)]
         total = sum(TT.sqr(TT.grad(h.mean(), wrt)).mean() for h in targets)

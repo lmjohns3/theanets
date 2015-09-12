@@ -30,7 +30,8 @@ We'll set up a recurrent model by creating a :class:`recurrent regression
 Our network has three layers: the first just has one input unit, the next is a
 Long Short-Term Memory (LSTM) recurrent layer with ten units, and the output is
 a linear layer with just one output unit. This is just one way of specifying
-layers in a network; for more details see :ref:`creating-specifying-layers`.
+layers in a network; for more details see
+:ref:`guide-creating-specifying-layers`.
 
 Training the model
 ==================
@@ -56,7 +57,7 @@ output are set to the first :math:`k` time steps of the input::
 
 In ``theanets``, data can be provided to a trainer in several ways; here we've
 used a callable that generates batches of data for us. See
-:ref:`training-providing-data` for more information.
+:ref:`guide-training-providing-data` for more information.
 
 Having set up a way to create training data, we just need to pass this along to
 our training algorithm::

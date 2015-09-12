@@ -13,8 +13,8 @@ the weighted sum of these inputs:
 .. math::
    z_i^k = \sigma\left( b_i^k + \sum_{j=1}^{n_{k-1}} w^k_{ji} z_j^{k-1} \right)
 
-where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an :mod:`activation function
-<theanets.activations>`.
+where :math:`\sigma: \mathbb{R} \to \mathbb{R}` is an :ref:`activation function
+<activations>`.
 
 In addition to standard feedforward layers, other types of layers are also
 commonly used:
@@ -28,7 +28,7 @@ commonly used:
 - For some types of autoencoder models, it is common to :class:`tie layer weights to
   another layer <theanets.layers.feedforward.Tied>`.
 
-.. _layers-forms:
+.. _layers-available:
 
 Available Layers
 ================
@@ -108,10 +108,10 @@ non-default values.
   by the modeler when creating the layer. It can be specified by providing an
   integer, or as a tuple that contains an integer.
 
-- ``form``: A string specifying the :ref:`type of layer <creating-layer-types>`
-  to use. This defaults to "feedforward" but can be the name of any existing
-  :class:`Layer <theanets.layers.base.Layer>` subclass (including :ref:`custom
-  layers <creating-custom-layers>` that you have defined).
+- ``form``: A string specifying the type of layer to use (see above). This
+  defaults to "feedforward" but can be the name of any existing :class:`Layer
+  <theanets.layers.base.Layer>` subclass (including :ref:`layers-custom` that
+  you have defined).
 
 - ``name``: A string name for the layer. If this isn't provided when creating a
   layer, the layer will be assigned a default name. The default names for the
@@ -123,7 +123,7 @@ non-default values.
   where N is the number of existing layers.
 
 - ``activation``: A string describing the :ref:`activation function
-  <creating-activation>` to use for the layer. This defaults to ``'relu'``.
+  <activations>` to use for the layer. This defaults to ``'relu'``.
 
 - ``inputs``: An integer or dictionary describing the sizes of the inputs that
   this layer expects. This is normally optional and defaults to the size of the

@@ -27,21 +27,20 @@ class Network(object):
     Notes
     -----
 
-    Computation graphs are organized into :class:`Layers
-    <theanets.layers.base.Layer>`. Each layer receives one or more arrays of
-    input data, transforms them, and generates one or more arrays of output
-    data.
+    Computation graphs are organized into :ref:`layers <layers>`. Each layer
+    receives one or more arrays of input data, transforms them, and generates
+    one or more arrays of output data.
 
     Outputs in a computation graph are named according to their layer and output
     type, so the 'pre' output of a layer named 'hid1' would be named 'hid1:pre'.
     The 'out' output is the default output for a layer. By default the last
     layer in a network is named 'out'.
 
-    The parameters in a network graph are optimized by minimizing a :class:`Loss
-    <theanets.losses.Loss>` function with respect to some set of training data.
-    Typically the value produced by 'out:out' is compared to some target value,
-    creating an error value of some sort. This error value is then propagated
-    back through the computation graph to update the parameters in the model.
+    The parameters in a network graph are optimized by minimizing a :ref:`loss
+    function <losses>` with respect to some set of training data. Typically the
+    value produced by 'out:out' is compared to some target value, creating an
+    error value of some sort. This error value is then propagated back through
+    the computation graph to update the parameters in the model.
 
     Parameters
     ----------
@@ -87,7 +86,7 @@ class Network(object):
                           output_name=self.layers[-1].output_name())
 
     def add_layer(self, layer=None, is_output=False, **kwargs):
-        '''Add a layer to our network graph.
+        '''Add a :ref:`layer <layers>` to our network graph.
 
         Parameters
         ----------
@@ -187,7 +186,7 @@ class Network(object):
         self.layers.append(layer)
 
     def add_loss(self, loss=None, **kwargs):
-        '''Add a :class:`loss function <theanets.losses.Loss>` to the model.
+        '''Add a :ref:`loss function <losses>` to the model.
 
         Parameters
         ----------
@@ -292,7 +291,9 @@ class Network(object):
             name = kwargs.get('name', 'dataset')
             s = '{}_batches'.format(name)
             return downhill.Dataset(
-                data, name=name, batch_size=kwargs.get('batch_size', 32),
+                data,
+                name=name,
+                batch_size=kwargs.get('batch_size', 32),
                 iteration_size=kwargs.get('iteration_size', kwargs.get(s)),
                 axis=kwargs.get('axis', 0),
                 rng=kwargs.get('rng', None))
@@ -379,12 +380,12 @@ class Network(object):
         def add(s):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
-        for r in regularizers:
-            add('{}{}'.format(r.__class__.__name__, r.weight))
-        for l in self.losses:
-            add('{}{}'.format(l.__class__.__name__, l.weight))
         for l in self.layers:
             add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
+        for l in self.losses:
+            add('{}{}'.format(l.__class__.__name__, l.weight))
+        for r in regularizers:
+            add('{}{}{}'.format(r.__class__.__name__, r.weight, r.pattern))
         return h.hexdigest()
 
     def build_graph(self, regularizers=()):
@@ -398,10 +399,10 @@ class Network(object):
 
         Returns
         -------
-        outputs : list of theano variables
+        outputs : list of Theano variables
             A list of expressions giving the output of each layer in the graph.
         updates : list of update tuples
-            A list of updates that should be performed by a theano function that
+            A list of updates that should be performed by a Theano function that
             computes something using this graph.
         '''
         key = self._hash(regularizers)
@@ -450,12 +451,12 @@ class Network(object):
         '''Number of parameters in the entire network model.'''
         return sum(l.num_params for l in self.layers)
 
-    def find(self, layer, param):
+    def find(self, which, param):
         '''Get a parameter from a layer in the network.
 
         Parameters
         ----------
-        layer : int or str
+        which : int or str
             The layer that owns the parameter to return.
 
             If this is an integer, then 0 refers to the input layer, 1 refers
@@ -476,13 +477,13 @@ class Network(object):
 
         Returns
         -------
-        param : theano shared variable
+        param : Theano shared variable
             A shared parameter variable from the indicated layer.
         '''
-        for i, l in enumerate(self.layers):
-            if layer == i or layer == l.name:
-                return l.find(param)
-        raise KeyError(layer)
+        for i, layer in enumerate(self.layers):
+            if which == i or which == layer.name:
+                return layer.find(param)
+        raise KeyError(which)
 
     def feed_forward(self, x, **kwargs):
         '''Compute a forward pass of all layers from the given input.
@@ -608,30 +609,17 @@ class Network(object):
     def loss(self, **kwargs):
         '''Return a variable representing the regularized loss for this network.
 
-        The regularized loss includes both the loss computation (the "error")
-        for the network as well as any regularizers that are in place.
+        The regularized loss includes both the :ref:`loss computation <losses>`
+        for the network as well as any :ref:`regularizers <regularizers>` that
+        are in place.
 
-        Parameters
-        ----------
-        weight_l1 : float, optional
-            Regularize the L1 norm of unit connection weights by this constant.
-        weight_l2 : float, optional
-            Regularize the L2 norm of unit connection weights by this constant.
-        hidden_l1 : float, optional
-            Regularize the L1 norm of hidden unit activations by this constant.
-        hidden_l2 : float, optional
-            Regularize the L2 norm of hidden unit activations by this constant.
-        contractive : float, optional
-            Regularize model using the Frobenius norm of the hidden Jacobian.
-        noise : float, optional
-            Standard deviation of desired noise to inject into input.
-        dropout : float in [0, 1], optional
-            Proportion of input units to randomly set to 0.
+        Keyword arguments are passed directly to
+        :func:`theanets.regularizers.from_kwargs`.
 
         Returns
         -------
-        loss : theano expression
-            A theano expression representing the loss of this network.
+        loss : Theano expression
+            A Theano expression representing the loss of this network.
         '''
         regs = regularizers.from_kwargs(self, **kwargs)
         outputs, _ = self.build_graph(regs)

@@ -260,7 +260,18 @@ API Documentation
    :maxdepth: 2
    :glob:
 
-   api/*
+   api/models
+   api/layers
+   api/activations
+   api/losses
+   api/regularizers
+   api/trainers
+   api/utils
+
+.. toctree::
+   :hidden:
+
+   api/reference
 
 Indices and tables
 ==================

@@ -17,10 +17,9 @@ output is just the weighted sum of the inputs from the previous layer:
 
 To specify a different activation function for a layer, include an activation
 key chosen from the table below, or :ref:`create a custom activation
-<creating-custom-activations>`. As described above, the activation key can be
-included in your model specification either using the ``activation`` keyword
-argument in a layer dictionary, or by including the key in a tuple with the
-layer size::
+<activations-custom>`. As described above, the activation key can be included in
+your model specification either using the ``activation`` keyword argument in a
+layer dictionary, or by including the key in a tuple with the layer size::
 
   net = theanets.Regressor([10, (10, 'tanh'), 10])
 

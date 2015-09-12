@@ -97,7 +97,7 @@ activations_:
   net = theanets.Classifier([
       100, 1000, maxout, (1000, 'tanh'), 10])
 
-.. _activations: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.activations
+.. _activations: http://theanets.readthedocs.org/en/latest/api/activations.html
 
 By passing a dictionary instead, you can specify even more attributes of each
 layer_, like how its parameters are initialized:
@@ -109,7 +109,7 @@ layer_, like how its parameters are initialized:
   net = theanets.Classifier([
       100, foo, (1000, 'maxout:4'), (1000, 'tanh'), 10])
 
-.. _layer: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.layers.base
+.. _layer: http://theanets.readthedocs.org/en/latest/api/layers.html
 
 Specifying layers is the heart of building models in ``theanets``. Read more
 about this in `Specifying Layers`_.
@@ -155,7 +155,7 @@ You can optimize your model using any of the algorithms provided by downhill_
 `pretraining methods`_ specific to neural networks.
 
 .. _downhill: http://downhill.readthedocs.org/
-.. _pretraining methods: http://theanets.readthedocs.org/en/latest/reference.html#module-theanets.trainer
+.. _pretraining methods: http://theanets.readthedocs.org/en/latest/api/trainers.html
 
 You can also make as many successive calls to train() as you like. Each call can
 include different training algorithms:
@@ -225,8 +225,8 @@ to capture the temporal dependencies in the data. It also `uses a callable`_ to
 provide data to the model, and takes advantage of `iterative training`_ to
 sample an output from the model after each training epoch.
 
-.. _Text: http://theanets.readthedocs.org/en/latest/generated/theanets.recurrent.Text.html
-.. _Gated Recurrent Units: http://theanets.readthedocs.org/en/latest/generated/theanets.layers.recurrent.GRU.html
+.. _Text: http://theanets.readthedocs.org/en/latest/api/generated/theanets.recurrent.Text.html
+.. _Gated Recurrent Units: http://theanets.readthedocs.org/en/latest/api/generated/theanets.layers.recurrent.GRU.html
 .. _uses a callable: http://downhill.readthedocs.org/en/stable/guide.html#data-using-callables
 .. _iterative training: http://downhill.readthedocs.org/en/stable/guide.html#iterative-optimization
 

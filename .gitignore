@@ -40,4 +40,4 @@ nosetests.xml
 
 # Sphinx
 docs/_build
-docs/generated
+docs/api/generated

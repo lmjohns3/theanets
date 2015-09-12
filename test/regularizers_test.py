@@ -15,7 +15,7 @@ class TestNetwork(util.Base):
             patience=1,
             min_improvement=0.01,
             batch_size=self.NUM_EXAMPLES,
-        )
+            **kwargs)
         assert trainN['loss'] < valid0['loss']   # should have made progress!
 
     def test_input_noise(self):

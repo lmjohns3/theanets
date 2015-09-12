@@ -4,6 +4,102 @@
 Loss Functions
 ==============
 
+A loss function is used to optimize the parameter values in a neural network
+model. Loss functions map a set of parameter values for the network onto a
+scalar value that indicates how well those parameter accomplish the task the
+network is intended to do.
+
+There are several common loss functions provided by ``theanets``. These losses
+often measure the :class:`squared <theanets.losses.MeanSquaredError>` or
+:class:`absolute <theanets.losses.MeanAbsoluteError>` error between a network's
+output and some target or desired output. Other loss functions are designed
+specifically for classification models; the :class:`cross-entropy
+<theanets.losses.CrossEntropy>` is a common loss designed to minimize the
+distance between the network's distribution over class labels and the
+distribution that the dataset defines.
+
+:ref:`models` in ``theanets`` have at least one loss to optimize during
+training. There are default losses for each of the built-in model types, but you
+can often override these defaults just by providing a non-default value for the
+``loss`` keyword argument when creating your model.
+
+For example, to create a regression model with a mean absolute error loss:
+
+.. code:: python
+
+  >>> net = theanets.Regressor([10, 20, 3], loss='mae')
+
+This will create the regression model with the specified loss.
+
+.. _losses-predefined:
+
+Predefined Losses
+=================
+
+.. automodule:: theanets.losses
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Loss
+   CrossEntropy
+   GaussianLogLikelihood
+   Hinge
+   KullbackLeiblerDivergence
+   MaximumMeanDiscrepancy
+   MeanAbsoluteError
+   MeanSquaredError
+
+.. _losses-multiple:
+
+Multiple Losses
+===============
+
+A ``theanets`` model can actually have more than one loss that it attempts to
+optimize simultaneously, and these losses can change between successive calls to
+:func:`train() <theanets.graph.Network.train>`. In fact, a model has a
+``losses`` attribute that's just a list of :class:`Loss <theanets.losses.Loss>`
+instances; these losses are summed (and combined with any applicable
+:ref:`regularizers <regularizers>`) during each call to ``train()``.
+
+Let's say that (for some reason) you want to optimize a model using both the
+mean absolute and the mean squared error. You could first create a regular
+regression model:
+
+.. code:: python
+
+  >>> net = theanets.Regressor([10, 20, 3])
+
+and then add a new loss to the model:
+
+.. code:: python
+
+  >>> net.add_loss('mse')
+
+Then, when you call:
+
+.. code:: python
+
+   >>> net.train(...)
+
+the model will attempt to minimize the sum of the two losses.
+
+You can specify the relative weight of the two losses by manipulating the
+``weight`` attribute of each loss instance. For instance, if you want the MAE
+loss to be twice as strong as the MSE loss:
+
+   >>> net.losses[1].weight = 2
+   >>> net.train(...)
+
+Finally, if you want to reset the loss to the standard MSE:
+
+   >>> net.set_loss('mse', weight=1)
+
+(Here we've also shown how to specify the weight of the loss when adding or
+setting it to the model.)
+
 .. _losses-weighted:
 
 Using Weighted Targets
@@ -88,23 +184,3 @@ outputs, you will also need to include a case for having weights::
               return (self._weights * step).sum() / self._weights.sum()
           else:
               return step.mean()
-
-Source
-======
-
-.. automodule:: theanets.losses
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Loss
-   CrossEntropy
-   GaussianLogLikelihood
-   Hinge
-   KullbackLeiblerDivergence
-   MaximumMeanDiscrepancy
-   MeanAbsoluteError
-   MeanSquaredError
-

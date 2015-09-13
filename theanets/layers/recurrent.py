@@ -355,8 +355,10 @@ class ARRNN(Recurrent):
 
     In a normal RNN, a hidden unit is updated completely at each time step,
     :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
-    hidden unit is computed as a mixture of the new and old values, `h_t =
-    \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
+    hidden unit is computed as a mixture of the new and old values,
+
+    .. math::
+       h_t = \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1}).
 
     Rates might be defined in a number of ways, spanning a continuum between
     vanilla RNNs (i.e., all rate parameters are fixed at 1) all the way to
@@ -366,10 +368,14 @@ class ARRNN(Recurrent):
 
     In the ARRNN model, the rate values are represented as a computed at each
     time step as a logistic sigmoid applied to an affine transform of the input:
-    :math:`\alpha_t = 1 / (1 + e^{-x_t W_{xr} - b_r})`. This representation of
-    the rates uses more parameters than the :class:`LRRNN` but is able to adapt
-    rates to the input at each time step. However, in this model, rates are not
-    able to adapt to the state of the hidden units at each time step.
+
+    .. math::
+       \alpha_t = \frac{1}{1 + \exp(-x_t W_{xr} - b_r)}.
+
+    This representation of the rates uses more parameters than the
+    :class:`LRRNN` but is able to adapt rates to the input at each time step.
+    However, in this model, rates are not able to adapt to the state of the
+    hidden units at each time step.
 
     *Parameters*
 

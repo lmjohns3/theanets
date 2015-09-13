@@ -135,8 +135,6 @@ class Tied(base.Layer):
 
     - ``b`` --- bias
 
-    A "tied" layer uses the transposed weight matrix from its partner layer.
-
     *Outputs*
 
     - ``out`` --- the post-activation state of the layer
@@ -145,7 +143,7 @@ class Tied(base.Layer):
     Parameters
     ----------
     partner : str or :class:`theanets.layers.base.Layer`
-        The "partener" layer to which this layer is tied.
+        The "partner" layer to which this layer is tied.
 
     Attributes
     ----------

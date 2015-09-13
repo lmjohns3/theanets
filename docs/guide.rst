@@ -567,6 +567,7 @@ Nearly every major base class in ``theanets`` can be subclassed and applied
 directly in your model:
 
 - :class:`theanets.Layer <theanets.layers.base.Layer>` --- see :ref:`layers-custom`
+- :class:`theanets.Activation <theanets.activations.Activation>` --- see :ref:`activations-custom`
 - :class:`theanets.Loss <theanets.losses.Loss>` --- see :ref:`losses-custom`
 - :class:`theanets.Regularizer <theanets.regularizers.Regularizer>` --- see :ref:`regularizers-custom`
 - :class:`theanets.Network <theanets.graph.Network>` --- see :ref:`models-custom`

@@ -5,21 +5,26 @@ Activation Functions
 ====================
 
 An activation function (sometimes also called a transfer function) specifies how
-the final output of a layer is computed from the weighted sums of the inputs. By
-default, hidden layers in ``theanets`` use a rectified linear activation
-function: :math:`g(z) = \max(0, z)`. Output layers in :class:`Regressor
-<theanets.feedforward.Regressor>` and :class:`Autoencoder
-<theanets.feedforward.Autoencoder>` models use linear activations (i.e., the
-output is just the weighted sum of the inputs from the previous layer:
-:math:`g(z) = z`), and the output layer in :class:`Classifier
-<theanets.feedforward.Classifier>` models uses a softmax activation: :math:`g(z)
-= \exp(z) / \sum\exp(z)`.
+the final output of a layer is computed from the weighted sums of the inputs.
+
+By default, hidden layers in ``theanets`` use a rectified linear activation
+function: :math:`g(z) = \max(0, z)`.
+
+Output layers in :class:`theanets.Regressor <theanets.feedforward.Regressor>`
+and :class:`theanets.Autoencoder <theanets.feedforward.Autoencoder>` models use
+linear activations (i.e., the output is just the weighted sum of the inputs from
+the previous layer: :math:`g(z) = z`), and the output layer in
+:class:`theanets.Classifier <theanets.feedforward.Classifier>` models uses a
+softmax activation: :math:`g(z) = \exp(z) / \sum\exp(z)`.
 
 To specify a different activation function for a layer, include an activation
 key chosen from the table below, or :ref:`create a custom activation
-<activations-custom>`. As described above, the activation key can be included in
-your model specification either using the ``activation`` keyword argument in a
-layer dictionary, or by including the key in a tuple with the layer size::
+<activations-custom>`. As described in :ref:`guide-creating-specifying-layers`,
+the activation key can be included in your model specification either using the
+``activation`` keyword argument in a layer dictionary, or by including the key
+in a tuple with the layer size:
+
+.. code:: python
 
   net = theanets.Regressor([10, (10, 'tanh'), 10])
 
@@ -44,7 +49,7 @@ norm:mean  mean-normalization            :math:`z - \bar{z}`
 norm:max   max-normalization             :math:`z / \max |z|`
 norm:std   variance-normalization        :math:`z / \mathbb{E}[(z-\bar{z})^2]`
 norm:z     z-score normalization         :math:`(z-\bar{z}) / \mathbb{E}[(z-\bar{z})^2]`
-prelu_     parametric relu with leak     :math:`\max(0, z) - \max(0, -rz)`
+prelu_     relu with parametric leak     :math:`\max(0, z) - \max(0, -rz)`
 lgrelu_    relu with leak and gain       :math:`\max(0, gz) - \max(0, -rz)`
 maxout_    piecewise linear              :math:`\max_i m_i z`
 =========  ============================  ===============================================
@@ -58,7 +63,9 @@ Composition
 
 Activation functions can also be composed by concatenating multiple function
 names togather using a ``+``. For example, to create a layer that uses a
-batch-normalized hyperbolic tangent activation::
+batch-normalized hyperbolic tangent activation:
+
+.. code:: python
 
   net = theanets.Regressor([10, (10, 'tanh+norm:z'), 10])
 

@@ -101,17 +101,17 @@ Layer Attributes
 Now that we've seen how to specify values for the attributes of each layer in
 your model, we'll look at the available attributes that can be customized. For
 many of these settings, you'll want to use a dictionary (or create a
-:class:`Layer <theanets.layers.base.Layer>` instance yourself) to specify
-non-default values.
+:class:`theanets.Layer <theanets.layers.base.Layer>` instance yourself) to
+specify non-default values.
 
 - ``size``: The number of "neurons" in the layer. This value must be specified
   by the modeler when creating the layer. It can be specified by providing an
   integer, or as a tuple that contains an integer.
 
 - ``form``: A string specifying the type of layer to use (see above). This
-  defaults to "feedforward" but can be the name of any existing :class:`Layer
-  <theanets.layers.base.Layer>` subclass (including :ref:`layers-custom` that
-  you have defined).
+  defaults to "feedforward" but can be the name of any existing
+  :class:`theanets.Layer <theanets.layers.base.Layer>` subclass (including
+  :ref:`layers-custom` that you have defined).
 
 - ``name``: A string name for the layer. If this isn't provided when creating a
   layer, the layer will be assigned a default name. The default names for the
@@ -187,11 +187,13 @@ Custom Layers
 
 Layers are the real workhorse in ``theanets``; custom layers can be created to
 do all sorts of fun stuff. To create a custom layer, just create a subclass of
-:class:`Layer <theanets.layers.base.Layer>` and give it the functionality you
-want.
+:class:`theanets.Layer <theanets.layers.base.Layer>` and give it the
+functionality you want.
 
 As a very simple example, let's suppose you wanted to create a normal
-feedforward layer but did not want to include a bias term::
+feedforward layer but did not want to include a bias term:
+
+.. code:: python
 
   import theanets
   import theano.tensor as TT
@@ -205,11 +207,15 @@ feedforward layer but did not want to include a bias term::
 
 Once you've set up your new layer class, it will automatically be registered and
 available in :func:`theanets.Layer.build <theanets.layers.base.Layer.build>`
-using the name of your class::
+using the name of your class:
+
+.. code:: python
 
   layer = theanets.Layer.build('nobias', inputs=3, size=4)
 
-or, while creating a model::
+or, while creating a model:
+
+.. code:: python
 
   net = theanets.Autoencoder(
       layers=(4, (3, 'nobias', 'linear'), (4, 'tied', 'linear')),

@@ -21,13 +21,12 @@ distribution that the dataset defines.
 :ref:`models` in ``theanets`` have at least one loss to optimize during
 training. There are default losses for each of the built-in model types, but you
 can often override these defaults just by providing a non-default value for the
-``loss`` keyword argument when creating your model.
-
-For example, to create a regression model with a mean absolute error loss:
+``loss`` keyword argument when creating your model. For example, to create a
+regression model with a mean absolute error loss:
 
 .. code:: python
 
-  >>> net = theanets.Regressor([10, 20, 3], loss='mae')
+  net = theanets.Regressor([10, 20, 3], loss='mae')
 
 This will create the regression model with the specified loss.
 
@@ -60,29 +59,29 @@ Multiple Losses
 A ``theanets`` model can actually have more than one loss that it attempts to
 optimize simultaneously, and these losses can change between successive calls to
 :func:`train() <theanets.graph.Network.train>`. In fact, a model has a
-``losses`` attribute that's just a list of :class:`Loss <theanets.losses.Loss>`
-instances; these losses are summed (and combined with any applicable
-:ref:`regularizers <regularizers>`) during each call to ``train()``.
+``losses`` attribute that's just a list of :class:`theanets.Loss
+<theanets.losses.Loss>` instances; these losses are weighted by a ``weight``
+attribute, then summed and combined with any applicable :ref:`regularizers
+<regularizers>` during each call to ``train()``.
 
-Let's say that (for some reason) you want to optimize a model using both the
-mean absolute and the mean squared error. You could first create a regular
-regression model:
+Let's say that you want to optimize a model using both the mean absolute and the
+mean squared error. You could first create a regular regression model:
 
 .. code:: python
 
-  >>> net = theanets.Regressor([10, 20, 3])
+  net = theanets.Regressor([10, 20, 3])
 
 and then add a new loss to the model:
 
 .. code:: python
 
-  >>> net.add_loss('mse')
+  net.add_loss('mse')
 
 Then, when you call:
 
 .. code:: python
 
-   >>> net.train(...)
+  net.train(...)
 
 the model will attempt to minimize the sum of the two losses.
 
@@ -90,12 +89,16 @@ You can specify the relative weight of the two losses by manipulating the
 ``weight`` attribute of each loss instance. For instance, if you want the MAE
 loss to be twice as strong as the MSE loss:
 
-   >>> net.losses[1].weight = 2
-   >>> net.train(...)
+.. code:: python
+
+  net.losses[1].weight = 2
+  net.train(...)
 
 Finally, if you want to reset the loss to the standard MSE:
 
-   >>> net.set_loss('mse', weight=1)
+.. code:: python
+
+  net.set_loss('mse', weight=1)
 
 (Here we've also shown how to specify the weight of the loss when adding or
 setting it to the model.)
@@ -138,7 +141,9 @@ provide a large weight for training examples in class A to encourage the model
 not to miss these examples.
 
 All of these cases are possible to model in ``theanets``; just include
-``weighted=True`` when you create your model::
+``weighted=True`` when you create your model:
+
+.. code:: python
 
   net = theanets.recurrent.Autoencoder([3, (10, 'rnn'), 3], weighted=True)
 
@@ -156,16 +161,19 @@ Custom Losses
 =============
 
 It's pretty straightforward to create models in ``theanets`` that use different
-losses from the predefined :class:`Classifier <theanets.feedforward.Classifier>`
-and :class:`Autoencoder <theanets.feedforward.Autoencoder>` and
-:class:`Regressor <theanets.feedforward.Regressor>` models. (The classifier uses
-categorical cross-entropy (XE) as its default loss, and the other two both use
-mean squared error, MSE.)
+losses from the predefined :class:`theanets.Classifier
+<theanets.feedforward.Classifier>` and :class:`theanets.Autoencoder
+<theanets.feedforward.Autoencoder>` and :class:`theanets.Regressor
+<theanets.feedforward.Regressor>` models. (The classifier uses categorical
+cross-entropy (XE) as its default loss, and the other two both use mean squared
+error, MSE.)
 
-To define a model with a new loss, just create a new :class:`Loss
+To define a model with a new loss, just create a new :class:`theanets.Loss
 <theanets.losses.Loss>` subclass and specify its name when you create your
 model. For example, to create a regression model that uses a step function
-averaged over all of the model inputs::
+averaged over all of the model inputs:
+
+.. code:: python
 
   class Step(theanets.Loss):
       def __call__(self, outputs):
@@ -175,7 +183,9 @@ averaged over all of the model inputs::
 
 Your loss function implementation must return a Theano expression that reflects
 the loss for your model. If you wish to make your loss work with weighted
-outputs, you will also need to include a case for having weights::
+outputs, you will also need to include a case for having weights:
+
+.. code:: python
 
   class Step(theanets.Loss):
       def __call__(self, outputs):

@@ -30,7 +30,9 @@ thinking about parameters, we can manipulate the prior distribution of the
 parameter values to express our knowledge as modelers of the problem at hand.
 
 In ``theanets``, regularization hyperparameters are provided when you train your
-model::
+model:
+
+.. code:: python
 
   net = theanets.Classifier(layers=[784, 1000, 784])
   net.train(..., hidden_l1=0.1)
@@ -62,7 +64,9 @@ then the term with the :math:`L_2` norm on the parameters is like an unscaled
 Gaussian distribution.
 
 This type of regularization is specified using the ``weight_l2`` keyword
-argument during training::
+argument during training:
+
+.. code:: python
 
   net.train(..., weight_l2=1e-4)
 
@@ -100,7 +104,9 @@ then this term is like an unscaled Laplace distribution. In practice, this
 regularizer encourages many of the model *parameters* to be zero.
 
 In ``theanets``, this sparse parameter regularization is specified using the
-``weight_l1`` keyword argument during training::
+``weight_l1`` keyword argument during training:
+
+.. code:: python
 
   net.train(..., weight_l1=1e-4)
 
@@ -124,7 +130,9 @@ where :math:`f_i(x)` represents the neuron activations of hidden layer
 
 Sparse hidden activations have shown much promise in computational neural
 networks. In ``theanets`` this type of regularization is specified using the
-``hidden_l1`` keyword argument during training::
+``hidden_l1`` keyword argument during training:
+
+.. code:: python
 
   net.train(..., hidden_l1=0.1)
 
@@ -143,7 +151,9 @@ of noise regularizers: additive Gaussian noise and multiplicative dropout
 
 In one method, zero-mean Gaussian noise is added to the input data or hidden
 representations. These are specified during training using the ``input_noise``
-and ``hidden_noise`` keyword arguments, respectively::
+and ``hidden_noise`` keyword arguments, respectively:
+
+.. code:: python
 
   net.train(..., input_noise=0.1)
   net.train(..., hidden_noise=0.1)
@@ -153,7 +163,9 @@ The value of the argument specifies the standard deviation of the noise.
 In the other input regularization method, some of the inputs are randomly set to
 zero during training (this is sometimes called "dropout" or "multiplicative
 masking noise"). This type of noise is specified using the ``input_dropout`` and
-``hidden_dropout`` keyword arguments, respectively::
+``hidden_dropout`` keyword arguments, respectively:
+
+.. code:: python
 
   net.train(..., input_dropout=0.3)
   net.train(..., hidden_dropout=0.3)
@@ -163,7 +175,9 @@ hidden activation that are randomly set to zero.
 
 Instead of adding additional terms like the other regularizers, the noise
 regularizers can be seen as modifying the original loss for a model. For
-instance, consider an autoencoder model with two hidden layers::
+instance, consider an autoencoder model with two hidden layers:
+
+.. code:: python
 
   net = theanets.Autoencoder([
       100,
@@ -182,7 +196,9 @@ where we've ignored the bias terms, and :math:`\theta_a`, :math:`\theta_b`, and
 :math:`\sigma_a` and :math:`\sigma_b` are the activation functions for their
 respective hidden layers.
 
-If we train this model using input and hidden noise::
+If we train this model using input and hidden noise:
+
+.. code:: python
 
   net.train(..., input_noise=q, hidden_noise=r)
 
@@ -227,25 +243,32 @@ Custom Regularizers
 ===================
 
 To create a custom regularizer in ``theanets``, you need to create a custom
-subclass of the :class:`Regularizer <theanets.regularizers.Regularizer>` class,
-and then provide this regularizer when you run your model.
+subclass of the :class:`theanets.Regularizer
+<theanets.regularizers.Regularizer>` class, and then provide this regularizer
+when you run your model.
 
 To illustrate, let's suppose you created a linear autoencoder model that had a
-larger hidden layer than your dataset::
+larger hidden layer than your dataset:
+
+.. code:: python
 
   net = theanets.Autoencoder([4, (8, 'linear'), (4, 'tied')])
 
 Then, at least in theory, you risk learning an uninteresting "identity" model
 such that some hidden units are never used, and the ones that are have weights
 equal to the identity matrix. To prevent this from happening, you can impose a
-sparsity penalty when you train your model::
+sparsity penalty when you train your model:
+
+.. code:: python
 
   net.train(..., hidden_l1=0.001)
 
 But then you might run into a situation where the sparsity penalty drives some
 of the hidden units in the model to zero, to "save" loss during training.
 Zero-valued features are probably not so interesting, so we can introduce
-another penalty to prevent feature weights from going to zero::
+another penalty to prevent feature weights from going to zero:
+
+.. code:: python
 
   class WeightInverse(theanets.Regularizer):
       def loss(self, layers, outputs):

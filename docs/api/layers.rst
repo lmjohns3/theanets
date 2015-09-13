@@ -72,6 +72,9 @@ Convolution
    :toctree: generated/
 
    Conv1
+   Conv2
+   Pool1
+   Pool2
 
 Recurrent
 ---------

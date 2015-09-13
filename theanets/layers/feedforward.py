@@ -149,7 +149,6 @@ class Tied(base.Layer):
     ----------
     partner : :class:`theanets.layers.base.Layer`
         The "partner" layer to which this layer is tied.
-
     '''
 
     def __init__(self, partner, **kwargs):

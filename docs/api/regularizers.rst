@@ -4,11 +4,6 @@
 Regularizers
 ============
 
-.. _regularizers-specifying:
-
-Specifying Regularizers
-=======================
-
 The goal of training a neural network model is to minimize the loss function by
 making adjustments to the model parameters. In most practical applications, the
 loss is not known a priori, but an estimate of it is computed using a set of
@@ -207,6 +202,25 @@ but the loss is computed with respect to the uncorrupted input. This is thought
 to encourage the model to develop representations that push towards the true
 manifold of the data.
 
+
+Predefined Regularizers
+=======================
+
+.. automodule:: theanets.regularizers
+   :no-members:
+   :no-inherited-members:
+
+.. autosummary::
+   :toctree: generated/
+
+   Regularizer
+   HiddenL1
+   WeightL1
+   WeightL2
+   Contractive
+   BernoulliDropout
+   GaussianNoise
+
 .. _regularizers-custom:
 
 Custom Regularizers
@@ -245,21 +259,3 @@ another penalty to prevent feature weights from going to zero::
 This code adds a new regularizer that penalizes the inverse of the squared
 length of each of the weights in the model's layers. Here we detect weights by
 only including parameters with 2 dimensions.
-
-Source
-======
-
-.. automodule:: theanets.regularizers
-   :no-members:
-   :no-inherited-members:
-
-.. autosummary::
-   :toctree: generated/
-
-   Regularizer
-   HiddenL1
-   WeightL1
-   WeightL2
-   Contractive
-   BernoulliDropout
-   GaussianNoise

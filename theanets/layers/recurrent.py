@@ -47,6 +47,7 @@ class Recurrent(base.Layer):
 
     Parameters
     ----------
+
     radius : float, optional
         If given, rescale the initial weights for the recurrent units to have
         this spectral radius. No scaling is performed by default.
@@ -177,10 +178,33 @@ class Recurrent(base.Layer):
 class RNN(Recurrent):
     r'''Standard recurrent network layer.
 
+    Notes
+    -----
+
     There are many different styles of recurrent network layers, but the one
     implemented here is known as an Elman layer or an SRN (Simple Recurrent
     Network) -- the output from the layer at the previous time step is
     incorporated into the input of the layer at the current time step.
+
+    .. math::
+       h_t = \sigma(x_t W_{xh} + h_{t-1} W_{hh} + b)
+
+    Here, :math:`\sigma(\cdot)` is the :ref:`activation function <activations>`
+    of the layer, and the subscript represents the time step of the data being
+    processed. The state of the hidden layer at time :math:`t` depends on the
+    input at time :math:`t` and the state of the hidden layer at time
+    :math:`t-1`.
+
+    *Parameters*
+
+    - ``b`` --- bias
+    - ``xh`` --- matrix connecting inputs to hiddens
+    - ``hh`` --- matrix connecting hiddens to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
     '''
 
     def setup(self):
@@ -229,10 +253,15 @@ class RNN(Recurrent):
 class LRRNN(Recurrent):
     r'''A learned-rate RNN defines per-hidden-unit accumulation rates.
 
+    Notes
+    -----
+
     In a normal RNN, a hidden unit is updated completely at each time step,
     :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
-    hidden unit is computed as a mixture of the new and old values, `h_t =
-    \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1})`.
+    hidden unit is computed as a mixture of the new and old values,
+
+    .. math::
+       h_t = \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1}).
 
     Rates might be defined in a number of ways, spanning a continuum between
     vanilla RNNs (i.e., all rate parameters are fixed at 1), fixed but
@@ -247,11 +276,26 @@ class LRRNN(Recurrent):
     the simplicity of the model comes at the cost of effectively fixing the rate
     for each unit as a constant value across time.
 
+    *Parameters*
+
+    - ``b`` --- vector of bias values for each hidden unit
+    - ``r`` --- vector of rates for each hidden unit
+    - ``xh`` --- matrix connecting inputs to hidden units
+    - ``hh`` --- matrix connecting hiddens to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``hid`` --- the pre-rate-mixing hidden state
+    - ``rate`` --- the rate values
+
     References
     ----------
 
-    .. [Ben12] Y. Bengio, N. Boulanger-Lewandowski, R. Pascanu. (2012) "Advances
-       in Optimizing Recurrent Networks." http://arxiv.org/abs/1212.0901
+    .. [Ben12] Y. Bengio, N. Boulanger-Lewandowski, & R. Pascanu. (2012)
+       "Advances in Optimizing Recurrent Networks."
+       http://arxiv.org/abs/1212.0901
     '''
 
     def setup(self):
@@ -306,6 +350,9 @@ class LRRNN(Recurrent):
 class ARRNN(Recurrent):
     r'''An adaptive-rate RNN defines per-hidden-unit accumulation rates.
 
+    Notes
+    -----
+
     In a normal RNN, a hidden unit is updated completely at each time step,
     :math:`h_t = f(x_t, h_{t-1})`. With an explicit update rate, the state of a
     hidden unit is computed as a mixture of the new and old values, `h_t =
@@ -323,6 +370,21 @@ class ARRNN(Recurrent):
     the rates uses more parameters than the :class:`LRRNN` but is able to adapt
     rates to the input at each time step. However, in this model, rates are not
     able to adapt to the state of the hidden units at each time step.
+
+    *Parameters*
+
+    - ``b`` --- vector of bias values for each hidden unit
+    - ``r`` --- vector of rate biases for each hidden unit
+    - ``xh`` --- matrix connecting inputs to hidden units
+    - ``xr`` --- matrix connecting inputs to rate "gates"
+    - ``hh`` --- matrix connecting hiddens to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``hid`` --- the pre-rate-mixing hidden state
+    - ``rate`` --- the rate values
     '''
 
     def setup(self):
@@ -378,10 +440,57 @@ class ARRNN(Recurrent):
 class MRNN(Recurrent):
     '''Define a recurrent network layer using multiplicative dynamics.
 
-    The formulation of MRNN implemented here uses a factored dynamics matrix as
-    described in Sutskever, Martens & Hinton, ICML 2011, "Generating text with
-    recurrent neural networks." This paper is available online at
-    http://www.icml-2011.org/papers/524_icmlpaper.pdf.
+    Notes
+    -----
+
+    The formulation of MRNN implemented here uses a factored dynamics matrix. To
+    understand the motivation for a factored dynamics, imagine for a moment a
+    vanilla recurrent layer with one binary input, whose hidden dynamics depend
+    on the input, so that :math:`W_{hh}^0` is used if the input is 0, and
+    :math:`W_{hh}^1` is used if the input is 1:
+
+    .. math::
+       h_t = \sigma(h_{t-1} W_{hh}^{x_t} + x_t W_{xh} + b)
+
+    This generalizes to the idea that there might be an entire collection of
+    :math:`W_{hh}^i` matrices that govern the hidden dynamics of the network,
+    one for each :math:`0 \le i < N`. But in the general case, it would be
+    prohibitively expensive to store this weight tensor; in addition, there are
+    probably many shared hidden dynamics that one might want to learn across all
+    of these runtime "modes."
+
+    The MRNN solves this problem by factoring the weight tensor idea into a two
+    2--dimensional arrays. The hidden state is mapped to and from "factor space"
+    by :math:`W_{hf}` and :math:`W_{fh}`, respectively, and the latent factors
+    are modulated by the input using :math:`W_{xf}`.
+
+    The overall hidden activation for the MRNN model, then, looks like:
+
+    .. math::
+       h_t = \sigma((x_t W_{xf} \odot h_{t-1} W_{hf}) W_{fh} + x_t W_{xh} + b)
+
+    where :math:`odot` represents the elementwise product of two vectors.
+
+    *Parameters*
+
+    - ``b`` --- vector of bias values for each hidden unit
+    - ``xf`` --- matrix connecting inputs to factors
+    - ``xh`` --- matrix connecting inputs to hiddens
+    - ``hf`` --- matrix connecting hiddens to factors
+    - ``fh`` --- matrix connecting factors to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``factors`` --- the activations of the latent factors
+
+    References
+    ----------
+
+    .. [Sut11] I. Sutskever, J. Martens, & G. E. Hinton. (ICML 2011) "Generating
+       text with recurrent neural networks."
+       http://www.icml-2011.org/papers/524_icmlpaper.pdf
     '''
 
     def __init__(self, factors=None, **kwargs):
@@ -498,6 +607,20 @@ class LSTM(Recurrent):
     The implementation details for this layer come from the specification given
     on page 5 of [Gra13a]_.
 
+    *Parameters*
+
+    - ``b`` --- vector of bias values for each hidden unit
+    - ``ci`` --- vector of peephole input weights
+    - ``cf`` --- vector of peephole forget weights
+    - ``co`` --- vector of peephole output weights
+    - ``xh`` --- matrix connecting inputs to four gates
+    - ``hh`` --- matrix connecting hiddens to four gates
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``cell`` --- the state of the hidden "cell"
+
     Examples
     --------
 
@@ -509,16 +632,11 @@ class LSTM(Recurrent):
 
     >>> reg = theanets.recurrent.Regressor((28, dict(size=100, form='lstm'), 10))
 
-    The layer instance can be retrieved using
-    :func:`find <theanets.graph.Network.find>`:
+    This layer's parameters can be retrieved using :func:`find
+    <theanets.layers.base.Layer.find>`:
 
-    >>> lstm = cls.find('hid1')
-
-    Its parameters can also be retrieved using
-    :func:`find <theanets.layers.base.Layer.find>`:
-
-    >>> bias = cls.find('hid1', 'b')
-    >>> bias = lstm.find('b')
+    >>> bias = net.find('hid1', 'b')
+    >>> ci = net.find('hid1', 'ci')
 
     References
     ----------
@@ -593,7 +711,29 @@ class LSTM(Recurrent):
 class GRU(Recurrent):
     '''Gated Recurrent Unit layer.
 
+    Notes
+    -----
+
     The update equations in this layer are given by [Chu14]_, page 4.
+
+    *Parameters*
+
+    - ``bh`` --- vector of bias values for each hidden unit
+    - ``br`` --- vector of reset biases
+    - ``bz`` --- vector of rate biases
+    - ``xh`` --- matrix connecting inputs to hidden units
+    - ``xr`` --- matrix connecting inputs to reset gates
+    - ``xz`` --- matrix connecting inputs to rate gates
+    - ``hh`` --- matrix connecting hiddens to hiddens
+    - ``hr`` --- matrix connecting hiddens to reset gates
+    - ``hz`` --- matrix connecting hiddens to rate gates
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``hid`` --- the pre-rate-mixing hidden state
+    - ``rate`` --- the rate values
 
     References
     ----------
@@ -666,6 +806,9 @@ class GRU(Recurrent):
 class Clockwork(Recurrent):
     r'''A Clockwork RNN layer updates "modules" of neurons at specific rates.
 
+    Notes
+    -----
+
     In a vanilla :class:`RNN` layer, all neurons in the hidden pool are updated
     at every time step by mixing an affine transformation of the input with an
     affine transformation of the state of the hidden pool neurons at the
@@ -700,11 +843,22 @@ class Clockwork(Recurrent):
     Here, the modules have been ordered such that :math:`T_j > T_i` for
     :math:`j < i`.
 
-    In ``theanets``, this update relation is implemented using a nested loop.
-    The outer loop calls Theano's ``scan()`` operator to iterate over the input
-    data at each time step. The inner loop iterates over the modules, updating
-    each module if the clock cycle is correct, and copying over the previous
-    value of the module if not.
+    Note that, unlike in the original paper, the hidden-hidden weight matrix is
+    stored in full (i.e., it is ``size`` x ``size``); the module separation is
+    enforced by masking the weights with zeros in the appropriate places. This
+    implementation runs *much* faster on a GPU than an approach that uses
+    dedicated module parameters.
+
+    *Parameters*
+
+    - ``b`` --- vector of bias values for each hidden unit
+    - ``xh`` --- matrix connecting inputs to hidden units
+    - ``hh`` --- matrix connecting hiddens to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
 
     Parameters
     ----------
@@ -805,7 +959,28 @@ class Clockwork(Recurrent):
 class MUT1(Recurrent):
     '''"MUT1" evolved recurrent layer.
 
+    Notes
+    -----
+
     The update equations in this layer are given by [Joz15]_, page 7.
+
+    *Parameters*
+
+    - ``bh`` --- vector of bias values for each hidden unit
+    - ``br`` --- vector of reset biases
+    - ``bz`` --- vector of rate biases
+    - ``xh`` --- matrix connecting inputs to hidden units
+    - ``xr`` --- matrix connecting inputs to reset gates
+    - ``xz`` --- matrix connecting inputs to rate gates
+    - ``hh`` --- matrix connecting hiddens to hiddens
+    - ``hr`` --- matrix connecting hiddens to reset gates
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``hid`` --- the pre-rate-mixing hidden state
+    - ``rate`` --- the rate values
 
     References
     ----------
@@ -876,8 +1051,13 @@ class MUT1(Recurrent):
 class Bidirectional(base.Layer):
     '''A bidirectional recurrent layer runs worker models forward and backward.
 
-    The outputs of the forward and backward passes are combined using an affine
-    transformation into the overall output for the layer.
+    Notes
+    -----
+
+    The size of this layer is split in half, with each half allocated to a
+    "worker" layer that processes data in one direction in time. The outputs of
+    the forward and backward passes are concatenated into the overall output for
+    the layer.
 
     For an example specification of a bidirectional recurrent network, see
     [Gra13b]_.
@@ -889,6 +1069,15 @@ class Bidirectional(base.Layer):
         and backward processing. This parameter defaults to 'rnn' (i.e., vanilla
         recurrent network layer), but can be given as any string that specifies
         a recurrent layer type.
+
+    Attributes
+    ----------
+    worker : str
+        The form of the underlying worker networks.
+    forward : :class:`theanets.layers.base.Layer`
+        The layer that processes input data forwards in time.
+    backward : :class:`theanets.layers.base.Layer`
+        The layer that processes input data backwards in time.
 
     References
     ----------

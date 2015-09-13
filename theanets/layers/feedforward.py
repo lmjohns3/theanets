@@ -24,10 +24,35 @@ class Feedforward(base.Layer):
 
     More precisely, feedforward layers as implemented here perform an affine
     transformation of their input, followed by a potentially nonlinear
-    "activation" function performed elementwise on the transformed input.
+    :ref:`activation function <activations>` performed elementwise on the
+    transformed input.
 
     Feedforward layers are the fundamental building block on which most neural
     network models are built.
+
+    Notes
+    -----
+
+    This layer can be constructed using the forms ``'feedforward'`` or ``'ff'``.
+
+    *Parameters*
+
+    - With one input:
+
+      - ``b`` --- bias
+      - ``w`` --- weights
+
+    - With :math:`N>1` inputs:
+
+      - ``b`` --- bias
+      - ``w_1`` --- weight for input 1
+      - ``w_2`` ...
+      - ``w_N`` --- weight for input :math:`N`
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
     '''
 
     __extra_registration_keys__ = ['ff']
@@ -79,6 +104,12 @@ class Classifier(Feedforward):
 
     This layer type really only wraps the output activation of a standard
     :class:`Feedforward` layer.
+
+    Notes
+    -----
+
+    The classifier layer is just a vanilla :class:`Feedforward` layer that uses
+    a ``'softmax'`` output :ref:`activation <activations>`.
     '''
 
     def __init__(self, **kwargs):
@@ -89,6 +120,9 @@ class Classifier(Feedforward):
 class Tied(base.Layer):
     '''A tied-weights feedforward layer shadows weights from another layer.
 
+    Notes
+    -----
+
     Tied weights are typically featured in some types of autoencoder models
     (e.g., PCA). A layer with tied weights requires a "partner" layer -- the
     tied layer borrows the weights from its partner and uses the transpose of
@@ -97,10 +131,27 @@ class Tied(base.Layer):
     but these can be fixed to zero during learning to simulate networks with no
     bias (e.g., PCA on mean-centered data).
 
+    *Parameters*
+
+    - ``b`` --- bias
+
+    A "tied" layer uses the transposed weight matrix from its partner layer.
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+
+    Parameters
+    ----------
+    partner : str or :class:`theanets.layers.base.Layer`
+        The "partener" layer to which this layer is tied.
+
     Attributes
     ----------
-    partner : :class:`Layer`
+    partner : :class:`theanets.layers.base.Layer`
         The "partner" layer to which this layer is tied.
+
     '''
 
     def __init__(self, partner, **kwargs):

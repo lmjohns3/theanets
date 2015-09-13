@@ -40,10 +40,10 @@ Available Layers
 .. autosummary::
    :toctree: generated/
 
+   Layer
+   Input
    Concatenate
    Flatten
-   Input
-   Layer
    Product
    Reshape
 
@@ -83,15 +83,15 @@ Recurrent
 .. autosummary::
    :toctree: generated/
 
-   ARRNN
-   Bidirectional
-   Clockwork
-   GRU
-   LRRNN
-   LSTM
-   MRNN
-   MUT1
    RNN
+   MRNN
+   LRRNN
+   ARRNN
+   MUT1
+   GRU
+   LSTM
+   Clockwork
+   Bidirectional
 
 .. _layers-attributes:
 
@@ -128,8 +128,8 @@ non-default values.
 - ``inputs``: An integer or dictionary describing the sizes of the inputs that
   this layer expects. This is normally optional and defaults to the size of the
   preceding layer in a chain-like model. However, providing a dictionary here
-  permits arbitrary layer interconnections. See :ref:`creating-graphs` for more
-  details.
+  permits arbitrary layer interconnections. See :ref:`guide-advanced-graphs` for
+  more details.
 
 - ``mean``: A float specifying the mean of the initial parameter values to use
   in the layer. Defaults to 0. This value applies to all parameters in the model

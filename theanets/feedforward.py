@@ -290,7 +290,7 @@ class Classifier(graph.Network):
     To create a classification model, just create a new class instance. Often
     you'll provide the layer configuration at this time:
 
-    >>> model = theanets.Classifier([10, (20, 'rnn'), 50])
+    >>> model = theanets.Classifier([10, (20, 'tanh'), 50])
 
     See :ref:`guide-creating` for more information.
 

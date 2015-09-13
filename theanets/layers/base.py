@@ -26,7 +26,7 @@ __all__ = [
 
 
 class Layer(util.Registrar(str('Base'), (), {})):
-    '''Layers in network graphs derive from this base class.
+    '''Base class for network layers.
 
     In ``theanets``, a layer refers to a logically grouped set of parameters and
     computations. Typically this encompasses a set of weight matrix and bias
@@ -325,7 +325,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
 
 class Input(Layer):
-    '''The input of a network is a special type of layer with no parameters.
+    '''A layer that receives external input data.
 
     Input layers are responsible for the Theano variables that represent input
     to a network. The name of the layer is passed along to the symbolic Theano
@@ -403,7 +403,7 @@ class Input(Layer):
 
 
 class Product(Layer):
-    '''Multiply the outputs of multiple layers together elementwise.
+    '''Multiply several inputs together elementwise.
 
     Notes
     -----

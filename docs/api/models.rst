@@ -43,7 +43,9 @@ can be added to the overall loss for the model to prevent this sort of trivial
 solution.
 
 To create an autoencoder in ``theanets``, just create an instance of the
-appropriate network subclass::
+appropriate network subclass:
+
+.. code:: python
 
   net = theanets.Autoencoder()
 
@@ -67,7 +69,9 @@ network's output and the target is computed using the mean squared error:
 The difference here is that instead of trying to produce the input, the
 regression model is trying to match the target output.
 
-To create a regression model in theanets, just invoke the constructor::
+To create a regression model in theanets, just invoke the constructor:
+
+.. code:: python
 
   net = theanets.Regressor()
 
@@ -94,7 +98,9 @@ the network output and the true target labels:
 where :math:`\delta{a,b}` is the Kronecker delta, which is 1 if :math:`a=b` and
 0 otherwise.
 
-To create a classifier model in ``theanets``, invoke its constructor::
+To create a classifier model in ``theanets``, invoke its constructor:
+
+.. code:: python
 
   net = theanets.Classifier()
 
@@ -149,7 +155,9 @@ feedforward counterpart, takes as input a single array of data :math:`X \in
 \mathbb{R}^{m \times t \times n}` and attempts to recreate the same data at the
 output, under a squared-error loss.
 
-To create a model of this type, just invoke its constructor::
+To create a model of this type, just invoke its constructor:
+
+.. code:: python
 
    net = theanets.recurrent.Autoencoder()
 
@@ -163,7 +171,9 @@ corresponding array of output data :math:`Y \in \mathbb{R}^{m \times t \times
 o}`. Like the feedforward regression models, the recurrent version attempts to
 produce the target outputs under a squared-error loss.
 
-To create a model of this type, just invoke its constructor::
+To create a model of this type, just invoke its constructor:
+
+.. code:: python
 
    net = theanets.recurrent.Regressor()
 
@@ -179,7 +189,9 @@ the error for this type of model requires an input dataset :math:`X \in
 :math:`Y \in \mathbb{Z}^{t \times m}`; the error is then computed as the
 cross-entropy between the network output and the target labels.
 
-To create a model of this type, just invoke its constructor::
+To create a model of this type, just invoke its constructor:
+
+.. code:: python
 
    net = theanets.recurrent.Classifier()
 
@@ -190,3 +202,21 @@ Custom Models
 
 To create a custom model, just define a new subclass of :class:`theanets.Network
 <theanets.graph.Network>`.
+
+For instance, the :class:`feedforward autoencoder
+<theanets.feedforward.Autoencoder>` model is defined basically like this:
+
+.. code:: python
+
+  class Autoencoder(theanets.Network):
+      def __init__(self, layers=(), loss='mse', weighted=False):
+          super(Autoencoder, self).__init__(
+              layers=layers, loss=loss, weighted=weighted)
+
+Essentially this model just defines a default loss on top of the functionality
+in :class:`theanets.Network <theanets.graph.Network>` for creating and managing
+layers and loss functions, training the model, making predictions, and so on.
+
+By defining a custom model class, you can also implement whatever helper
+functionality you think will be useful for your task. With the programming power
+of Python, the sky's the limit!

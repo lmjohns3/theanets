@@ -251,7 +251,7 @@ class RNN(Recurrent):
 
 
 class LRRNN(Recurrent):
-    r'''A learned-rate RNN defines per-hidden-unit accumulation rates.
+    r'''An RNN with learned rate for each unit.
 
     Notes
     -----
@@ -348,7 +348,7 @@ class LRRNN(Recurrent):
 
 
 class ARRNN(Recurrent):
-    r'''An adaptive-rate RNN defines per-hidden-unit accumulation rates.
+    r'''An RNN with adaptive rate per unit.
 
     Notes
     -----
@@ -444,7 +444,7 @@ class ARRNN(Recurrent):
 
 
 class MRNN(Recurrent):
-    '''Define a recurrent network layer using multiplicative dynamics.
+    r'''A recurrent network layer with multiplicative dynamics.
 
     Notes
     -----
@@ -715,7 +715,7 @@ class LSTM(Recurrent):
 
 
 class GRU(Recurrent):
-    '''Gated Recurrent Unit layer.
+    r'''Gated Recurrent Unit layer.
 
     Notes
     -----
@@ -963,7 +963,7 @@ class Clockwork(Recurrent):
 
 
 class MUT1(Recurrent):
-    '''"MUT1" evolved recurrent layer.
+    r'''"MUT1" evolved recurrent layer.
 
     Notes
     -----
@@ -1055,7 +1055,7 @@ class MUT1(Recurrent):
 
 
 class Bidirectional(base.Layer):
-    '''A bidirectional recurrent layer runs worker models forward and backward.
+    r'''A bidirectional recurrent layer runs worker models forward and backward.
 
     Notes
     -----

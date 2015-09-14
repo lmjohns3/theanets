@@ -995,7 +995,27 @@ class MUT1(Recurrent):
     Notes
     -----
 
-    The update equations in this layer are given by [Joz15]_, page 7.
+    This layer is a close cousin of the :class:`GRU`, which updates the state of
+    the hidden units by linearly interpolating the state from the previous time
+    step with a "target" state. Unlike the GRU, however, this layer omits a
+    dependency on the hidden state for the "rate gate", and the current input is
+    piped through the tanh function before influencing the target hidden state.
+
+    The update equations in this layer are mostly those given by [Joz15]_, page
+    7:
+
+    .. math::
+       \begin{eqnarray}
+       r_t &=& \sigma(x_t W_{xr} + h_{t-1} W_{hr} + b_r) \\
+       z_t &=& \sigma(x_t W_{xz} + b_z) \\
+       \hat{h}_t &=& \tanh\left(\tanh(x_t W_{xh}) + (r_t \odot h_{t-1}) W_{hh} + b_h\right) \\
+       h_t &=& (1 - z_t) \odot h_{t-1} + z_t \odot \hat{h}_t.
+       \end{eqnarray}
+
+    Here, the layer activation is always set to :math:`\tanh`, and
+    :math:`\sigma(\cdot)` is the logistic sigmoid, which ensures that the two
+    gates in the layer are limited to the open interval (0, 1). The symbol
+    :math:`\odot` indicates elementwise multiplication.
 
     *Parameters*
 

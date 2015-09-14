@@ -261,7 +261,9 @@ class LRRNN(Recurrent):
     hidden unit is computed as a mixture of the new and old values,
 
     .. math::
-       h_t = \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1}).
+       h_t = (1 - z_t) \odot h_{t-1} + z_t \odot f(x_t, h_{t-1})
+
+    where :math:`\odot` indicates elementwise multiplication.
 
     Rates might be defined in a number of ways, spanning a continuum between
     vanilla RNNs (i.e., all rate parameters are fixed at 1), fixed but
@@ -335,7 +337,7 @@ class LRRNN(Recurrent):
         def fn(x_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
-            return [pre, h_t, r * h_tm1 + (1 - r) * h_t]
+            return [pre, h_t, (1 - r) * h_tm1 + r * h_t]
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -358,19 +360,20 @@ class ARRNN(Recurrent):
     hidden unit is computed as a mixture of the new and old values,
 
     .. math::
-       h_t = \alpha_t h_{t-1} + (1 - \alpha_t) f(x_t, h_{t-1}).
+       h_t = (1 - z_t) \odot h_{t-1} + z_t \odot f(x_t, h_{t-1})
+
+    where :math:`\odot` indicates elementwise multiplication.
 
     Rates might be defined in a number of ways, spanning a continuum between
     vanilla RNNs (i.e., all rate parameters are fixed at 1) all the way to
     parametric rates that are computed as a function of the inputs and the
-    hidden state at each time step (i.e., something more like the :class:`gated
-    recurrent unit <GRU>`).
+    hidden state at each time step (i.e., something more like the :class:`GRU`).
 
     In the ARRNN model, the rate values are represented as a computed at each
     time step as a logistic sigmoid applied to an affine transform of the input:
 
     .. math::
-       \alpha_t = \frac{1}{1 + \exp(-x_t W_{xr} - b_r)}.
+       z_t = \frac{1}{1 + \exp(-x_t W_{xr} - b_r)}.
 
     This representation of the rates uses more parameters than the
     :class:`LRRNN` but is able to adapt rates to the input at each time step.
@@ -431,7 +434,7 @@ class ARRNN(Recurrent):
         def fn(x_t, r_t, h_tm1):
             pre = x_t + TT.dot(h_tm1, self.find('hh'))
             h_t = self.activate(pre)
-            return [pre, h_t, r_t * h_tm1 + (1 - r_t) * h_t]
+            return [pre, h_t, (1 - r_t) * h_tm1 + r_t * h_t]
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -465,7 +468,7 @@ class MRNN(Recurrent):
     probably many shared hidden dynamics that one might want to learn across all
     of these runtime "modes."
 
-    The MRNN solves this problem by factoring the weight tensor idea into a two
+    The MRNN solves this problem by factoring the weight tensor idea into two
     2--dimensional arrays. The hidden state is mapped to and from "factor space"
     by :math:`W_{hf}` and :math:`W_{fh}`, respectively, and the latent factors
     are modulated by the input using :math:`W_{xf}`.
@@ -730,14 +733,15 @@ class GRU(Recurrent):
     gate. All gates in this layer are activated based on the current input as
     well as the previous hidden state.
 
-    The update equations in this layer are given by [Chu14]_, page 4. They are:
+    The update equations in this layer are largely those given by [Chu14]_, page
+    4, except for the addition of a hidden bias term. They are:
 
     .. math::
        \begin{eqnarray}
        r_t &=& \sigma(x_t W_{xr} + h_{t-1} W_{hr} + b_r) \\
        z_t &=& \sigma(x_t W_{xz} + h_{t-1} W_{hz} + b_z) \\
        \hat{h}_t &=& g\left(x_t W_{xh} + (r_t \odot h_{t-1}) W_{hh} + b_h\right) \\
-       h_t &=& h_{t-1} (1 - z_t) + \hat{h}_t z_t.
+       h_t &=& (1 - z_t) \odot h_{t-1} + z_t \odot \hat{h}_t.
        \end{eqnarray}
 
     Here, :math:`g(\cdot)` is the activation function for the layer, and
@@ -874,8 +878,8 @@ class Clockwork(Recurrent):
 
     Note that, unlike in the original paper, the hidden-hidden weight matrix is
     stored in full (i.e., it is ``size`` x ``size``); the module separation is
-    enforced by masking the weights with zeros in the appropriate places. This
-    implementation runs *much* faster on a GPU than an approach that uses
+    enforced by masking this weight matrix with zeros in the appropriate places.
+    This implementation runs *much* faster on a GPU than an approach that uses
     dedicated module parameters.
 
     *Parameters*

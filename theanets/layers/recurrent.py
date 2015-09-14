@@ -720,7 +720,30 @@ class GRU(Recurrent):
     Notes
     -----
 
-    The update equations in this layer are given by [Chu14]_, page 4.
+    The Gated Recurrent Unit lies somewhere between the :class:`LSTM` and the
+    :class:`ARRNN` in complexity. Like the :class:`ARRNN`, its hidden state is
+    updated at each time step to be a linear interpolation between the previous
+    hidden state, :math:`h_{t-1}`, and the "target" hidden state, :math:`h_t`.
+    The interpolation is modulated by an "update gate" that serves the same
+    purpose as the rate gates in the :class:`ARRNN` and :class:`LRRNN`. Like the
+    :class:`LSTM`, the target hidden state can also be reset using a dedicated
+    gate. All gates in this layer are activated based on the current input as
+    well as the previous hidden state.
+
+    The update equations in this layer are given by [Chu14]_, page 4. They are:
+
+    .. math::
+       \begin{eqnarray}
+       r_t &=& \sigma(x_t W_{xr} + h_{t-1} W_{hr} + b_r) \\
+       z_t &=& \sigma(x_t W_{xz} + h_{t-1} W_{hz} + b_z) \\
+       \hat{h}_t &=& g\left(x_t W_{xh} + (r_t \odot h_{t-1}) W_{hh} + b_h\right) \\
+       h_t &=& h_{t-1} (1 - z_t) + \hat{h}_t z_t.
+       \end{eqnarray}
+
+    Here, :math:`g(\cdot)` is the activation function for the layer, and
+    :math:`\sigma(\cdot)` is the logistic sigmoid, which ensures that the two
+    gates in the layer are limited to the open interval (0, 1). The symbol
+    :math:`\odot` indicates elementwise multiplication.
 
     *Parameters*
 

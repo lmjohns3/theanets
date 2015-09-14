@@ -621,7 +621,7 @@ More Information
 This concludes the user guide! Please read more information about ``theanets``
 in the `examples and API documentation`_.
 
-.. _examples and API documentation: ../
+.. _examples and API documentation: ./
 
 The source code for ``theanets`` lives at http://github.com/lmjohns3/theanets.
 Please fork, explore, and send pull requests!

@@ -1,3 +1,7 @@
+========
+THEANETS
+========
+
 The ``theanets`` package is a deep learning and neural network toolkit. It is
 written in Python to interoperate with excellent tools like ``numpy`` and
 ``scikit-learn``, and it uses Theano_ to accelerate computations when possible

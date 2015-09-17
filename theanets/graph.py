@@ -69,7 +69,7 @@ class Network(object):
     INPUT_NDIM = 2
     '''Number of dimensions for holding input data arrays.'''
 
-    def __init__(self, layers, loss='mse', weighted=False):
+    def __init__(self, layers=(), loss='mse', weighted=False):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
 

@@ -34,6 +34,14 @@ Or download the current source and run it from there::
     cd theanets
     python setup.py develop
 
+Note that the contents of this README are linked to the version of ``theanets``
+that you are using. If you're looking at the `README on GitHub`_, you'll need
+the current GitHub code; if you're looking at the `README for a pypi release`_,
+you'll need the code associated with that release.
+
+.. _README on GitHub: https://github.com/lmjohns3/theanets
+.. _README for a pypi release: https://pypi.python.org/pypi/theanets
+
 Quick Start: Classification
 ===========================
 

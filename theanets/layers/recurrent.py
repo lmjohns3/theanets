@@ -1008,7 +1008,8 @@ class MUT1(Recurrent):
        \begin{eqnarray}
        r_t &=& \sigma(x_t W_{xr} + h_{t-1} W_{hr} + b_r) \\
        z_t &=& \sigma(x_t W_{xz} + b_z) \\
-       \hat{h}_t &=& \tanh\left(\tanh(x_t W_{xh}) + (r_t \odot h_{t-1}) W_{hh} + b_h\right) \\
+       \hat{h}_t &=& \tanh\left(\tanh(x_t W_{xh}) +
+          (r_t \odot h_{t-1}) W_{hh} + b_h\right) \\
        h_t &=& (1 - z_t) \odot h_{t-1} + z_t \odot \hat{h}_t.
        \end{eqnarray}
 

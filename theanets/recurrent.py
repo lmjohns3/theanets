@@ -7,7 +7,6 @@ import numpy as np
 import re
 
 from . import feedforward
-from . import losses
 
 
 def batches(arrays, steps=100, batch_size=64, rng=None):

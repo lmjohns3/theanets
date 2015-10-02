@@ -87,9 +87,7 @@ def from_kwargs(graph, **kwargs):
     rng = kwargs.get('rng')
 
     def pattern(ls):
-        if len(ls) == 1:
-            return ls[0].output_name()
-        return '{' + ','.join(l.output_name() for l in ls) + '}'
+        return tuple(l.output_name() for l in ls)
 
     inputs = pattern([l for l in graph.layers if isinstance(l, layers.Input)])
     hiddens = pattern(graph.layers[1:-1])
@@ -590,9 +588,8 @@ class GaussianNoise(Regularizer):
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):
             outputs[name + '-prenoise'] = expr
-            noise = self.rng.normal(
+            outputs[name] = expr + self.rng.normal(
                 size=expr.shape, std=self.weight, dtype=util.FLOAT)
-            outputs[name] = expr + noise
 
 
 class BernoulliDropout(Regularizer):
@@ -683,6 +680,5 @@ class BernoulliDropout(Regularizer):
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):
             outputs[name + '-predrop'] = expr
-            mask = self.rng.binomial(
+            outputs[name] = expr * self.rng.binomial(
                 size=expr.shape, n=1, p=1-self.weight, dtype=util.FLOAT)
-            outputs[name] = expr * mask

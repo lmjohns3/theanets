@@ -118,7 +118,7 @@ def random_vector(size, mean=0, std=1, rng=None):
     return (mean + std * rng.randn(size)).astype(FLOAT)
 
 
-def outputs_matching(outputs, pattern):
+def outputs_matching(outputs, patterns):
     '''Get the outputs from a network that match a pattern.
 
     Parameters
@@ -126,9 +126,9 @@ def outputs_matching(outputs, pattern):
     outputs : dict or sequence of (str, theano expression)
         Output expressions to filter for matches. If this is a dictionary, its
         ``items()`` will be processed for matches.
-    pattern : str
-        A glob-style pattern to match against. ``'*'`` will match all outputs,
-        while ``'a:*'`` matches outputs named ``'a:b'`` ``'a:xyz'`` and so on.
+    patterns : sequence of str
+        A sequence of glob-style patterns to match against. Any parameter
+        matching any pattern in this sequence will be included in the match.
 
     Yields
     ------
@@ -137,24 +137,27 @@ def outputs_matching(outputs, pattern):
         of the output that matched, and the expression is the symbolic output in
         the network graph.
     '''
+    if isinstance(patterns, str):
+        patterns = (patterns, )
     if isinstance(outputs, dict):
         outputs = outputs.items()
     for name, expr in outputs:
-        if fnmatch.fnmatch(name, pattern):
-            yield name, expr
+        for pattern in patterns:
+            if fnmatch.fnmatch(name, pattern):
+                yield name, expr
+                break
 
 
-def params_matching(layers, pattern):
+def params_matching(layers, patterns):
     '''Get the parameters from a network that match a pattern.
 
     Parameters
     ----------
     layers : list of :class:`theanets.layers.Layer`
         A list of network layers to retrieve parameters from.
-    pattern : str
-        A glob-style pattern to match against. ``'*'`` will match all
-        parameters, while ``'a.*'`` matches parameters named ``'a.b'``
-        ``'a.xyz'`` and so on.
+    patterns : sequence of str
+        A sequence of glob-style patterns to match against. Any parameter
+        matching any pattern in this sequence will be included in the match.
 
     Yields
     ------
@@ -163,7 +166,12 @@ def params_matching(layers, pattern):
         of the parameter that matched, and the expression represents the
         parameter symbolically.
     '''
+    if isinstance(patterns, str):
+        patterns = (patterns, )
     for layer in layers:
-        for p in layer.params:
-            if fnmatch.fnmatch(p.name, pattern):
-                yield p.name, p
+        for param in layer.params:
+            name = param.name
+            for pattern in patterns:
+                if fnmatch.fnmatch(name, pattern):
+                    yield name, param
+                    break

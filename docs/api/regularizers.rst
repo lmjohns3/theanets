@@ -43,7 +43,7 @@ network will be penalized with a 0.1 coefficient. The rest of this section
 details the built-in regularizers that are available in ``theanets``.
 
 Decay
------
+=====
 
 Using "weight decay," we assume that parameters in a model are drawn from a
 zero-mean Gaussian distribution with an isotropic, modeler-specified standard
@@ -74,7 +74,7 @@ The value of the argument is the strength of the regularizer in the loss for the
 model. Larger values create more pressure for small model weights.
 
 Sparsity
---------
+========
 
 Sparse models have been shown to capture regularities seen in the mammalian
 visual cortex. In addition, sparse models in machine learning are often more
@@ -141,7 +141,7 @@ model. Large values create more pressure for hidden representations that use
 mostly zeros.
 
 Noise
------
+=====
 
 Another way of regularizing a model to prevent overfitting is to inject noise
 into the data or the representations during training. While noise could always
@@ -217,7 +217,6 @@ noise pushes the data and the representations off of their respective manifolds,
 but the loss is computed with respect to the uncorrupted input. This is thought
 to encourage the model to develop representations that push towards the true
 manifold of the data.
-
 
 Predefined Regularizers
 =======================

@@ -11,4 +11,4 @@ from .main import Experiment
 from . import recurrent
 from . import regularizers
 
-__version__ = '0.7.0pre'
+__version__ = '0.7.0'

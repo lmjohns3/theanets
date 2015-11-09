@@ -21,6 +21,14 @@ from . import util
 logging = climate.get_logger(__name__)
 
 
+class Error(Exception):
+    pass
+
+
+class LayerError(Error):
+    pass
+
+
 class Network(object):
     '''The network class encapsulates a network computation graph.
 
@@ -151,11 +159,30 @@ class Network(object):
                 form = layer.pop('form').lower()
             kw.update(layer)
 
+        # handle non-dict input specifications.
+        if 'inputs' in kw and not isinstance(kw['inputs'], dict):
+            inputs = kw['inputs']
+            if not isinstance(inputs, (tuple, list)):
+                inputs = (inputs, )
+            target = {}
+            for i in inputs:
+                name = i if ':' not in i else i.split(':', 1)[0]
+                try:
+                    layer = [l for l in self.layers if l.name == name][0]
+                except IndexError:
+                    raise LayerError('cannot find layer "{}"'.format(i))
+                target[layer.output_name()] = layer.size
+            kw['inputs'] = target
+
+        # look for a partner layer instance for creating a tied layer.
         if isinstance(form, str) and form.lower() == 'tied':
             partner = kw.get('partner')
             if isinstance(partner, str):
                 # if the partner is named, just get that layer.
-                partner = [l for l in self.layers if l.name == partner][0]
+                try:
+                    partner = [l for l in self.layers if l.name == partner][0]
+                except IndexError:
+                    raise LayerError('cannot find partner layer "{}"'.format(partner))
             else:
                 # otherwise, we look backwards through our list of layers.
                 # any "tied" layer that we find increases a counter by one,
@@ -171,9 +198,8 @@ class Network(object):
                     if tied == 0:
                         partner = l
                         break
-                assert partner is not None, \
-                    'could not find tied layer partner for {} in {}'.format(
-                        layer, self.layers)
+                else:
+                    raise LayerError('cannot find partner for "{}"'.format(layer))
             kw['partner'] = partner
 
         layer = layers.Layer.build(form, **kw)

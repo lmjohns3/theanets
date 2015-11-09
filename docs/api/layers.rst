@@ -211,7 +211,7 @@ using the name of your class:
 
 .. code:: python
 
-  layer = theanets.Layer.build('nobias', inputs=3, size=4)
+  layer = theanets.Layer.build('nobias', size=4)
 
 or, while creating a model:
 

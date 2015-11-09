@@ -592,14 +592,14 @@ chain of layers. However, it is also possible to create network graphs that have
 arbitrary, acyclic connections among layers. Creating a nonlinear network graph
 requires using the ``inputs`` keyword argument when creating a layer.
 
-The ``inputs`` keyword argument for creating a layer should be a dictionary that
-maps from the name of a network output to the size of that output. If ``inputs``
-is not specified for a layer, ``theanets`` creates a default dictionary that
-just uses the output from the previous layer.
+The ``inputs`` keyword argument for creating a layer should be a list of strings
+that specifies the names of one or more network outputs. If ``inputs`` is not
+specified for a layer, ``theanets`` creates a default input specification that
+uses the output from the previous layer.
 
-Perhaps the simplest example of a non-default ``inputs`` dictionary is to create
-a classifier model that uses outputs from all hidden layers to inform the final
-output of the layer. Such a "multi-scale" model can be created as follows:
+Perhaps the simplest example of a non-default ``inputs`` specification is to
+create a classifier model that uses outputs from all hidden layers to inform the
+final output of the layer. Such a "multi-scale" model can be created as follows:
 
 .. code:: python
 
@@ -608,7 +608,7 @@ output of the layer. Such a "multi-scale" model can be created as follows:
       dict(size=100, name='a'),
       dict(size=100, name='b'),
       dict(size=100, name='c'),
-      dict(size=10, inputs={'a:out': 100, 'b:out': 100, 'c:out': 100}),
+      dict(size=10, inputs=('a', 'b', 'c')),
   ))
 
 Here, each of the hidden layers is assigned an explicit name, so that they will

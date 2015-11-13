@@ -294,7 +294,7 @@ class TestRNN(BaseRecurrent):
 
 class TestARRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.ARRNN(
+        return theanets.layers.RRNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
 
     def test_create(self):
@@ -310,13 +310,31 @@ class TestARRNN(BaseRecurrent):
 
 class TestLRRNN(BaseRecurrent):
     def _build(self):
-        return theanets.layers.LRRNN(
-            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        return theanets.layers.RRNN(
+            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l',
+            rate='vector')
 
     def test_create(self):
         self.assert_param_names(['b', 'hh', 'r', 'xh'])
         self.assert_count(
             (1 + 1 + self.NUM_INPUTS + self.NUM_HIDDEN) * self.NUM_HIDDEN)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 4
+        assert not upd
+
+
+class TestRRNN(BaseRecurrent):
+    def _build(self):
+        return theanets.layers.RRNN(
+            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l',
+            rate='uniform')
+
+    def test_create(self):
+        self.assert_param_names(['b', 'hh', 'xh'])
+        self.assert_count(
+            (1 + self.NUM_INPUTS + self.NUM_HIDDEN) * self.NUM_HIDDEN)
 
     def test_transform(self):
         out, upd = self.l.transform(dict(out=self.x))
@@ -413,7 +431,7 @@ class TestClockwork(BaseRecurrent):
 class TestBidirectional(BaseRecurrent):
     def _build(self):
         return theanets.layers.Bidirectional(
-            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, worker='arrnn', name='l')
+            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, worker='rrnn', name='l')
 
     def test_create(self):
         self.assert_param_names(
@@ -428,4 +446,4 @@ class TestBidirectional(BaseRecurrent):
         assert not upd
 
     def test_spec(self):
-        self.assert_spec(size=self.NUM_HIDDEN, form='bidirectional', worker='arrnn')
+        self.assert_spec(size=self.NUM_HIDDEN, form='bidirectional', worker='rrnn')

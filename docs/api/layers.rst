@@ -84,12 +84,11 @@ Recurrent
    :toctree: generated/
 
    RNN
-   MRNN
-   LRRNN
-   ARRNN
+   RRNN
    MUT1
    GRU
    LSTM
+   MRNN
    Clockwork
    Bidirectional
 

@@ -314,17 +314,22 @@ class RRNN(Recurrent):
     .. [Ben12] Y. Bengio, N. Boulanger-Lewandowski, & R. Pascanu. (2012)
        "Advances in Optimizing Recurrent Networks."
        http://arxiv.org/abs/1212.0901
+
+    .. [Jag07] H. Jaeger, M. Lukoševičius, D. Popovici, & U. Siewert. (2007)
+       "Optimization and applications of echo state networks with
+       leaky-integrator neurons." Neural Networks, 20(3):335–352.
     '''
 
     def __init__(self, rate='matrix', **kwargs):
         self.rate = rate.lower().strip()
         super(RRNN, self).__init__(**kwargs)
         self._rates = None
+        eps = 1e-4
         if self.rate == 'uniform':
-            z = np.random.uniform(0, 1, size=self.size).astype(util.FLOAT)
+            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
             self._rates = theano.shared(z, name=self._fmt('rate'))
         if self.rate == 'log':
-            z = np.random.uniform(-6, 0, size=self.size).astype(util.FLOAT)
+            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
             self._rates = theano.shared(np.exp(z), name=self._fmt('rate'))
 
     def setup(self):
@@ -673,14 +678,14 @@ class GRU(Recurrent):
     -----
 
     The Gated Recurrent Unit lies somewhere between the :class:`LSTM` and the
-    :class:`ARRNN` in complexity. Like the :class:`ARRNN`, its hidden state is
+    :class:`RRNN` in complexity. Like the :class:`RRNN`, its hidden state is
     updated at each time step to be a linear interpolation between the previous
     hidden state, :math:`h_{t-1}`, and the "target" hidden state, :math:`h_t`.
     The interpolation is modulated by an "update gate" that serves the same
-    purpose as the rate gates in the :class:`ARRNN` and :class:`LRRNN`. Like the
-    :class:`LSTM`, the target hidden state can also be reset using a dedicated
-    gate. All gates in this layer are activated based on the current input as
-    well as the previous hidden state.
+    purpose as the rate gates in the :class:`RRNN`. Like the :class:`LSTM`, the
+    target hidden state can also be reset using a dedicated gate. All gates in
+    this layer are activated based on the current input as well as the previous
+    hidden state.
 
     The update equations in this layer are largely those given by [Chu14]_, page
     4, except for the addition of a hidden bias term. They are:

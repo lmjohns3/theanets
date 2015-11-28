@@ -28,15 +28,14 @@ Reference
    theanets.layers.feedforward.Classifier
    theanets.layers.feedforward.Feedforward
    theanets.layers.feedforward.Tied
-   theanets.layers.recurrent.ARRNN
    theanets.layers.recurrent.Bidirectional
    theanets.layers.recurrent.Clockwork
    theanets.layers.recurrent.GRU
-   theanets.layers.recurrent.LRRNN
    theanets.layers.recurrent.LSTM
    theanets.layers.recurrent.MRNN
    theanets.layers.recurrent.MUT1
    theanets.layers.recurrent.RNN
+   theanets.layers.recurrent.RRNN
    theanets.losses.CrossEntropy
    theanets.losses.GaussianLogLikelihood
    theanets.losses.Hinge

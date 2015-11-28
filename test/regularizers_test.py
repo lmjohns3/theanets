@@ -12,7 +12,7 @@ class TestNetwork(util.Base):
         trainN, validN = self.exp.train(
             [self.INPUTS, self.OUTPUTS],
             algorithm='sgd',
-            patience=1,
+            patience=2,
             min_improvement=0.01,
             batch_size=self.NUM_EXAMPLES,
             **kwargs)

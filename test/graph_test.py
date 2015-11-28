@@ -31,11 +31,35 @@ class TestNetwork:
         assert m.layers[1].activation == 'relu'
         assert isinstance(m.layers[1], theanets.layers.recurrent.RNN)
 
+    def test_layer_named_inputs(self):
+        m = theanets.Regressor((1, 2, dict(size=3, inputs='hid1')))
+        assert len(m.layers) == 3
+        m = theanets.Regressor((1, 2, dict(size=3, inputs=('in', 'hid1'))))
+        assert len(m.layers) == 3
+
+    def test_layer_named_inputs_missing(self):
+        try:
+            theanets.Regressor((1, 2, dict(size=3, inputs='hid2')))
+            assert False
+        except theanets.graph.LayerError:
+            pass
+        except:
+            assert False
+
     def test_layer_tied(self):
         m = theanets.Regressor((1, 2, (1, 'tied')))
         assert len(m.layers) == 3
         assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
         assert m.layers[2].partner is m.layers[1]
+
+    def test_layer_tied_no_partner(self):
+        try:
+            theanets.Regressor((1, (2, 'tied'), (2, 'tied'), (1, 'tied')))
+            assert False
+        except theanets.graph.LayerError:
+            pass
+        except:
+            assert False
 
     def test_default_output_name(self):
         m = theanets.Regressor((1, 2, (1, 'tied')))

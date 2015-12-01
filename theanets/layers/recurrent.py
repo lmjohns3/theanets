@@ -23,6 +23,7 @@ __all__ = [
     'MUT1',
     'RNN',
     'RRNN',
+    'SCRN',
 ]
 
 
@@ -339,7 +340,7 @@ class RRNN(Recurrent):
         self.add_bias('b', self.size)
 
         if self.rate == 'vector' or self.rate == 'matrix':
-            self.add_bias('r', self.size, mean=2, std=1)
+            self.add_bias('r', self.size)
             if self.rate == 'matrix':
                 self.add_weights('xr', self.input_size, self.size)
 
@@ -1054,6 +1055,141 @@ class MUT1(Recurrent):
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
+
+
+class SCRN(Recurrent):
+    r'''Simple Contextual Recurrent Network layer.
+
+    Notes
+    -----
+
+    A Simple Contextual Recurrent Network incorporates an explicitly slow-moving
+    hidden context layer with a simple recurrent network.
+
+    The update equations in this layer are largely those given by [Mik15]_,
+    pages 4 and 5, but this implementation adds a bias term for the output of
+    the layer. The update equations are thus:
+
+    .. math::
+       \begin{eqnarray}
+       s_t &=& r \odot x_t W_{xs} + (1 - r) \odot s_{t-1} \\
+       h_t &=& \sigma(x_t W_{xh} + h_{t-1} W_{hh} + s_t W_{sh}) \\
+       o_t &=& g\left(h_t W_{ho} + s_t W_{so} + b\right). \\
+       \end{eqnarray}
+
+    Here, :math:`g(\cdot)` is the activation function for the layer and
+    :math:`\odot` is elementwise multiplication. The rate values :math:`r` are
+    computed using :math:`r = \sigma(\hat{r})` so that the rate values are
+    limited to the open interval (0, 1). :math:`\sigma(\cdot)` is the logistic
+    sigmoid.
+
+    *Parameters*
+
+    - ``xs`` --- matrix connecting inputs to state units (called B in the paper)
+    - ``xh`` --- matrix connecting inputs to hidden units (A)
+    - ``sh`` --- matrix connecting state to hiddens (P)
+    - ``hh`` --- matrix connecting hiddens to hiddens (R)
+    - ``ho`` --- matrix connecting hiddens to output (U)
+    - ``so`` --- matrix connecting state to output (V)
+    - ``b`` --- vector of output bias values (not in original paper)
+
+    Additionally, if ``rate`` is specified as ``'vector'`` (the default), then
+    we also have:
+
+    - ``r`` --- vector of learned rate values for the state units
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    - ``hid`` --- the state of the layer's hidden units
+    - ``state`` --- the state of the layer's state units
+    - ``rate`` --- the rate values of the state units
+
+    References
+    ----------
+
+    .. [Mik15] T. Mikolov, A. Joulin, S. Chopra, M. Mathieu, & M. Ranzato (ICLR
+       2015) "Learning Longer Memory in Recurrent Neural Networks."
+       http://arxiv.org/abs/1412.7753
+    '''
+
+    def __init__(self, rate='vector', **kwargs):
+        self.rate = rate.lower().strip()
+        super(SCRN, self).__init__(**kwargs)
+        self._rates = None
+        eps = 1e-4
+        if self.rate == 'uniform':
+            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
+            self._rates = theano.shared(z, name=self._fmt('rate'))
+        if self.rate == 'log':
+            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
+            self._rates = theano.shared(np.exp(z), name=self._fmt('rate'))
+
+    def setup(self):
+        self.add_weights('xs', self.input_size, self.size)
+        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('sh', self.size, self.size)
+        self.add_weights('hh', self.size, self.size)
+        self.add_weights('ho', self.size, self.size)
+        self.add_weights('so', self.size, self.size)
+
+        self.add_bias('b', self.size)
+
+        if self.rate == 'vector':
+            self.add_bias('r', self.size)
+
+    def transform(self, inputs):
+        '''Transform inputs to this layer into outputs for the layer.
+
+        Parameters
+        ----------
+        inputs : dict of theano expressions
+            Symbolic inputs to this layer, given as a dictionary mapping string
+            names to Theano expressions. See :func:`base.Layer.connect`.
+
+        Returns
+        -------
+        outputs : dict of theano expressions
+            A map from string output names to Theano expressions for the outputs
+            from this layer. This layer type generates a "pre" output that gives
+            the unit activity before applying the layer's activation function, a
+            "hid" output that gives the post-activation values before applying
+            the rate mixing, and an "out" output that gives the overall output.
+        updates : sequence of update pairs
+            A sequence of updates to apply to this layer's state inside a theano
+            function.
+        '''
+        # input is:   (batch, time, input)
+        # scan wants: (time, batch, input)
+        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+
+        r = self._rates
+        if self.rate == 'vector':
+            r = TT.nnet.sigmoid(self.find('r'))
+
+        def fn(xh_t, xs_t, h_tm1, s_tm1):
+            s = (1 - r) * s_tm1 + r * xs_t
+            p = xh_t + TT.dot(h_tm1, self.find('hh')) + TT.dot(s, self.find('sh'))
+            return [p, TT.nnet.sigmoid(p), s]
+
+        (p, _, s), updates = self._scan(
+            fn,
+            [TT.dot(x, self.find('xh')), TT.dot(x, self.find('xs'))],
+            [None, x, x])
+
+        # output is:  (time, batch, output)
+        # we want:    (batch, time, output)
+        hid = TT.nnet.sigmoid(p.dimshuffle(1, 0, 2))
+        state = s.dimshuffle(1, 0, 2)
+
+        pre = (TT.dot(hid, self.find('ho')) +
+               TT.dot(state, self.find('so')) +
+               self.find('b'))
+
+        return dict(
+            rate=r, state=state, hid=hid, pre=pre, out=self.activate(pre),
+        ), updates
 
 
 class Bidirectional(base.Layer):

@@ -8,4 +8,4 @@ from . import layers
 from . import recurrent
 from . import trainer
 
-__version__ = '0.6.2'
+__version__ = '0.6.3'

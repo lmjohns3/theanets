@@ -95,7 +95,9 @@ class Experiment:
             name=name,
             batch_size=kwargs.get(b, 32),
             iteration_size=kwargs.get(i, kwargs.get(s)),
-            axis=kwargs.get('axis', default_axis))
+            axis=kwargs.get('axis', default_axis),
+            rng=kwargs.get('rng', self.network._rng),
+        )
 
     def train(self, *args, **kwargs):
         '''Train the network until the trainer converges.

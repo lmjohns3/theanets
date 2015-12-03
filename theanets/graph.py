@@ -89,9 +89,12 @@ class Network(object):
         of one class is significantly different than another. The default is not
         to use weighted outputs.
 
-    sparse_input : bool
+    sparse_input : bool, optional
         If True, create an input variable that can hold a sparse matrix.
         Defaults to False, which assumes all arrays are dense.
+
+    rng : int or RandomState, optional
+        A seed or state instance for the random number generator. Defaults to 13.
 
     Attributes
     ----------
@@ -103,9 +106,10 @@ class Network(object):
         True iff this network expects target weight inputs during training.
     '''
 
-    def __init__(self, layers, weighted=False, sparse_input=False):
+    def __init__(self, layers, weighted=False, sparse_input=False, rng=13):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
+        self._rng = rng
         self.weighted = weighted
         self.inputs = list(self._setup_vars(sparse_input))
         self.layers = []
@@ -167,6 +171,7 @@ class Network(object):
             activation=act if is_output else 'logistic',
             inputs={self.layers[-1].output_name(): self.layers[-1].size},
             size=layer,
+            rng=self._rng,
         )
 
         # if layer is a tuple, assume that it contains one or more of the following:

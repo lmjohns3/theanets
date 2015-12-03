@@ -672,7 +672,7 @@ class Clockwork(Recurrent):
                      inputs,
                      self.size,
                      ' '.join(str(T) for T in self.periods),
-                     self.activate.name,
+                     getattr(self.activate, 'name', self.activate),
                      self.num_params)
 
     def transform(self, inputs):

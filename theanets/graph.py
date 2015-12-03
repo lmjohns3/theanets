@@ -62,6 +62,9 @@ class Network(object):
         If True, optimize this model using a "weighted" loss. Weighted losses
         typically require an additional array as input during optimization.
         For more information, see :ref:`losses-weighted`. Defaults to False.
+    rng : int or RandomState, optional
+        A seed or numpy ``RandomState`` instance for generating randomness in
+        the model. Defaults to 13.
 
     Attributes
     ----------

@@ -379,8 +379,8 @@ class Classifier(feedforward.Classifier):
     INPUT_NDIM = 3
     '''Number of dimensions for holding input data arrays.'''
 
-    def __init__(self, layers, loss='xe', weighted=False):
-        super(Classifier, self).__init__(layers)
+    def __init__(self, layers, loss='xe', weighted=False, rng=13):
+        super(Classifier, self).__init__(layers, rng=rng)
         self.set_loss(loss, target=2, weighted=weighted)
 
     def predict_sequence(self, labels, steps, streams=1, rng=None):

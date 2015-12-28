@@ -47,3 +47,23 @@ class TestNetwork(util.Base):
 
     def test_contractive(self):
         self.assert_progress(contractive=0.001)
+
+
+class TestRecurrent(util.RecurrentBase):
+    def setUp(self):
+        self.exp = theanets.recurrent.Regressor([
+            self.NUM_INPUTS, (10, 'rnn'), self.NUM_OUTPUTS])
+
+    def test_recurrent_l2(self):
+        self.assert_progress(recurrent_l2=0.001)
+
+    def assert_progress(self, **kwargs):
+        train0, valid0 = next(self.exp.itertrain([self.INPUTS, self.OUTPUTS]))
+        trainN, validN = self.exp.train(
+            [self.INPUTS, self.OUTPUTS],
+            algorithm='sgd',
+            patience=2,
+            min_improvement=0.01,
+            batch_size=self.NUM_EXAMPLES,
+            **kwargs)
+        assert trainN['loss'] < valid0['loss']   # should have made progress!

@@ -84,7 +84,10 @@ def from_kwargs(graph, **kwargs):
             kwargs.update(regs)
 
     regs = []
+
     rng = kwargs.get('rng')
+    if not isinstance(rng, RandomStreams):
+        rng = None
 
     def pattern(ls):
         return tuple(l.output_name() for l in ls)
@@ -652,8 +655,8 @@ class GaussianNoise(Regularizer):
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s(%s) at %s',
-                     self.__class__.__name__, self.pattern, self.weight)
+        logging.info('regularizer: %s * %s(%s)',
+                     self.weight, self.__class__.__name__, self.pattern)
 
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):

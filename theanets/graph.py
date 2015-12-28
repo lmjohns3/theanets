@@ -62,6 +62,9 @@ class Network(object):
         If True, optimize this model using a "weighted" loss. Weighted losses
         typically require an additional array as input during optimization.
         For more information, see :ref:`losses-weighted`. Defaults to False.
+    rng : int or RandomState, optional
+        A seed or numpy ``RandomState`` instance for generating randomness in
+        the model. Defaults to 13.
 
     Attributes
     ----------
@@ -77,9 +80,10 @@ class Network(object):
     INPUT_NDIM = 2
     '''Number of dimensions for holding input data arrays.'''
 
-    def __init__(self, layers=(), loss='mse', weighted=False):
+    def __init__(self, layers=(), loss='mse', weighted=False, rng=13):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
+        self._rng = rng
 
         self.layers = []
         for i, layer in enumerate(layers):
@@ -123,6 +127,7 @@ class Network(object):
             kw['ndim'] = self.INPUT_NDIM
         else:
             kw['inputs'] = {self.layers[-1].output_name(): self.layers[-1].size}
+            kw['rng'] = self._rng
             if is_output:
                 kw['activation'] = self.DEFAULT_OUTPUT_ACTIVATION
                 kw['name'] = 'out'
@@ -313,6 +318,9 @@ class Network(object):
             A dictionary of monitor values computed using the validation
             dataset, at the conclusion of training.
         '''
+        if 'rng' not in kwargs:
+            kwargs['rng'] = self._rng
+
         def create_dataset(data, **kwargs):
             name = kwargs.get('name', 'dataset')
             s = '{}_batches'.format(name)
@@ -322,7 +330,7 @@ class Network(object):
                 batch_size=kwargs.get('batch_size', 32),
                 iteration_size=kwargs.get('iteration_size', kwargs.get(s)),
                 axis=kwargs.get('axis', 0),
-                rng=kwargs.get('rng', None))
+                rng=kwargs['rng'])
 
         # set up datasets ...
         if valid is None:

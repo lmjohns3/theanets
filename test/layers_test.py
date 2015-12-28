@@ -428,6 +428,25 @@ class TestClockwork(BaseRecurrent):
         self.assert_spec(periods=(5, 2), size=self.NUM_HIDDEN, form='clockwork')
 
 
+class TestSCRN(BaseRecurrent):
+    def _build(self):
+        return theanets.layers.SCRN(
+            inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+
+    def test_create(self):
+        self.assert_param_names(['b', 'xh', 'hh', 'sh', 'xs', 'ho', 'so', 'r'])
+        self.assert_count(
+            2 * (1 + self.NUM_INPUTS + 2 * self.NUM_HIDDEN) * self.NUM_HIDDEN)
+
+    def test_transform(self):
+        out, upd = self.l.transform(dict(out=self.x))
+        assert len(out) == 5
+        assert not upd
+
+    def test_spec(self):
+        self.assert_spec(size=self.NUM_HIDDEN, form='scrn')
+
+
 class TestBidirectional(BaseRecurrent):
     def _build(self):
         return theanets.layers.Bidirectional(

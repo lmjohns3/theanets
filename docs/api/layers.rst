@@ -89,6 +89,7 @@ Recurrent
    GRU
    LSTM
    MRNN
+   SCRN
    Clockwork
    Bidirectional
 

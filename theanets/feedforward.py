@@ -117,8 +117,8 @@ class Autoencoder(graph.Network):
     In this light, "nonlinear PCA" is quite easy to formulate as well!
     '''
 
-    def __init__(self, layers, loss='mse', weighted=False):
-        super(Autoencoder, self).__init__(layers)
+    def __init__(self, layers, loss='mse', weighted=False, rng=13):
+        super(Autoencoder, self).__init__(layers, rng=rng)
         self.set_loss(form=loss, target=self.inputs[0], weighted=weighted)
 
     def encode(self, x, layer=None, sample=False):
@@ -352,8 +352,8 @@ class Classifier(graph.Network):
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
     '''Default activation for the output layer.'''
 
-    def __init__(self, layers, loss='xe', weighted=False):
-        super(Classifier, self).__init__(layers)
+    def __init__(self, layers, loss='xe', weighted=False, rng=13):
+        super(Classifier, self).__init__(layers, rng=rng)
         self.set_loss(form=loss, target=1, weighted=weighted)
 
     def monitors(self, **kwargs):

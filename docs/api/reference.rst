@@ -36,6 +36,7 @@ Reference
    theanets.layers.recurrent.MUT1
    theanets.layers.recurrent.RNN
    theanets.layers.recurrent.RRNN
+   theanets.layers.recurrent.SCRN
    theanets.losses.CrossEntropy
    theanets.losses.GaussianLogLikelihood
    theanets.losses.Hinge

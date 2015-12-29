@@ -23,7 +23,7 @@ class Mixin:
 class TestNetwork(Mixin, util.Base):
     def setUp(self):
         self.exp = theanets.Regressor(
-            [self.NUM_INPUTS, 10, self.NUM_OUTPUTS], rng=127)
+            [self.NUM_INPUTS, 20, self.NUM_OUTPUTS], rng=131)
 
     def test_input_noise(self):
         self.assert_progress(input_noise=0.001)
@@ -68,5 +68,5 @@ class TestRecurrent(Mixin, util.RecurrentBase):
         hiddens = [(n, e) for n, e in matches if e.ndim == 3]
         assert len(hiddens) == 3, [n for n, e in hiddens]
 
-    def test_recurrent_l2(self):
-        self.assert_progress(recurrent_l2=0.001)
+    def test_recurrent_norm(self):
+        self.assert_progress(recurrent_norm=0.001)

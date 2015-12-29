@@ -70,3 +70,6 @@ class TestRecurrent(Mixin, util.RecurrentBase):
 
     def test_recurrent_norm(self):
         self.assert_progress(recurrent_norm=0.001)
+
+    def test_recurrent_state(self):
+        self.assert_progress(recurrent_state=0.001)

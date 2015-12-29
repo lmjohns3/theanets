@@ -55,6 +55,8 @@ Reference
    theanets.regularizers.GaussianNoise
    theanets.regularizers.HiddenL1
    theanets.regularizers.Regularizer
+   theanets.regularizers.RecurrentNorm
+   theanets.regularizers.RecurrentState
    theanets.regularizers.WeightL1
    theanets.regularizers.WeightL2
    theanets.trainer.DownhillTrainer

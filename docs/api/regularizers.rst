@@ -233,6 +233,8 @@ Predefined Regularizers
    WeightL1
    WeightL2
    Contractive
+   RecurrentNorm
+   RecurrentState
    BernoulliDropout
    GaussianNoise
 

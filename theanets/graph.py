@@ -572,7 +572,7 @@ class Network(object):
         '''
         return self.feed_forward(x, **kwargs)[self.layers[-1].output_name()]
 
-    def score(self, x, y, w=None):
+    def score(self, x, y, w=None, **kwargs):
         '''Compute R^2 coefficient of determination for a given labeled input.
 
         Parameters
@@ -592,7 +592,7 @@ class Network(object):
             The R^2 correlation between the prediction of this netork and its
             target output.
         '''
-        u = y - self.predict(x)
+        u = y - self.predict(x, **kwargs)
         v = y - y.mean()
         if w is None:
             w = np.ones_like(u)

@@ -352,9 +352,11 @@ class Classifier(graph.Network):
     DEFAULT_OUTPUT_ACTIVATION = 'softmax'
     '''Default activation for the output layer.'''
 
+    OUTPUT_NDIM = 1
+    '''Number of dimensions for holding output data arrays.'''
+
     def __init__(self, layers, loss='xe', weighted=False, rng=13):
-        super(Classifier, self).__init__(layers, rng=rng)
-        self.set_loss(form=loss, target=1, weighted=weighted)
+        super(Classifier, self).__init__(layers, loss=loss, weighted=weighted, rng=rng)
 
     def monitors(self, **kwargs):
         '''Return expressions that should be computed to monitor training.

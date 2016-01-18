@@ -357,6 +357,14 @@ class TestMRNN(BaseRecurrent):
         assert len(out) == 3
         assert not upd
 
+    def test_spec(self):
+        assert self.l.to_spec() == dict(name='l',
+                                        form='mrnn',
+                                        activation='relu',
+                                        factors=3,
+                                        size=4,
+                                        inputs=dict(out=7))
+
 
 class TestLSTM(BaseRecurrent):
     def _build(self):

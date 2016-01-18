@@ -84,6 +84,11 @@ class TestClassifier(util.Base):
         z = net.predict_proba(self.INPUTS)
         self.assert_shape(z.shape, self.NUM_CLASSES)
 
+    def test_predict_logit_onelayer(self):
+        net = self._build(13)
+        z = net.predict_logit(self.INPUTS)
+        self.assert_shape(z.shape, self.NUM_CLASSES)
+
     def test_predict_twolayer(self):
         net = self._build(13, 14)
         z = net.predict(self.INPUTS)
@@ -136,7 +141,7 @@ class TestAutoencoder(util.Base):
 
     def test_encode_onelayer(self):
         net = self._build(13)
-        z = net.encode(self.INPUTS)
+        z = net.encode(self.INPUTS, 'hid1')
         self.assert_shape(z.shape, 13)
 
     def test_encode_twolayer(self):

@@ -52,6 +52,12 @@ class TestNetwork:
         assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
         assert m.layers[2].partner is m.layers[1]
 
+    def test_layer_tied_partner(self):
+        m = theanets.Regressor((1, 2, dict(size=1, form='tied', partner='hid1')))
+        assert len(m.layers) == 3
+        assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
+        assert m.layers[2].partner is m.layers[1]
+
     def test_layer_tied_no_partner(self):
         try:
             theanets.Regressor((1, (2, 'tied'), (2, 'tied'), (1, 'tied')))
@@ -98,6 +104,12 @@ class TestNetwork:
             assert False
         except KeyError:
             pass
+
+    def test_train(self):
+        m = theanets.Regressor((1, 2, 1))
+        tm, vm = m.train([np.random.randn(100, 1).astype('f'),
+                          np.random.randn(100, 1).astype('f')])
+        assert tm['loss'] > 0
 
 
 class TestMonitors:

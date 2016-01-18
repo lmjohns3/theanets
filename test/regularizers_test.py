@@ -3,7 +3,7 @@ import theanets
 import util
 
 
-class Mixin:
+class Mixin(object):
     def assert_progress(self, **kwargs):
         start = best = None
         for _, val in self.exp.itertrain(
@@ -19,6 +19,22 @@ class Mixin:
             if val['loss'] < best:
                 best = val['loss']
         assert best < start   # should have made progress!
+
+
+class TestBuild(util.Base):
+    def setUp(self):
+        self.exp = theanets.Regressor(
+            [self.NUM_INPUTS, 20, self.NUM_OUTPUTS], rng=131)
+
+    def test_regularizers_dict(self):
+        regs = theanets.regularizers.from_kwargs(
+            self.exp, regularizers=dict(input_noise=0.01))
+        assert len(regs) == 1
+
+    def test_regularizers_list(self):
+        reg = theanets.regularizers.Regularizer.build('weight_l2', 0.01)
+        regs = theanets.regularizers.from_kwargs(self.exp, regularizers=[reg])
+        assert len(regs) == 1
 
 
 class TestNetwork(Mixin, util.Base):

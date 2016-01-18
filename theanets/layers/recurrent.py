@@ -174,6 +174,28 @@ class Recurrent(base.Layer):
             truncate_gradient=self.kwargs.get('bptt_limit', -1),
         )
 
+    def _create_rates(self, eps=1e-4):
+        '''Create a rate parameter (usually for a recurrent network layer).
+
+        Parameters
+        ----------
+        eps : float, optional
+            A "buffer" preventing rate values from getting too close to 0 or 1.
+            Defaults to 1e-4.
+
+        Returns
+        -------
+        rates : theano shared or None
+            A vector of rate parameters for certain types of recurrent layers.
+        '''
+        if self.rate == 'uniform':
+            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
+            return theano.shared(z, name=self._fmt('rate'))
+        if self.rate == 'log':
+            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
+            return theano.shared(np.exp(z), name=self._fmt('rate'))
+        return None
+
 
 class RNN(Recurrent):
     r'''Standard recurrent network layer.
@@ -324,14 +346,7 @@ class RRNN(Recurrent):
     def __init__(self, rate='matrix', **kwargs):
         self.rate = rate.lower().strip()
         super(RRNN, self).__init__(**kwargs)
-        self._rates = None
-        eps = 1e-4
-        if self.rate == 'uniform':
-            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
-            self._rates = theano.shared(z, name=self._fmt('rate'))
-        if self.rate == 'log':
-            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
-            self._rates = theano.shared(np.exp(z), name=self._fmt('rate'))
+        self._rates = self._create_rates()
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -1117,14 +1132,7 @@ class SCRN(Recurrent):
     def __init__(self, rate='vector', **kwargs):
         self.rate = rate.lower().strip()
         super(SCRN, self).__init__(**kwargs)
-        self._rates = None
-        eps = 1e-4
-        if self.rate == 'uniform':
-            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
-            self._rates = theano.shared(z, name=self._fmt('rate'))
-        if self.rate == 'log':
-            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
-            self._rates = theano.shared(np.exp(z), name=self._fmt('rate'))
+        self._rates = self._create_rates()
 
     def setup(self):
         self.add_weights('xs', self.input_size, self.size)

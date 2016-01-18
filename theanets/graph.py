@@ -80,6 +80,9 @@ class Network(object):
     INPUT_NDIM = 2
     '''Number of dimensions for holding input data arrays.'''
 
+    OUTPUT_NDIM = 2
+    '''Number of dimensions for holding output data arrays.'''
+
     def __init__(self, layers=(), loss='mse', weighted=False, rng=13):
         self._graphs = {}     # cache of symbolic computation graphs
         self._functions = {}  # cache of callable feedforward functions
@@ -94,7 +97,7 @@ class Network(object):
         if loss and self.layers:
             self.set_loss(loss,
                           weighted=weighted,
-                          target=self.INPUT_NDIM,
+                          target=self.OUTPUT_NDIM,
                           output_name=self.layers[-1].output_name())
 
     def add_layer(self, layer=None, is_output=False, **kwargs):

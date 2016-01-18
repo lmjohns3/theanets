@@ -823,6 +823,7 @@ class BernoulliDropout(Regularizer):
 
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):
-            outputs[name + '-predrop'] = expr
-            outputs[name] = expr * self.rng.binomial(
+            noise = self.rng.binomial(
                 size=expr.shape, n=1, p=1-self.weight, dtype=util.FLOAT)
+            outputs[name + '-predrop'] = expr
+            outputs[name] = expr * noise / self.weight

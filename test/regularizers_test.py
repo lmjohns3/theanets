@@ -11,6 +11,7 @@ class Mixin:
                 algorithm='sgd',
                 patience=2,
                 min_improvement=0.01,
+                max_gradient_norm=1,
                 batch_size=self.NUM_EXAMPLES,
                 **kwargs):
             if start is None:

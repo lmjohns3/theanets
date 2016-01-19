@@ -114,3 +114,28 @@ def plot_layers(weights, tied_weights=False, channels=1):
                     100 + 10 * k + k,
                     channels=channels,
                     title='Decoding weights')
+
+
+def plot_filters(filters):
+    '''Create a plot of conv filters, visualized as pixel arrays.'''
+    imgs = filters.get_value()
+
+    N, channels, x, y = imgs.shape
+    n = int(np.sqrt(N))
+    assert n * n == N, 'filters must contain a square number of rows!'
+    assert channels == 1 or channels == 3, 'can only plot grayscale or rgb filters!'
+
+    img = np.zeros(((y+1) * n - 1, (x+1) * n - 1, channels), dtype=imgs[0].dtype)
+    for i, pix in enumerate(imgs):
+        r, c = divmod(i, n)
+        img[r * (y+1):(r+1) * (y+1) - 1,
+            c * (x+1):(c+1) * (x+1) - 1] = pix.transpose((1, 2, 0))
+
+    img -= img.min()
+    img /= img.max()
+
+    ax = plt.gcf().add_subplot(111)
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    ax.set_frame_on(False)
+    ax.imshow(img.squeeze(), cmap=plt.cm.gray)

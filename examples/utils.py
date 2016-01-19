@@ -70,10 +70,11 @@ def plot_images(imgs, loc, title=None, channels=1):
     s = int(np.sqrt(len(imgs[0]) / channels))
     assert s * s == len(imgs[0]) / channels, 'images must be square!'
 
-    img = np.zeros((s * n, s * n, channels), dtype=imgs[0].dtype)
+    img = np.zeros(((s+1) * n - 1, (s+1) * n - 1, channels), dtype=imgs[0].dtype)
     for i, pix in enumerate(imgs):
         r, c = divmod(i, n)
-        img[r * s:(r+1) * s, c * s:(c+1) * s] = pix.reshape((s, s, channels))
+        img[r * (s+1):(r+1) * (s+1) - 1,
+            c * (s+1):(c+1) * (s+1) - 1] = pix.reshape((s, s, channels))
 
     img -= img.min()
     img /= img.max()

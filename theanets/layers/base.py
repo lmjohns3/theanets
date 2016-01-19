@@ -367,8 +367,9 @@ class Input(Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        logging.info('layer %s "%s": %s inputs',
-                     self.__class__.__name__, self.name, self.size)
+        logging.info('layer %s "%s": %s input channel%s',
+                     self.__class__.__name__, self.name, self.size,
+                     's' if self.size > 1 else '')
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

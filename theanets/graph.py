@@ -547,6 +547,7 @@ class Network(object):
         key = self._hash(regs)
         if key not in self._functions:
             outputs, updates = self.build_graph(regs)
+            outputs['loss'] = self.loss(**kwargs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
             logging.info('compiling feed_forward function')
             self._functions[key] = (labels, theano.function(

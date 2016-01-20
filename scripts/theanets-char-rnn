@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+
+import climate
+import logging
+import numpy as np
+import theanets
+
+g = climate.add_group('Data')
+g.add_argument('-d', '--data', nargs='+', metavar='FILE',
+               help='load text from FILE')
+g.add_argument('-t', '--time', default=100, type=int, metavar='T',
+               help='train on sequences of T characters')
+g.add_argument('-a', '--alphabet', default='', metavar='CHARS',
+               help='use CHARS for alphabet; defaults to all chars in text')
+g.add_argument('-A', '--exclude-alphabet', default='', metavar='CHARS',
+               help='discard CHARS from alphabet')
+
+g = climate.add_group('Architecture')
+g.add_argument('-l', '--layers', nargs='+', type=int, default=[100], metavar='N',
+               help='construct a network with layers of size N1, N2, ...')
+g.add_argument('-L', '--layer-type', default='lstm', metavar='{rnn|gru|lstm|clockwork}',
+               help='construct a network with this RNN layer type')
+g.add_argument('-g', '--activation', default='relu', metavar='FUNC',
+               help='function for hidden unit activations')
+
+g = climate.add_group('Training')
+g.add_argument('-O', '--algorithm', default=['nag'], nargs='+', metavar='ALGO',
+               help='train with the given optimization algorithm(s)')
+g.add_argument('-p', '--patience', type=int, default=4, metavar='N',
+               help='stop training if less than --min-improvement for N validations')
+g.add_argument('-v', '--validate-every', type=int, default=10, metavar='N',
+               help='validate the model every N updates')
+g.add_argument('-b', '--batch-size', type=int, default=64, metavar='N',
+               help='train with mini-batches of size N')
+g.add_argument('-B', '--train-batches', type=int, metavar='N',
+               help='use at most N batches during gradient computations')
+g.add_argument('-V', '--valid-batches', type=int, metavar='N',
+               help='use at most N batches during validation')
+g.add_argument('-i', '--min-improvement', type=float, default=0, metavar='R',
+               help='train until relative improvement is less than R')
+g.add_argument('-x', '--max-gradient-norm', type=float, default=1, metavar='V',
+               help='clip gradient norm to the interval [0, V]')
+g.add_argument('-r', '--learning-rate', type=float, default=1e-4, metavar='V',
+               help='train the network with a learning rate of V')
+g.add_argument('-m', '--momentum', type=float, default=0.9, metavar='V',
+               help='train the network with momentum of V')
+g.add_argument('-n', '--nesterov', action='store_true',
+               help='use Nesterov momentum')
+g.add_argument('-s', '--save-progress', metavar='FILE',
+               help='save the model periodically to FILE')
+g.add_argument('-S', '--save-every', type=float, default=0, metavar='N',
+               help='save the model every N iterations or -N minutes')
+
+g = climate.add_group('Regularization')
+g.add_argument('--input-noise', type=float, default=0, metavar='S',
+               help='add noise to network inputs drawn from N(0, S)')
+g.add_argument('--input-dropouts', type=float, default=0, metavar='R',
+               help='randomly set fraction R of input activations to 0')
+g.add_argument('--hidden-noise', type=float, default=0, metavar='S',
+               help='add noise to hidden activations drawn from N(0, S)')
+g.add_argument('--hidden-dropouts', type=float, default=0, metavar='R',
+               help='randomly set fraction R of hidden activations to 0')
+g.add_argument('--hidden-l1', type=float, default=0, metavar='K',
+               help='regularize hidden activity with K on the L1 term')
+g.add_argument('--hidden-l2', type=float, default=0, metavar='K',
+               help='regularize hidden activity with K on the L2 term')
+g.add_argument('--weight-l1', type=float, default=0, metavar='K',
+               help='regularize network weights with K on the L1 term')
+g.add_argument('--weight-l2', type=float, default=0, metavar='K',
+               help='regularize network weights with K on the L2 term')
+
+g = climate.add_group('RmsProp Optimization')
+g.add_argument('--rms-halflife', type=float, default=5, metavar='N',
+               help='use a half-life of N for RMS exponential moving averages')
+g.add_argument('--rms-regularizer', type=float, default=1e-8, metavar='N',
+               help='regularize RMS exponential moving averages by N')
+
+
+def main(args):
+    corpus = []
+    for f in args.data:
+        corpus.append(open(f).read())
+        logging.info('%s: loaded training document', f)
+    logging.info('loaded %d training documents', len(corpus))
+
+    alpha = set(args.alphabet)
+    if not alpha:
+        for c in corpus:
+            alpha |= set(c)
+    alpha -= set(args.exclude_alphabet)
+    alpha = sorted(alpha)
+    logging.info('character alphabet: %s', alpha)
+
+    # encode document chars as integer alphabet index values.
+    encoded = [np.array([alpha.index(c) for c in doc]) for doc in corpus]
+
+    def batch():
+        T, B = args.time, args.batch_size
+        inputs = np.zeros((T, B, len(alpha)), 'f')
+        outputs = np.zeros((T, B), 'i')
+        enc = np.random.choice(encoded)
+        for b in range(B):
+            o = np.random.randint(len(enc) - T - 1)
+            inputs[np.arange(T), b, enc[o:o+T]] = 1
+            outputs[np.arange(T), b] = enc[o+1:o+T+1]
+        return [inputs, outputs]
+
+    layers = [len(alpha)]
+    for l in args.layers:
+        layers.append(
+            dict(size=l, form=args.layer_type, activation=args.activation))
+    layers.append(len(alpha))
+
+    exp = theanets.Experiment(theanets.recurrent.Classifier, layers=layers)
+
+    exp.train(
+        batch,
+        algo=args.algorithm,
+        patience=args.patience,
+        min_improvement=args.min_improvement,
+        validate_every=args.validate_every,
+        batch_size=args.batch_size,
+        train_batches=args.train_batches,
+        valid_batches=args.valid_batches,
+        learning_rate=args.learning_rate,
+        momentum=args.momentum,
+        nesterov=args.nesterov,
+        save_progress=args.save_progress,
+        save_every=args.save_every,
+        weight_l1=args.weight_l1,
+        weight_l2=args.weight_l2,
+        hidden_l2=args.hidden_l2,
+        hidden_l1=args.hidden_l1,
+        input_noise=args.input_noise,
+        input_dropouts=args.input_dropouts,
+        hidden_noise=args.hidden_noise,
+        hidden_dropouts=args.hidden_dropouts,
+    )
+
+    if args.save_progress:
+        exp.save(args.save_progress)
+
+
+if __name__ == '__main__':
+   climate.call(main)

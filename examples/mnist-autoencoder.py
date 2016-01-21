@@ -25,6 +25,7 @@ def main(args):
 
     net = theanets.Autoencoder([784, args.features ** 2, 784])
     net.train(train, valid,
+              train_batches=100,
               input_noise=0.1,
               weight_l2=0.0001,
               algo='rmsprop',
@@ -35,7 +36,7 @@ def main(args):
     plt.tight_layout()
     plt.show()
 
-    v = valid[:100]
+    v = valid[0][:100]
     plot_images(v, 121, 'Sample data')
     plot_images(net.predict(v), 122, 'Reconstructed data')
     plt.tight_layout()

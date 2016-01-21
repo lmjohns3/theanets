@@ -3,11 +3,11 @@ import pickle
 import gzip
 import numpy as np
 import os
+import pickle
+import sys
+import tarfile
 import tempfile
-
-logging = climate.get_logger(__name__)
-
-climate.enable_default_logging()
+import urllib
 
 try:
     import matplotlib.pyplot as plt
@@ -15,45 +15,90 @@ except ImportError:
     logging.critical('please install matplotlib to run the examples!')
     raise
 
-try:
-    import skdata.mnist
-    import skdata.cifar10
-except ImportError:
-    logging.critical('please install skdata to run the examples!')
-    raise
+logging = climate.get_logger(__name__)
+
+climate.enable_default_logging()
+
+DATASETS = os.path.join(tempfile.gettempdir(), 'theanets-datasets')
 
 
-def load_mnist(labels=False):
+def find(dataset, url):
+    '''Find the location of a dataset on disk, downloading if needed.'''
+    fn = os.path.join(DATASETS, dataset)
+    dn = os.path.dirname(fn)
+    if not os.path.exists(dn):
+        logging.info('creating dataset directory: %s', dn)
+        os.makedirs(dn)
+    if not os.path.exists(fn):
+        if sys.version_info < (3, ):
+            urllib.urlretrieve(url, fn)
+        else:
+            urllib.request.urlretrieve(url, fn)
+    return fn
+
+
+def load_mnist(flatten=True, labels=False):
     '''Load the MNIST digits dataset.'''
-    mnist = skdata.mnist.dataset.MNIST()
-    mnist.meta  # trigger download if needed.
+    fn = find('mnist.pkl.gz', 'http://deeplearning.net/data/mnist/mnist.pkl.gz')
+    h = gzip.open(fn, 'rb')
+    if sys.version_info < (3, ):
+        (timg, tlab), (vimg, vlab), (simg, slab) = pickle.load(h)
+    else:
+        (timg, tlab), (vimg, vlab), (simg, slab) = pickle.load(h, encoding='bytes')
+    h.close()
+    if not flatten:
+        timg = timg.reshape((-1, 28, 28, 1))
+        vimg = vimg.reshape((-1, 28, 28, 1))
+        simg = simg.reshape((-1, 28, 28, 1))
+    if labels:
+        return ((timg, tlab.astype('i')),
+                (vimg, vlab.astype('i')),
+                (simg, slab.astype('i')))
+    return (timg, ), (vimg, ), (simg, )
 
-    def arr(n, dtype):
-        arr = mnist.arrays[n]
-        return arr.reshape((len(arr), -1)).astype(dtype)
 
-    train_images = arr('train_images', np.float32) / 128 - 1
-    train_labels = arr('train_labels', np.uint8)
-    test_images = arr('test_images', np.float32) / 128 - 1
-    test_labels = arr('test_labels', np.uint8)
+def load_cifar(flatten=True, labels=False):
+    '''Load the CIFAR10 image dataset.'''
+    def extract(name):
+        logging.info('extracting data from %s', name)
+        h = tar.extractfile(name)
+        if sys.version_info < (3, ):
+            d = pickle.load(h)
+        else:
+            d = pickle.load(h, encoding='bytes')
+            for k in list(d):
+                d[k.decode('utf8')] = d[k]
+        h.close()
+        img = d['data'].reshape(
+            (-1, 3, 32, 32)).transpose((0, 2, 3, 1)).astype('f') / 128 - 1
+        if flatten:
+            img = img.reshape((-1, 32 * 32 * 3))
+        d['data'] = img
+        return d
+
+    fn = find('cifar10.tar.gz', 'http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz')
+    tar = tarfile.open(fn)
+
+    imgs = []
+    labs = []
+    for i in range(1, 6):
+        d = extract('cifar-10-batches-py/data_batch_{}'.format(i))
+        imgs.extend(d['data'])
+        labs.extend(d['labels'])
+    timg = np.asarray(imgs[:40000])
+    tlab = np.asarray(labs[:40000], 'i')
+    vimg = np.asarray(imgs[40000:])
+    vlab = np.asarray(labs[40000:], 'i')
+
+    d = extract('cifar-10-batches-py/test_batch')
+    simg = d['data']
+    slab = d['labels']
+
+    tar.close()
 
     if labels:
-        return ((train_images[:50000], train_labels[:50000, 0]),
-                (train_images[50000:], train_labels[50000:, 0]),
-                (test_images, test_labels[:, 0]))
-    return train_images[:50000], train_images[50000:], test_images
-
-
-def load_cifar(labels=False):
-    cifar = skdata.cifar10.dataset.CIFAR10()
-    cifar.meta  # trigger download if needed.
-    pixels = cifar._pixels.astype(np.float32).reshape((len(cifar._pixels), -1)) / 128 - 1
-    if labels:
-        labels = cifar._labels.astype(np.uint8)
-        return ((pixels[:40000], labels[:40000, 0]),
-                (pixels[40000:50000], labels[40000:50000, 0]),
-                (pixels[50000:], labels[50000:, 0]))
-    return pixels[:40000], pixels[40000:50000], pixels[50000:]
+        return (timg, tlab), (vimg, vlab), (simg, slab)
+    return (timg, ), (vimg, ), (simg, )
 
 
 def plot_images(imgs, loc, title=None, channels=1):

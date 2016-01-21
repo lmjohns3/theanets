@@ -19,12 +19,13 @@ class WeightInverse(theanets.Regularizer):
                    if w.ndim > 1)
 
 
-train, valid, _ = load_mnist()
+(train, ), (valid, ), _ = load_mnist()
 
 # mean-center the digits and compute a pca whitening transform.
 
-train -= 0.5
-valid -= 0.5
+m = train.mean(axis=0)
+train -= m
+valid -= m
 
 logging.info('computing whitening transform')
 vals, vecs = np.linalg.eigh(np.dot(train.T, train) / len(train))

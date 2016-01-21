@@ -22,7 +22,7 @@ plot_layers([net.find(i, 'w') for i in (1, 2, 3)], tied_weights=True)
 plt.tight_layout()
 plt.show()
 
-valid = valid[:16*16]
+valid = valid[0][:100]
 plot_images(valid, 121, 'Sample data')
 plot_images(net.predict(valid), 122, 'Reconstructed data')
 plt.tight_layout()

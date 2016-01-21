@@ -21,6 +21,7 @@ setuptools.setup(
               'theano '
               ),
     install_requires=['climate', 'downhill', 'theano'],
+    tests_require=['nose', 'pep8'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

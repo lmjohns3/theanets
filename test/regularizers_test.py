@@ -70,7 +70,21 @@ class TestRecurrent(Mixin, util.RecurrentBase):
         assert len(hiddens) == 3, [n for n, e in hiddens]
 
     def test_recurrent_norm(self):
-        self.assert_progress(recurrent_norm=0.001)
+        self.assert_progress(recurrent_norm=dict(pattern='*:out', weight=0.001))
+
+    def test_recurrent_norm_error(self):
+        try:
+            self.assert_progress(recurrent_norm=0.001)
+            assert False
+        except:
+            assert True
 
     def test_recurrent_state(self):
-        self.assert_progress(recurrent_state=0.001)
+        self.assert_progress(recurrent_state=dict(pattern='*:out', weight=0.001))
+
+    def test_recurrent_state(self):
+        try:
+            self.assert_progress(recurrent_state=0.001)
+            assert False
+        except:
+            assert True

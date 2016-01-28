@@ -14,6 +14,14 @@ FLOAT_CONTAINERS = (TT.scalar, TT.vector, TT.matrix, TT.tensor3, TT.tensor4)
 INT_CONTAINERS = (TT.iscalar, TT.ivector, TT.imatrix, TT.itensor3, TT.itensor4)
 
 
+class Error(Exception):
+    pass
+
+
+class ConfigurationError(Error):
+    pass
+
+
 class Registrar(type):
     '''A metaclass that builds a registry of its subclasses.'''
 

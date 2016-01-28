@@ -401,6 +401,144 @@ class HiddenL1(Regularizer):
         return sum(abs(h).mean() for h in hiddens) / len(hiddens)
 
 
+class RecurrentNorm(Regularizer):
+    r'''Penalize successive activation norms of recurrent layers.
+
+    Notes
+    -----
+
+    This regularizer implements the :func:`loss` method to add the following
+    term to a recurrent network's loss function:
+
+    .. math::
+        \frac{1}{T|\Omega|} \sum_{i \in \Omega} \sum_{t=1}^T
+          \left( \|Z_i^t\|_2^2 - \|Z_i^{t-1}\|_2^2 \right)^2
+
+    where :math:`\Omega` is a set of "matching" graph output indices, and the
+    squared L2 norm :math`\|\cdot\|_2^2` is the sum of the squares of the
+    elements in the corresponding array.
+
+    This regularizer encourages the norms of the hidden state activations in a
+    recurrent layer to remain constant over time.
+
+    Examples
+    --------
+
+    This regularizer can be specified at training or test time by providing the
+    ``recurrent_norm`` keyword argument:
+
+    >>> net = theanets.Regression(...)
+
+    To use this regularizer at training time:
+
+    >>> net.train(..., recurrent_norm=0.1)
+
+    By default all recurrent layer outputs are penalized. To include only some
+    graph outputs:
+
+    >>> net.train(..., recurrent_norm=dict(weight=0.1, pattern='hid3:out'))
+
+    To use this regularizer when running the model forward to generate a
+    prediction:
+
+    >>> net.predict(..., recurrent_norm=0.1)
+
+    The value associated with the keyword argument can be a scalar---in which
+    case it provides the weight for the regularizer---or a dictionary, in which
+    case it will be passed as keyword arguments directly to the constructor.
+
+    References
+    ----------
+
+    .. [Kru15] D. Krueger & R. Memisevic. (ICLR 2016?) "Regularizing RNNs by
+       Stabilizing Activations." http://arxiv.org/abs/1511.08400
+    '''
+
+    __extra_registration_keys__ = ['recurrent_norm']
+
+    def loss(self, layers, outputs):
+        pattern = self.pattern
+        if pattern is None:
+            # default pattern matches output from "middle" layers.
+            ns = [l.output_name() for l in layers[1:-1]]
+            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
+        matches = util.outputs_matching(outputs, pattern)
+        hiddens = [expr for _, expr in matches if expr.ndim == 3]
+        if not hiddens:
+            return 0
+        norms = ((e * e).sum(axis=-1) for e in hiddens)
+        deltas = ((e[:, :-1] - e[:, 1:]).mean() for e in norms)
+        return sum(deltas) / len(hiddens)
+
+
+class RecurrentState(Regularizer):
+    r'''Penalize state changes of recurrent layers.
+
+    Notes
+    -----
+
+    This regularizer implements the :func:`loss` method to add the following
+    term to a recurrent network's loss function:
+
+    .. math::
+        \frac{1}{T|\Omega|} \sum_{i \in \Omega} \sum_{t=1}^T
+          \| Z_i^t - Z_i^{t-1} \|_2^2
+
+    where :math:`\Omega` is a set of "matching" graph output indices, and the
+    squared L2 norm :math`\|\cdot\|_2^2` is the sum of the squares of the
+    elements in the corresponding array.
+
+    This regularizer tends to encourage the hidden state activations in a
+    recurrent layer to remain constant over time. Deviations from a constant
+    state thus require "evidence" from the loss.
+
+    Examples
+    --------
+
+    This regularizer can be specified at training or test time by providing the
+    ``recurrent_state`` keyword argument:
+
+    >>> net = theanets.Regression(...)
+
+    To use this regularizer at training time:
+
+    >>> net.train(..., recurrent_state=0.1)
+
+    By default all recurrent layer outputs are penalized. To include only some
+    graph outputs:
+
+    >>> net.train(..., recurrent_state=dict(weight=0.1, pattern='hid3:out'))
+
+    To use this regularizer when running the model forward to generate a
+    prediction:
+
+    >>> net.predict(..., recurrent_state=0.1)
+
+    The value associated with the keyword argument can be a scalar---in which
+    case it provides the weight for the regularizer---or a dictionary, in which
+    case it will be passed as keyword arguments directly to the constructor.
+
+    References
+    ----------
+
+    '''
+
+    __extra_registration_keys__ = ['recurrent_state']
+
+    def loss(self, layers, outputs):
+        pattern = self.pattern
+        if pattern is None:
+            # default pattern matches output from "middle" layers.
+            ns = [l.output_name() for l in layers[1:-1]]
+            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
+        matches = util.outputs_matching(outputs, pattern)
+        hiddens = [expr for _, expr in matches if expr.ndim == 3]
+        if not hiddens:
+            return 0
+        deltas = (e[:, :-1] - e[:, 1:] for e in hiddens)
+        return sum((d * d).mean() for d in deltas) / len(hiddens)
+
+
 class Contractive(Regularizer):
     r'''Penalize the derivative of hidden layers with respect to their inputs.
 
@@ -597,6 +735,9 @@ class GaussianNoise(Regularizer):
 
 class BernoulliDropout(Regularizer):
     r'''Randomly set activations of a layer output to zero.
+
+    Parameters
+    ----------
 
     rng : Theano random number generator, optional
         A Theano random number generator to use for creating noise and dropout

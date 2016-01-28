@@ -2,6 +2,8 @@
 
 import numpy as np
 
+np.random.seed(13)
+
 
 class Base(object):
     NUM_EXAMPLES = 64

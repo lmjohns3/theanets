@@ -43,9 +43,11 @@ def from_kwargs(graph, **kwargs):
         If this is a dict, its contents will be added to the other keyword
         arguments passed in.
 
-    rng : Theano RandomStreams, optional
-        If provided, this random number generator will be used for dropout and
-        noise. Defaults to creating a new generator.
+    rng : int or theano RandomStreams, optional
+        If an integer is provided, it will be used to seed the random number
+        generators for the dropout or noise regularizers. If a theano
+        RandomStreams object is provided, it will be used directly. Defaults to
+        13.
 
     input_dropout : float, optional
         Apply dropout to input layers in the network graph, with this dropout
@@ -85,9 +87,7 @@ def from_kwargs(graph, **kwargs):
 
     regs = []
 
-    rng = kwargs.get('rng')
-    if not isinstance(rng, RandomStreams):
-        rng = None
+    rng = kwargs.get('rng', 13)
 
     def pattern(ls):
         return tuple(l.output_name() for l in ls)
@@ -256,8 +256,7 @@ class WeightL2(Regularizer):
     __extra_registration_keys__ = ['weight_l2', 'weight_decay']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern or '*'  # default pattern matches everything.
-        matches = util.params_matching(layers, pattern)
+        matches = util.params_matching(layers, self.pattern or '*')
         variables = [var for _, var in matches if var.ndim > 1]
         if not variables:
             return 0
@@ -320,8 +319,7 @@ class WeightL1(Regularizer):
     __extra_registration_keys__ = ['weight_l1', 'weight_sparsity']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern or '*'  # default pattern matches everything.
-        matches = util.params_matching(layers, pattern)
+        matches = util.params_matching(layers, self.pattern or '*')
         variables = [var for _, var in matches if var.ndim > 1]
         if not variables:
             return 0
@@ -389,11 +387,7 @@ class HiddenL1(Regularizer):
     __extra_registration_keys__ = ['hidden_l1', 'hidden_sparsity']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern
-        if pattern is None:
-            # default pattern matches output from "middle" layers.
-            ns = [l.output_name() for l in layers[1:-1]]
-            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
+        pattern = self.pattern or [l.output_name() for l in layers[1:-1]]
         matches = util.outputs_matching(outputs, pattern)
         hiddens = [expr for _, expr in matches]
         if not hiddens:
@@ -457,12 +451,9 @@ class RecurrentNorm(Regularizer):
     __extra_registration_keys__ = ['recurrent_norm']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern
-        if pattern is None:
-            # default pattern matches output from "middle" layers.
-            ns = [l.output_name() for l in layers[1:-1]]
-            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
-        matches = util.outputs_matching(outputs, pattern)
+        if self.pattern is None:
+            raise util.ConfigurationError('RecurrentNorm requires a pattern!')
+        matches = util.outputs_matching(outputs, self.pattern)
         hiddens = [expr for _, expr in matches if expr.ndim == 3]
         if not hiddens:
             return 0
@@ -526,11 +517,8 @@ class RecurrentState(Regularizer):
     __extra_registration_keys__ = ['recurrent_state']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern
-        if pattern is None:
-            # default pattern matches output from "middle" layers.
-            ns = [l.output_name() for l in layers[1:-1]]
-            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
+        if self.pattern is None:
+            raise util.ConfigurationError('RecurrentNorm requires a pattern!')
         matches = util.outputs_matching(outputs, pattern)
         hiddens = [expr for _, expr in matches if expr.ndim == 3]
         if not hiddens:
@@ -621,11 +609,7 @@ class Contractive(Regularizer):
                      self.pattern, self.wrt)
 
     def loss(self, layer_list, outputs):
-        pattern = self.pattern
-        if pattern is None:
-            # default pattern matches output from "middle" layers.
-            ns = [l.output_name() for l in layer_list[1:-1]]
-            pattern = ns[0] if len(ns) == 1 else '{' + ','.join(ns) + '}'
+        pattern = self.pattern or [l.output_name() for l in layer_list[1:-1]]
         targets = [expr for _, expr in util.outputs_matching(outputs, pattern)]
         if not targets:
             return 0
@@ -717,9 +701,9 @@ class GaussianNoise(Regularizer):
        http://oucsace.cs.ohiou.edu/~razvan/courses/dl6900/papers/vincent08.pdf
     '''
 
-    def __init__(self, pattern='*:out', weight=0., rng=None):
+    def __init__(self, pattern='*:out', weight=0., rng=13):
         super(GaussianNoise, self).__init__(pattern=pattern, weight=weight)
-        self.rng = RandomStreams() if rng is None else rng
+        self.rng = RandomStreams(rng) if isinstance(rng, int) else rng
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
@@ -812,9 +796,9 @@ class BernoulliDropout(Regularizer):
        co-adaptation of feature detectors." http://arxiv.org/pdf/1207.0580.pdf
     '''
 
-    def __init__(self, pattern='*:out', weight=0., rng=None):
+    def __init__(self, pattern='*:out', weight=0., rng=13):
         super(BernoulliDropout, self).__init__(pattern=pattern, weight=weight)
-        self.rng = RandomStreams() if rng is None else rng
+        self.rng = RandomStreams(rng) if isinstance(rng, int) else rng
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''

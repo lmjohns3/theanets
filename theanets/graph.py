@@ -119,25 +119,7 @@ class Network(object):
             self.layers.append(layer)
             return
 
-        # here we set up some defaults for constructing a new layer.
-        form = 'feedforward' if self.layers else 'input'
-        if 'form' in kwargs:
-            form = kwargs.pop('form').lower()
-
-        kw = dict(size=layer)
-        if not self.layers:
-            kw['name'] = 'in'
-            kw['ndim'] = self.INPUT_NDIM
-        else:
-            kw['inputs'] = {self.layers[-1].output_name(): self.layers[-1].size}
-            kw['rng'] = self._rng
-            if is_output:
-                kw['activation'] = self.DEFAULT_OUTPUT_ACTIVATION
-                kw['name'] = 'out'
-            else:
-                kw['activation'] = 'relu'
-                kw['name'] = 'hid{}'.format(len(self.layers))
-        kw.update(kwargs)
+        form = kwargs.pop('form', 'ff' if self.layers else 'input').lower()
 
         # if layer is a tuple, assume that it contains one or more of the following:
         # - a layers.Layer subclass to construct (type)
@@ -155,9 +137,9 @@ class Network(object):
                     if layers.Layer.is_registered(el):
                         form = el
                     else:
-                        kw['activation'] = el
+                        kwargs['activation'] = el
                 if isinstance(el, int):
-                    kw['size'] = el
+                    kwargs['size'] = el
 
         # if layer is a dictionary, try to extract a form for the layer, and
         # override our default keyword arguments with the rest.
@@ -165,11 +147,28 @@ class Network(object):
             layer = dict(layer)
             if 'form' in layer:
                 form = layer.pop('form').lower()
-            kw.update(layer)
+            kwargs.update(layer)
+
+        name = 'hid{}'.format(len(self.layers))
+        if form == 'input':
+            name = 'in'
+        if is_output:
+            name = 'out'
+        kwargs.setdefault('size', layer)
+        kwargs.setdefault('name', name)
+
+        if form == 'input':
+            kwargs.setdefault('ndim', self.INPUT_NDIM)
+        else:
+            act = self.DEFAULT_OUTPUT_ACTIVATION if is_output else 'relu'
+            ins = {self.layers[-1].output_name(): self.layers[-1].size}
+            kwargs.setdefault('inputs', ins)
+            kwargs.setdefault('rng', self._rng)
+            kwargs.setdefault('activation', act)
 
         # handle non-dict input specifications.
-        if 'inputs' in kw and not isinstance(kw['inputs'], dict):
-            inputs = kw['inputs']
+        if 'inputs' in kwargs and not isinstance(kwargs['inputs'], dict):
+            inputs = kwargs['inputs']
             if not isinstance(inputs, (tuple, list)):
                 inputs = (inputs, )
             target = {}
@@ -180,11 +179,11 @@ class Network(object):
                 except IndexError:
                     raise LayerError('cannot find layer "{}"'.format(i))
                 target[layer.output_name()] = layer.size
-            kw['inputs'] = target
+            kwargs['inputs'] = target
 
         # look for a partner layer instance for creating a tied layer.
         if isinstance(form, str) and form.lower() == 'tied':
-            partner = kw.get('partner')
+            partner = kwargs.get('partner')
             if isinstance(partner, str):
                 # if the partner is named, just get that layer.
                 try:
@@ -208,9 +207,9 @@ class Network(object):
                         break
                 else:
                     raise LayerError('cannot find partner for "{}"'.format(layer))
-            kw['partner'] = partner
+            kwargs['partner'] = partner
 
-        layer = layers.Layer.build(form, **kw)
+        layer = layers.Layer.build(form, **kwargs)
 
         if isinstance(layer, layers.Input):
             names = set(i.name for i in self.inputs)

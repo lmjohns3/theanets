@@ -112,6 +112,8 @@ class Classifier(Feedforward):
     a ``'softmax'`` output :ref:`activation <activations>`.
     '''
 
+    __extra_registration_keys__ = ['softmax']
+
     def __init__(self, **kwargs):
         kwargs['activation'] = 'softmax'
         super(Classifier, self).__init__(**kwargs)

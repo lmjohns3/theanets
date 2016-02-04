@@ -18,7 +18,8 @@ before_install:
   - conda update --yes conda
 install:
   - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-  - python setup.py develop test
+  - pip install pytest-pep8 pytest-cov python-coveralls
+  - python setup.py develop
 script:
   - THEANO_FLAGS=floatX=float32 py.test -v --pep8 --cov=theanets --cov-report=term-missing
 after_success:

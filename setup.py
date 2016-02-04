@@ -23,8 +23,6 @@ setuptools.setup(
               'theano '
               ),
     install_requires=['climate', 'downhill', 'theano'],
-    tests_require=['pytest', 'pytest-pep8', 'pytest-cov'],
-    setup_requires=['pytest-runner'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

@@ -127,16 +127,14 @@ class Recurrent(base.Layer):
             arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.rng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
 
-    def _scan(self, fn, inputs, inits=None, name='scan'):
+    def _scan(self, inputs, outputs=None, name='scan', step=None, constants=None):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
         ----------
-        fn : callable
-            The callable to apply in the loop.
         inputs : sequence of theano expressions
             Inputs to the scan operation.
-        inits : sequence of None, tensor, tuple, or scan output specifier
+        outputs : sequence of None, tensor, tuple, or scan output specifier
             Specifiers for the outputs of the scan operation. This should be a
             list containing:
             - None for values that are output by the scan but not tapped as
@@ -148,6 +146,10 @@ class Recurrent(base.Layer):
             See "outputs_info" in the Theano documentation for ``scan``.
         name : str, optional
             Name of the scan variable to create. Defaults to 'scan'.
+        step : callable, optional
+            The callable to apply in the loop. Defaults to `self._step`.
+        constants : sequence of tensor, optional
+            A sequence of parameters, if any, needed by the step function.
 
         Returns
         -------
@@ -156,20 +158,21 @@ class Recurrent(base.Layer):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        outputs = []
-        for i, x in enumerate(inits or inputs):
+        info = []
+        for i, x in enumerate(outputs or inputs):
             if hasattr(x, 'shape'):
                 x = self.initial_state(str(i), x.shape[1])
             elif isinstance(x, int):
                 x = self.initial_state(str(i), x)
             elif isinstance(x, tuple):
                 x = self.initial_state(*x)
-            outputs.append(x)
+            info.append(x)
         return theano.scan(
-            fn,
+            step or self._step,
             name=self._fmt(name),
             sequences=inputs,
-            outputs_info=outputs,
+            outputs_info=info,
+            non_sequences=constants,
             go_backwards='back' in self.kwargs.get('direction', '').lower(),
             truncate_gradient=self.kwargs.get('bptt_limit', -1),
         )
@@ -259,17 +262,17 @@ class RNN(Recurrent):
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
 
-        def fn(x_t, h_tm1):
-            pre = x_t + TT.dot(h_tm1, self.find('hh'))
-            return [pre, self.activate(pre)]
-
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan(fn, [x], [None, x])
+        (p, o), updates = self._scan([x], [None, x])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, out=out), updates
+
+    def _step(self, x_t, h_tm1):
+        pre = x_t + TT.dot(h_tm1, self.find('hh'))
+        return [pre, self.activate(pre)]
 
 
 class RRNN(Recurrent):
@@ -386,34 +389,35 @@ class RRNN(Recurrent):
         h = TT.dot(x, self.find('xh')) + self.find('b')
         r = self._rates
 
-        def fn_dynamic(x_t, r_t, h_tm1):
-            pre = x_t + TT.dot(h_tm1, self.find('hh'))
-            h_t = self.activate(pre)
-            return [pre, h_t, (1 - r_t) * h_tm1 + r_t * h_t]
-
-        def fn_static(x_t, h_tm1):
-            pre = x_t + TT.dot(h_tm1, self.find('hh'))
-            h_t = self.activate(pre)
-            return [pre, h_t, (1 - r) * h_tm1 + r * h_t]
-
-        fn = fn_static
-        seqs = [h]
-
+        step = self._step_static
+        inputs = [h]
+        const = []
         if self.rate == 'matrix':
-            fn = fn_dynamic
-            r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
-            seqs.append(r)
+            step = self._step_dynamic
+            inputs.append(
+                TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r')))
         elif self.rate == 'vector':
-            r = TT.nnet.sigmoid(self.find('r'))
+            const.append(TT.nnet.sigmoid(self.find('r')))
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, h, o), updates = self._scan(fn, seqs, [None, None, x])
+        (p, h, o), updates = self._scan(
+            inputs, [None, None, x], constants=const, step=step)
         pre = p.dimshuffle(1, 0, 2)
         hid = h.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, hid=hid, rate=r, out=out), updates
+
+    def _step_dynamic(self, x_t, r_t, h_tm1):
+        pre = x_t + TT.dot(h_tm1, self.find('hh'))
+        h_t = self.activate(pre)
+        return [pre, h_t, (1 - r_t) * h_tm1 + r_t * h_t]
+
+    def _step_static(self, x_t, h_tm1, r):
+        pre = x_t + TT.dot(h_tm1, self.find('hh'))
+        h_t = self.activate(pre)
+        return [pre, h_t, (1 - r) * h_tm1 + r * h_t]
 
 
 class MRNN(Recurrent):
@@ -512,17 +516,17 @@ class MRNN(Recurrent):
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
 
-        def fn(x_t, f_t, h_tm1):
-            pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
-            return [pre, self.activate(pre)]
-
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan(fn, [h, f], [None, x])
+        (p, o), updates = self._scan([h, f], [None, x])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, factors=f, out=out), updates
+
+    def _step(self, x_t, f_t, h_tm1):
+        pre = x_t + TT.dot(f_t * TT.dot(h_tm1, self.find('hf')), self.find('fh'))
+        return [pre, self.activate(pre)]
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -660,22 +664,12 @@ class LSTM(Recurrent):
             n = self.size
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
 
-        def fn(x_t, h_tm1, c_tm1):
-            xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
-            i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
-            f_t = TT.nnet.sigmoid(xf + c_tm1 * self.find('cf'))
-            c_t = f_t * c_tm1 + i_t * TT.tanh(xc)
-            o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
-            h_t = o_t * TT.tanh(c_t)
-            return [h_t, c_t]
-
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
         batch_size = x.shape[1]
         (o, c), updates = self._scan(
-            fn,
             [TT.dot(x, self.find('xh')) + self.find('b')],
             [('h', batch_size), ('c', batch_size)])
 
@@ -685,6 +679,15 @@ class LSTM(Recurrent):
         cell = c.dimshuffle(1, 0, 2)
 
         return dict(out=out, cell=cell), updates
+
+    def _step(self, x_t, h_tm1, c_tm1):
+        xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
+        i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
+        f_t = TT.nnet.sigmoid(xf + c_tm1 * self.find('cf'))
+        c_t = f_t * c_tm1 + i_t * TT.tanh(xc)
+        o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
+        h_t = o_t * TT.tanh(c_t)
+        return [h_t, c_t]
 
 
 class GRU(Recurrent):
@@ -782,15 +785,7 @@ class GRU(Recurrent):
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
-        def fn(x_t, r_t, z_t, h_tm1):
-            r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
-            z = TT.nnet.sigmoid(z_t + TT.dot(h_tm1, self.find('hz')))
-            pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
-            h_t = self.activate(pre)
-            return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
-
         (p, h, r, o), updates = self._scan(
-            fn,
             [TT.dot(x, self.find('xh')) + self.find('bh'),
              TT.dot(x, self.find('xr')) + self.find('br'),
              TT.dot(x, self.find('xz')) + self.find('bz')],
@@ -804,6 +799,13 @@ class GRU(Recurrent):
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
+
+    def _step(self, x_t, r_t, z_t, h_tm1):
+        r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
+        z = TT.nnet.sigmoid(z_t + TT.dot(h_tm1, self.find('hz')))
+        pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
+        h_t = self.activate(pre)
+        return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
 
 
 class Clockwork(Recurrent):
@@ -933,18 +935,18 @@ class Clockwork(Recurrent):
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
 
-        def fn(t, x_t, p_tm1, h_tm1):
-            p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
-            p_t = TT.switch(TT.eq(t % self._period, 0), p, p_tm1)
-            return [p_t, self.activate(p_t)]
-
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan(fn, [TT.arange(x.shape[0]), x], [x, x])
+        (p, o), updates = self._scan([TT.arange(x.shape[0]), x], [x, x])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, out=out), updates
+
+    def _step(self, t, x_t, p_tm1, h_tm1):
+        p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
+        p_t = TT.switch(TT.eq(t % self._period, 0), p, p_tm1)
+        return [p_t, self.activate(p_t)]
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -1050,14 +1052,7 @@ class MUT1(Recurrent):
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
         z = TT.nnet.sigmoid(TT.dot(x, self.find('xz')) + self.find('bz'))
 
-        def fn(x_t, r_t, z_t, h_tm1):
-            r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
-            pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
-            h_t = TT.tanh(pre)
-            return [pre, h_t, (1 - z_t) * h_tm1 + z_t * h_t]
-
         (p, h, o), updates = self._scan(
-            fn,
             [TT.tanh(TT.dot(x, self.find('xh')) + self.find('bh')),
              TT.dot(x, self.find('xr')) + self.find('br'), z],
             [None, None, x])
@@ -1070,6 +1065,12 @@ class MUT1(Recurrent):
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, hid=hid, rate=rate, out=out), updates
+
+    def _step(self, x_t, r_t, z_t, h_tm1):
+        r = TT.nnet.sigmoid(r_t + TT.dot(h_tm1, self.find('hr')))
+        pre = x_t + TT.dot(r * h_tm1, self.find('hh'))
+        h_t = TT.tanh(pre)
+        return [pre, h_t, (1 - z_t) * h_tm1 + z_t * h_t]
 
 
 class SCRN(Recurrent):
@@ -1176,15 +1177,9 @@ class SCRN(Recurrent):
         if self.rate == 'vector':
             r = TT.nnet.sigmoid(self.find('r'))
 
-        def fn(xh_t, xs_t, h_tm1, s_tm1):
-            s = (1 - r) * s_tm1 + r * xs_t
-            p = xh_t + TT.dot(h_tm1, self.find('hh')) + TT.dot(s, self.find('sh'))
-            return [p, TT.nnet.sigmoid(p), s]
-
         (p, _, s), updates = self._scan(
-            fn,
             [TT.dot(x, self.find('xh')), TT.dot(x, self.find('xs'))],
-            [None, x, x])
+            [None, x, x], constants=[r])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -1198,6 +1193,11 @@ class SCRN(Recurrent):
         return dict(
             rate=r, state=state, hid=hid, pre=pre, out=self.activate(pre),
         ), updates
+
+    def _step(self, xh_t, xs_t, h_tm1, s_tm1, r):
+        s = (1 - r) * s_tm1 + r * xs_t
+        p = xh_t + TT.dot(h_tm1, self.find('hh')) + TT.dot(s, self.find('sh'))
+        return [p, TT.nnet.sigmoid(p), s]
 
 
 class Bidirectional(base.Layer):

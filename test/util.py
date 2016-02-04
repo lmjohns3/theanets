@@ -18,8 +18,8 @@ class Base(object):
     CLASSES = np.random.randint(NUM_CLASSES, size=NUM_EXAMPLES).astype('i')
     CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES)).astype('f')
 
-    def assert_progress(self, algo, data, **kwargs):
-        trainer = self.exp.itertrain(
+    def assert_progress(self, net, algo, data, **kwargs):
+        trainer = net.itertrain(
             data, algorithm=algo, monitor_gradients=True, batch_size=3, **kwargs)
         train0, valid0 = next(trainer)
         train1, valid1 = next(trainer)

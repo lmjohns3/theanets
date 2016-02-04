@@ -1,6 +1,6 @@
 import numpy as np
 import os
-import tempfile
+import pytest
 import theanets
 
 try:
@@ -113,52 +113,53 @@ class TestNetwork:
 
 
 class TestMonitors:
-    def setUp(self):
-        self.net = theanets.Regressor((10, 15, 14, 13))
+    @pytest.fixture
+    def net(self):
+        return theanets.Regressor((10, 15, 14, 13))
 
-    def assert_monitors(self, monitors, expected, sort=False):
-        mon = [k for k, v in self.net.monitors(monitors=monitors)]
+    def assert_monitors(self, net, monitors, expected, sort=False):
+        mon = [k for k, v in net.monitors(monitors=monitors)]
         if sort:
             mon = sorted(mon)
         assert mon == expected, 'expected {}, got {}'.format(expected, mon)
 
-    def test_dict(self):
-        self.assert_monitors({'hid1:out': 1}, ['err', 'hid1:out<1'])
+    def test_dict(self, net):
+        self.assert_monitors(net, {'hid1:out': 1}, ['err', 'hid1:out<1'])
 
-    def test_list(self):
-        self.assert_monitors([('hid1:out', 1)], ['err', 'hid1:out<1'])
+    def test_list(self, net):
+        self.assert_monitors(net, [('hid1:out', 1)], ['err', 'hid1:out<1'])
 
-    def test_list_values(self):
+    def test_list_values(self, net):
         self.assert_monitors(
-            {'hid1:out': [2, 1]}, ['err', 'hid1:out<2', 'hid1:out<1'])
+            net, {'hid1:out': [2, 1]}, ['err', 'hid1:out<2', 'hid1:out<1'])
 
-    def test_dict_values(self):
+    def test_dict_values(self, net):
         self.assert_monitors(
-            {'hid1:out': dict(a=lambda e: e+1, b=lambda e: e+2)},
+            net, {'hid1:out': dict(a=lambda e: e+1, b=lambda e: e+2)},
             ['err', 'hid1:out:a', 'hid1:out:b'], sort=True)
 
-    def test_not_found(self):
-        self.assert_monitors({'hid10:out': 1}, ['err'])
+    def test_not_found(self, net):
+        self.assert_monitors(net, {'hid10:out': 1}, ['err'])
 
-    def test_param(self):
-        self.assert_monitors({'hid1.w': 1}, ['err', 'hid1.w<1'])
+    def test_param(self, net):
+        self.assert_monitors(net, {'hid1.w': 1}, ['err', 'hid1.w<1'])
 
-    def test_wildcard(self):
-        self.assert_monitors({'*.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1', 'out.w<1'])
-        self.assert_monitors({'hid?.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1'])
+    def test_wildcard(self, net):
+        self.assert_monitors(
+            net, {'*.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1', 'out.w<1'])
+        self.assert_monitors(net, {'hid?.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1'])
 
 
 class TestSaving(util.Base):
-    def test_save_every(self):
+    def test_save_every(self, tmpdir):
         net = theanets.Autoencoder((self.NUM_INPUTS, (3, 'prelu'), self.NUM_INPUTS))
-        f, p = tempfile.mkstemp(suffix='pkl')
-        os.close(f)
-        os.unlink(p)
-        train = net.itertrain([self.INPUTS], save_every=2, save_progress=p)
+        p = tmpdir.mkdir('graph-test').join('model.pkl')
+        fn = os.path.join(p.dirname, p.basename)
+        train = net.itertrain([self.INPUTS], save_every=2, save_progress=fn)
         for i, _ in enumerate(zip(train, range(9))):
             if i == 3 or i == 5 or i == 7:
-                assert os.path.isfile(p)
+                assert p.check()
             else:
-                assert not os.path.isfile(p)
-            if os.path.exists(p):
-                os.unlink(p)
+                assert not p.check()
+            if p.check():
+                p.remove()

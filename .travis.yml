@@ -17,10 +17,10 @@ before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - conda update --yes conda
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy nose
-  - pip install pep8 python-coveralls
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+  - pip install pytest-pep8 pytest-cov python-coveralls
   - pip install .
 script:
-  - THEANO_FLAGS=floatX=float32 nosetests --with-coverage --cover-package=theanets --logging-level=INFO
+  - THEANO_FLAGS=floatX=float32 py.test -v --pep8 --cov=theanets --cov-report=term-missing
 after_success:
   - coveralls

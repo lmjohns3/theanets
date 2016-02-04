@@ -1,6 +1,8 @@
 import os
 import setuptools
 
+README = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.rst')
+
 setuptools.setup(
     name='theanets',
     version='0.8.0pre',
@@ -8,7 +10,7 @@ setuptools.setup(
     author='Leif Johnson',
     author_email='leif@lmjohns3.com',
     description='Feedforward and recurrent neural nets using Theano',
-    long_description=open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.rst')).read(),
+    long_description=open(README).read(),
     license='MIT',
     url='http://github.com/lmjohns3/theanets',
     keywords=('machine-learning '
@@ -21,7 +23,8 @@ setuptools.setup(
               'theano '
               ),
     install_requires=['climate', 'downhill', 'theano'],
-    tests_require=['nose', 'pep8'],
+    tests_require=['pytest', 'pytest-pep8', 'pytest-cov'],
+    setup_requires=['pytest-runner'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

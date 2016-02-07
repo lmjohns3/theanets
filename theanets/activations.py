@@ -199,7 +199,7 @@ class Prelu(Activation):
     def __init__(self, *args, **kwargs):
         super(Prelu, self).__init__(*args, **kwargs)
         self.leak = theano.shared(
-            np.ones((self.layer.size, ), util.FLOAT) * 0.1,
+            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
             name=self.layer._fmt('leak'))
         self.params.append(self.leak)
 
@@ -229,11 +229,11 @@ class LGrelu(Activation):
     def __init__(self, *args, **kwargs):
         super(LGrelu, self).__init__(*args, **kwargs)
         self.gain = theano.shared(
-            np.ones((self.layer.size, ), util.FLOAT),
+            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
             name=self.layer._fmt('gain'))
         self.params.append(self.gain)
         self.leak = theano.shared(
-            np.ones((self.layer.size, ), util.FLOAT) * 0.1,
+            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
             name=self.layer._fmt('leak'))
         self.params.append(self.leak)
 
@@ -292,11 +292,11 @@ class Maxout(Activation):
 
         self.pieces = kwargs['pieces']
 
-        m = np.ones((self.layer.size, self.pieces), util.FLOAT)
+        m = self.layer.rng.randn(self.layer.size, self.pieces).astype(util.FLOAT)
         self.slope = theano.shared(m, name=self.layer._fmt('slope'))
         self.params.append(self.slope)
 
-        b = np.ones((self.layer.size, self.pieces), util.FLOAT)
+        b = self.layer.rng.randn(self.layer.size, self.pieces).astype(util.FLOAT)
         self.intercept = theano.shared(b, name=self.layer._fmt('intercept'))
         self.params.append(self.intercept)
 

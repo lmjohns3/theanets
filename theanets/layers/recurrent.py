@@ -386,23 +386,25 @@ class RRNN(Recurrent):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
-        h = TT.dot(x, self.find('xh')) + self.find('b')
-        r = self._rates
 
         step = self._step_static
-        inputs = [h]
+        inputs = [TT.dot(x, self.find('xh')) + self.find('b')]
         const = []
         if self.rate == 'matrix':
             step = self._step_dynamic
-            inputs.append(
-                TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r')))
+            r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
+            inputs.append(r)
         elif self.rate == 'vector':
-            const.append(TT.nnet.sigmoid(self.find('r')))
+            r = TT.nnet.sigmoid(self.find('r'))
+            const.append(r)
+        else:
+            r = self._rates
+            const.append(r)
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
         (p, h, o), updates = self._scan(
-            inputs, [None, None, x], constants=const, step=step)
+            inputs=inputs, outputs=[None, None, x], constants=const, step=step)
         pre = p.dimshuffle(1, 0, 2)
         hid = h.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
@@ -660,10 +662,6 @@ class LSTM(Recurrent):
         updates : list of update pairs
             A sequence of updates to apply inside a theano function.
         '''
-        def split(z):
-            n = self.size
-            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
-
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -681,6 +679,9 @@ class LSTM(Recurrent):
         return dict(out=out, cell=cell), updates
 
     def _step(self, x_t, h_tm1, c_tm1):
+        def split(z):
+            n = self.size
+            return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
         i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
         f_t = TT.nnet.sigmoid(xf + c_tm1 * self.find('cf'))

@@ -23,12 +23,12 @@ class TestNetwork:
     def test_layer_tuples(self):
         m = theanets.Regressor((1, (2, 'relu'), 3))
         assert len(m.layers) == 3
-        assert m.layers[1].activation == 'relu'
+        assert m.layers[1].kwargs['activation'] == 'relu'
 
     def test_layer_dicts(self):
         m = theanets.Regressor((1, dict(size=2, activation='relu', form='rnn'), 3))
         assert len(m.layers) == 3
-        assert m.layers[1].activation == 'relu'
+        assert m.layers[1].kwargs['activation'] == 'relu'
         assert isinstance(m.layers[1], theanets.layers.recurrent.RNN)
 
     def test_layer_named_inputs(self):

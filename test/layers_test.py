@@ -231,7 +231,7 @@ class TestReshape(BaseRecurrent):
 
     def test_spec(self, layer):
         self.assert_spec(layer, shape=[14, 6], size=6, form='reshape',
-                         activation='relu', inputs={'out': 7}, name='l')
+                         inputs={'out': 7}, name='l')
 
     def test_feed_forward(self, layer):
         net = theanets.recurrent.Regressor((self.NUM_INPUTS, layer, self.NUM_OUTPUTS))
@@ -370,8 +370,8 @@ class TestMRNN(BaseRecurrent):
         assert not upd
 
     def test_spec(self, layer):
-        self.assert_spec(layer, name='l', form='mrnn', activation='relu',
-                         factors=3, size=4, inputs=dict(out=7))
+        self.assert_spec(layer, name='l', form='mrnn', factors=3, size=4,
+                         inputs=dict(out=7))
 
 
 class TestLSTM(BaseRecurrent):
@@ -447,8 +447,8 @@ class TestClockwork(BaseRecurrent):
         assert not upd
 
     def test_spec(self, layer):
-        self.assert_spec(layer, periods=(5, 2), size=self.NUM_HIDDEN, form='clockwork',
-                         activation='relu', inputs={'out': 7}, name='l')
+        self.assert_spec(layer, periods=(5, 2), size=self.NUM_HIDDEN,
+                         form='clockwork', inputs={'out': 7}, name='l')
 
 
 class TestSCRN(BaseRecurrent):
@@ -468,7 +468,7 @@ class TestSCRN(BaseRecurrent):
         assert not upd
 
     def test_spec(self, layer):
-        self.assert_spec(layer, size=self.NUM_HIDDEN, form='scrn', activation='relu',
+        self.assert_spec(layer, size=self.NUM_HIDDEN, form='scrn',
                          inputs={'out': 7}, name='l')
 
 
@@ -492,4 +492,4 @@ class TestBidirectional(BaseRecurrent):
 
     def test_spec(self, layer):
         self.assert_spec(layer, size=self.NUM_HIDDEN, form='bidirectional',
-                         worker='rrnn', activation='relu', inputs={'out': 7}, name='l')
+                         worker='rrnn', inputs={'out': 7}, name='l')

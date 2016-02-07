@@ -90,8 +90,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
         Size of this layer.
     inputs : dict
         Dictionary mapping input names to their corresponding sizes.
-    activation : str
-        String representing the activation function for this layer.
     activate : callable
         The activation function to use on this layer's outputs.
     kwargs : dict
@@ -100,7 +98,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     _count = 0
 
-    def __init__(self, size, inputs, name=None, activation='relu', **kwargs):
+    def __init__(self, size, inputs, name=None, **kwargs):
         Layer._count += 1
         super(Layer, self).__init__()
         self.size = size
@@ -112,8 +110,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         self.rng = kwargs.get('rng', kwargs.get('nrng'))
         if self.rng is None or isinstance(self.rng, int):
             self.rng = np.random.RandomState(self.rng)
-        self.activation = activation
-        self.activate = activations.build(activation, self)
+        self.activate = activations.build(kwargs.get('activation', 'relu'), self)
         self.kwargs = kwargs
         self._params = []
         self.setup()
@@ -324,7 +321,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
             name=self.name,
             size=self.size,
             inputs=self.inputs,
-            activation=self.activation,
         )
         return spec
 
@@ -404,7 +400,6 @@ class Input(Layer):
         '''
         spec = super(Input, self).to_spec()
         del spec['inputs']
-        del spec['activation']
         return spec
 
 

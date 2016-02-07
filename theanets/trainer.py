@@ -245,7 +245,7 @@ class SupervisedPretrainer(object):
                     name='lwout',
                     inputs={original[i].output_name: original[i].size},
                     size=original[-1].size,
-                    activation=original[-1].activation)]
+                    activation=original[-1].kwargs['activation'])]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
             net.losses[0].output_name = net.layers[-1].output_name
@@ -307,7 +307,7 @@ class UnsupervisedPretrainer(object):
         layers_ = list(self.network.layers[:-1])
         for l in layers_[::-1][:-2]:
             layers_.append(layers.Layer.build(
-                'tied', partner=l, activation=l.activation))
+                'tied', partner=l, activation=l.kwargs['activation']))
         layers_.append(layers.Layer.build(
             'tied', partner=layers_[1], activation='linear'))
 

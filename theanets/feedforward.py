@@ -172,7 +172,7 @@ class Autoencoder(graph.Network):
             outputs, updates = self.build_graph(regs)
             self._functions[key] = theano.function(
                 [outputs[key]],
-                [outputs[self.layers[-1].output_name()]],
+                [outputs[self.layers[-1].output_name]],
                 updates=updates)
         return self._functions[key](z)[0]
 
@@ -203,7 +203,7 @@ class Autoencoder(graph.Network):
             except IndexError:
                 pass
         if isinstance(layer, layers.Layer):
-            layer = layer.output_name()
+            layer = layer.output_name
         return layer
 
     def score(self, x, w=None, **kwargs):
@@ -387,7 +387,7 @@ class Classifier(graph.Network):
             A vector of class index values, one per row of input data.
         '''
         outputs = self.feed_forward(x, **kwargs)
-        return outputs[self.layers[-1].output_name()].argmax(axis=-1)
+        return outputs[self.layers[-1].output_name].argmax(axis=-1)
 
     def classify(self, x, **kwargs):
         warnings.warn('please use predict() instead of classify()',
@@ -409,7 +409,7 @@ class Classifier(graph.Network):
             An array of class posterior probability values, one per row of input
             data.
         '''
-        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name()]
+        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name]
 
     def predict_logit(self, x, **kwargs):
         '''Compute the logit values that underlie the softmax output.
@@ -426,7 +426,7 @@ class Classifier(graph.Network):
             An array of posterior class logit values, one row of logit values
             per row of input data.
         '''
-        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name('pre')]
+        return self.feed_forward(x, **kwargs)[self.layers[-1].full_name('pre')]
 
     def score(self, x, y, w=None, **kwargs):
         '''Compute the mean accuracy on a set of labeled data.

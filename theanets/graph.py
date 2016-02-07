@@ -98,7 +98,7 @@ class Network(object):
             self.set_loss(loss,
                           weighted=weighted,
                           target=self.OUTPUT_NDIM,
-                          output_name=self.layers[-1].output_name())
+                          output_name=self.layers[-1].output_name)
 
     def add_layer(self, layer=None, is_output=False, **kwargs):
         '''Add a :ref:`layer <layers>` to our network graph.
@@ -159,7 +159,7 @@ class Network(object):
             kwargs.setdefault('ndim', self.INPUT_NDIM)
         else:
             act = self.DEFAULT_OUTPUT_ACTIVATION if is_output else 'relu'
-            ins = {self.layers[-1].output_name(): self.layers[-1].size}
+            ins = {self.layers[-1].output_name: self.layers[-1].size}
             kwargs.setdefault('inputs', ins)
             kwargs.setdefault('rng', self._rng)
             kwargs.setdefault('activation', act)
@@ -176,7 +176,7 @@ class Network(object):
                     layer = [l for l in self.layers if l.name == name][0]
                 except IndexError:
                     raise LayerError('cannot find layer "{}"'.format(i))
-                target[layer.output_name()] = layer.size
+                target[layer.output_name] = layer.size
             kwargs['inputs'] = target
 
         # look for a partner layer instance for creating a tied layer.
@@ -236,8 +236,7 @@ class Network(object):
         if 'form' in kwargs:
             form = kwargs.pop('form').lower()
 
-        kw = dict(target=self.INPUT_NDIM,
-                  output_name=self.layers[-1].output_name())
+        kw = dict(target=self.INPUT_NDIM, output_name=self.layers[-1].output_name)
         kw.update(kwargs)
 
         if isinstance(loss, dict):
@@ -454,7 +453,7 @@ class Network(object):
                     reg.modify_graph(out)
                 outputs.update(out)
                 updates.extend(upd)
-                outputs['out'] = outputs[layer.output_name()]
+                outputs['out'] = outputs[layer.output_name]
             self._graphs[key] = outputs, updates
         return self._graphs[key]
 
@@ -570,7 +569,7 @@ class Network(object):
             Rows in this array correspond to examples, and columns to output
             variables.
         '''
-        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name()]
+        return self.feed_forward(x, **kwargs)[self.layers[-1].output_name]
 
     def score(self, x, y, w=None, **kwargs):
         '''Compute R^2 coefficient of determination for a given labeled input.

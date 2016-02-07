@@ -90,7 +90,7 @@ def from_kwargs(graph, **kwargs):
     rng = kwargs.get('rng', 13)
 
     def pattern(ls):
-        return tuple(l.output_name() for l in ls)
+        return tuple(l.output_name for l in ls)
 
     inputs = pattern([l for l in graph.layers if isinstance(l, layers.Input)])
     hiddens = pattern(graph.layers[1:-1])
@@ -387,7 +387,7 @@ class HiddenL1(Regularizer):
     __extra_registration_keys__ = ['hidden_l1', 'hidden_sparsity']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern or [l.output_name() for l in layers[1:-1]]
+        pattern = self.pattern or [l.output_name for l in layers[1:-1]]
         matches = util.outputs_matching(outputs, pattern)
         hiddens = [expr for _, expr in matches]
         if not hiddens:
@@ -609,7 +609,7 @@ class Contractive(Regularizer):
                      self.pattern, self.wrt)
 
     def loss(self, layer_list, outputs):
-        pattern = self.pattern or [l.output_name() for l in layer_list[1:-1]]
+        pattern = self.pattern or [l.output_name for l in layer_list[1:-1]]
         targets = [expr for _, expr in util.outputs_matching(outputs, pattern)]
         if not targets:
             return 0

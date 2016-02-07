@@ -231,7 +231,7 @@ class SupervisedPretrainer(object):
         '''
         net = self.network
         original = list(net.layers)
-        output_name = original[-1].output_name()
+        output_name = original[-1].output_name
         tied = any(isinstance(l, layers.Tied) for l in original)
         L = 1 + len(original) // 2 if tied else len(original) - 1
         for i in range(1, L):
@@ -243,12 +243,12 @@ class SupervisedPretrainer(object):
                 net.layers = original[:i+1] + [layers.Layer.build(
                     'feedforward',
                     name='lwout',
-                    inputs={original[i].output_name(): original[i].size},
+                    inputs={original[i].output_name: original[i].size},
                     size=original[-1].size,
                     activation=original[-1].activation)]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
-            net.losses[0].output_name = net.layers[-1].output_name()
+            net.losses[0].output_name = net.layers[-1].output_name
             trainer = DownhillTrainer(self.algo, net)
             for monitors in trainer.itertrain(train, valid, **kwargs):
                 yield monitors
@@ -313,7 +313,7 @@ class UnsupervisedPretrainer(object):
 
         logging.info('creating shadow network')
         ae = feedforward.Autoencoder(layers=layers_)
-        ae.losses[0].output_name = layers_[-1].output_name()
+        ae.losses[0].output_name = layers_[-1].output_name
 
         # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(self.algo, ae)

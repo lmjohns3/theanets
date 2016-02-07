@@ -129,7 +129,12 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''Total number of learnable parameters in this layer.'''
         return sum(np.prod(p.get_value().shape) for p in self.params)
 
-    def output_name(self, name='out'):
+    @property
+    def output_name(self):
+        '''Full name of the default output for this layer.'''
+        return self.full_name('out')
+
+    def full_name(self, name):
         '''Return a fully-scoped name for the given layer output.
 
         Parameters
@@ -170,7 +175,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             outputs = sorted(outputs.items())
         if isinstance(outputs, (TT.TensorVariable, SS.SparseVariable)):
             outputs = [('out', outputs)]
-        outs = {self.output_name(name): expr for name, expr in outputs}
+        outs = {self.full_name(name): expr for name, expr in outputs}
         return outs, updates
 
     def transform(self, inputs):

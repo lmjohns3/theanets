@@ -1,3 +1,4 @@
+import pytest
 import theanets
 
 import util
@@ -15,11 +16,22 @@ class TestBuild:
         assert len(l.variables) == 2
 
 
-class TestNetwork(util.Base):
+class TestLosses(util.Base):
+    @pytest.mark.parametrize('loss', ['xe', 'hinge'])
+    def test_classification(self, loss):
+        net = theanets.Classifier([
+            self.NUM_INPUTS, 10, self.NUM_CLASSES], loss=loss)
+        self.assert_progress(net, 'sgd', [self.INPUTS, self.CLASSES])
+
+    @pytest.mark.parametrize('loss', ['mse', 'mae', 'mmd'])
+    def test_regression(self, loss):
+        net = theanets.Regressor([
+            self.NUM_INPUTS, 10, self.NUM_OUTPUTS], loss=loss)
+        self.assert_progress(net, 'sgd', [self.INPUTS, self.OUTPUTS])
+
     def test_kl(self):
         net = theanets.Regressor([
             self.NUM_INPUTS, 10, (self.NUM_OUTPUTS, 'softmax')], loss='kl')
-        assert net.losses[0].__class__.__name__ == 'KullbackLeiblerDivergence'
         self.assert_progress(net, 'sgd', [self.INPUTS, abs(self.OUTPUTS)])
 
     def test_gll(self):
@@ -30,27 +42,6 @@ class TestNetwork(util.Base):
             dict(name='covar', activation='relu', **kw),
             dict(name='mean', activation='linear', **kw),
         ])
-        net.set_loss(
-            'gll', target=2, mean_name='mean', covar_name='covar')
-        assert net.losses[0].__class__.__name__ == 'GaussianLogLikelihood'
-        self.assert_progress(
-            net, 'sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
-
-    def test_mmd(self):
-        net = theanets.Regressor([
-            self.NUM_INPUTS, 10, self.NUM_OUTPUTS], loss='mmd')
-        assert net.losses[0].__class__.__name__ == 'MaximumMeanDiscrepancy'
-        self.assert_progress(
-            net, 'sgd', [self.INPUTS, self.OUTPUTS], max_gradient_norm=1)
-
-    def test_hinge(self):
-        net = theanets.Network(
-            layers=(self.NUM_INPUTS, 10, self.NUM_CLASSES))
-        net.set_loss(dict(form='hinge', target=1))
-        assert net.losses[0].__class__.__name__ == 'Hinge'
-        self.assert_progress(net, 'sgd', [self.INPUTS, self.CLASSES])
-
-    def test_mae(self):
-        net = theanets.Autoencoder((self.NUM_INPUTS, self.NUM_INPUTS), loss='mae')
-        assert net.losses[0].__class__.__name__ == 'MeanAbsoluteError'
-        self.assert_progress(net, 'sgd', [self.INPUTS])
+        net.set_loss('gll', target=2, mean_name='mean', covar_name='covar')
+        self.assert_progress(net, 'sgd', [self.INPUTS, self.OUTPUTS],
+                             max_gradient_norm=1)

@@ -91,7 +91,7 @@ class Network(object):
         self.layers = []
         for i, layer in enumerate(layers):
             self.add_layer(layer=layer, is_output=i == len(layers) - 1)
-        logging.info('network has %d total parameters', self.num_params)
+        [l.bind(self) for l in self.layers]
 
         self.losses = []
         if loss and self.layers:
@@ -478,11 +478,6 @@ class Network(object):
     def params(self):
         '''A list of the learnable Theano parameters for this network.'''
         return [p for l in self.layers for p in l.params]
-
-    @property
-    def num_params(self):
-        '''Number of parameters in the entire network model.'''
-        return sum(l.num_params for l in self.layers)
 
     def find(self, which, param):
         '''Get a parameter from a layer in the network.

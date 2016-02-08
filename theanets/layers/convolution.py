@@ -54,7 +54,7 @@ class Convolution(base.Layer):
                      self.border_mode,
                      ''.join('+{}'.format(i) for i in self.stride),
                      getattr(self.activate, 'name', self.activate),
-                     self.num_params)
+                     sum(np.prod(p.get_value().shape) for p in self.params))
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.

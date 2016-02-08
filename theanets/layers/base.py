@@ -99,22 +99,25 @@ class Layer(util.Registrar(str('Base'), (), {})):
     _count = 0
 
     def __init__(self, size, inputs, name=None, **kwargs):
-        Layer._count += 1
         super(Layer, self).__init__()
+
         self.size = size
+        self.kwargs = kwargs
+        self._params = []
+
         self.inputs = inputs
         if isinstance(self.inputs, int):
             self.inputs = dict(out=self.inputs)
+
+        Layer._count += 1
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
+
         self.rng = kwargs.get('rng', kwargs.get('nrng'))
         if self.rng is None or isinstance(self.rng, int):
             self.rng = np.random.RandomState(self.rng)
+
         self.activate = activations.build(kwargs.get('activation', 'relu'), self)
-        self.kwargs = kwargs
-        self._params = []
-        self.setup()
-        self.log()
 
     @property
     def params(self):
@@ -122,14 +125,15 @@ class Layer(util.Registrar(str('Base'), (), {})):
         return self._params + getattr(self.activate, 'params', [])
 
     @property
-    def num_params(self):
-        '''Total number of learnable parameters in this layer.'''
-        return sum(np.prod(p.get_value().shape) for p in self.params)
-
-    @property
     def output_name(self):
         '''Full name of the default output for this layer.'''
         return self.full_name('out')
+
+    @property
+    def input_size(self):
+        '''For networks with one input, get the input size.'''
+        assert len(self.inputs) == 1
+        return list(self.inputs.values())[0]
 
     def full_name(self, name):
         '''Return a fully-scoped name for the given layer output.
@@ -193,6 +197,10 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''
         raise NotImplementedError
 
+    def bind(self, graph, reset=False):
+        self.setup()
+        self.log()
+
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         pass
@@ -206,7 +214,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
                      inputs,
                      self.size,
                      getattr(self.activate, 'name', self.activate),
-                     self.num_params)
+                     sum(np.prod(p.get_value().shape) for p in self.params))
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
@@ -218,12 +226,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''Helper method to retrieve our layer's sole input expression.'''
         assert len(self.inputs) == 1
         return inputs[list(self.inputs)[0]]
-
-    @property
-    def input_size(self):
-        '''For networks with one input, get the input size.'''
-        assert len(self.inputs) == 1
-        return list(self.inputs.values())[0]
 
     def find(self, key):
         '''Get a shared variable for a parameter by name.
@@ -352,7 +354,7 @@ class Input(Layer):
         If ``sparse`` is enabled and ``ndim`` is not 2.
     '''
 
-    def __init__(self, size, name='in', ndim=2, sparse=False):
+    def __init__(self, size, name='in', ndim=2, sparse=False, **kwargs):
         self.input = util.FLOAT_CONTAINERS[ndim](name)
         if sparse is True or \
            isinstance(sparse, str) and sparse.lower() == 'csr':
@@ -362,9 +364,8 @@ class Input(Layer):
             assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csc_matrix('input')
         super(Input, self).__init__(
-            size=size, name=name, inputs=0, activation='linear',
-            ndim=ndim, sparse=sparse,
-        )
+            size=size, name=name, inputs=0, activation='linear', ndim=ndim,
+            sparse=sparse)
 
     def log(self):
         '''Log some information about this layer.'''

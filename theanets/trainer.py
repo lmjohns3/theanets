@@ -240,12 +240,14 @@ class SupervisedPretrainer(object):
             elif tied:
                 net.layers = original[:i+1] + original[-i:]
             else:
-                net.layers = original[:i+1] + [layers.Layer.build(
+                out = layers.Layer.build(
                     'feedforward',
                     name='lwout',
                     inputs={original[i].output_name: original[i].size},
                     size=original[-1].size,
-                    activation=original[-1].kwargs['activation'])]
+                    activation=original[-1].kwargs['activation'])
+                out.bind(net)
+                net.layers = original[:i+1] + [out]
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
             net.losses[0].output_name = net.layers[-1].output_name
@@ -304,20 +306,26 @@ class UnsupervisedPretrainer(object):
         # construct a "shadow" of the input network, using the original
         # network's encoding layers, with tied weights in an autoencoder
         # configuration.
-        layers_ = list(self.network.layers[:-1])
-        for l in layers_[::-1][:-2]:
-            layers_.append(layers.Layer.build(
-                'tied', partner=l, activation=l.kwargs['activation']))
-        layers_.append(layers.Layer.build(
-            'tied', partner=layers_[1], activation='linear'))
+        layers_ = list(l.to_spec() for l in self.network.layers[:-1])
+        for i, l in enumerate(layers_[::-1][:-2]):
+            layers_.append(dict(
+                form='tied', partner=l['name'], activation=l['activation']))
+        layers_.append(dict(
+            form='tied', partner=layers_[1]['name'], activation='linear'))
 
         logging.info('creating shadow network')
         ae = feedforward.Autoencoder(layers=layers_)
-        ae.losses[0].output_name = layers_[-1].output_name
 
         # train the autoencoder using the supervised layerwise pretrainer.
         pre = SupervisedPretrainer(self.algo, ae)
         for monitors in pre.itertrain(train, valid, **kwargs):
             yield monitors
+
+        # copy trained parameter values back to our original network.
+        for param in ae.params:
+            if not param.name.startswith('tied'):
+                l, p = param.name.split('.')
+                logging.info('copying pretrained parameter %s', param.name)
+                self.network.find(l, p).set_value(param.get_value())
 
         logging.info('completed unsupervised pretraining')

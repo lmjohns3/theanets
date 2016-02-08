@@ -909,7 +909,7 @@ class Clockwork(Recurrent):
                      self.size,
                      ' '.join(str(T) for T in self.periods),
                      getattr(self.activate, 'name', self.activate),
-                     self.num_params)
+                     sum(np.prod(p.get_value().shape) for p in self.params))
 
     def transform(self, inputs):
         '''Transform inputs to this layer into outputs for the layer.
@@ -1264,10 +1264,9 @@ class Bidirectional(base.Layer):
         '''A list of all learnable parameters in this layer.'''
         return self.forward.params + self.backward.params
 
-    @property
-    def num_params(self):
-        '''Total number of learnable parameters in this layer.'''
-        return self.forward.num_params + self.backward.num_params
+    def bind(self, *args, **kwargs):
+        self.forward.bind(*args, **kwargs)
+        self.backward.bind(*args, **kwargs)
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

@@ -15,13 +15,17 @@ class Base(util.Base):
 
     @pytest.fixture
     def ffa(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs={'in:out': self.NUM_INPUTS}, size=self.NUM_HIDDEN, name='a')
+        l.bind(None)
+        return l
 
     @pytest.fixture
     def ffb(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs={'in:out': self.NUM_INPUTS}, size=self.NUM_HIDDEN, name='b')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer):
         net = theanets.Regressor((self.NUM_INPUTS, layer, self.NUM_OUTPUTS))
@@ -34,7 +38,7 @@ class Base(util.Base):
         assert sorted(p.name for p in layer.params) == expected
 
     def assert_count(self, layer, expected):
-        assert layer.num_params == expected
+        assert sum(np.prod(p.get_value().shape) for p in layer.params) == expected
 
     def assert_spec(self, layer, **expected):
         assert layer.to_spec() == expected
@@ -51,8 +55,10 @@ class Base(util.Base):
 class TestLayer(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_build(self):
         for f in 'feedforward Feedforward classifier prod rnn lstm'.split():
@@ -68,8 +74,10 @@ class TestLayer(Base):
 class TestFeedforward(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['w', 'b'])
@@ -84,9 +92,11 @@ class TestFeedforward(Base):
 class TestMultiFeedforward(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs={'a:out': self.NUM_HIDDEN, 'b:out': self.NUM_HIDDEN},
             size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer, ffa, ffb):
         net = theanets.Regressor((self.NUM_INPUTS, ffa, ffb, layer, self.NUM_OUTPUTS))
@@ -106,9 +116,11 @@ class TestMultiFeedforward(Base):
 class TestProduct(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Product(
+        l = theanets.layers.Product(
             inputs={'a:out': self.NUM_HIDDEN, 'b:out': self.NUM_HIDDEN},
             size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer, ffa, ffb):
         net = theanets.Regressor((self.NUM_INPUTS, ffa, ffb, layer, self.NUM_OUTPUTS))
@@ -128,9 +140,11 @@ class TestProduct(Base):
 class TestConcatenate(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Concatenate(
+        l = theanets.layers.Concatenate(
             inputs={'a:out': self.NUM_HIDDEN, 'b:out': self.NUM_HIDDEN},
             size=2 * self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer, ffa, ffb):
         net = theanets.Regressor((self.NUM_INPUTS, ffa, ffb, layer, self.NUM_OUTPUTS))
@@ -152,12 +166,16 @@ class TestConcatenate(Base):
 class TestTied(Base):
     @pytest.fixture
     def l0(self):
-        return theanets.layers.Feedforward(
+        l = theanets.layers.Feedforward(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l0')
+        l.bind(None)
+        return l
 
     @pytest.fixture
     def layer(self, l0):
-        return theanets.layers.Tied(partner=l0, name='l')
+        l = theanets.layers.Tied(partner=l0, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer, l0):
         net = theanets.Autoencoder((self.NUM_INPUTS, l0, layer))
@@ -177,8 +195,10 @@ class TestTied(Base):
 class TestClassifier(Base):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Classifier(
+        l = theanets.layers.Classifier(
             inputs=self.NUM_INPUTS, size=self.NUM_CLASSES, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer):
         net = theanets.Classifier((self.NUM_INPUTS, layer))
@@ -218,7 +238,9 @@ class TestReshape(BaseRecurrent):
         #
         # of course this doesn't make any sense for a real nn to do, it's just
         # to test the reshaping operation.
-        return theanets.layers.Reshape(inputs=self.NUM_INPUTS, shape=(14, 6), name='l')
+        l = theanets.layers.Reshape(inputs=self.NUM_INPUTS, shape=(14, 6), name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, [])
@@ -244,7 +266,9 @@ class TestFlatten(BaseRecurrent):
     def layer(self):
         # we get an input that's (BATCH, TIMES, INPUTS): (8, 12, 7).
         # this gets flattened to (BATCH, TIMES * INPUTS): (8, 84).
-        return theanets.layers.Flatten(inputs=self.NUM_INPUTS, size=84)
+        l = theanets.layers.Flatten(inputs=self.NUM_INPUTS, size=84)
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, [])
@@ -264,8 +288,10 @@ class TestFlatten(BaseRecurrent):
 class TestConv1(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Conv1(
+        l = theanets.layers.Conv1(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, filter_size=3, name='l')
+        l.bind(None)
+        return l
 
     def test_feed_forward(self, layer):
         net = theanets.recurrent.Regressor((self.NUM_INPUTS, layer, self.NUM_OUTPUTS))
@@ -285,8 +311,10 @@ class TestConv1(BaseRecurrent):
 class TestRNN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.RNN(
+        l = theanets.layers.RNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'hh', 'xh'])
@@ -302,8 +330,10 @@ class TestRNN(BaseRecurrent):
 class TestARRNN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.RRNN(
+        l = theanets.layers.RRNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'hh', 'r', 'xh', 'xr'])
@@ -319,9 +349,11 @@ class TestARRNN(BaseRecurrent):
 class TestLRRNN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.RRNN(
+        l = theanets.layers.RRNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l',
             rate='vector')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'hh', 'r', 'xh'])
@@ -337,9 +369,11 @@ class TestLRRNN(BaseRecurrent):
 class TestRRNN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.RRNN(
+        l = theanets.layers.RRNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l',
             rate='uniform')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'hh', 'xh'])
@@ -355,8 +389,10 @@ class TestRRNN(BaseRecurrent):
 class TestMRNN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.MRNN(
+        l = theanets.layers.MRNN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, factors=3, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'fh', 'hf', 'xf', 'xh'])
@@ -377,8 +413,10 @@ class TestMRNN(BaseRecurrent):
 class TestLSTM(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.LSTM(
+        l = theanets.layers.LSTM(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'cf', 'ci', 'co', 'hh', 'xh'])
@@ -395,8 +433,10 @@ class TestLSTM(BaseRecurrent):
 class TestGRU(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.GRU(
+        l = theanets.layers.GRU(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['bh', 'br', 'bz',
@@ -414,8 +454,10 @@ class TestGRU(BaseRecurrent):
 class TestMUT1(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.MUT1(
+        l = theanets.layers.MUT1(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['bh', 'br', 'bz',
@@ -433,8 +475,10 @@ class TestMUT1(BaseRecurrent):
 class TestClockwork(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Clockwork(
+        l = theanets.layers.Clockwork(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, periods=(2, 5), name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'xh', 'hh'])
@@ -454,8 +498,10 @@ class TestClockwork(BaseRecurrent):
 class TestSCRN(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.SCRN(
+        l = theanets.layers.SCRN(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(layer, ['b', 'xh', 'hh', 'sh', 'xs', 'ho', 'so', 'r'])
@@ -475,8 +521,10 @@ class TestSCRN(BaseRecurrent):
 class TestBidirectional(BaseRecurrent):
     @pytest.fixture
     def layer(self):
-        return theanets.layers.Bidirectional(
+        l = theanets.layers.Bidirectional(
             inputs=self.NUM_INPUTS, size=self.NUM_HIDDEN, worker='rrnn', name='l')
+        l.bind(None)
+        return l
 
     def test_create(self, layer):
         self.assert_param_names(

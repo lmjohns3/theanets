@@ -4,40 +4,35 @@ import numpy as np
 
 np.random.seed(13)
 
+NUM_EXAMPLES = 64
+NUM_INPUTS = 7
+NUM_HID1 = 9
+NUM_HID2 = 11
+NUM_OUTPUTS = 3
+NUM_CLASSES = 5
 
-class Base(object):
-    NUM_EXAMPLES = 64
-    NUM_INPUTS = 7
-    NUM_OUTPUTS = 3
-    NUM_CLASSES = 5
+INPUTS = np.random.randn(NUM_EXAMPLES, NUM_INPUTS).astype('f')
+INPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_INPUTS)).astype('f')
+OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
+OUTPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS)).astype('f')
+CLASSES = np.random.randint(NUM_CLASSES, size=NUM_EXAMPLES).astype('i')
+CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES)).astype('f')
 
-    INPUTS = np.random.randn(NUM_EXAMPLES, NUM_INPUTS).astype('f')
-    INPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_INPUTS)).astype('f')
-    OUTPUTS = np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS).astype('f')
-    OUTPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_OUTPUTS)).astype('f')
-    CLASSES = np.random.randint(NUM_CLASSES, size=NUM_EXAMPLES).astype('i')
-    CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES)).astype('f')
+AE_DATA = [INPUTS]
+WAE_DATA = [INPUTS, INPUT_WEIGHTS]
+AE_LAYERS = [NUM_INPUTS, NUM_HID1, NUM_HID2, NUM_INPUTS]
 
-    def assert_progress(self, net, algo, data, **kwargs):
-        trainer = net.itertrain(
-            data, algorithm=algo, monitor_gradients=True, batch_size=3, **kwargs)
-        train0, valid0 = next(trainer)
-        train1, valid1 = next(trainer)
-        assert train1['loss'] < valid0['loss']   # should have made progress!
-        assert valid1['loss'] == valid0['loss']  # no new validation occurred
+CLF_DATA = [INPUTS, CLASSES]
+WCLF_DATA = [INPUTS, CLASSES, CLASS_WEIGHTS]
+CLF_LAYERS = [NUM_INPUTS, NUM_HID1, NUM_HID2, NUM_CLASSES]
 
-    def assert_shape(self, actual, expected):
-        if not isinstance(expected, tuple):
-            expected = (self.NUM_EXAMPLES, expected)
-        assert actual == expected, 'expected {}, got {}'.format(expected, actual)
+REG_DATA = [INPUTS, OUTPUTS]
+WREG_DATA = [INPUTS, OUTPUTS, OUTPUT_WEIGHTS]
+REG_LAYERS = [NUM_INPUTS, NUM_HID1, NUM_HID2, NUM_OUTPUTS]
 
 
-class RecurrentBase(Base):
+class RNN:
     NUM_TIMES = 31
-    NUM_EXAMPLES = Base.NUM_EXAMPLES
-    NUM_INPUTS = Base.NUM_INPUTS
-    NUM_OUTPUTS = Base.NUM_OUTPUTS
-    NUM_CLASSES = Base.NUM_CLASSES
 
     INPUTS = np.random.randn(NUM_EXAMPLES, NUM_TIMES, NUM_INPUTS).astype('f')
     INPUT_WEIGHTS = abs(
@@ -48,7 +43,39 @@ class RecurrentBase(Base):
     CLASSES = np.random.randn(NUM_EXAMPLES, NUM_TIMES).astype('i')
     CLASS_WEIGHTS = abs(np.random.rand(NUM_EXAMPLES, NUM_TIMES)).astype('f')
 
-    def assert_shape(self, actual, expected):
-        if not isinstance(expected, tuple):
-            expected = (self.NUM_EXAMPLES, self.NUM_TIMES, expected)
-        assert actual == expected, 'expected {}, got {}'.format(expected, actual)
+    AE_DATA = [INPUTS]
+    WAE_DATA = [INPUTS, INPUT_WEIGHTS]
+    AE_LAYERS = [NUM_INPUTS, (NUM_HID1, 'rnn'), NUM_HID2, NUM_INPUTS]
+
+    CLF_DATA = [INPUTS, CLASSES]
+    WCLF_DATA = [INPUTS, CLASSES, CLASS_WEIGHTS]
+    CLF_LAYERS = [NUM_INPUTS, (NUM_HID1, 'rnn'), NUM_HID2, NUM_CLASSES]
+
+    REG_DATA = [INPUTS, OUTPUTS]
+    WREG_DATA = [INPUTS, OUTPUTS, OUTPUT_WEIGHTS]
+    REG_LAYERS = [NUM_INPUTS, (NUM_HID1, 'rnn'), NUM_HID2, NUM_OUTPUTS]
+
+
+class CNN:
+    NUM_WIDTH = 13
+    NUM_HEIGHT = 15
+
+    FILTER_WIDTH = 4
+    FILTER_HEIGHT = 3
+    FILTER_SIZE = (FILTER_WIDTH, FILTER_HEIGHT)
+
+    INPUTS = np.random.randn(
+        NUM_EXAMPLES, NUM_WIDTH, NUM_HEIGHT, NUM_INPUTS).astype('f')
+
+    CLF_DATA = [INPUTS, CLASSES]
+    REG_DATA = [INPUTS, OUTPUTS]
+    WCLF_DATA = [INPUTS, CLASSES, CLASS_WEIGHTS]
+    WREG_DATA = [INPUTS, OUTPUTS, OUTPUT_WEIGHTS]
+
+
+def assert_progress(model, data):
+    trainer = model.itertrain(data, algorithm='sgd', momentum=0.5, batch_size=3)
+    train0, valid0 = next(trainer)
+    train1, valid1 = next(trainer)
+    assert train1['loss'] < valid0['loss']   # should have made progress!
+    assert valid1['loss'] == valid0['loss']  # no new validation occurred

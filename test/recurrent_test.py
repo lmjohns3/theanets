@@ -2,38 +2,126 @@ import numpy as np
 import pytest
 import theanets
 
-from util import RecurrentBase as Base
+import util as u
 
 
-class TestFunctions(Base):
+def assert_shape(actual, expected):
+    if not isinstance(expected, tuple):
+        expected = (u.NUM_EXAMPLES, u.RNN.NUM_TIMES, expected)
+    assert actual == expected
+
+
+@pytest.mark.parametrize('Model, layers, weighted, data', [
+    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, False, u.RNN.REG_DATA),
+    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, False, u.RNN.CLF_DATA),
+    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, False, u.RNN.AE_DATA),
+    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, True, u.RNN.WREG_DATA),
+    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, True, u.RNN.WCLF_DATA),
+    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, True, u.RNN.WAE_DATA),
+])
+def test_sgd(Model, layers, weighted, data):
+    u.assert_progress(Model(layers, weighted=weighted), data)
+
+
+@pytest.mark.parametrize('Model, layers', [
+    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS),
+    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS),
+    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS),
+])
+def test_predict(Model, layers):
+    assert_shape(Model(layers).predict(u.INPUTS).shape, output)
+
+
+@pytest.mark.parametrize('Model, layers, target, score', [
+    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, u.RNN.OUTPUTS, -0.12363219261169434),
+    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, u.RNN.CLASSES, 0.67792338709677424),
+    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, u.RNN.INPUTS, -2.7796907424926758),
+])
+def test_score(Model, layers, target, score):
+    assert Model(layers).score(u.RNN.INPUTS, target) == score
+
+
+@pytest.mark.parametrize('Model, layers, target', [
+    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, u.NUM_OUTPUTS),
+    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, u.NUM_CLASSES),
+    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, u.NUM_INPUTS),
+])
+def test_predict(Model, layers, target):
+    outs = Model(layers).feed_forward(u.RNN.INPUTS)
+    assert len(list(outs)) == 9
+    assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
+    assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
+    assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
+    assert_shape(outs['out:out'].shape, target)
+
+
+class TestClassifier:
+    @pytest.fixture
+    def net(self):
+        return theanets.recurrent.Classifier(u.RNN.CLF_LAYERS)
+
+    def test_predict_proba(self, net):
+        assert_shape(net.predict_proba(u.RNN.INPUTS).shape, u.NUM_CLASSES)
+
+    def test_predict_logit(self, net):
+        assert_shape(net.predict_logit(u.RNN.INPUTS).shape, u.NUM_CLASSES)
+
+    def test_score(self, net):
+        w = 0.5 * np.ones(u.CLASSES.shape, 'f')
+        assert 0 <= net.score(u.RNN.INPUTS, u.CLASSES, w) <= 1
+
+
+class TestAutoencoder:
+    @pytest.fixture
+    def net(self):
+        return theanets.recurrent.Autoencoder(u.AE_LAYERS)
+
+    def test_encode_hid1(self, net):
+        z = net.encode(u.RNN.INPUTS, 'hid1')
+        assert_shape(z.shape, u.NUM_HID1)
+
+    def test_encode_hid2(self, net):
+        z = net.encode(u.RNN.INPUTS, 'hid2')
+        assert_shape(z.shape, u.NUM_HID2)
+
+    def test_decode_hid1(self, net):
+        x = net.decode(net.encode(u.RNN.INPUTS))
+        assert_shape(x.shape, u.NUM_INPUTS)
+
+    def test_decode_hid2(self, net):
+        x = net.decode(net.encode(u.RNN.INPUTS, 'hid2'), 'hid2')
+        assert_shape(x.shape, u.NUM_INPUTS)
+
+    def test_score(self, net):
+        labels = np.random.randint(0, 2, size=u.RNN.INPUTS.shape)
+        assert net.score(u.RNN.INPUTS, labels) < 0
+
+
+class TestFunctions:
     @pytest.fixture
     def samples(self):
-        return np.random.randn(2 * self.NUM_TIMES, self.NUM_INPUTS)
+        return np.random.randn(2 * u.RNN.NUM_TIMES, u.NUM_INPUTS)
 
     @pytest.fixture
     def labels(self):
-        return np.random.randn(2 * self.NUM_TIMES, self.NUM_OUTPUTS)
+        return np.random.randn(2 * u.RNN.NUM_TIMES, u.NUM_OUTPUTS)
 
     def test_batches_labeled(self, samples, labels):
         f = theanets.recurrent.batches(
-            [samples, labels], steps=self.NUM_TIMES, batch_size=self.NUM_EXAMPLES)
+            [samples, labels], steps=u.RNN.NUM_TIMES, batch_size=u.NUM_EXAMPLES)
         assert len(f()) == 2
-        assert f()[0].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_INPUTS)
-        assert f()[1].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_OUTPUTS)
+        assert_shape(f()[0].shape, u.NUM_INPUTS)
+        assert_shape(f()[1].shape, u.NUM_OUTPUTS)
 
     def test_batches_unlabeled(self, samples):
         f = theanets.recurrent.batches(
-            [samples], steps=self.NUM_TIMES, batch_size=self.NUM_EXAMPLES)
+            [samples], steps=u.RNN.NUM_TIMES, batch_size=u.NUM_EXAMPLES)
         assert len(f()) == 1
-        assert f()[0].shape == (self.NUM_EXAMPLES, self.NUM_TIMES, self.NUM_INPUTS)
+        assert_shape(f()[0].shape, u.NUM_INPUTS)
 
 
 class TestText:
     TXT = 'hello world, how are you!'
-
-    @pytest.fixture
-    def txt(self):
-        return theanets.recurrent.Text(self.TXT, alpha='helo wrd,!', unknown='_')
 
     def test_min_count(self):
         txt = theanets.recurrent.Text(self.TXT, min_count=2, unknown='_')
@@ -43,6 +131,10 @@ class TestText:
         txt = theanets.recurrent.Text(self.TXT, min_count=3, unknown='_')
         assert txt.text == '__llo _o_l__ _o_ ___ _o__'
         assert txt.alpha == ' lo'
+
+    @pytest.fixture
+    def txt(self):
+        return theanets.recurrent.Text(self.TXT, alpha='helo wrd,!', unknown='_')
 
     def test_alpha(self, txt):
         assert txt.text == 'hello world, how _re _o_!'
@@ -62,156 +154,3 @@ class TestText:
         assert b()[0].shape == (5, 8, 1 + len(txt.alpha))
         assert b()[1].shape == (5, 8)
         assert not np.allclose(b()[0], b()[0])
-
-
-class TestRegressor(Base):
-    def build(self, *hiddens):
-        return theanets.recurrent.Regressor(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_OUTPUTS])
-
-    def test_sgd(self):
-        self.assert_progress(
-            self.build((10, 'rnn')), 'sgd', [self.INPUTS, self.OUTPUTS])
-
-    def test_predict(self):
-        net = self.build(15, 13)
-        y = net.predict(self.INPUTS)
-        self.assert_shape(y.shape, self.NUM_OUTPUTS)
-
-    def test_feed_forward(self):
-        net = self.build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['hid2:out'].shape, 13)
-        self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
-
-    def test_multiple_recurrent(self):
-        net = self.build(13, 14, 15)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 11, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 13)
-        self.assert_shape(hs['hid2:out'].shape, 14)
-        self.assert_shape(hs['hid3:out'].shape, 15)
-        self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
-
-
-class TestWeightedRegressor(TestRegressor):
-    def build(self, *hiddens):
-        return theanets.recurrent.Regressor(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_OUTPUTS],
-            weighted=True)
-
-    def test_sgd(self):
-        self.assert_progress(
-            self.build((10, 'rnn')), 'sgd',
-            [self.INPUTS, self.OUTPUTS, self.OUTPUT_WEIGHTS])
-
-
-class TestClassifier(Base):
-    def build(self, *hiddens):
-        return theanets.recurrent.Classifier(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_CLASSES])
-
-    def test_sgd(self):
-        self.assert_progress(
-            self.build((10, 'rnn')), 'sgd', [self.INPUTS, self.CLASSES])
-
-    def test_predict_onelayer(self):
-        net = self.build(13)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_EXAMPLES, self.NUM_TIMES))
-
-    def test_score_onelayer(self):
-        net = self.build(13)
-        z = net.score(self.INPUTS, self.CLASSES)
-        assert 0 <= z <= 1
-
-    def test_predict_proba_onelayer(self):
-        net = self.build(13)
-        z = net.predict_proba(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_CLASSES)
-
-    def test_predict_twolayer(self):
-        net = self.build(13, 14)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_EXAMPLES, self.NUM_TIMES))
-
-    def test_feed_forward(self):
-        net = self.build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['hid2:out'].shape, 13)
-        self.assert_shape(hs['out:out'].shape, self.NUM_CLASSES)
-
-    def test_predict_sequence(self):
-        net = self.build(13)
-
-        count = 0
-        for cs in net.predict_sequence([3, 0, 1, 2], 5, streams=3):
-            assert isinstance(cs, list)
-            assert len(cs) == 3
-            count += 1
-        assert count == 5
-
-        count = 0
-        for cs in net.predict_sequence([3, 0, 1, 2], 5):
-            print(cs, type(cs))
-            assert isinstance(cs, int)
-            count += 1
-        assert count == 5
-
-
-class TestWeightedClassifier(TestClassifier):
-    def build(self, *hiddens):
-        return theanets.recurrent.Classifier(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_CLASSES],
-            weighted=True)
-
-    def test_sgd(self):
-        self.assert_progress(
-            self.build((10, 'rnn')), 'sgd',
-            [self.INPUTS, self.CLASSES, self.CLASS_WEIGHTS])
-
-
-class TestAutoencoder(Base):
-    def build(self, *hiddens):
-        return theanets.recurrent.Autoencoder(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_INPUTS])
-
-    def test_sgd(self):
-        self.assert_progress(self.build((10, 'rnn')), 'sgd', [self.INPUTS])
-
-    def test_encode_onelayer(self):
-        net = self.build(13)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_INPUTS)
-
-    def test_encode_twolayer(self):
-        net = self.build(13, 14)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_INPUTS)
-
-    def test_feed_forward(self):
-        net = self.build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['hid2:out'].shape, 13)
-        self.assert_shape(hs['out:out'].shape, self.NUM_INPUTS)
-
-
-class TestWeightedAutoencoder(TestAutoencoder):
-    def build(self, *hiddens):
-        return theanets.recurrent.Autoencoder(
-            [self.NUM_INPUTS] + list(hiddens) + [self.NUM_INPUTS],
-            weighted=True)
-
-    def test_sgd(self):
-        self.assert_progress(
-            self.build((10, 'rnn')), 'sgd', [self.INPUTS, self.INPUT_WEIGHTS])

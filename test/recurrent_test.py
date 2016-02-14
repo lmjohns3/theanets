@@ -4,6 +4,9 @@ import theanets
 
 import util as u
 
+AE_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_INPUTS]
+CLF_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_CLASSES]
+REG_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_OUTPUTS]
 
 def assert_shape(actual, expected):
     if not isinstance(expected, tuple):
@@ -12,39 +15,39 @@ def assert_shape(actual, expected):
 
 
 @pytest.mark.parametrize('Model, layers, weighted, data', [
-    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, False, u.RNN.REG_DATA),
-    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, False, u.RNN.CLF_DATA),
-    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, False, u.RNN.AE_DATA),
-    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, True, u.RNN.WREG_DATA),
-    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, True, u.RNN.WCLF_DATA),
-    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, True, u.RNN.WAE_DATA),
+    (theanets.recurrent.Regressor, REG_LAYERS, False, u.RNN.REG_DATA),
+    (theanets.recurrent.Classifier, CLF_LAYERS, False, u.RNN.CLF_DATA),
+    (theanets.recurrent.Autoencoder, AE_LAYERS, False, u.RNN.AE_DATA),
+    (theanets.recurrent.Regressor, REG_LAYERS, True, u.RNN.WREG_DATA),
+    (theanets.recurrent.Classifier, CLF_LAYERS, True, u.RNN.WCLF_DATA),
+    (theanets.recurrent.Autoencoder, AE_LAYERS, True, u.RNN.WAE_DATA),
 ])
 def test_sgd(Model, layers, weighted, data):
     u.assert_progress(Model(layers, weighted=weighted), data)
 
 
 @pytest.mark.parametrize('Model, layers', [
-    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS),
-    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS),
-    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS),
+    (theanets.recurrent.Regressor, REG_LAYERS),
+    (theanets.recurrent.Classifier, CLF_LAYERS),
+    (theanets.recurrent.Autoencoder, AE_LAYERS),
 ])
 def test_predict(Model, layers):
     assert_shape(Model(layers).predict(u.INPUTS).shape, output)
 
 
 @pytest.mark.parametrize('Model, layers, target, score', [
-    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, u.RNN.OUTPUTS, -0.12363219261169434),
-    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, u.RNN.CLASSES, 0.67792338709677424),
-    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, u.RNN.INPUTS, -2.7796907424926758),
+    (theanets.recurrent.Regressor, REG_LAYERS, u.RNN.OUTPUTS, -0.73883247375488281),
+    (theanets.recurrent.Classifier, CLF_LAYERS, u.RNN.CLASSES, 0.0020161290322580645),
+    (theanets.recurrent.Autoencoder, AE_LAYERS, u.RNN.INPUTS, 81.411415100097656),
 ])
 def test_score(Model, layers, target, score):
     assert Model(layers).score(u.RNN.INPUTS, target) == score
 
 
 @pytest.mark.parametrize('Model, layers, target', [
-    (theanets.recurrent.Regressor, u.RNN.REG_LAYERS, u.NUM_OUTPUTS),
-    (theanets.recurrent.Classifier, u.RNN.CLF_LAYERS, u.NUM_CLASSES),
-    (theanets.recurrent.Autoencoder, u.RNN.AE_LAYERS, u.NUM_INPUTS),
+    (theanets.recurrent.Regressor, REG_LAYERS, u.NUM_OUTPUTS),
+    (theanets.recurrent.Classifier, CLF_LAYERS, u.NUM_CLASSES),
+    (theanets.recurrent.Autoencoder, AE_LAYERS, u.NUM_INPUTS),
 ])
 def test_predict(Model, layers, target):
     outs = Model(layers).feed_forward(u.RNN.INPUTS)
@@ -58,7 +61,7 @@ def test_predict(Model, layers, target):
 class TestClassifier:
     @pytest.fixture
     def net(self):
-        return theanets.recurrent.Classifier(u.RNN.CLF_LAYERS)
+        return theanets.recurrent.Classifier(CLF_LAYERS)
 
     def test_predict_proba(self, net):
         assert_shape(net.predict_proba(u.RNN.INPUTS).shape, u.NUM_CLASSES)
@@ -74,7 +77,7 @@ class TestClassifier:
 class TestAutoencoder:
     @pytest.fixture
     def net(self):
-        return theanets.recurrent.Autoencoder(u.AE_LAYERS)
+        return theanets.recurrent.Autoencoder(AE_LAYERS)
 
     def test_encode_hid1(self, net):
         z = net.encode(u.RNN.INPUTS, 'hid1')

@@ -6,10 +6,10 @@ np.random.seed(13)
 
 NUM_EXAMPLES = 64
 NUM_INPUTS = 7
-NUM_HID1 = 9
-NUM_HID2 = 11
-NUM_OUTPUTS = 3
-NUM_CLASSES = 5
+NUM_HID1 = 8
+NUM_HID2 = 12
+NUM_OUTPUTS = 5
+NUM_CLASSES = 6
 
 INPUTS = np.random.randn(NUM_EXAMPLES, NUM_INPUTS).astype('f')
 INPUT_WEIGHTS = abs(np.random.randn(NUM_EXAMPLES, NUM_INPUTS)).astype('f')

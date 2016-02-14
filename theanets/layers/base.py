@@ -323,6 +323,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
             name=self.name,
             size=self.size,
             inputs=self.inputs,
+            activation=self.kwargs.get('activation', 'relu'),
         )
         return spec
 

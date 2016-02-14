@@ -65,13 +65,15 @@ class CNN:
         NUM_EXAMPLES, NUM_WIDTH, NUM_HEIGHT, NUM_INPUTS).astype('f')
 
     CLF_DATA = [INPUTS, CLASSES]
-    REG_DATA = [INPUTS, OUTPUTS]
     WCLF_DATA = [INPUTS, CLASSES, CLASS_WEIGHTS]
+
+    REG_DATA = [INPUTS, OUTPUTS]
     WREG_DATA = [INPUTS, OUTPUTS, OUTPUT_WEIGHTS]
 
 
 def assert_progress(model, data):
-    trainer = model.itertrain(data, algorithm='sgd', momentum=0.5, batch_size=3)
+    trainer = model.itertrain(
+        data, algorithm='sgd', momentum=0.5, batch_size=3, max_gradient_norm=1)
     train0, valid0 = next(trainer)
     train1, valid1 = next(trainer)
     assert train1['loss'] < valid0['loss']   # should have made progress!

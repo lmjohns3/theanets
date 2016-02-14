@@ -33,9 +33,9 @@ def test_predict(Model, layers):
 
 
 @pytest.mark.parametrize('Model, layers, target, score', [
-    (theanets.Regressor, u.REG_LAYERS, u.OUTPUTS, -0.12264680862426758),
-    (theanets.Classifier, u.CLF_LAYERS, u.CLASSES, 0.21875),
-    (theanets.Autoencoder, u.AE_LAYERS, u.INPUTS, 3.948817253112793),
+    (theanets.Regressor, u.REG_LAYERS, u.OUTPUTS, -1.0473043918609619),
+    (theanets.Classifier, u.CLF_LAYERS, u.CLASSES, 0.171875),
+    (theanets.Autoencoder, u.AE_LAYERS, u.INPUTS, 15.108331680297852),
 ])
 def test_score(Model, layers, target, score):
     assert Model(layers).score(u.INPUTS, target) == score

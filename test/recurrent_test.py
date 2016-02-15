@@ -74,6 +74,9 @@ class TestClassifier:
         w = 0.5 * np.ones(u.CLASSES.shape, 'f')
         assert 0 <= net.score(u.RNN.INPUTS, u.CLASSES, w) <= 1
 
+    def test_predict_sequence(self, net):
+        assert list(net.predict_sequence([0, 1, 2], 5, rng=13)) == [4, 5, 1, 3, 1]
+
 
 class TestAutoencoder:
     @pytest.fixture

@@ -8,7 +8,7 @@ try:
 except ImportError:  # python3
     pass
 
-import util
+import util as u
 
 
 class TestNetwork:
@@ -121,7 +121,7 @@ class TestMonitors:
         mon = [k for k, v in net.monitors(monitors=monitors)]
         if sort:
             mon = sorted(mon)
-        assert mon == expected, 'expected {}, got {}'.format(expected, mon)
+        assert mon == expected
 
     def test_dict(self, net):
         self.assert_monitors(net, {'hid1:out': 1}, ['err', 'hid1:out<1'])
@@ -150,16 +150,15 @@ class TestMonitors:
         self.assert_monitors(net, {'hid?.w': 1}, ['err', 'hid1.w<1', 'hid2.w<1'])
 
 
-class TestSaving(util.Base):
-    def test_save_every(self, tmpdir):
-        net = theanets.Autoencoder((self.NUM_INPUTS, (3, 'prelu'), self.NUM_INPUTS))
-        p = tmpdir.mkdir('graph-test').join('model.pkl')
-        fn = os.path.join(p.dirname, p.basename)
-        train = net.itertrain([self.INPUTS], save_every=2, save_progress=fn)
-        for i, _ in enumerate(zip(train, range(9))):
-            if i == 3 or i == 5 or i == 7:
-                assert p.check()
-            else:
-                assert not p.check()
-            if p.check():
-                p.remove()
+def test_save_every(tmpdir):
+    net = theanets.Autoencoder((u.NUM_INPUTS, (3, 'prelu'), u.NUM_INPUTS))
+    p = tmpdir.mkdir('graph-test').join('model.pkl')
+    fn = os.path.join(p.dirname, p.basename)
+    train = net.itertrain([u.INPUTS], save_every=2, save_progress=fn)
+    for i, _ in enumerate(zip(train, range(9))):
+        if i == 3 or i == 5 or i == 7:
+            assert p.check()
+        else:
+            assert not p.check()
+        if p.check():
+            p.remove()

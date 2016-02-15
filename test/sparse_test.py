@@ -1,85 +1,69 @@
 import numpy as np
+import pytest
 import scipy.sparse
 import theanets
 
-import util
+import util as u
+
+CSR = dict(form='input', size=u.NUM_INPUTS, sparse='csr', name='in')
+CSC = dict(form='input', size=u.NUM_INPUTS, sparse='csc', name='in')
+REG_LAYERS = dict(csr=[CSR] + u.REG_LAYERS[1:], csc=[CSC] + u.REG_LAYERS[1:])
+CLF_LAYERS = dict(csr=[CSR] + u.CLF_LAYERS[1:], csc=[CSC] + u.CLF_LAYERS[1:])
+AE_LAYERS = dict(csr=[CSR] + u.AE_LAYERS[1:], csc=[CSC] + u.AE_LAYERS[1:])
+
+CSR = scipy.sparse.csr_matrix(u.INPUTS)
+CSC = scipy.sparse.csc_matrix(u.INPUTS)
+INPUTS = dict(csr=CSR, csc=CSC)
+REG_DATA = dict(csr=[CSR] + u.REG_DATA[1:], csc=[CSC] + u.REG_DATA[1:])
+WREG_DATA = dict(csr=[CSR] + u.WREG_DATA[1:], csc=[CSC] + u.WREG_DATA[1:])
+CLF_DATA = dict(csr=[CSR] + u.CLF_DATA[1:], csc=[CSC] + u.CLF_DATA[1:])
+WCLF_DATA = dict(csr=[CSR] + u.WCLF_DATA[1:], csc=[CSC] + u.WCLF_DATA[1:])
 
 
-class Base(util.Base):
-    INPUTS = scipy.sparse.csr_matrix(util.Base.INPUTS)
+@pytest.mark.parametrize('Model, layers, sparse, weighted, data', [
+    (theanets.Regressor, REG_LAYERS, 'csr', True, WREG_DATA),
+    (theanets.Classifier, CLF_LAYERS, 'csr', True, WCLF_DATA),
+    (theanets.Regressor, REG_LAYERS, 'csc', True, WREG_DATA),
+    (theanets.Classifier, CLF_LAYERS, 'csc', True, WCLF_DATA),
+    (theanets.Regressor, REG_LAYERS, 'csr', False, REG_DATA),
+    (theanets.Classifier, CLF_LAYERS, 'csr', False, CLF_DATA),
+    (theanets.Regressor, REG_LAYERS, 'csc', False, REG_DATA),
+    (theanets.Classifier, CLF_LAYERS, 'csc', False, CLF_DATA),
+])
+def test_sgd(Model, layers, sparse, weighted, data):
+    u.assert_progress(Model(layers[sparse], weighted=weighted), data[sparse])
 
 
-class TestRegressor(Base):
-    def build(self, *hiddens):
-        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
-        return theanets.Regressor([input] + list(hiddens) + [self.NUM_OUTPUTS])
-
-    def test_sgd(self):
-        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
-        self.assert_progress(self.build(10), 'sgd', [self.INPUTS, self.OUTPUTS])
-
-    def test_predict(self):
-        net = self.build(15, 13)
-        y = net.predict(self.INPUTS)
-        self.assert_shape(y.shape, self.NUM_OUTPUTS)
-
-    def test_score_onelayer(self):
-        net = self.build(13)
-        z = net.score(self.INPUTS, self.OUTPUTS)
-        assert z < 0
-
-    def test_feed_forward(self):
-        net = self.build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
-
-    def test_decode_from_multiple_layers(self):
-        net = self.build(13, 14, dict(
-            size=15, inputs={'hid2:out': 14, 'hid1:out': 13}))
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 11, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 13)
-        self.assert_shape(hs['hid2:out'].shape, 14)
-        self.assert_shape(hs['out:out'].shape, self.NUM_OUTPUTS)
+@pytest.mark.parametrize('Model, layers, output', [
+    (theanets.Regressor, u.REG_LAYERS, u.NUM_OUTPUTS),
+    (theanets.Classifier, u.CLF_LAYERS, (u.NUM_EXAMPLES, )),
+    (theanets.Autoencoder, u.AE_LAYERS, u.NUM_INPUTS),
+])
+def test_predict(Model, layers, output):
+    u.assert_shape(Model(layers).predict(u.INPUTS).shape, output)
 
 
-class TestClassifier(Base):
-    def build(self, *hiddens):
-        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
-        return theanets.Classifier([input] + list(hiddens) + [self.NUM_CLASSES])
+@pytest.mark.parametrize('Model, layers, target, score', [
+    (theanets.Regressor, u.REG_LAYERS, u.OUTPUTS, -1.0473043918609619),
+    (theanets.Classifier, u.CLF_LAYERS, u.CLASSES, 0.171875),
+    (theanets.Autoencoder, u.AE_LAYERS, u.INPUTS, 15.108331680297852),
+])
+def test_score(Model, layers, target, score):
+    assert Model(layers).score(u.INPUTS, target) == score
 
-    def test_sgd(self):
-        input = dict(form='input', size=self.NUM_INPUTS, sparse='csr', name='in')
-        self.assert_progress(self.build(10), 'sgd', [self.INPUTS, self.CLASSES])
 
-    def test_predict_onelayer(self):
-        net = self.build(13)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_EXAMPLES, ))
-
-    def test_score_onelayer(self):
-        net = self.build(13)
-        z = net.score(self.INPUTS, self.CLASSES)
-        assert 0 <= z <= 1
-
-    def test_predict_proba_onelayer(self):
-        net = self.build(13)
-        z = net.predict_proba(self.INPUTS)
-        self.assert_shape(z.shape, self.NUM_CLASSES)
-
-    def test_predict_twolayer(self):
-        net = self.build(13, 14)
-        z = net.predict(self.INPUTS)
-        self.assert_shape(z.shape, (self.NUM_EXAMPLES, ))
-
-    def test_feed_forward(self):
-        net = self.build(15, 13)
-        hs = net.feed_forward(self.INPUTS)
-        assert len(hs) == 9, 'got {}'.format(list(hs.keys()))
-        self.assert_shape(hs['in:out'].shape, self.NUM_INPUTS)
-        self.assert_shape(hs['hid1:out'].shape, 15)
-        self.assert_shape(hs['out:out'].shape, self.NUM_CLASSES)
+@pytest.mark.parametrize('Model, layers, sparse, target', [
+    (theanets.Regressor, REG_LAYERS, 'csr', u.NUM_OUTPUTS),
+    (theanets.Classifier, CLF_LAYERS, 'csr', u.NUM_CLASSES),
+    (theanets.Autoencoder, AE_LAYERS, 'csr', u.NUM_INPUTS),
+    (theanets.Regressor, REG_LAYERS, 'csc', u.NUM_OUTPUTS),
+    (theanets.Classifier, CLF_LAYERS, 'csc', u.NUM_CLASSES),
+    (theanets.Autoencoder, AE_LAYERS, 'csc', u.NUM_INPUTS),
+])
+def test_feed_forward(Model, layers, sparse, target):
+    outs = Model(layers[sparse]).feed_forward(INPUTS[sparse])
+    assert len(list(outs)) == 9
+    u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
+    u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
+    u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
+    u.assert_shape(outs['out:out'].shape, target)

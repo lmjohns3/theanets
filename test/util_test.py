@@ -29,8 +29,8 @@ class TestRandomVector:
     def test_rng(self):
         x = theanets.util.random_vector(10000, rng=4)
         assert x.shape == (10000, )
-        assert np.allclose(x.mean(), 0, atol=1e-2), x.mean()
-        assert np.allclose(x.std(), 1, atol=1e-2), x.std()
+        assert np.allclose(x.mean(), 0, atol=1e-2)
+        assert np.allclose(x.std(), 1, atol=1e-2)
 
 
 class TestMatching:
@@ -51,8 +51,7 @@ class TestMatching:
         assert [n for n, _ in match] == ['out.b', 'out.w']
 
     def test_outputs_matching(self):
-        net = theanets.Autoencoder([10, 20, 30, 10])
-        outputs = net.build_graph()[0]
+        outputs, _ = theanets.Autoencoder([10, 20, 30, 10]).build_graph()
 
         match = sorted(theanets.util.outputs_matching(outputs, '*'))
         assert len(match) == 9

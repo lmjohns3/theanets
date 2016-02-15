@@ -38,13 +38,8 @@ class TestNetwork:
         assert len(m.layers) == 3
 
     def test_layer_named_inputs_missing(self):
-        try:
+        with pytest.raises(theanets.util.ConfigurationError):
             theanets.Regressor((1, 2, dict(size=3, inputs='hid2')))
-            assert False
-        except theanets.graph.LayerError:
-            pass
-        except:
-            assert False
 
     def test_layer_tied(self):
         m = theanets.Regressor((1, 2, (1, 'tied')))
@@ -59,17 +54,12 @@ class TestNetwork:
         assert m.layers[2].partner is m.layers[1]
 
     def test_layer_tied_no_partner(self):
-        try:
+        with pytest.raises(theanets.util.ConfigurationError):
             theanets.Regressor((1, (2, 'tied'), (2, 'tied'), (1, 'tied')))
-            assert False
-        except theanets.graph.LayerError:
-            pass
-        except:
-            assert False
 
     def test_default_output_name(self):
-        m = theanets.Regressor((1, 2, (1, 'tied')))
-        assert m.losses[0].output_name == 'tied-hid1:out'
+        m = theanets.Regressor((1, 2, dict(size=1, form='tied', name='foo')))
+        assert m.losses[0].output_name == 'foo:out'
         m = theanets.Regressor((1, 2, 1))
         assert m.losses[0].output_name == 'out:out'
 

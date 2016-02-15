@@ -38,7 +38,7 @@ PROBE = np.array([-10, -1, -0.1, 0, 0.1, 1, 10], 'f')
                          np.log1p(np.exp(PROBE)).std())),
 ])
 def test_activation(activation, expected):
-    layer = theanets.layers.Feedforward(inputs=2, size=7, rng=13)
+    layer = theanets.layers.Feedforward(inputs='x', size=7, rng=13)
     f = theanets.activations.build(activation, layer)
     actual = f(theano.shared(PROBE))
     if hasattr(actual, 'eval'):
@@ -48,7 +48,7 @@ def test_activation(activation, expected):
 
 def test_build():
     a = theanets.layers.Feedforward(
-        inputs=2, size=3, activation='relu').activate
+        inputs='x', size=3, activation='relu').activate
     assert callable(a)
     assert a.name == 'relu'
     assert a.params == []
@@ -56,7 +56,7 @@ def test_build():
 
 def test_build_composed():
     a = theanets.layers.Feedforward(
-        inputs=2, size=3, activation='relu+norm:z').activate
+        inputs='x', size=3, activation='relu+norm:z').activate
     assert callable(a)
     assert a.name == 'norm:z(relu)', a.name
     assert a.params == []
@@ -69,5 +69,5 @@ def test_build_composed():
 ])
 def test_parameters(activation, expected):
     a = theanets.layers.Feedforward(
-        inputs=2, size=3, activation=activation, name='l').activate
+        inputs='x', size=3, activation=activation, name='l').activate
     assert sorted(p.name for p in a.params) == expected

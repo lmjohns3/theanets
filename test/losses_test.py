@@ -37,12 +37,11 @@ def test_kl():
 
 
 def test_gll():
-    kw = dict(inputs={'hid:out': u.NUM_HID1}, size=u.NUM_OUTPUTS)
     net = theanets.Regressor([
         u.NUM_INPUTS,
         dict(name='hid', size=u.NUM_HID1),
-        dict(name='covar', activation='relu', **kw),
-        dict(name='mean', activation='linear', **kw),
+        dict(name='covar', activation='relu', inputs='hid', size=u.NUM_OUTPUTS),
+        dict(name='mean', activation='linear', inputs='hid', size=u.NUM_OUTPUTS),
     ])
     net.set_loss('gll', target=2, mean_name='mean', covar_name='covar')
     u.assert_progress(net, u.REG_DATA)

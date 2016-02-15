@@ -59,7 +59,7 @@ def test_score(Model, layers, target, score):
 ])
 def test_predict(Model, layers, target):
     outs = Model(layers).feed_forward(u.CNN.INPUTS)
-    assert len(list(outs)) == 10
+    assert len(list(outs)) == 8
     W, H = u.CNN.NUM_WIDTH, u.CNN.NUM_HEIGHT
     w, h = u.CNN.FILTER_WIDTH, u.CNN.FILTER_HEIGHT
     assert_shape(outs['in:out'].shape, W, H, u.NUM_INPUTS)

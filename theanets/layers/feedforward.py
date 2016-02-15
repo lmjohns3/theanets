@@ -2,9 +2,10 @@
 
 r'''Feedforward layers for neural network computation graphs.'''
 
-from __future__ import division
+from __future__ import division, unicode_literals
 
 import climate
+import numpy as np
 import theano.sparse as SS
 import theano.tensor as TT
 
@@ -91,9 +92,9 @@ class Feedforward(base.Layer):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        for name, size in self.inputs.items():
+        for name, layer in self._resolved_inputs.items():
             label = 'w' if len(self.inputs) == 1 else 'w_{}'.format(name)
-            self.add_weights(label, size, self.size)
+            self.add_weights(label, layer.size, self.size)
         self.add_bias('b', self.size)
 
 
@@ -155,9 +156,9 @@ class Tied(base.Layer):
 
     def __init__(self, partner, **kwargs):
         self.partner = partner
-        kwargs['inputs'] = partner.size
-        kwargs['size'] = list(partner.inputs.values())[0]
-        kwargs['name'] = 'tied-{}'.format(partner.name)
+        kwargs['size'] = None
+        if isinstance(partner, base.Layer):
+            kwargs['size'] = partner.input_size
         super(Tied, self).__init__(**kwargs)
 
     def transform(self, inputs):
@@ -183,10 +184,37 @@ class Tied(base.Layer):
         pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
 
+    def resolve(self, layers):
+        super(Tied, self).resolve(layers)
+
+        if isinstance(self.partner, str):
+            # if the partner is named, just get that layer.
+            matches = [l for l in layers if l.name == self.partner]
+            if len(matches) != 1:
+                raise util.ConfigurationError(
+                    'layer "{}": cannot find partner "{}"'.format(
+                        self.name, partner))
+            self.partner = matches[0]
+
+        self.size = self.partner.input_size
+
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         self.add_bias('b', self.size)
+
+    def log(self):
+        '''Log some information about this layer.'''
+        inputs = ', '.join('({0}){1.size}'.format(n, l)
+                           for n, l in self._resolved_inputs.items())
+        logging.info('layer %s "%s" << "%s": %s -> %s, %s, %d parameters',
+                     self.__class__.__name__,
+                     self.name,
+                     self.partner.name,
+                     inputs,
+                     self.size,
+                     getattr(self.activate, 'name', self.activate),
+                     sum(np.prod(p.get_value().shape) for p in self.params))
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

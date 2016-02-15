@@ -22,8 +22,8 @@ class TestFeedforward:
         ('prod', 'product', '', 0, 'out'),
     ])
     def test_build(self, form, name, params, count, outputs):
-        layer = theanets.Layer.build(form, size=NH, name='l', inputs=NI)
-        layer.bind(None)
+        layer = theanets.Layer.build(form, size=NH, name='l', inputs='in')
+        layer.bind(theanets.Network([NI]))
 
         assert layer.__class__.__name__.lower() == name
 
@@ -32,12 +32,12 @@ class TestFeedforward:
 
         assert sum(np.prod(p.get_value().shape) for p in layer.params) == count * NH
 
-        out, upd = layer.connect(dict(out=TT.matrix('x')))
+        out, upd = layer.connect({'in:out': TT.matrix('x')})
         assert sorted(out) == sorted('l:' + o for o in outputs.split())
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=name, name='l', size=NH, inputs=dict(out=NI),
+            form=name, name='l', size=NH, inputs=('in:out', ),
             activation=layer.kwargs.get('activation', 'relu'))
 
     @pytest.mark.parametrize('layer', [
@@ -53,31 +53,30 @@ class TestFeedforward:
         assert net.predict(u.INPUTS).shape == (u.NUM_EXAMPLES, NI)
 
     def test_multiple_inputs(self):
-        layer = theanets.layers.Feedforward(
-            inputs={'a:out': NH, 'b:out': NH}, size=NH, name='l')
-        layer.bind(None)
+        layer = theanets.layers.Feedforward(inputs=('in', 'hid1'), size=NH, name='l')
+        layer.bind(theanets.Network([NH, NH, NH]))
 
         total = sum(np.prod(p.get_value().shape) for p in layer.params)
         assert total == (1 + 2 * NH) * NH
 
         assert sorted(p.name for p in layer.params) == \
-            ['l.b', 'l.w_a:out', 'l.w_b:out']
+            ['l.b', 'l.w_hid1:out', 'l.w_in:out']
 
         assert layer.to_spec() == dict(
             form='feedforward', name='l', size=NH, activation='relu',
-            inputs={'a:out': NH, 'b:out': NH})
+            inputs=('in:out', 'hid1:out'))
 
     def test_reshape(self):
-        layer = theanets.layers.Reshape(inputs=NH, shape=(NH // 2, 2), name='l')
-        layer.bind(None)
+        layer = theanets.layers.Reshape(inputs='in', shape=(NI // 2, 2), name='l')
+        layer.bind(theanets.Network([NI]))
 
         assert sum(np.prod(p.get_value().shape) for p in layer.params) == 0
 
         assert sorted(p.name for p in layer.params) == []
 
         assert layer.to_spec() == dict(
-            form='reshape', name='l', size=2, shape=[NH // 2, 2],
-            inputs={'out': NH}, activation='relu')
+            form='reshape', name='l', size=2, shape=[NI // 2, 2],
+            inputs=('in:out', ), activation='relu')
 
 
 class TestRecurrent:
@@ -101,8 +100,8 @@ class TestRecurrent:
          'bw_out bw_pre fw_out fw_pre out pre'),
     ])
     def test_build(self, form, kwargs, count, params, outputs):
-        layer = theanets.Layer.build(form, size=NH, name='l', inputs=NI, **kwargs)
-        layer.bind(None)
+        layer = theanets.Layer.build(form, size=NH, name='l', inputs='in', **kwargs)
+        layer.bind(theanets.Network([dict(size=NI, ndim=3)]))
 
         assert layer.__class__.__name__.lower() == form
 
@@ -116,7 +115,7 @@ class TestRecurrent:
             expected = count
         assert sum(np.prod(p.get_value().shape) for p in layer.params) == expected
 
-        out, upd = layer.connect(dict(out=TT.tensor3('x')))
+        out, upd = layer.connect({'in:out': TT.tensor3('x')})
         assert sorted(out) == sorted('l:' + o for o in outputs.split())
         assert sorted(upd) == []
 
@@ -128,7 +127,7 @@ class TestRecurrent:
         if form == 'clockwork':
             spec['periods'] = (8, 4, 2, 1)
         assert layer.to_spec() == dict(
-            form=form, name='l', size=NH, inputs=dict(out=NI),
+            form=form, name='l', size=NH, inputs=('in:out', ),
             activation=layer.kwargs.get('activation', 'relu'), **spec)
 
     @pytest.mark.parametrize('layer', [
@@ -149,8 +148,8 @@ class TestConvolution:
          1 + NI * u.CNN.FILTER_HEIGHT * u.CNN.FILTER_WIDTH, 'w b', 'out pre'),
     ])
     def test_build(self, form, kwargs, count, params, outputs):
-        layer = theanets.Layer.build(form, size=NH, name='l', inputs=NI, **kwargs)
-        layer.bind(None)
+        layer = theanets.Layer.build(form, size=NH, name='l', inputs='in', **kwargs)
+        layer.bind(theanets.Network([dict(size=NI, ndim=4)]))
 
         assert layer.__class__.__name__.lower() == form
 
@@ -160,12 +159,13 @@ class TestConvolution:
         expected = count * NH
         assert sum(np.prod(p.get_value().shape) for p in layer.params) == expected
 
-        out, upd = layer.connect(dict(out=TT.tensor4('x')))
+        out, upd = layer.connect({'in:out': TT.tensor4('x')})
         assert sorted(out) == sorted('l:' + o for o in outputs.split())
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=form, name='l', size=NH, inputs=dict(out=NI), activation='relu')
+            form=form, name='l', size=NH, inputs=('in:out', ),
+            activation='relu')
 
     @pytest.mark.parametrize('layer', [
         dict(size=NH, form='conv2', filter_size=u.CNN.FILTER_SIZE),

@@ -52,7 +52,7 @@ def test_score(Model, layers, target, score):
 ])
 def test_predict(Model, layers, target):
     outs = Model(layers).feed_forward(u.RNN.INPUTS)
-    assert len(list(outs)) == 9
+    assert len(list(outs)) == 7
     assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
     assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
     assert_shape(outs['hid2:out'].shape, u.NUM_HID2)

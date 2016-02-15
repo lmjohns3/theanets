@@ -2,6 +2,8 @@
 
 r'''This module contains a base class for modeling computation graphs.'''
 
+from __future__ import unicode_literals
+
 import climate
 import downhill
 import gzip
@@ -19,14 +21,6 @@ from . import trainer
 from . import util
 
 logging = climate.get_logger(__name__)
-
-
-class Error(Exception):
-    pass
-
-
-class LayerError(Error):
-    pass
 
 
 class Network(object):
@@ -151,63 +145,39 @@ class Network(object):
                     kwargs[key] = value
 
         name = 'hid{}'.format(len(self.layers))
-        if form == 'input':
-            name = 'in'
         if is_output:
             name = 'out'
-        kwargs.setdefault('size', layer)
+        if form == 'input':
+            name = 'in'
         kwargs.setdefault('name', name)
+        kwargs.setdefault('size', layer)
 
         if form == 'input':
             kwargs.setdefault('ndim', self.INPUT_NDIM)
         else:
             act = self.DEFAULT_OUTPUT_ACTIVATION if is_output else 'relu'
-            ins = {self.layers[-1].output_name: self.layers[-1].size}
-            kwargs.setdefault('inputs', ins)
+            kwargs.setdefault('inputs', self.layers[-1].output_name)
             kwargs.setdefault('rng', self._rng)
             kwargs.setdefault('activation', act)
 
-        # handle non-dict input specifications.
-        if 'inputs' in kwargs and not isinstance(kwargs['inputs'], dict):
-            inputs = kwargs['inputs']
-            if not isinstance(inputs, (tuple, list)):
-                inputs = (inputs, )
-            target = {}
-            for i in inputs:
-                name = i if ':' not in i else i.split(':', 1)[0]
-                try:
-                    layer = [l for l in self.layers if l.name == name][0]
-                except IndexError:
-                    raise LayerError('cannot find layer "{}"'.format(i))
-                target[layer.output_name] = layer.size
-            kwargs['inputs'] = target
-
-        # look for a partner layer instance for creating a tied layer.
-        if isinstance(form, str) and form.lower() == 'tied':
-            partner = kwargs.get('partner')
-            if isinstance(partner, str):
-                # if the partner is named, just get that layer.
-                try:
-                    partner = [l for l in self.layers if l.name == partner][0]
-                except IndexError:
-                    raise LayerError('cannot find partner layer "{}"'.format(partner))
+        if form.lower() == 'tied' and 'partner' not in kwargs:
+            # we look backward through our list of layers for a partner.
+            # any "tied" layer that we find increases a counter by one,
+            # and any "untied" layer decreases the counter by one. our
+            # partner is the first layer we find with count zero.
+            #
+            # this is intended to handle the hopefully common case of a
+            # (possibly deep) tied-weights autoencoder.
+            tied = 1
+            partner = None
+            for l in self.layers[::-1]:
+                tied += 1 if isinstance(l, layers.Tied) else -1
+                if tied == 0:
+                    partner = l.name
+                    break
             else:
-                # otherwise, we look backwards through our list of layers.
-                # any "tied" layer that we find increases a counter by one,
-                # and any "untied" layer decreases the counter by one. our
-                # partner is the first layer we find with count zero.
-                #
-                # this is intended to handle the hopefully common case of a
-                # (possibly deep) tied-weights autoencoder.
-                tied = 1
-                partner = None
-                for l in self.layers[::-1]:
-                    tied += 1 if isinstance(l, layers.Tied) else -1
-                    if tied == 0:
-                        partner = l
-                        break
-                else:
-                    raise LayerError('cannot find partner for "{}"'.format(layer))
+                raise util.ConfigurationError(
+                    'cannot find partner for "{}"'.format(kwargs))
             kwargs['partner'] = partner
 
         layer = layers.Layer.build(form, **kwargs)
@@ -448,7 +418,7 @@ class Network(object):
                 loss.log()
             for reg in regularizers:
                 reg.log()
-            outputs = {i.name: i for i in self.inputs}
+            outputs = {}
             updates = []
             for layer in self.layers:
                 out, upd = layer.connect(outputs)
@@ -456,7 +426,6 @@ class Network(object):
                     reg.modify_graph(out)
                 outputs.update(out)
                 updates.extend(upd)
-                outputs['out'] = outputs[layer.output_name]
             self._graphs[key] = outputs, updates
         return self._graphs[key]
 

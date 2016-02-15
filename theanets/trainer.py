@@ -235,21 +235,29 @@ class SupervisedPretrainer(object):
         tied = any(isinstance(l, layers.Tied) for l in original)
         L = 1 + len(original) // 2 if tied else len(original) - 1
         for i in range(1, L):
+            tail = []
             if i == L - 1:
                 net.layers = original
             elif tied:
-                net.layers = original[:i+1] + original[-i:]
+                net.layers = original[:i+1]
+                for j in range(i):
+                    prev = tail[-1] if tail else net.layers[-1]
+                    tail.append(layers.Layer.build(
+                        'tied', partner=original[i-j].name, inputs=prev.name))
+                net.layers = original[:i+1] + tail
             else:
-                out = layers.Layer.build(
+                tail.append(layers.Layer.build(
                     'feedforward',
                     name='lwout',
-                    inputs={original[i].output_name: original[i].size},
+                    inputs=original[i].output_name,
                     size=original[-1].size,
-                    activation=original[-1].kwargs['activation'])
-                out.bind(net)
-                net.layers = original[:i+1] + [out]
+                    activation=original[-1].kwargs['activation']))
+                net.layers = original[:i+1] + tail
             logging.info('layerwise: training %s',
                          ' -> '.join(l.name for l in net.layers))
+            [l.resolve(net.layers) for l in net.layers]
+            [l.setup() for l in tail]
+            [l.log() for l in net.layers]
             net.losses[0].output_name = net.layers[-1].output_name
             trainer = DownhillTrainer(self.algo, net)
             for monitors in trainer.itertrain(train, valid, **kwargs):

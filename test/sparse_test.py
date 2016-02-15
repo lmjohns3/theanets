@@ -62,7 +62,7 @@ def test_score(Model, layers, target, score):
 ])
 def test_feed_forward(Model, layers, sparse, target):
     outs = Model(layers[sparse]).feed_forward(INPUTS[sparse])
-    assert len(list(outs)) == 9
+    assert len(list(outs)) == 7
     u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
     u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
     u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)

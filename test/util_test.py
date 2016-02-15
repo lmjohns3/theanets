@@ -54,10 +54,10 @@ class TestMatching:
         outputs, _ = theanets.Autoencoder([10, 20, 30, 10]).build_graph()
 
         match = sorted(theanets.util.outputs_matching(outputs, '*'))
-        assert len(match) == 9
+        assert len(match) == 7
         assert [n for n, _ in match] == [
             'hid1:out', 'hid1:pre', 'hid2:out', 'hid2:pre',
-            'in', 'in:out', 'out', 'out:out', 'out:pre']
+            'in:out', 'out:out', 'out:pre']
 
         match = sorted(theanets.util.outputs_matching(outputs, 'hid?:*'))
         assert len(match) == 4

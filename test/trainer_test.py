@@ -6,7 +6,8 @@ import util as u
 
 @pytest.fixture
 def ae():
-    return theanets.Autoencoder([u.NUM_INPUTS, u.NUM_HID1, u.NUM_INPUTS])
+    return theanets.Autoencoder([
+        u.NUM_INPUTS, u.NUM_HID1, u.NUM_HID2, u.NUM_INPUTS])
 
 
 def test_downhill(ae):
@@ -15,6 +16,13 @@ def test_downhill(ae):
 
 
 def test_layerwise(ae):
+    u.assert_progress(ae, u.AE_DATA, algo='layerwise')
+
+
+def test_layerwise_tied():
+    ae = theanets.Autoencoder([
+        u.NUM_INPUTS, u.NUM_HID1, u.NUM_HID2,
+        (u.NUM_HID1, 'tied'), (u.NUM_INPUTS, 'tied')])
     u.assert_progress(ae, u.AE_DATA, algo='layerwise')
 
 

@@ -42,7 +42,7 @@ def test_score(Model, layers, target, score):
 ])
 def test_feed_forward(Model, layers, target):
     outs = Model(layers).feed_forward(u.INPUTS)
-    assert len(list(outs)) == 9
+    assert len(list(outs)) == 7
     u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
     u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
     u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
@@ -51,10 +51,9 @@ def test_feed_forward(Model, layers, target):
 
 def test_decode_from_multiple_layers():
     net = theanets.Regressor([u.NUM_INPUTS, u.NUM_HID1, u.NUM_HID2, dict(
-            size=u.NUM_OUTPUTS, inputs={'hid2:out': u.NUM_HID2,
-                                        'hid1:out': u.NUM_HID1})])
+        size=u.NUM_OUTPUTS, inputs=('hid2:out', 'hid1:out'))])
     outs = net.feed_forward(u.INPUTS)
-    assert len(list(outs)) == 9
+    assert len(list(outs)) == 7
     u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
     u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
     u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)

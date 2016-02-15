@@ -144,8 +144,11 @@ class Network(object):
         # if layer is a dictionary, try to extract a form for the layer, and
         # override our default keyword arguments with the rest.
         if isinstance(layer, dict):
-            form = layer.pop('form', form).lower()
-            kwargs.update(layer)
+            for key, value in layer.items():
+                if key == 'form':
+                    form = value.lower()
+                else:
+                    kwargs[key] = value
 
         name = 'hid{}'.format(len(self.layers))
         if form == 'input':

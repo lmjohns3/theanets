@@ -1,10 +1,7 @@
-import climate
 import pytest
 import theanets
 
 import util as u
-
-climate.enable_default_logging()
 
 
 @pytest.fixture

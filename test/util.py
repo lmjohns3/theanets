@@ -1,6 +1,9 @@
 '''Helper code for theanets unit tests.'''
 
+import climate
 import numpy as np
+
+climate.enable_default_logging()
 
 np.random.seed(13)
 
@@ -71,10 +74,16 @@ class CNN:
     WREG_DATA = [INPUTS, OUTPUTS, OUTPUT_WEIGHTS]
 
 
-def assert_progress(model, data):
+def assert_progress(model, data, algo='sgd'):
     trainer = model.itertrain(
-        data, algorithm='sgd', momentum=0.5, batch_size=3, max_gradient_norm=1)
+        data, algo=algo, momentum=0.5, batch_size=3, max_gradient_norm=1)
     train0, valid0 = next(trainer)
     train1, valid1 = next(trainer)
     assert train1['loss'] < valid0['loss']   # should have made progress!
     assert valid1['loss'] == valid0['loss']  # no new validation occurred
+
+
+def assert_shape(actual, expected):
+    if not isinstance(expected, tuple):
+        expected = (NUM_EXAMPLES, expected)
+    assert actual == expected

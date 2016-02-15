@@ -8,6 +8,7 @@ AE_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_INPUT
 CLF_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_CLASSES]
 REG_LAYERS = [u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), (u.NUM_HID2, 'rnn'), u.NUM_OUTPUTS]
 
+
 def assert_shape(actual, expected):
     if not isinstance(expected, tuple):
         expected = (u.NUM_EXAMPLES, u.RNN.NUM_TIMES, expected)

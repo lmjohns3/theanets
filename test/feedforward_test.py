@@ -5,12 +5,6 @@ import theanets
 import util as u
 
 
-def assert_shape(actual, expected):
-    if not isinstance(expected, tuple):
-        expected = (u.NUM_EXAMPLES, expected)
-    assert actual == expected
-
-
 @pytest.mark.parametrize('Model, layers, weighted, data', [
     (theanets.Regressor, u.REG_LAYERS, False, u.REG_DATA),
     (theanets.Classifier, u.CLF_LAYERS, False, u.CLF_DATA),
@@ -23,13 +17,13 @@ def test_sgd(Model, layers, weighted, data):
     u.assert_progress(Model(layers, weighted=weighted), data)
 
 
-@pytest.mark.parametrize('Model, layers', [
-    (theanets.Regressor, u.REG_LAYERS),
-    (theanets.Classifier, u.CLF_LAYERS),
-    (theanets.Autoencoder, u.AE_LAYERS),
+@pytest.mark.parametrize('Model, layers, output', [
+    (theanets.Regressor, u.REG_LAYERS, u.NUM_OUTPUTS),
+    (theanets.Classifier, u.CLF_LAYERS, (u.NUM_EXAMPLES, )),
+    (theanets.Autoencoder, u.AE_LAYERS, u.NUM_INPUTS),
 ])
-def test_predict(Model, layers):
-    assert_shape(Model(layers).predict(u.INPUTS).shape, output)
+def test_predict(Model, layers, output):
+    u.assert_shape(Model(layers).predict(u.INPUTS).shape, output)
 
 
 @pytest.mark.parametrize('Model, layers, target, score', [
@@ -46,13 +40,13 @@ def test_score(Model, layers, target, score):
     (theanets.Classifier, u.CLF_LAYERS, u.NUM_CLASSES),
     (theanets.Autoencoder, u.AE_LAYERS, u.NUM_INPUTS),
 ])
-def test_predict(Model, layers, target):
+def test_feed_forward(Model, layers, target):
     outs = Model(layers).feed_forward(u.INPUTS)
     assert len(list(outs)) == 9
-    assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
-    assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
-    assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
-    assert_shape(outs['out:out'].shape, target)
+    u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
+    u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
+    u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
+    u.assert_shape(outs['out:out'].shape, target)
 
 
 def test_decode_from_multiple_layers():
@@ -61,10 +55,10 @@ def test_decode_from_multiple_layers():
                                         'hid1:out': u.NUM_HID1})])
     outs = net.feed_forward(u.INPUTS)
     assert len(list(outs)) == 9
-    assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
-    assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
-    assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
-    assert_shape(outs['out:out'].shape, u.NUM_OUTPUTS)
+    u.assert_shape(outs['in:out'].shape, u.NUM_INPUTS)
+    u.assert_shape(outs['hid1:out'].shape, u.NUM_HID1)
+    u.assert_shape(outs['hid2:out'].shape, u.NUM_HID2)
+    u.assert_shape(outs['out:out'].shape, u.NUM_OUTPUTS)
 
 
 class TestClassifier:
@@ -73,10 +67,10 @@ class TestClassifier:
         return theanets.Classifier(u.CLF_LAYERS)
 
     def test_predict_proba(self, net):
-        assert_shape(net.predict_proba(u.INPUTS).shape, u.NUM_CLASSES)
+        u.assert_shape(net.predict_proba(u.INPUTS).shape, u.NUM_CLASSES)
 
     def test_predict_logit(self, net):
-        assert_shape(net.predict_logit(u.INPUTS).shape, u.NUM_CLASSES)
+        u.assert_shape(net.predict_logit(u.INPUTS).shape, u.NUM_CLASSES)
 
     def test_score(self, net):
         w = 0.5 * np.ones(u.CLASSES.shape, 'f')
@@ -90,19 +84,19 @@ class TestAutoencoder:
 
     def test_encode_hid1(self, net):
         z = net.encode(u.INPUTS, 'hid1')
-        assert_shape(z.shape, u.NUM_HID1)
+        u.assert_shape(z.shape, u.NUM_HID1)
 
     def test_encode_hid2(self, net):
         z = net.encode(u.INPUTS, 'hid2')
-        assert_shape(z.shape, u.NUM_HID2)
+        u.assert_shape(z.shape, u.NUM_HID2)
 
     def test_decode_hid1(self, net):
         x = net.decode(net.encode(u.INPUTS))
-        assert_shape(x.shape, u.NUM_INPUTS)
+        u.assert_shape(x.shape, u.NUM_INPUTS)
 
     def test_decode_hid2(self, net):
         x = net.decode(net.encode(u.INPUTS, 'hid2'), 'hid2')
-        assert_shape(x.shape, u.NUM_INPUTS)
+        u.assert_shape(x.shape, u.NUM_INPUTS)
 
     def test_score(self, net):
         labels = np.random.randint(0, 2, size=u.INPUTS.shape)

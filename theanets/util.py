@@ -8,9 +8,9 @@ import theano
 import theano.tensor as TT
 
 try:
-   basestring = basestring
+    basestring = basestring
 except NameError:
-   basestring = str
+    basestring = str
 
 FLOAT = theano.config.floatX
 

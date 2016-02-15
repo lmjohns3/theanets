@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 
-r'''Utility functions and classes.'''
+'''Utility functions and classes.'''
 
 import fnmatch
 import numpy as np
 import theano
 import theano.tensor as TT
+
+try:
+   basestring = basestring
+except NameError:
+   basestring = str
 
 FLOAT = theano.config.floatX
 
@@ -145,7 +150,7 @@ def outputs_matching(outputs, patterns):
         of the output that matched, and the expression is the symbolic output in
         the network graph.
     '''
-    if isinstance(patterns, str):
+    if isinstance(patterns, basestring):
         patterns = (patterns, )
     if isinstance(outputs, dict):
         outputs = outputs.items()
@@ -174,7 +179,7 @@ def params_matching(layers, patterns):
         of the parameter that matched, and the expression represents the
         parameter symbolically.
     '''
-    if isinstance(patterns, str):
+    if isinstance(patterns, basestring):
         patterns = (patterns, )
     for layer in layers:
         for param in layer.params:

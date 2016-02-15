@@ -2,8 +2,6 @@
 
 r'''This module contains a base class for modeling computation graphs.'''
 
-from __future__ import unicode_literals
-
 import climate
 import downhill
 import gzip
@@ -127,7 +125,7 @@ class Network(object):
                         form = el.__name__
                 except TypeError:
                     pass
-                if isinstance(el, str):
+                if isinstance(el, util.basestring):
                     if layers.Layer.is_registered(el):
                         form = el
                     else:
@@ -321,7 +319,7 @@ class Network(object):
                 algo = algo[0]
 
         # set up trainer ...
-        if isinstance(algo, str):
+        if isinstance(algo, util.basestring):
             algo = algo.lower()
             if algo == 'sample':
                 algo = trainer.SampleTrainer(self)

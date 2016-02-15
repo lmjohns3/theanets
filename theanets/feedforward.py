@@ -9,6 +9,7 @@ import warnings
 from . import graph
 from . import layers
 from . import regularizers
+from . import util
 
 
 class Autoencoder(graph.Network):
@@ -197,7 +198,7 @@ class Autoencoder(graph.Network):
             layer = len(self.layers) // 2
         if isinstance(layer, int):
             layer = self.layers[layer]
-        if isinstance(layer, str):
+        if isinstance(layer, util.basestring):
             try:
                 layer = [l for l in self.layers if l.name == layer][0]
             except IndexError:

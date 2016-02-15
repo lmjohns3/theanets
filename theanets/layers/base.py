@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''This module contains classes for different types of network layers.'''
+'''This module contains classes for different types of network layers.'''
 
 from __future__ import division
 
@@ -391,10 +391,10 @@ class Input(Layer):
     def __init__(self, size, name='in', ndim=2, sparse=False, **kwargs):
         self.input = util.FLOAT_CONTAINERS[ndim](name)
         if sparse is True or \
-           isinstance(sparse, str) and sparse.lower() == 'csr':
+           isinstance(sparse, util.basestring) and sparse.lower() == 'csr':
             assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csr_matrix('input')
-        if isinstance(sparse, str) and sparse.lower() == 'csc':
+        if isinstance(sparse, util.basestring) and sparse.lower() == 'csc':
             assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csc_matrix('input')
         super(Input, self).__init__(

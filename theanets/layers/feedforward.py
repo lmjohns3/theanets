@@ -2,7 +2,7 @@
 
 r'''Feedforward layers for neural network computation graphs.'''
 
-from __future__ import division, unicode_literals
+from __future__ import division
 
 import climate
 import numpy as np
@@ -10,6 +10,7 @@ import theano.sparse as SS
 import theano.tensor as TT
 
 from . import base
+from .. import util
 
 logging = climate.get_logger(__name__)
 
@@ -187,7 +188,7 @@ class Tied(base.Layer):
     def resolve(self, layers):
         super(Tied, self).resolve(layers)
 
-        if isinstance(self.partner, str):
+        if isinstance(self.partner, util.basestring):
             # if the partner is named, just get that layer.
             matches = [l for l in layers if l.name == self.partner]
             if len(matches) != 1:

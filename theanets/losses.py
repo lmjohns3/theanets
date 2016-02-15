@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r'''These loss functions are available for neural network models.'''
+'''These loss functions are available for neural network models.'''
 
 import climate
 import numpy as np

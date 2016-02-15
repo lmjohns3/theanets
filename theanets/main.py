@@ -8,6 +8,7 @@ import climate
 import os
 
 from . import graph
+from . import util
 
 logging = climate.get_logger(__name__)
 
@@ -27,7 +28,7 @@ class Experiment:
     '''
 
     def __init__(self, network, *args, **kwargs):
-        if isinstance(network, str) and os.path.isfile(network):
+        if isinstance(network, util.basestring) and os.path.isfile(network):
             self.load(network)
         elif isinstance(network, graph.Network):
             self.network = network

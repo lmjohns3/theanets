@@ -425,12 +425,11 @@ class RecurrentNorm(Regularizer):
 
     To use this regularizer at training time:
 
-    >>> net.train(..., recurrent_norm=0.1)
-
-    By default all recurrent layer outputs are penalized. To include only some
-    graph outputs:
-
     >>> net.train(..., recurrent_norm=dict(weight=0.1, pattern='hid3:out'))
+
+    A ``pattern`` must be provided; this pattern will match against all outputs
+    in the computation graph, so some care must be taken to ensure that the
+    regularizer is applied only to specific layer outputs.
 
     To use this regularizer when running the model forward to generate a
     prediction:
@@ -454,7 +453,7 @@ class RecurrentNorm(Regularizer):
         if self.pattern is None:
             raise util.ConfigurationError('RecurrentNorm requires a pattern!')
         matches = util.outputs_matching(outputs, self.pattern)
-        hiddens = [expr for _, expr in matches if expr.ndim == 3]
+        hiddens = [expr for _, expr in matches]
         if not hiddens:
             return 0
         norms = ((e * e).sum(axis=-1) for e in hiddens)
@@ -493,17 +492,16 @@ class RecurrentState(Regularizer):
 
     To use this regularizer at training time:
 
-    >>> net.train(..., recurrent_state=0.1)
-
-    By default all recurrent layer outputs are penalized. To include only some
-    graph outputs:
-
     >>> net.train(..., recurrent_state=dict(weight=0.1, pattern='hid3:out'))
+
+    A ``pattern`` must be provided; this pattern will match against all outputs
+    in the computation graph, so some care must be taken to ensure that the
+    regularizer is applied only to specific layer outputs.
 
     To use this regularizer when running the model forward to generate a
     prediction:
 
-    >>> net.predict(..., recurrent_state=0.1)
+    >>> net.predict(..., recurrent_state=dict(weight=0.1, pattern='hid3:out'))
 
     The value associated with the keyword argument can be a scalar---in which
     case it provides the weight for the regularizer---or a dictionary, in which
@@ -519,8 +517,8 @@ class RecurrentState(Regularizer):
     def loss(self, layers, outputs):
         if self.pattern is None:
             raise util.ConfigurationError('RecurrentNorm requires a pattern!')
-        matches = util.outputs_matching(outputs, pattern)
-        hiddens = [expr for _, expr in matches if expr.ndim == 3]
+        matches = util.outputs_matching(outputs, self.pattern)
+        hiddens = [expr for _, expr in matches]
         if not hiddens:
             return 0
         deltas = (e[:, :-1] - e[:, 1:] for e in hiddens)

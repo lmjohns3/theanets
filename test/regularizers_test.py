@@ -9,10 +9,10 @@ def exp():
     return theanets.Regressor([u.NUM_INPUTS, 20, u.NUM_OUTPUTS], rng=115)
 
 
-def assert_progress(net, **kwargs):
+def assert_progress(net, data=u.REG_DATA, **kwargs):
     start = best = None
     for _, val in net.itertrain(
-            [u.INPUTS, u.OUTPUTS],
+            data,
             algorithm='sgd',
             patience=2,
             min_improvement=0.01,
@@ -54,29 +54,28 @@ def test_sgd(key, value, exp):
     assert_progress(exp, **{key: value})
 
 
-class RNN:
+class TestRNN:
     @pytest.fixture
     def net(self):
         return theanets.recurrent.Regressor([
-            u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), u.NUM_OUTPUTS], rng=131)
+            u.NUM_INPUTS, (u.NUM_HID1, 'rnn'), u.NUM_HID2, u.NUM_OUTPUTS])
 
     def test_recurrent_matching(self, net):
         regs = theanets.regularizers.from_kwargs(net)
         outputs, _ = net.build_graph(regs)
-        matches = theanets.util.outputs_matching(outputs, '*:out')
-        hiddens = [(n, e) for n, e in matches if e.ndim == 3]
-        assert len(hiddens) == 3, [n for n, e in hiddens]
+        matches = theanets.util.outputs_matching(outputs, 'hid1:out')
+        assert [n for n, e in matches] == ['hid1:out']
 
     @pytest.mark.parametrize('key, value', [
-        ('recurrent_norm', dict(pattern='*:out', weight=0.1)),
-        ('recurrent_state', dict(pattern='*:out', weight=0.1)),
+        ('recurrent_norm', dict(pattern='hid1:out', weight=0.1)),
+        ('recurrent_state', dict(pattern='hid1:out', weight=0.1)),
     ])
     def test_progress(self, key, value, net):
-        assert_progress(net, **{key: value})
+        assert_progress(net, data=u.RNN.REG_DATA, **{key: value})
 
     @pytest.mark.parametrize('key, value', [
-        ('recurrent_norm', dict(pattern='*:out', weight=0.1)),
-        ('recurrent_state', dict(pattern='*:out', weight=0.1)),
+        ('recurrent_norm', 0.1),
+        ('recurrent_state', 0.1),
     ])
     def test_raises(self, key, value, net):
         with pytest.raises(theanets.util.ConfigurationError):

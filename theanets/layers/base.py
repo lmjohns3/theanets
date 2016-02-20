@@ -201,6 +201,26 @@ class Layer(util.Registrar(str('Base'), (), {})):
         raise NotImplementedError
 
     def bind(self, graph, reset=True, initialize=True):
+        '''Bind this layer into a computation graph.
+
+        This method is a wrapper for performing common initialization tasks. It
+        calls :func:`resolve`, :func:`setup`, and :func:`log`.
+
+        Parameters
+        ----------
+        graph : :class:`Network <theanets.graph.Network>`
+            A computation network in which this layer is to be bound.
+        reset : bool, optional
+            If ``True`` (the default), reset the resolved layers for this layer.
+        initialize : bool, optional
+            If ``True`` (the default), initialize the parameters for this layer
+            by calling :func:`setup`.
+
+        Raises
+        ------
+        theanets.util.ConfigurationError :
+            If an input cannot be resolved.
+        '''
         if reset:
             self._resolved_inputs = {}
         self.resolve(graph.layers)

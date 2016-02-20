@@ -239,24 +239,7 @@ class RNN(Recurrent):
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a theano function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -363,26 +346,7 @@ class RRNN(Recurrent):
                 self.add_weights('xr', self.input_size, self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : theano expression
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            a "hid" output that gives the rate-independent, post-activation
-            hidden state, a "rate" output that gives the rate value for each
-            hidden unit, and an "out" output that gives the hidden output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a theano function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -491,27 +455,7 @@ class MRNN(Recurrent):
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "factors" output that
-            gives the activation of the hidden weight factors given the input
-            data (but not incorporating influence from the hidden states), a
-            "pre" output that gives the unit activity before applying the
-            layer's activation function, and an "out" output that gives the
-            post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a theano function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -644,24 +588,7 @@ class LSTM(Recurrent):
         self.add_bias('co', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "cell" output that
-            gives the value of each hidden cell in the layer, and an "out"
-            output that gives the actual gated output from the layer.
-        updates : list of update pairs
-            A sequence of updates to apply inside a theano function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -751,6 +678,7 @@ class GRU(Recurrent):
     '''
 
     def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('xr', self.input_size, self.size)
         self.add_weights('xz', self.input_size, self.size)
@@ -762,26 +690,7 @@ class GRU(Recurrent):
         self.add_bias('bz', self.size)
 
     def transform(self, inputs):
-        '''Transform inputs to this layer into outputs for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function, a
-            "hid" output that gives the post-activation values before applying
-            the rate mixing, and an "out" output that gives the overall output.
-        updates : sequence of update pairs
-            A sequence of updates to apply to this layer's state inside a theano
-            function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -887,6 +796,7 @@ class Clockwork(Recurrent):
         super(Clockwork, self).__init__(**kwargs)
 
     def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         n = self.size // len(self.periods)
         mask = np.zeros((self.size, self.size), util.FLOAT)
         period = np.zeros((self.size, ), 'i')
@@ -913,25 +823,7 @@ class Clockwork(Recurrent):
                      sum(np.prod(p.get_value().shape) for p in self.params))
 
     def transform(self, inputs):
-        '''Transform inputs to this layer into outputs for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and a "hid" output that gives the post-activation values.
-        updates : sequence of update pairs
-            A sequence of updates to apply to this layer's state inside a theano
-            function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -1019,6 +911,7 @@ class MUT1(Recurrent):
     '''
 
     def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('xr', self.input_size, self.size)
         self.add_weights('xz', self.input_size, self.size)
@@ -1029,26 +922,7 @@ class MUT1(Recurrent):
         self.add_bias('bz', self.size)
 
     def transform(self, inputs):
-        '''Transform inputs to this layer into outputs for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function, a
-            "hid" output that gives the post-activation values before applying
-            the rate mixing, and an "out" output that gives the overall output.
-        updates : sequence of update pairs
-            A sequence of updates to apply to this layer's state inside a theano
-            function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -1138,6 +1012,7 @@ class SCRN(Recurrent):
         self._rates = self._create_rates()
 
     def setup(self):
+        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xs', self.input_size, self.size)
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('sh', self.size, self.size)
@@ -1151,26 +1026,7 @@ class SCRN(Recurrent):
             self.add_bias('r', self.size)
 
     def transform(self, inputs):
-        '''Transform inputs to this layer into outputs for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function, a
-            "hid" output that gives the post-activation values before applying
-            the rate mixing, and an "out" output that gives the overall output.
-        updates : sequence of update pairs
-            A sequence of updates to apply to this layer's state inside a theano
-            function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -1271,26 +1127,7 @@ class Bidirectional(base.Layer):
         self.backward.bind(*args, **kwargs)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`base.Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of theano expressions
-            Theano expressions representing the output from the layer. This
-            layer type produces an "out" output that concatenates the outputs
-            from its underlying workers. If present, it also concatenates the
-            "pre" and "cell" outputs from the underlying workers. Finally, it
-            passes along the individual outputs from its workers using "fw" and
-            "bw" prefixes for forward and backward directions.
-        updates : list of update pairs
-            A list of state updates to apply inside a theano function.
-        '''
+        '''Transform the inputs for this layer into an output for the layer.'''
         fout, fupd = self.forward.transform(inputs)
         bout, bupd = self.backward.transform(inputs)
         outputs = dict(out=TT.concatenate([fout['out'], bout['out']], axis=2))

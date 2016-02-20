@@ -59,6 +59,17 @@ def test_predict(Model, layers, target):
     assert_shape(outs['out:out'].shape, target)
 
 
+def test_symbolic_initial_state():
+    net = theanets.recurrent.Regressor([
+        dict(size=u.NUM_INPUTS, form='input', name='h0', ndim=2),
+        dict(size=u.NUM_INPUTS, form='input', name='in'),
+        dict(size=u.NUM_HID1, form='rnn', name='rnn', h_0='h0'),
+        dict(size=u.NUM_OUTPUTS, form='ff', name='out'),
+    ])
+    H0 = np.random.randn(u.NUM_EXAMPLES, u.NUM_HID1).astype('f')
+    u.assert_progress(net, [H0, u.RNN.INPUTS, u.RNN.OUTPUTS])
+
+
 class TestClassifier:
     @pytest.fixture
     def net(self):

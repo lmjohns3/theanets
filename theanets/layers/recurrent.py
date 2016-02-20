@@ -62,27 +62,21 @@ class Recurrent(base.Layer):
         If given, limit backpropagation of gradient information in scans (loops)
         to the given number of time steps. Defaults to -1, which imposes no
         limit.
+
+    h_0 : str, optional
+        If provided, this should name a network output that provides the initial
+        state for the network's hidden units. Defaults to ``None``, which uses
+        an all-zero initial state.
     '''
 
-    def initial_state(self, name, batch_size):
-        '''Return an array of suitable for representing initial state.
+    def __init__(self, h_0=None, **kwargs):
+        super(Recurrent, self).__init__(**kwargs)
+        self.h_0 = h_0
 
-        Parameters
-        ----------
-        name : str
-            Name of the variable to return.
-        batch_size : int
-            Number of elements in a batch. This can be symbolic.
-
-        Returns
-        -------
-        initial : theano shared variable
-            A variable containing the initial state of some recurrent variable.
-        '''
-        values = theano.shared(
-            np.zeros((1, self.size), util.FLOAT),
-            name=self._fmt('{}0'.format(name)))
-        return TT.repeat(values, batch_size, axis=0)
+    def resolve(self, layers):
+        '''Resolve the names of inputs for this layer.'''
+        super(Recurrent, self).resolve(layers)
+        self.h_0 = self._resolve(self.h_0, layers)
 
     def add_weights(self, name, nin, nout, mean=0, std=0, sparsity=0, radius=0,
                     diagonal=0):
@@ -127,27 +121,57 @@ class Recurrent(base.Layer):
             arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.rng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
 
-    def _scan(self, inputs, outputs=None, name='scan', step=None, constants=None):
+    def _resolve(self, value, layers):
+        '''Helper for resolving the name of one input to a full name.
+
+        Parameters
+        ----------
+        value : str or None
+            Name of the attribute to resolve
+        layers : list of :class:`Layer <theanets.layers.base.Layer>`
+            A list of the layers that are available for resolving inputs.
+
+        Raises
+        ------
+        theanets.util.ConfigurationError :
+            If an input cannot be resolved.
+
+        Returns
+        -------
+        name : str or None
+            A fully-scoped input name, or ``None`` if ``value`` was ``None``.
+        '''
+        if value is None or ':' in value:
+            return value
+        try:
+            layer = [l for l in layers if l.name == value][0]
+        except:
+            raise util.ConfigurationError(
+                'layer "{}" cannot resolve input "{}"'.format(self.name, value))
+        return layer.output_name
+
+    def _scan(self, inputs, outputs, name='scan', step=None, constants=None):
         '''Helper method for defining a basic loop in theano.
 
         Parameters
         ----------
         inputs : sequence of theano expressions
             Inputs to the scan operation.
-        outputs : sequence of None, tensor, tuple, or scan output specifier
+        outputs : sequence of output specifiers
             Specifiers for the outputs of the scan operation. This should be a
-            list containing:
+            sequence containing:
             - None for values that are output by the scan but not tapped as
               inputs,
-            - a theano tensor variable with a 'shape' attribute, or
-            - a tuple containing a string and an integer for output values that
-              are also tapped as inputs, or
-            - a dictionary containing a full output specifier.
-            See "outputs_info" in the Theano documentation for ``scan``.
+            - an integer or theano scalar (``ndim == 0``) indicating the batch
+              size for initial zero state,
+            - a theano tensor variable (``ndim > 0``) containing initial state
+              data, or
+            - a dictionary containing a full output specifier. See
+              ``outputs_info`` in the Theano documentation for ``scan``.
         name : str, optional
-            Name of the scan variable to create. Defaults to 'scan'.
+            Name of the scan variable to create. Defaults to ``'scan'``.
         step : callable, optional
-            The callable to apply in the loop. Defaults to `self._step`.
+            The callable to apply in the loop. Defaults to :func:`self._step`.
         constants : sequence of tensor, optional
             A sequence of parameters, if any, needed by the step function.
 
@@ -158,20 +182,23 @@ class Recurrent(base.Layer):
         updates : sequence of update tuples
             A sequence of updates to apply inside a theano function.
         '''
-        info = []
-        for i, x in enumerate(outputs or inputs):
-            if hasattr(x, 'shape'):
-                x = self.initial_state(str(i), x.shape[1])
-            elif isinstance(x, int):
-                x = self.initial_state(str(i), x)
-            elif isinstance(x, tuple):
-                x = self.initial_state(*x)
-            info.append(x)
+        init = []
+        for i, x in enumerate(outputs):
+            ndim = getattr(x, 'ndim', -1)
+            if x is None or isinstance(x, dict) or ndim > 0:
+                init.append(x)
+                continue
+            if isinstance(x, int) or ndim == 0:
+                init.append(TT.repeat(theano.shared(
+                    np.zeros((1, self.size), util.FLOAT),
+                    name=self._fmt('init{}'.format(i))), x, axis=0))
+                continue
+            raise ValueError('cannot handle input {} for scan!'.format(x))
         return theano.scan(
             step or self._step,
             name=self._fmt(name),
             sequences=inputs,
-            outputs_info=info,
+            outputs_info=init,
             non_sequences=constants,
             go_backwards='back' in self.kwargs.get('direction', '').lower(),
             truncate_gradient=self.kwargs.get('bptt_limit', -1),
@@ -247,7 +274,8 @@ class RNN(Recurrent):
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan([x], [None, x])
+        (p, o), updates = self._scan(
+            [x], [None, inputs.get(self.h_0, x.shape[1])])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
@@ -368,7 +396,8 @@ class RRNN(Recurrent):
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
         (p, h, o), updates = self._scan(
-            inputs=inputs, outputs=[None, None, x], constants=const, step=step)
+            inputs, [None, None, inputs.get(self.h_0, x.shape[1])],
+            constants=const, step=step)
         pre = p.dimshuffle(1, 0, 2)
         hid = h.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
@@ -464,7 +493,8 @@ class MRNN(Recurrent):
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan([h, f], [None, x])
+        (p, o), updates = self._scan(
+            [h, f], [None, inputs.get(self.h_0, x.shape[1])])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
@@ -577,6 +607,15 @@ class LSTM(Recurrent):
        Networks." http://arxiv.org/pdf/1308.0850v5.pdf
     '''
 
+    def __init__(self, c_0=None, **kwargs):
+        super(LSTM, self).__init__(**kwargs)
+        self.c_0 = c_0
+
+    def resolve(self, layers):
+        '''Resolve the names of inputs for this layer.'''
+        super(LSTM, self).resolve(layers)
+        self.c_0 = self._resolve(self.c_0, layers)
+
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, 4 * self.size)
@@ -593,10 +632,9 @@ class LSTM(Recurrent):
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
-        batch_size = x.shape[1]
         (o, c), updates = self._scan(
             [TT.dot(x, self.find('xh')) + self.find('b')],
-            [('h', batch_size), ('c', batch_size)])
+            [inputs.get(self.h_0, x.shape[1]), inputs.get(self.c_0, x.shape[1])])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -699,7 +737,7 @@ class GRU(Recurrent):
             [TT.dot(x, self.find('xh')) + self.find('bh'),
              TT.dot(x, self.find('xr')) + self.find('br'),
              TT.dot(x, self.find('xz')) + self.find('bz')],
-            [None, None, None, x])
+            [None, None, None, inputs.get(self.h_0, x.shape[1])])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -829,9 +867,11 @@ class Clockwork(Recurrent):
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
 
+        init = inputs.get(self.h_0, x.shape[1])
+
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan([TT.arange(x.shape[0]), x], [x, x])
+        (p, o), updates = self._scan([TT.arange(x.shape[0]), x], [init, init])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
@@ -931,7 +971,7 @@ class MUT1(Recurrent):
         (p, h, o), updates = self._scan(
             [TT.tanh(TT.dot(x, self.find('xh')) + self.find('bh')),
              TT.dot(x, self.find('xr')) + self.find('br'), z],
-            [None, None, x])
+            [None, None, inputs.get(self.h_0, x.shape[1])])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
@@ -1006,10 +1046,16 @@ class SCRN(Recurrent):
        http://arxiv.org/abs/1412.7753
     '''
 
-    def __init__(self, rate='vector', **kwargs):
+    def __init__(self, rate='vector', s_0=None, **kwargs):
         self.rate = rate.lower().strip()
         super(SCRN, self).__init__(**kwargs)
         self._rates = self._create_rates()
+        self.s_0 = s_0
+
+    def resolve(self, layers):
+        '''Resolve the names of inputs for this layer.'''
+        super(SCRN, self).resolve(layers)
+        self.s_0 = self._resolve(self.s_0, layers)
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -1037,7 +1083,10 @@ class SCRN(Recurrent):
 
         (p, _, s), updates = self._scan(
             [TT.dot(x, self.find('xh')), TT.dot(x, self.find('xs'))],
-            [None, x, x], constants=[r])
+            [None,
+             inputs.get(self.h_0, x.shape[1]),
+             inputs.get(self.s_0, x.shape[1])],
+            constants=[r])
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)

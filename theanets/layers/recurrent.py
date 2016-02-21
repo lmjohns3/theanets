@@ -380,12 +380,12 @@ class RRNN(Recurrent):
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
         step = self._step_static
-        inputs = [TT.dot(x, self.find('xh')) + self.find('b')]
+        arrays = [TT.dot(x, self.find('xh')) + self.find('b')]
         const = []
         if self.rate == 'matrix':
             step = self._step_dynamic
             r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
-            inputs.append(r)
+            arrays.append(r)
         elif self.rate == 'vector':
             r = TT.nnet.sigmoid(self.find('r'))
             const.append(r)
@@ -396,7 +396,7 @@ class RRNN(Recurrent):
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
         (p, h, o), updates = self._scan(
-            inputs, [None, None, inputs.get(self.h_0, x.shape[1])],
+            arrays, [None, None, inputs.get(self.h_0, x.shape[1])],
             constants=const, step=step)
         pre = p.dimshuffle(1, 0, 2)
         hid = h.dimshuffle(1, 0, 2)

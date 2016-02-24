@@ -226,6 +226,18 @@ class Recurrent(base.Layer):
             return theano.shared(np.exp(z), name=self._fmt('rate'))
         return None
 
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Recurrent, self).to_spec()
+        spec.update(h_0=self.h_0)
+        return spec
+
 
 class RNN(Recurrent):
     r'''Standard recurrent network layer.
@@ -654,6 +666,18 @@ class LSTM(Recurrent):
         o_t = TT.nnet.sigmoid(xo + c_t * self.find('co'))
         h_t = o_t * TT.tanh(c_t)
         return [h_t, c_t]
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Recurrent, self).to_spec()
+        spec.update(c_0=self.c_0)
+        return spec
 
 
 class GRU(Recurrent):
@@ -1105,6 +1129,18 @@ class SCRN(Recurrent):
         s = (1 - r) * s_tm1 + r * xs_t
         p = xh_t + TT.dot(h_tm1, self.find('hh')) + TT.dot(s, self.find('sh'))
         return [p, TT.nnet.sigmoid(p), s]
+
+    def to_spec(self):
+        '''Create a specification dictionary for this layer.
+
+        Returns
+        -------
+        spec : dict
+            A dictionary specifying the configuration of this layer.
+        '''
+        spec = super(Recurrent, self).to_spec()
+        spec.update(s_0=self.s_0)
+        return spec
 
 
 class Bidirectional(base.Layer):

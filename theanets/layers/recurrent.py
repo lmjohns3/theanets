@@ -675,7 +675,7 @@ class LSTM(Recurrent):
         spec : dict
             A dictionary specifying the configuration of this layer.
         '''
-        spec = super(Recurrent, self).to_spec()
+        spec = super(LSTM, self).to_spec()
         spec.update(c_0=self.c_0)
         return spec
 
@@ -1140,7 +1140,7 @@ class SCRN(Recurrent):
         spec : dict
             A dictionary specifying the configuration of this layer.
         '''
-        spec = super(Recurrent, self).to_spec()
+        spec = super(SCRN, self).to_spec()
         spec.update(s_0=self.s_0)
         return spec
 

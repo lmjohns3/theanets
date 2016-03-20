@@ -125,7 +125,13 @@ class TestRecurrent:
         if form == 'bidirectional':
             spec['worker'] = 'rnn'
         if form == 'clockwork':
-            spec['periods'] = (8, 4, 2, 1)
+            spec['periods'] = (1, 2, 4, 8)
+        if form == 'scrn':
+            spec['s_0'] = None
+        if form == 'lstm':
+            spec['c_0'] = None
+        if form not in ('bidirectional', 'conv1'):
+            spec['h_0'] = None
         assert layer.to_spec() == dict(
             form=form, name='l', size=NH, inputs=('in:out', ),
             activation=layer.kwargs.get('activation', 'relu'), **spec)

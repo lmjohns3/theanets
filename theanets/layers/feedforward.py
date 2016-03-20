@@ -197,7 +197,7 @@ class Tied(base.Layer):
                         self.name, partner))
             self.partner = matches[0]
 
-        self.size = self.partner.input_size
+        self.shape = self.partner.input_shape
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -206,14 +206,14 @@ class Tied(base.Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('({0}){1.size}'.format(n, l)
+        inputs = ', '.join('{0}{1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" << "%s": %s -> %s, %s, %d parameters',
                      self.__class__.__name__,
                      self.name,
                      self.partner.name,
                      inputs,
-                     self.size,
+                     self.shape,
                      getattr(self.activate, 'name', self.activate),
                      sum(np.prod(p.get_value().shape) for p in self.params))
 

@@ -37,7 +37,7 @@ class TestFeedforward:
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=name, name='l', size=NH, inputs=('in:out', ),
+            form=name, name='l', shape=(NH, ), inputs=('in:out', ),
             activation=layer.kwargs.get('activation', 'relu'))
 
     @pytest.mark.parametrize('layer', [
@@ -63,7 +63,7 @@ class TestFeedforward:
             ['l.b', 'l.w_hid1:out', 'l.w_in:out']
 
         assert layer.to_spec() == dict(
-            form='feedforward', name='l', size=NH, activation='relu',
+            form='feedforward', name='l', shape=(NH, ), activation='relu',
             inputs=('in:out', 'hid1:out'))
 
     def test_reshape(self):
@@ -75,7 +75,7 @@ class TestFeedforward:
         assert sorted(p.name for p in layer.params) == []
 
         assert layer.to_spec() == dict(
-            form='reshape', name='l', size=2, shape=[NI // 2, 2],
+            form='reshape', name='l', shape=(NI // 2, 2),
             inputs=('in:out', ), activation='relu')
 
 
@@ -133,7 +133,7 @@ class TestRecurrent:
         if form not in ('bidirectional', 'conv1'):
             spec['h_0'] = None
         assert layer.to_spec() == dict(
-            form=form, name='l', size=NH, inputs=('in:out', ),
+            form=form, name='l', shape=(None, NH), inputs=('in:out', ),
             activation=layer.kwargs.get('activation', 'relu'), **spec)
 
     @pytest.mark.parametrize('layer', [
@@ -170,7 +170,7 @@ class TestConvolution:
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=form, name='l', size=NH, inputs=('in:out', ),
+            form=form, name='l', shape=(None, None, NH), inputs=('in:out', ),
             activation='relu')
 
     @pytest.mark.parametrize('layer', [

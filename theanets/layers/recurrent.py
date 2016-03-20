@@ -72,6 +72,8 @@ class Recurrent(base.Layer):
     def __init__(self, h_0=None, **kwargs):
         super(Recurrent, self).__init__(**kwargs)
         self.h_0 = h_0
+        if len(self.shape) == 1:
+            self.shape = (None, self.shape[0])
 
     def resolve(self, layers):
         '''Resolve the names of inputs for this layer.'''
@@ -875,13 +877,13 @@ class Clockwork(Recurrent):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('({0}){1.size}'.format(n, l)
+        inputs = ', '.join('{0}{1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s": %s -> %s, [%s] %s, %d parameters',
                      self.__class__.__name__,
                      self.name,
                      inputs,
-                     self.size,
+                     self.shape,
                      ' '.join(str(T) for T in self.periods),
                      getattr(self.activate, 'name', self.activate),
                      sum(np.prod(p.get_value().shape) for p in self.params))
@@ -1185,23 +1187,22 @@ class Bidirectional(base.Layer):
     '''
 
     def __init__(self, worker='rnn', **kwargs):
-        size = kwargs.pop('size')
+        size = kwargs.pop('shape', (None, kwargs.pop('size', None)))[-1]
         name = kwargs.pop('name', 'layer{}'.format(base.Layer._count))
-        if 'direction' in kwargs:
-            kwargs.pop('direction')
+        kwargs.pop('direction', None)
 
         def make(suffix, direction):
             return base.Layer.build(
                 worker,
                 direction=direction,
-                size=size // 2,
+                shape=(None, size // 2),
                 name='{}_{}'.format(name, suffix),
                 **kwargs)
 
         self.worker = worker
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
-        super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
+        super(Bidirectional, self).__init__(shape=(None, size), name=name, **kwargs)
 
     @property
     def params(self):

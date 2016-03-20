@@ -41,16 +41,18 @@ class Convolution(base.Layer):
         self.stride = stride
         self.border_mode = border_mode
         super(Convolution, self).__init__(**kwargs)
+        if len(self.shape) == 1:
+            self.shape = (None, None, self.shape[0])
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('({0}){1.size}'.format(n, l)
+        inputs = ', '.join('{0}{1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s": %s -> %s, %s %s filters %s, %s, %d parameters',
                      self.__class__.__name__,
                      self.name,
                      inputs,
-                     self.size,
+                     self.shape,
                      'x'.join(str(i) for i in self.filter_shape),
                      self.border_mode,
                      ''.join('+{}'.format(i) for i in self.stride),
@@ -123,6 +125,8 @@ class Conv1(Convolution):
             stride=(1, stride),
             border_mode=border_mode,
             **kwargs)
+        if len(self.shape) == 3 and self.shape[0] is None:
+            self.shape = self.shape[1:]
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''

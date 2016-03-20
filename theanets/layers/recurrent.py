@@ -813,12 +813,13 @@ class Clockwork(Recurrent):
     .. math::
        h_t^i = \left\{ \begin{align*}
           &g\left( x_tW_{xh}^i + b_h^i +
-             \sum_{j=1}^i h_{t-1}^jW_{hh}^j\right)
+             \sum_{j=i}^M h_{t-1}^jW_{hh}^j\right)
              \mbox{ if } t \mod T_i = 0 \\
           &h_{t-1}^i \mbox{ otherwise.} \end{align*} \right.
 
-    Here, the modules have been ordered such that :math:`T_j > T_i` for
-    :math:`j < i`.
+    Here, the :math:`M` modules have been ordered such that :math:`T_i < T_j`
+    for :math:`i < j` -- that is, the modules are ordered from "fastest" to
+    "slowest."
 
     Note that, unlike in the original paper, the hidden-hidden weight matrix is
     stored in full (i.e., it is ``size`` x ``size``); the module separation is
@@ -854,7 +855,7 @@ class Clockwork(Recurrent):
 
     def __init__(self, periods, **kwargs):
         assert kwargs['size'] % len(periods) == 0
-        self.periods = np.asarray(sorted(periods, reverse=True))
+        self.periods = np.asarray(sorted(periods))
         super(Clockwork, self).__init__(**kwargs)
 
     def setup(self):
@@ -863,7 +864,8 @@ class Clockwork(Recurrent):
         mask = np.zeros((self.size, self.size), util.FLOAT)
         period = np.zeros((self.size, ), 'i')
         for i, T in enumerate(self.periods):
-            mask[i*n:(i+1)*n, i*n:] = 1
+            # see https://github.com/lmjohns3/theanets/issues/125
+            mask[i*n:, i*n:(i+1)*n] = 1
             period[i*n:(i+1)*n] = T
         self._mask = theano.shared(mask, name='mask')
         self._period = theano.shared(period, name='period')
@@ -901,10 +903,10 @@ class Clockwork(Recurrent):
 
         return dict(pre=pre, out=out), updates
 
-    def _step(self, t, x_t, p_tm1, h_tm1):
-        p = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
-        p_t = TT.switch(TT.eq(t % self._period, 0), p, p_tm1)
-        return [p_t, self.activate(p_t)]
+    def _step(self, t, x_t, pre_tm1, h_tm1):
+        pre = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
+        pre_t = TT.switch(TT.eq(t % self._period, 0), pre, pre_tm1)
+        return [pre_t, self.activate(pre_t)]
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

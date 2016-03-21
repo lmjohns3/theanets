@@ -808,4 +808,4 @@ class BernoulliDropout(Regularizer):
             noise = self.rng.binomial(
                 size=expr.shape, n=1, p=1-self.weight, dtype=util.FLOAT)
             outputs[name + '-predrop'] = expr
-            outputs[name] = expr * noise / self.weight
+            outputs[name] = expr * noise / (1-self.weight)

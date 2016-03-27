@@ -716,15 +716,11 @@ class GRU(Recurrent):
 
     *Parameters*
 
-    - ``bh`` --- vector of bias values for each hidden unit
-    - ``br`` --- vector of reset biases
-    - ``bz`` --- vector of rate biases
-    - ``xh`` --- matrix connecting inputs to hidden units
-    - ``xr`` --- matrix connecting inputs to reset gates
-    - ``xz`` --- matrix connecting inputs to rate gates
     - ``hh`` --- matrix connecting hiddens to hiddens
     - ``hr`` --- matrix connecting hiddens to reset gates
     - ``hz`` --- matrix connecting hiddens to rate gates
+    - ``w`` --- matrix connecting inputs to [hidden, reset, rate] units
+    - ``b`` --- vector of bias values for [hidden, reset, rate] units
 
     *Outputs*
 
@@ -743,15 +739,11 @@ class GRU(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('xh', self.input_size, self.size)
-        self.add_weights('xr', self.input_size, self.size)
-        self.add_weights('xz', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_weights('hr', self.size, self.size)
         self.add_weights('hz', self.size, self.size)
-        self.add_bias('bh', self.size)
-        self.add_bias('br', self.size)
-        self.add_bias('bz', self.size)
+        self.add_weights('w', self.input_size, 3 * self.size)
+        self.add_bias('b', 3 * self.size)
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.'''
@@ -759,10 +751,12 @@ class GRU(Recurrent):
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
+        hrz = TT.dot(x, self.find('w')) + self.find('b')
+
         (p, h, r, o), updates = self._scan(
-            [TT.dot(x, self.find('xh')) + self.find('bh'),
-             TT.dot(x, self.find('xr')) + self.find('br'),
-             TT.dot(x, self.find('xz')) + self.find('bz')],
+            [hrz[:, :, :self.size],
+             hrz[:, :, self.size:-self.size],
+             hrz[:, :, -self.size:]],
             [None, None, None, inputs.get(self.h_0, x.shape[1])])
 
         # output is:  (time, batch, output)
@@ -1045,8 +1039,8 @@ class SCRN(Recurrent):
 
     *Parameters*
 
-    - ``xs`` --- matrix connecting inputs to state units (called B in the paper)
-    - ``xh`` --- matrix connecting inputs to hidden units (A)
+    - ``w`` --- matrix connecting inputs to [hidden, state] units
+      (this is a concatenation of parameters A and B in the paper)
     - ``sh`` --- matrix connecting state to hiddens (P)
     - ``hh`` --- matrix connecting hiddens to hiddens (R)
     - ``ho`` --- matrix connecting hiddens to output (U)
@@ -1087,13 +1081,11 @@ class SCRN(Recurrent):
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
-        self.add_weights('xs', self.input_size, self.size)
-        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('w', self.input_size, 2 * self.size)
         self.add_weights('sh', self.size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_weights('ho', self.size, self.size)
         self.add_weights('so', self.size, self.size)
-
         self.add_bias('b', self.size)
 
         if self.rate == 'vector':
@@ -1109,8 +1101,10 @@ class SCRN(Recurrent):
         if self.rate == 'vector':
             r = TT.nnet.sigmoid(self.find('r'))
 
+        xs = TT.dot(x, self.find('w'))
+
         (p, _, s), updates = self._scan(
-            [TT.dot(x, self.find('xh')), TT.dot(x, self.find('xs'))],
+            [xs[:, :, :self.size], xs[:, :, self.size:]],
             [None,
              inputs.get(self.h_0, x.shape[1]),
              inputs.get(self.s_0, x.shape[1])],

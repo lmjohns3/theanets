@@ -1012,13 +1012,13 @@ class MUT1(Recurrent):
 
 
 class SCRN(Recurrent):
-    r'''Simple Contextual Recurrent Network layer.
+    r'''Structurally Constrained Recurrent Network layer.
 
     Notes
     -----
 
-    A Simple Contextual Recurrent Network incorporates an explicitly slow-moving
-    hidden context layer with a simple recurrent network.
+    A Structurally Constrained Recurrent Network incorporates an explicitly
+    slow-moving hidden context layer with a simple recurrent network.
 
     The update equations in this layer are largely those given by [Mik15]_,
     pages 4 and 5, but this implementation adds a bias term for the output of
@@ -1087,7 +1087,6 @@ class SCRN(Recurrent):
         self.add_weights('ho', self.size, self.size)
         self.add_weights('so', self.size, self.size)
         self.add_bias('b', self.size)
-
         if self.rate == 'vector':
             self.add_bias('r', self.size)
 

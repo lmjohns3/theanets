@@ -46,18 +46,18 @@ class Convolution(base.Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('{0}{1.shape}'.format(n, l)
+        inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s "%s": %s -> %s, %s %s filters %s, %s, %d parameters',
+        logging.info('layer %s %s %s %s %s filters %s from %s',
                      self.__class__.__name__,
                      self.name,
-                     inputs,
                      self.shape,
+                     getattr(self.activate, 'name', self.activate),
                      'x'.join(str(i) for i in self.filter_shape),
                      self.border_mode,
                      ''.join('+{}'.format(i) for i in self.stride),
-                     getattr(self.activate, 'name', self.activate),
-                     sum(np.prod(p.get_value().shape) for p in self.params))
+                     inputs)
+        logging.info('learnable parameters: %d', self.log_params())
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.

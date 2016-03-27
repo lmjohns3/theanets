@@ -206,16 +206,16 @@ class Tied(base.Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('{0}{1.shape}'.format(n, l)
+        inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s "%s" << "%s": %s -> %s, %s, %d parameters',
+        logging.info('layer %s <%s>%s %s %s from %s',
                      self.__class__.__name__,
-                     self.name,
                      self.partner.name,
-                     inputs,
+                     self.name,
                      self.shape,
                      getattr(self.activate, 'name', self.activate),
-                     sum(np.prod(p.get_value().shape) for p in self.params))
+                     inputs)
+        logging.info('learnable parameters: %d', self.log_params())
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.

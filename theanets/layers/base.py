@@ -284,15 +284,24 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('{0}{1.shape}'.format(n, l)
+        inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s "%s": %s -> %s, %s, %d parameters',
+        logging.info('layer %s %s %s %s from %s',
                      self.__class__.__name__,
                      self.name,
-                     inputs,
                      self.shape,
                      getattr(self.activate, 'name', self.activate),
-                     sum(np.prod(p.get_value().shape) for p in self.params))
+                     inputs)
+        logging.info('learnable parameters: %d', self.log_params())
+
+    def log_params(self):
+        '''Log information about this layer's parameters.'''
+        total = 0
+        for p in self.params:
+            shape = p.get_value().shape
+            logging.info('parameter %s %s', p.name, shape)
+            total += np.prod(shape)
+        return total
 
     def _fmt(self, string):
         '''Helper method to format our name into a string.'''
@@ -453,7 +462,7 @@ class Input(Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        logging.info('layer %s "%s": input shape %s',
+        logging.info('layer %s %s %s',
                      self.__class__.__name__, self.name, self.shape)
 
     def transform(self, inputs):

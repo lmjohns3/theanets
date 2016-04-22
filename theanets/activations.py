@@ -204,7 +204,7 @@ class Prelu(Activation):
         self.params.append(self.leak)
 
     def __call__(self, x):
-        return (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
+        return (x + abs(x)) / 2 + TT.exp(self.leak) * (x - abs(x)) / 2
 
 
 class LGrelu(Activation):
@@ -238,7 +238,35 @@ class LGrelu(Activation):
         self.params.append(self.leak)
 
     def __call__(self, x):
-        return self.gain * (x + abs(x)) / 2 + self.leak * (x - abs(x)) / 2
+        return TT.exp(self.gain) * (x + abs(x)) / 2 + TT.exp(self.leak) * (x - abs(x)) / 2
+
+
+class Elu(Activation):
+    r'''Exponential linear activation with learnable gain.
+
+    This activation is characterized by two pieces joined at the origin. For
+    negative inputs, the unit response is a decaying exponential function of the
+    input with saturation :math:`\alpha`. For positive inputs, the unit response
+    is the identity linear function of the input:
+
+    .. math::
+       f(x) = \left\{ \begin{eqnarray*} \alpha (exp(x) - 1) &\qquad& \mbox{if } x < 0 \\
+                       x &\qquad& \mbox{otherwise} \end{eqnarray*} \right.
+
+    This activation allocates a separate gain for each unit in its layer.
+    '''
+
+    __extra_registration_keys__ = []
+
+    def __init__(self, *args, **kwargs):
+        super(Elu, self).__init__(*args, **kwargs)
+        self.gain = theano.shared(
+            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
+            name=self.layer._fmt('gain'))
+        self.params.append(self.gain)
+
+    def __call__(self, x):
+        return x * (x >= 0) + TT.exp(self.gain) * (TT.exp(x) - 1) * (x < 0)
 
 
 class Maxout(Activation):

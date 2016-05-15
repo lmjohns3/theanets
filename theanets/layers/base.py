@@ -115,7 +115,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         self.shape = shape
         if size is not None:
             if shape is not None:
-                raise RuntimeError('cannot specify both size and shape!')
+                raise util.ConfigurationError('cannot specify both size and shape!')
             self.shape = (size, )
 
         self.kwargs = kwargs
@@ -140,6 +140,8 @@ class Layer(util.Registrar(str('Base'), (), {})):
     @property
     def size(self):
         '''Number of "neurons" in this layer.'''
+        if self.shape is None:
+            raise util.ConfigurationError('{}: undefined shape'.format(self.name))
         return self.shape[-1]
 
     @property
@@ -155,7 +157,9 @@ class Layer(util.Registrar(str('Base'), (), {})):
     @property
     def input_shape(self):
         '''Shape of layer input (for layers with one input).'''
-        assert len(self.inputs) == 1
+        if len(self.inputs) != 1:
+            raise util.ConfigurationError(
+                'expected one input, got {}'.format(self.inputs))
         return self._resolved_inputs[self.inputs[0]].shape
 
     @property
@@ -286,7 +290,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''Log some information about this layer.'''
         inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s %s %s %s from %s',
+        logging.info('layer %s "%s" %s %s from %s',
                      self.__class__.__name__,
                      self.name,
                      self.shape,
@@ -462,7 +466,7 @@ class Input(Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        logging.info('layer %s %s %s',
+        logging.info('layer %s "%s" %s',
                      self.__class__.__name__, self.name, self.shape)
 
     def transform(self, inputs):

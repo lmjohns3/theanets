@@ -12,50 +12,95 @@ import util as u
 
 
 class TestNetwork:
-    def test_updates(self):
-        m = theanets.Regressor((15, 13))
-        assert not m.updates()
-
     def test_layer_ints(self):
         m = theanets.Regressor((1, 2, 3))
         assert len(m.layers) == 3
 
-    def test_layer_tuples(self):
-        m = theanets.Regressor((1, (2, 'relu'), 3))
+    @pytest.mark.parametrize('layers', [
+        (1, (2, 'relu'), 3),
+        (1, dict(size=2, activation='relu', form='rnn'), 3),
+        (1, 2, dict(size=3, inputs='hid1')),
+        (1, 2, dict(size=3, inputs=('in', 'hid1'))),
+        (1, 2, (1, 'tied')),
+        (1, 2, dict(size=1, form='tied', partner='hid1')),
+    ])
+    def test_layer_tuples(self, layers):
+        m = theanets.Regressor(layers)
         assert len(m.layers) == 3
+
+        assert isinstance(m.layers[0], theanets.layers.Input)
+        assert m.layers[0].kwargs['activation'] == 'relu'
+        assert m.layers[0].shape == (1, )
+
         assert m.layers[1].kwargs['activation'] == 'relu'
+        spec = layers[1]
+        if isinstance(spec, dict) and spec.get('form') == 'rnn':
+            assert isinstance(m.layers[1], theanets.layers.RNN)
+        else:
+            assert isinstance(m.layers[1], theanets.layers.Feedforward)
 
-    def test_layer_dicts(self):
-        m = theanets.Regressor((1, dict(size=2, activation='relu', form='rnn'), 3))
-        assert len(m.layers) == 3
-        assert m.layers[1].kwargs['activation'] == 'relu'
-        assert isinstance(m.layers[1], theanets.layers.recurrent.RNN)
+        assert m.layers[2].kwargs['activation'] == 'linear'
+        spec = layers[2]
+        if (isinstance(spec, tuple) and 'tied' in spec) or \
+           (isinstance(spec, dict) and spec.get('form') == 'tied'):
+            assert isinstance(m.layers[2], theanets.layers.Tied)
+            assert m.layers[2].partner is m.layers[1]
 
-    def test_layer_named_inputs(self):
-        m = theanets.Regressor((1, 2, dict(size=3, inputs='hid1')))
-        assert len(m.layers) == 3
-        m = theanets.Regressor((1, 2, dict(size=3, inputs=('in', 'hid1'))))
-        assert len(m.layers) == 3
-
-    def test_layer_named_inputs_missing(self):
+    @pytest.mark.parametrize('layers', [
+        (1, 2, dict(size=3, inputs='hid2')),
+        (1, (2, 'tied'), (2, 'tied'), (1, 'tied')),
+    ])
+    def test_layers_raises(self, layers):
         with pytest.raises(theanets.util.ConfigurationError):
-            theanets.Regressor((1, 2, dict(size=3, inputs='hid2')))
+            theanets.Regressor(layers)
 
-    def test_layer_tied(self):
-        m = theanets.Regressor((1, 2, (1, 'tied')))
-        assert len(m.layers) == 3
-        assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
-        assert m.layers[2].partner is m.layers[1]
+    @pytest.mark.parametrize('spec, cls, shape, act', [
+        ('ff', theanets.layers.Feedforward, None, None),
+        (6, theanets.layers.Feedforward, (6, ), None),
+        ((6, ), theanets.layers.Feedforward, (6, ), None),
+        ((6, 7), theanets.layers.Feedforward, (6, 7), None),
+        ((6, 'linear'), theanets.layers.Feedforward, (6, ), 'linear'),
+        ((6, 'linear', 'classifier'), theanets.layers.Classifier, (6, ), 'softmax'),
+        (dict(size=6), theanets.layers.Feedforward, (6, ), None),
+        (dict(size=6, form='ff'), theanets.layers.Feedforward, (6, ), None),
+        (dict(size=6, activation='linear'), theanets.layers.Feedforward, (6, ), 'linear'),
+        (dict(shape=(6, 7)), theanets.layers.Feedforward, (6, 7), None),
+    ])
+    def test_add_layer(self, spec, cls, shape, act):
+        m = theanets.Regressor([3])
+        m.add_layer(spec)
+        assert len(m.layers) == 2
+        layer = m.layers[-1]
+        assert isinstance(layer, cls)
+        assert layer.shape == shape
+        if act is not None:
+            assert layer.kwargs['activation'] == act
 
-    def test_layer_tied_partner(self):
-        m = theanets.Regressor((1, 2, dict(size=1, form='tied', partner='hid1')))
-        assert len(m.layers) == 3
-        assert isinstance(m.layers[2], theanets.layers.feedforward.Tied)
-        assert m.layers[2].partner is m.layers[1]
-
-    def test_layer_tied_no_partner(self):
+    @pytest.mark.parametrize('spec', [
+        (6, 'tied', 7),
+        dict(size=1, shape=(1, 1)),
+    ])
+    def test_add_layer_errors(self, spec):
+        m = theanets.Regressor([3])
         with pytest.raises(theanets.util.ConfigurationError):
-            theanets.Regressor((1, (2, 'tied'), (2, 'tied'), (1, 'tied')))
+            m.add_layer(spec)
+
+    @pytest.mark.parametrize('spec', [
+        None,
+        'tied',
+        dict(form='ff'),
+        dict(form='tied'),
+        dict(form='tied', partner='hello'),
+    ])
+    def test_add_layer_bind_errors(self, spec):
+        m = theanets.Regressor([3])
+        m.add_layer(spec)
+        with pytest.raises(theanets.util.ConfigurationError):
+            [l.bind(m) for l in m.layers]
+
+    def test_updates(self):
+        m = theanets.Regressor((15, 13))
+        assert not m.updates()
 
     def test_default_output_name(self):
         m = theanets.Regressor((1, 2, dict(size=1, form='tied', name='foo')))

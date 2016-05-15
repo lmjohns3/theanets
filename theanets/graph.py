@@ -80,11 +80,20 @@ class Network(object):
         self._functions = {}  # cache of callable feedforward functions
         self._rng = rng
 
+        # create layers based on specs provided in the constructor.
         self.layers = []
         for i, layer in enumerate(layers):
-            self.add_layer(layer=layer, is_output=i == len(layers) - 1)
+            first = i == 0
+            last = i == len(layers) - 1
+            name = 'in' if first else 'out' if last else 'hid{}'.format(i)
+            activation = self.DEFAULT_OUTPUT_ACTIVATION if last else 'relu'
+            self.add_layer(layer=layer, name=name, activation=activation)
+
+        # bind layers to this graph after construction. this finalizes layer
+        # shapes and does other consistency checks based on the entire graph.
         [l.bind(self) for l in self.layers]
 
+        # create a default loss (usually).
         self.losses = []
         if loss and self.layers:
             self.set_loss(loss,
@@ -92,7 +101,7 @@ class Network(object):
                           target=self.OUTPUT_NDIM,
                           output_name=self.layers[-1].output_name)
 
-    def add_layer(self, layer=None, is_output=False, **kwargs):
+    def add_layer(self, layer=None, **kwargs):
         '''Add a :ref:`layer <layers>` to our network graph.
 
         Parameters
@@ -100,11 +109,6 @@ class Network(object):
         layer : int, tuple, dict, or :class:`Layer <theanets.layers.base.Layer>`
             A value specifying the layer to add. For more information, please
             see :ref:`guide-creating-specifying-layers`.
-        is_output : bool, optional
-            True iff this is the output layer for the graph. This influences the
-            default activation function used for the layer: output layers in
-            most models have a linear activation, while output layers in
-            classifier networks default to a softmax activation.
         '''
         # if the given layer is a Layer instance, just add it and move on.
         if isinstance(layer, layers.Layer):
@@ -113,25 +117,33 @@ class Network(object):
 
         form = kwargs.pop('form', 'ff' if self.layers else 'input').lower()
 
-        # if layer is a tuple, assume that it contains one or more of the following:
-        # - a layers.Layer subclass to construct (type)
+        if isinstance(layer, util.basestring):
+            if not layers.Layer.is_registered(layer):
+                raise util.ConfigurationError('unknown layer type: {}'.format(layer))
+            form = layer
+            layer = None
+
+        # if layer is a tuple/list of integers, assume it's a shape.
+        if isinstance(layer, (tuple, list)) and all(isinstance(x, int) for x in layer):
+            kwargs['shape'] = tuple(layer)
+            layer = None
+
+        # if layer is some other tuple/list, assume it's a list of:
         # - the name of a layers.Layer class (str)
         # - the name of an activation function (str)
         # - the number of units in the layer (int)
         if isinstance(layer, (tuple, list)):
             for el in layer:
-                try:
-                    if issubclass(el, layers.Layer):
-                        form = el.__name__
-                except TypeError:
-                    pass
-                if isinstance(el, util.basestring):
-                    if layers.Layer.is_registered(el):
-                        form = el
-                    else:
-                        kwargs['activation'] = el
-                if isinstance(el, int):
+                if isinstance(el, util.basestring) and layers.Layer.is_registered(el):
+                    form = el
+                elif isinstance(el, util.basestring):
+                    kwargs['activation'] = el
+                elif isinstance(el, int):
+                    if 'size' in kwargs:
+                        raise util.ConfigurationError(
+                            'duplicate layer sizes! {}'.format(kwargs))
                     kwargs['size'] = el
+            layer = None
 
         # if layer is a dictionary, try to extract a form for the layer, and
         # override our default keyword arguments with the rest.
@@ -141,22 +153,22 @@ class Network(object):
                     form = value.lower()
                 else:
                     kwargs[key] = value
+            layer = None
 
-        name = 'hid{}'.format(len(self.layers))
-        if is_output:
-            name = 'out'
-        if form == 'input':
-            name = 'in'
-        kwargs.setdefault('name', name)
-        kwargs.setdefault('size', layer)
+        # if neither shape nor size have been specified yet, check that the
+        # "layer" param is an int and use it for "size".
+        if 'shape' not in kwargs and 'size' not in kwargs and isinstance(layer, int):
+            kwargs['size'] = layer
 
-        if form == 'input':
+        # if it hasn't been provided in some other way yet, set input
+        # dimensionality based on the model.
+        if form == 'input' and 'shape' not in kwargs:
             kwargs.setdefault('ndim', self.INPUT_NDIM)
-        else:
-            act = self.DEFAULT_OUTPUT_ACTIVATION if is_output else 'relu'
+
+        # set some default layer parameters.
+        if form != 'input':
             kwargs.setdefault('inputs', self.layers[-1].output_name)
             kwargs.setdefault('rng', self._rng)
-            kwargs.setdefault('activation', act)
 
         if form.lower() == 'tied' and 'partner' not in kwargs:
             # we look backward through our list of layers for a partner.
@@ -180,10 +192,11 @@ class Network(object):
 
         layer = layers.Layer.build(form, **kwargs)
 
+        # check that graph inputs have unique names.
         if isinstance(layer, layers.Input):
-            names = set(i.name for i in self.inputs)
-            assert layer.name not in names, \
-                '"{}": duplicate input name!'.format(layer.name)
+            if any(layer.name == i.name for i in self.inputs):
+                raise util.ConfigurationError(
+                    '"{}": duplicate input name!'.format(layer.name))
 
         self.layers.append(layer)
 

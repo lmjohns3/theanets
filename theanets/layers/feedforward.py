@@ -194,7 +194,7 @@ class Tied(base.Layer):
             if len(matches) != 1:
                 raise util.ConfigurationError(
                     'layer "{}": cannot find partner "{}"'.format(
-                        self.name, partner))
+                        self.name, self.partner))
             self.partner = matches[0]
 
         self.shape = self.partner.input_shape

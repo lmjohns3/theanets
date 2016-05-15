@@ -272,13 +272,8 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''
         keys = []
         for name in self.inputs:
-            matches = [l for l in layers if name.split(':')[0] == l.name]
-            if len(matches) != 1:
-                raise util.ConfigurationError(
-                    'layer "{}" cannot resolve input "{}" using {}'
-                    .format(self.name, name, [l.name for l in layers]))
-            full = name if ':' in name else matches[0].output_name
-            self._resolved_inputs[full] = matches[0]
+            layer, full = self._only_layer_with_name(layers, name)
+            self._resolved_inputs[full] = layer
             keys.append(full)
         self.inputs = tuple(keys)
 
@@ -317,6 +312,15 @@ class Layer(util.Registrar(str('Base'), (), {})):
         '''Helper method to retrieve our layer's sole input expression.'''
         assert len(self.inputs) == 1
         return inputs[self.inputs[0]]
+
+    def _only_layer_with_name(self, layers, name):
+        '''Given a list of layers, find the one layer with the given name.'''
+        matches = [l for l in layers if name.split(':')[0] == l.name]
+        if len(matches) != 1:
+            raise util.ConfigurationError(
+                'layer "{}" cannot resolve input "{}" using {}'
+                .format(self.name, name, [l.name for l in layers]))
+        return matches[0], name if ':' in name else matches[0].output_name
 
     def find(self, key):
         '''Get a shared variable for a parameter by name.
@@ -547,6 +551,24 @@ class Flatten(Layer):
     '''
 
     __extra_registration_keys__ = ['flat']
+
+    def resolve(self, layers):
+        '''Resolve the names of inputs for this layer into layer objects.
+
+        Parameters
+        ----------
+        layers : list of :class:`Layer`
+            A list of the layers that are available for resolving inputs.
+
+        Raises
+        ------
+        theanets.util.ConfigurationError :
+            If an input cannot be resolved.
+        '''
+        layer, name = self._only_layer_with_name(layers, self.inputs[0])
+        self._resolved_inputs[name] = layer
+        self.shape = (np.prod(layer.shape), )
+        self.inputs = (name, )
 
     def transform(self, inputs):
         '''Transform the inputs for this layer into an output for the layer.

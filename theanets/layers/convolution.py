@@ -27,8 +27,8 @@ class Convolution(base.Layer):
 
     Parameters
     ----------
-    filter_shape : (int, int)
-        Shape of the convolution filters for this layer.
+    filter_size : (int, int)
+        Size of the convolution filters for this layer.
     stride : (int, int), optional
         Apply convolutions with this stride; i.e., skip this many samples
         between convolutions. Defaults to (1, 1)---that is, no skipping.
@@ -36,28 +36,39 @@ class Convolution(base.Layer):
         Compute convolutions with this border mode. Defaults to 'valid'.
     '''
 
-    def __init__(self, filter_shape, stride=(1, 1), border_mode='valid', **kwargs):
-        self.filter_shape = filter_shape
+    def __init__(self, filter_size, stride=(1, 1), border_mode='valid', **kwargs):
+        self.filter_size = filter_size
         self.stride = stride
         self.border_mode = border_mode
         super(Convolution, self).__init__(**kwargs)
-        if len(self.shape) == 1:
-            self.shape = (None, None, self.shape[0])
 
     def log(self):
         '''Log some information about this layer.'''
         inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s %s %s %s %s filters %s from %s',
+        logging.info('layer %s "%s" %s %s %s filters %s%s from %s',
                      self.__class__.__name__,
                      self.name,
                      self.shape,
                      getattr(self.activate, 'name', self.activate),
-                     'x'.join(str(i) for i in self.filter_shape),
                      self.border_mode,
+                     'x'.join(str(i) for i in self.filter_size),
                      ''.join('+{}'.format(i) for i in self.stride),
                      inputs)
         logging.info('learnable parameters: %d', self.log_params())
+
+    def resolve(self, layers):
+        layer, name = self._only_layer_with_name(layers, self.inputs[0])
+        self._resolved_inputs[name] = layer
+        image = np.array(layer.shape)[:-1]
+        kernel = np.array(self.filter_size)
+        result = image
+        if self.border_mode == 'full':
+            result = image + kernel - 1
+        if self.border_mode == 'valid':
+            result = image - kernel + 1
+        self.shape = tuple(result) + (self.size, )
+        self.inputs = (name, )
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.
@@ -85,9 +96,9 @@ class Convolution(base.Layer):
         sparsity = self.kwargs.get(
             'sparsity_{}'.format(name),
             self.kwargs.get('sparsity', sparsity))
-        arr = np.zeros((nout, nin) + self.filter_shape, util.FLOAT)
-        for r in range(self.filter_shape[0]):
-            for c in range(self.filter_shape[1]):
+        arr = np.zeros((nout, nin) + self.filter_size, util.FLOAT)
+        for r in range(self.filter_size[0]):
+            for c in range(self.filter_size[1]):
                 arr[:, :, r, c] = util.random_matrix(
                     nout, nin, mean, std, sparsity=sparsity, rng=self.rng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
@@ -121,7 +132,7 @@ class Conv1(Convolution):
 
     def __init__(self, filter_size, stride=1, border_mode='valid', **kwargs):
         super(Conv1, self).__init__(
-            filter_shape=(1, filter_size),
+            filter_size=(1, filter_size),
             stride=(1, stride),
             border_mode=border_mode,
             **kwargs)
@@ -160,7 +171,7 @@ class Conv1(Convolution):
             x,
             self.find('w'),
             image_shape=(None, self.input_size, 1, None),
-            filter_shape=(self.size, self.input_size) + self.filter_shape,
+            filter_shape=(self.size, self.input_size) + self.filter_size,
             border_mode=self.border_mode,
             subsample=self.stride,
         ).dimshuffle(0, 3, 1, 2)[:, :, :, 0] + self.find('b')
@@ -188,13 +199,6 @@ class Conv2(Convolution):
     border_mode : str, optional
         Compute convolutions with this border mode. Defaults to 'valid'.
     '''
-
-    def __init__(self, filter_size, stride=(1, 1), border_mode='valid', **kwargs):
-        super(Conv2, self).__init__(
-            filter_shape=filter_size,
-            stride=stride,
-            border_mode=border_mode,
-            **kwargs)
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -228,7 +232,7 @@ class Conv2(Convolution):
             x,
             self.find('w'),
             image_shape=(None, self.input_size, None, None),
-            filter_shape=(self.size, self.input_size) + self.filter_shape,
+            filter_shape=(self.size, self.input_size) + self.filter_size,
             border_mode=self.border_mode,
             subsample=self.stride,
         ).dimshuffle(0, 2, 3, 1) + self.find('b')

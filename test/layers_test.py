@@ -87,14 +87,13 @@ class TestRecurrent:
         ('rrnn', {'rate': 'log'}, 1 + NI + NH, 'xh hh b', 'out pre rate hid'),
         ('rrnn', {'rate': 'vector'}, 2 + NI + NH, 'xh hh b r', 'out pre rate hid'),
         ('rrnn', {'rate': 'matrix'}, 2 + NH + 2 * NI, 'xh hh b r xr', 'out pre rate hid'),
-        ('gru', {}, 3 * (1 + NI + NH), 'bh br bz xh xr xz hh hr hz', 'hid out pre rate'),
+        ('gru', {}, 3 * (1 + NI + NH), 'b w hh hr hz', 'hid out pre rate'),
         ('mut1', {}, 3 + 3 * NI + 2 * NH, 'bh br bz hh hr xh xr xz', 'hid out pre rate'),
+        ('scrn', {}, 2 * (1 + NI + 2 * NH), 'w ho so hh sh b r', 'out hid rate state'),
         ('lstm', {}, 7 + 4 * NH + 4 * NI, 'xh hh b cf ci co', 'out cell'),
         ('conv1', {'filter_size': 13}, 1 + 13 * NI, 'w b', 'pre out'),
         ('mrnn', {'factors': 3}, (7 + NI) * NH + 3 * NI, 'xh xf hf fh b',
          'out pre factors'),
-        ('scrn', {}, 2 * (1 + NI + 2 * NH), 'xh xs ho so hh sh b r',
-         'out pre hid rate state'),
         ('bidirectional', {}, 1 + NI + NH // 2,
          'l_bw.b l_bw.hh l_bw.xh l_fw.b l_fw.xh l_fw.hh',
          'bw_out bw_pre fw_out fw_pre out pre'),
@@ -128,6 +127,7 @@ class TestRecurrent:
             spec['periods'] = (1, 2, 4, 8)
         if form == 'scrn':
             spec['s_0'] = None
+            spec['context_size'] = int(1 + np.sqrt(NH))
         if form == 'lstm':
             spec['c_0'] = None
         if form not in ('bidirectional', 'conv1'):

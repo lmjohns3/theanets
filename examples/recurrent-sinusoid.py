@@ -56,13 +56,17 @@ wave_ax.plot(T, SIN, ':', label='Target', alpha=0.7, color='#111111')
 # For each layer type, train a model containing that layer, and plot its
 # predicted output.
 for i, layer in enumerate((
+        dict(form='rnn', activation='linear', diagonal=0.5),
         dict(form='rnn', activation='relu', diagonal=0.5),
         dict(form='rrnn', activation='relu', rate='vector', diagonal=0.5),
         dict(form='scrn', activation='linear'),
+        dict(form='scrn', activation='elu'),
         dict(form='gru', activation='relu'),
+        dict(form='gru', activation='elu'),
         dict(form='lstm', activation='tanh'),
+        dict(form='clockwork', activation='elu', periods=(1, 4, 16, 64)),
         dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64)))):
-    name = layer['form']
+    name = '{form}+{activation}'.format(**layer)
     layer['size'] = 64
     logging.info('training %s model', name)
     net = theanets.recurrent.Regressor([1, layer, 1])

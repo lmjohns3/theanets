@@ -206,11 +206,15 @@ class Recurrent(base.Layer):
             truncate_gradient=self.kwargs.get('bptt_limit', -1),
         )
 
-    def _create_rates(self, eps=1e-4):
+    def _create_rates(self, dist='uniform', size=None, eps=1e-4):
         '''Create a rate parameter (usually for a recurrent network layer).
 
         Parameters
         ----------
+        dist : {'uniform', 'log'}, optional
+            Distribution of rate values. Defaults to ``'uniform'``.
+        size : int, optional
+            Number of rates to create. Defaults to ``self.size``.
         eps : float, optional
             A "buffer" preventing rate values from getting too close to 0 or 1.
             Defaults to 1e-4.
@@ -220,11 +224,13 @@ class Recurrent(base.Layer):
         rates : theano shared or None
             A vector of rate parameters for certain types of recurrent layers.
         '''
-        if self.rate == 'uniform':
-            z = np.random.uniform(eps, 1 - eps, size=self.size).astype(util.FLOAT)
+        if size is None:
+            size = self.size
+        if dist == 'uniform':
+            z = np.random.uniform(eps, 1 - eps, size=size).astype(util.FLOAT)
             return theano.shared(z, name=self._fmt('rate'))
-        if self.rate == 'log':
-            z = np.random.uniform(-6, -eps, size=self.size).astype(util.FLOAT)
+        if dist == 'log':
+            z = np.random.uniform(-6, -eps, size=size).astype(util.FLOAT)
             return theano.shared(np.exp(z), name=self._fmt('rate'))
         return None
 
@@ -286,16 +292,17 @@ class RNN(Recurrent):
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
 
+        init = inputs.get(self.h_0, x.shape[1])
+
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        (p, o), updates = self._scan(
-            [x], [None, inputs.get(self.h_0, x.shape[1])])
+        (p, o), updates = self._scan([TT.arange(x.shape[0]), x], [init, init])
         pre = p.dimshuffle(1, 0, 2)
         out = o.dimshuffle(1, 0, 2)
 
         return dict(pre=pre, out=out), updates
 
-    def _step(self, x_t, h_tm1):
+    def _step(self, _, x_t, __, h_tm1):
         pre = x_t + TT.dot(h_tm1, self.find('hh'))
         return [pre, self.activate(pre)]
 
@@ -372,19 +379,18 @@ class RRNN(Recurrent):
     '''
 
     def __init__(self, rate='matrix', **kwargs):
-        self.rate = rate.lower().strip()
         super(RRNN, self).__init__(**kwargs)
-        self._rates = self._create_rates()
+        self._rate = rate.lower().strip()
+        self._rates = self._create_rates(self._rate)
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
-
-        if self.rate == 'vector' or self.rate == 'matrix':
+        if self._rate == 'vector' or self._rate == 'matrix':
             self.add_bias('r', self.size)
-            if self.rate == 'matrix':
+            if self._rate == 'matrix':
                 self.add_weights('xr', self.input_size, self.size)
 
     def transform(self, inputs):
@@ -396,11 +402,11 @@ class RRNN(Recurrent):
         step = self._step_static
         arrays = [TT.dot(x, self.find('xh')) + self.find('b')]
         const = []
-        if self.rate == 'matrix':
+        if self._rate == 'matrix':
             step = self._step_dynamic
             r = TT.nnet.sigmoid(TT.dot(x, self.find('xr')) + self.find('r'))
             arrays.append(r)
-        elif self.rate == 'vector':
+        elif self._rate == 'vector':
             r = TT.nnet.sigmoid(self.find('r'))
             const.append(r)
         else:
@@ -776,7 +782,7 @@ class GRU(Recurrent):
         return [pre, h_t, z, (1 - z) * h_tm1 + z * h_t]
 
 
-class Clockwork(Recurrent):
+class Clockwork(RNN):
     r'''A Clockwork RNN layer updates "modules" of neurons at specific rates.
 
     Notes
@@ -850,12 +856,17 @@ class Clockwork(Recurrent):
     '''
 
     def __init__(self, periods, **kwargs):
-        assert kwargs['size'] % len(periods) == 0
-        self.periods = np.asarray(sorted(periods))
         super(Clockwork, self).__init__(**kwargs)
+        self.periods = np.asarray(sorted(periods))
+        if self.size % len(self.periods):
+            raise util.ConfigurationError(
+                '{}: size {} is not a multiple of number of periods {}'.format(
+                    self.name, self.size, self.periods))
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
+        super(Clockwork, self).setup()
+
         n = self.size // len(self.periods)
         mask = np.zeros((self.size, self.size), util.FLOAT)
         period = np.zeros((self.size, ), 'i')
@@ -865,15 +876,12 @@ class Clockwork(Recurrent):
             period[i*n:(i+1)*n] = T
         self._mask = theano.shared(mask, name='mask')
         self._period = theano.shared(period, name='period')
-        self.add_weights('hh', self.size, self.size)
-        self.add_weights('xh', self.input_size, self.size)
-        self.add_bias('b', self.size)
 
     def log(self):
         '''Log some information about this layer.'''
         inputs = ', '.join('{0} {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
-        logging.info('layer %s %s %s %s [T %s] from %s',
+        logging.info('layer %s "%s" %s %s [T %s] from %s',
                      self.__class__.__name__,
                      self.name,
                      self.shape,
@@ -881,23 +889,6 @@ class Clockwork(Recurrent):
                      ' '.join(str(T) for T in self.periods),
                      inputs)
         logging.info('learnable parameters: %d', self.log_params())
-
-    def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
-        # input is:   (batch, time, input)
-        # scan wants: (time, batch, input)
-        i = self._only_input(inputs).dimshuffle(1, 0, 2)
-        x = TT.dot(i, self.find('xh')) + self.find('b')
-
-        init = inputs.get(self.h_0, x.shape[1])
-
-        # output is:  (time, batch, output)
-        # we want:    (batch, time, output)
-        (p, o), updates = self._scan([TT.arange(x.shape[0]), x], [init, init])
-        pre = p.dimshuffle(1, 0, 2)
-        out = o.dimshuffle(1, 0, 2)
-
-        return dict(pre=pre, out=out), updates
 
     def _step(self, t, x_t, pre_tm1, h_tm1):
         pre = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
@@ -1054,10 +1045,9 @@ class SCRN(Recurrent):
 
     *Outputs*
 
-    - ``out`` --- the post-activation state of the layer
-    - ``pre`` --- the pre-activation state of the layer
-    - ``hid`` --- the state of the layer's hidden units
-    - ``state`` --- the state of the layer's state units
+    - ``out`` --- the overall output of the layer
+    - ``hid`` --- the output from the layer's hidden units
+    - ``state`` --- the output from the layer's state units
     - ``rate`` --- the rate values of the state units
 
     References
@@ -1068,10 +1058,15 @@ class SCRN(Recurrent):
        http://arxiv.org/abs/1412.7753
     '''
 
-    def __init__(self, rate='vector', s_0=None, **kwargs):
-        self.rate = rate.lower().strip()
+    def __init__(self, rate='vector', s_0=None, context_size=None, **kwargs):
         super(SCRN, self).__init__(**kwargs)
-        self._rates = self._create_rates()
+        self.context_size = context_size
+        if self.context_size is None:
+            self.context_size = int(1 + np.sqrt(self.size))
+        if isinstance(self.context_size, float):
+            self.context_size = int(self.context_size * self.size)
+        self._rate = rate.lower().strip()
+        self._rates = self._create_rates(self._rate, self.context_size)
         self.s_0 = s_0
 
     def resolve(self, layers):
@@ -1087,7 +1082,7 @@ class SCRN(Recurrent):
         self.add_weights('ho', self.size, self.size)
         self.add_weights('so', self.size, self.size)
         self.add_bias('b', self.size)
-        if self.rate == 'vector':
+        if self._rate == 'vector':
             self.add_bias('r', self.size)
 
     def transform(self, inputs):
@@ -1097,7 +1092,7 @@ class SCRN(Recurrent):
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
 
         r = self._rates
-        if self.rate == 'vector':
+        if self._rate == 'vector':
             r = TT.nnet.sigmoid(self.find('r'))
 
         xs = TT.dot(x, self.find('w'))
@@ -1111,21 +1106,19 @@ class SCRN(Recurrent):
 
         # output is:  (time, batch, output)
         # we want:    (batch, time, output)
-        hid = TT.nnet.sigmoid(p.dimshuffle(1, 0, 2))
+        hid = self.activate(p.dimshuffle(1, 0, 2))
         state = s.dimshuffle(1, 0, 2)
 
-        pre = (TT.dot(hid, self.find('ho')) +
+        out = (TT.dot(hid, self.find('ho')) +
                TT.dot(state, self.find('so')) +
                self.find('b'))
 
-        return dict(
-            rate=r, state=state, hid=hid, pre=pre, out=self.activate(pre),
-        ), updates
+        return dict(rate=r, state=state, hid=hid, out=out), updates
 
     def _step(self, xh_t, xs_t, h_tm1, s_tm1, r):
         s = (1 - r) * s_tm1 + r * xs_t
         p = xh_t + TT.dot(h_tm1, self.find('hh')) + TT.dot(s, self.find('sh'))
-        return [p, TT.nnet.sigmoid(p), s]
+        return [p, self.activate(p), s]
 
     def to_spec(self):
         '''Create a specification dictionary for this layer.
@@ -1136,7 +1129,7 @@ class SCRN(Recurrent):
             A dictionary specifying the configuration of this layer.
         '''
         spec = super(SCRN, self).to_spec()
-        spec.update(s_0=self.s_0)
+        spec.update(s_0=self.s_0, context_size=self.context_size)
         return spec
 
 

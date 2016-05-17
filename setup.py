@@ -24,8 +24,7 @@ setuptools.setup(
               ),
     install_requires=['climate', 'downhill', 'theano',
                       # TODO(leif): remove when theano is fixed.
-                      'nose-parameterized',
-    ],
+                      'nose-parameterized'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

@@ -283,7 +283,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('{0} {1.shape}'.format(n, l)
+        inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" %s %s from %s',
                      self.__class__.__name__,
@@ -298,7 +298,7 @@ class Layer(util.Registrar(str('Base'), (), {})):
         total = 0
         for p in self.params:
             shape = p.get_value().shape
-            logging.info('parameter %s %s', p.name, shape)
+            logging.info('parameter "%s" %s', p.name, shape)
             total += np.prod(shape)
         return total
 

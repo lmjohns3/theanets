@@ -44,7 +44,7 @@ class Convolution(base.Layer):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('{0} {1.shape}'.format(n, l)
+        inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" %s %s %s filters %s%s from %s',
                      self.__class__.__name__,

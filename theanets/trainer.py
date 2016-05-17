@@ -311,6 +311,8 @@ class UnsupervisedPretrainer(object):
         '''
         from . import feedforward
 
+        original_layer_names = set(l.name for l in self.network.layers[:-1])
+
         # construct a "shadow" of the input network, using the original
         # network's encoding layers, with tied weights in an autoencoder
         # configuration.
@@ -331,8 +333,8 @@ class UnsupervisedPretrainer(object):
 
         # copy trained parameter values back to our original network.
         for param in ae.params:
-            if not param.name.startswith('tied'):
-                l, p = param.name.split('.')
+            l, p = param.name.split('.')
+            if l in original_layer_names:
                 logging.info('copying pretrained parameter %s', param.name)
                 self.network.find(l, p).set_value(param.get_value())
 

@@ -5,21 +5,17 @@ import theanets
 import util as u
 
 REG_LAYERS = [
-    u.NUM_INPUTS,
+    (u.CNN.NUM_WIDTH, u.CNN.NUM_HEIGHT, u.NUM_INPUTS),
     dict(size=u.NUM_HID1, form='conv2', filter_size=u.CNN.FILTER_SIZE),
     dict(size=u.NUM_HID2, form='conv2', filter_size=u.CNN.FILTER_SIZE),
-    ('flat', u.NUM_HID2 *
-     (u.CNN.NUM_WIDTH - 2 * u.CNN.FILTER_WIDTH + 2) *
-     (u.CNN.NUM_HEIGHT - 2 * u.CNN.FILTER_HEIGHT + 2)),
+    'flat',
     u.NUM_OUTPUTS]
 
 CLF_LAYERS = [
-    u.NUM_INPUTS,
+    (u.CNN.NUM_WIDTH, u.CNN.NUM_HEIGHT, u.NUM_INPUTS),
     dict(size=u.NUM_HID1, form='conv2', filter_size=u.CNN.FILTER_SIZE),
     dict(size=u.NUM_HID2, form='conv2', filter_size=u.CNN.FILTER_SIZE),
-    ('flat', u.NUM_HID2 *
-     (u.CNN.NUM_WIDTH - 2 * u.CNN.FILTER_WIDTH + 2) *
-     (u.CNN.NUM_HEIGHT - 2 * u.CNN.FILTER_HEIGHT + 2)),
+    'flat',
     u.NUM_CLASSES]
 
 

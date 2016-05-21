@@ -13,8 +13,8 @@ import util as u
 
 class TestNetwork:
     def test_layer_ints(self):
-        m = theanets.Regressor((1, 2, 3))
-        assert len(m.layers) == 3
+        model = theanets.Regressor((1, 2, 3))
+        assert len(model.layers) == 3
 
     @pytest.mark.parametrize('layers', [
         (1, (2, 'relu'), 3),
@@ -25,26 +25,26 @@ class TestNetwork:
         (1, 2, dict(size=1, form='tied', partner='hid1')),
     ])
     def test_layer_tuples(self, layers):
-        m = theanets.Regressor(layers)
-        assert len(m.layers) == 3
+        model = theanets.Regressor(layers)
+        assert len(model.layers) == 3
 
-        assert isinstance(m.layers[0], theanets.layers.Input)
-        assert m.layers[0].kwargs['activation'] == 'relu'
-        assert m.layers[0].shape == (1, )
+        assert isinstance(model.layers[0], theanets.layers.Input)
+        assert model.layers[0].kwargs['activation'] == 'linear'
+        assert model.layers[0].output_shape == (1, )
 
-        assert m.layers[1].kwargs['activation'] == 'relu'
+        assert model.layers[1].kwargs['activation'] == 'relu'
         spec = layers[1]
         if isinstance(spec, dict) and spec.get('form') == 'rnn':
-            assert isinstance(m.layers[1], theanets.layers.RNN)
+            assert isinstance(model.layers[1], theanets.layers.RNN)
         else:
-            assert isinstance(m.layers[1], theanets.layers.Feedforward)
+            assert isinstance(model.layers[1], theanets.layers.Feedforward)
 
-        assert m.layers[2].kwargs['activation'] == 'linear'
+        assert model.layers[2].kwargs['activation'] == 'linear'
         spec = layers[2]
         if (isinstance(spec, tuple) and 'tied' in spec) or \
            (isinstance(spec, dict) and spec.get('form') == 'tied'):
-            assert isinstance(m.layers[2], theanets.layers.Tied)
-            assert m.layers[2].partner is m.layers[1]
+            assert isinstance(model.layers[2], theanets.layers.Tied)
+            assert model.layers[2].partner is model.layers[1]
 
     @pytest.mark.parametrize('layers', [
         (1, 2, dict(size=3, inputs='hid2')),
@@ -55,7 +55,6 @@ class TestNetwork:
             theanets.Regressor(layers)
 
     @pytest.mark.parametrize('spec, cls, shape, act', [
-        ('ff', theanets.layers.Feedforward, None, None),
         (6, theanets.layers.Feedforward, (6, ), None),
         ((6, ), theanets.layers.Feedforward, (6, ), None),
         ((6, 7), theanets.layers.Feedforward, (6, 7), None),
@@ -67,83 +66,73 @@ class TestNetwork:
         (dict(shape=(6, 7)), theanets.layers.Feedforward, (6, 7), None),
     ])
     def test_add_layer(self, spec, cls, shape, act):
-        m = theanets.Regressor([3])
-        m.add_layer(spec)
-        assert len(m.layers) == 2
-        layer = m.layers[-1]
+        model = theanets.Regressor([3, spec, 4])
+        layer = model.layers[1]
+        assert len(model.layers) == 3
         assert isinstance(layer, cls)
-        assert layer.shape == shape
+        assert layer.output_shape == shape
         if act is not None:
             assert layer.kwargs['activation'] == act
 
     @pytest.mark.parametrize('spec', [
         (6, 'tied', 7),
-        dict(size=1, shape=(1, 1)),
-    ])
-    def test_add_layer_errors(self, spec):
-        m = theanets.Regressor([3])
-        with pytest.raises(theanets.util.ConfigurationError):
-            m.add_layer(spec)
-
-    @pytest.mark.parametrize('spec', [
         None,
+        'ff',
         'tied',
         dict(form='ff'),
         dict(form='tied'),
         dict(form='tied', partner='hello'),
     ])
     def test_add_layer_bind_errors(self, spec):
-        m = theanets.Regressor([3])
-        m.add_layer(spec)
         with pytest.raises(theanets.util.ConfigurationError):
-            [l.bind(m) for l in m.layers]
+            theanets.Network([3, spec, 4])
 
     def test_updates(self):
-        m = theanets.Regressor((15, 13))
-        assert not m.updates()
+        model = theanets.Regressor((15, 13))
+        assert not model.updates()
 
     def test_default_output_name(self):
-        m = theanets.Regressor((1, 2, dict(size=1, form='tied', name='foo')))
-        assert m.losses[0].output_name == 'foo:out'
-        m = theanets.Regressor((1, 2, 1))
-        assert m.losses[0].output_name == 'out:out'
+        model = theanets.Regressor((1, 2, dict(size=1, form='tied', name='foo')))
+        assert model.losses[0].output_name == 'foo:out'
+        model = theanets.Regressor((1, 2, 1))
+        assert model.losses[0].output_name == 'out:out'
 
     def test_find_number(self):
-        m = theanets.Regressor((1, 2, 1))
-        p = m.find(1, 0)
+        model = theanets.Regressor((1, 2, 1))
+        p = model.find(1, 0)
         assert p.name == 'hid1.w'
-        p = m.find(2, 0)
+        p = model.find(2, 0)
         assert p.name == 'out.w'
 
     def test_find_name(self):
-        m = theanets.Regressor((1, 2, 1))
-        p = m.find('hid1', 'w')
+        model = theanets.Regressor((1, 2, 1))
+        p = model.find('hid1', 'w')
         assert p.name == 'hid1.w'
-        p = m.find('out', 'w')
+        p = model.find('out', 'w')
         assert p.name == 'out.w'
 
     def test_find_missing(self):
-        m = theanets.Regressor((1, 2, 1))
+        model = theanets.Regressor((1, 2, 1))
         try:
-            m.find('hid4', 'w')
+            model.find('hid4', 'w')
             assert False
         except KeyError:
             pass
         try:
-            m.find(0, 0)
+            model.find(0, 0)
             assert False
         except KeyError:
             pass
         try:
-            m.find(1, 3)
+            model.find(1, 3)
             assert False
         except KeyError:
             pass
 
     def test_train(self):
-        m = theanets.Regressor((1, 2, 1))
-        tm, vm = m.train([np.random.randn(100, 1).astype('f'),
-                          np.random.randn(100, 1).astype('f')])
+        model = theanets.Regressor((1, 2, 1))
+        tm, vm = model.train([np.random.randn(100, 1).astype('f'),
+                              np.random.randn(100, 1).astype('f')])
         assert tm['loss'] > 0
 
 

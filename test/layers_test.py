@@ -22,7 +22,7 @@ class TestFeedforward:
         ('prod', 'product', '', 0, 'out'),
     ])
     def test_build(self, form, name, params, count, outputs):
-        layer = theanets.Layer.build(form, size=NH, name='l', inputs='in')
+        layer = theanets.Layer.build(form, size=NI, name='l', inputs='in')
         layer.bind(theanets.Network([NI]))
 
         assert layer.__class__.__name__.lower() == name
@@ -30,14 +30,14 @@ class TestFeedforward:
         assert sorted(p.name for p in layer.params) == \
             sorted('l.' + p for p in params.split())
 
-        assert sum(np.prod(p.get_value().shape) for p in layer.params) == count * NH
+        assert sum(np.prod(p.get_value().shape) for p in layer.params) == count * NI
 
         out, upd = layer.connect({'in:out': TT.matrix('x')})
         assert sorted(out) == sorted('l:' + o for o in outputs.split())
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=name, name='l', shape=(NH, ), inputs=('in:out', ),
+            form=name, name='l', size=NI, inputs='in',
             activation=layer.kwargs.get('activation', 'relu'))
 
     @pytest.mark.parametrize('layer', [
@@ -63,20 +63,20 @@ class TestFeedforward:
             ['l.b', 'l.w_hid1:out', 'l.w_in:out']
 
         assert layer.to_spec() == dict(
-            form='feedforward', name='l', shape=(NH, ), activation='relu',
-            inputs=('in:out', 'hid1:out'))
+            form='feedforward', name='l', size=NH, activation='relu',
+            inputs=('in', 'hid1'))
 
     def test_reshape(self):
-        layer = theanets.layers.Reshape(inputs='in', shape=(NI // 2, 2), name='l')
-        layer.bind(theanets.Network([NI]))
+        layer = theanets.layers.Reshape(inputs='in', shape=(4, 2), name='l')
+        layer.bind(theanets.Network([8]))
 
         assert sum(np.prod(p.get_value().shape) for p in layer.params) == 0
 
         assert sorted(p.name for p in layer.params) == []
 
         assert layer.to_spec() == dict(
-            form='reshape', name='l', shape=(NI // 2, 2),
-            inputs=('in:out', ), activation='relu')
+            form='reshape', name='l', shape=(4, 2), inputs='in',
+            activation='relu')
 
 
 class TestRecurrent:
@@ -133,7 +133,7 @@ class TestRecurrent:
         if form not in ('bidirectional', 'conv1'):
             spec['h_0'] = None
         assert layer.to_spec() == dict(
-            form=form, name='l', shape=(None, NH), inputs=('in:out', ),
+            form=form, name='l', size=NH, inputs='in',
             activation=layer.kwargs.get('activation', 'relu'), **spec)
 
     @pytest.mark.parametrize('layer', [
@@ -170,15 +170,13 @@ class TestConvolution:
         assert sorted(upd) == []
 
         assert layer.to_spec() == dict(
-            form=form, name='l', shape=(None, None, NH), inputs=('in:out', ),
-            activation='relu')
+            form=form, name='l', size=NH, inputs='in', activation='relu')
 
     @pytest.mark.parametrize('layer', [
         dict(size=NH, form='conv2', filter_size=u.CNN.FILTER_SIZE),
     ])
     def test_predict(self, layer):
-        N = (u.CNN.NUM_HEIGHT - u.CNN.FILTER_HEIGHT + 1) * \
-            (u.CNN.NUM_WIDTH - u.CNN.FILTER_WIDTH + 1) * NH
         net = theanets.convolution.Regressor([
-            NI, NH, layer, ('flat', N), u.NUM_OUTPUTS])
+            (u.CNN.NUM_WIDTH, u.CNN.NUM_HEIGHT, NI),
+            NH, layer, 'flat', u.NUM_OUTPUTS])
         assert net.predict(u.CNN.INPUTS).shape == (u.NUM_EXAMPLES, u.NUM_OUTPUTS)

@@ -18,8 +18,7 @@ class TestExperiment:
             assert exp.network is not net
             for lo, ln in zip(net.layers, exp.network.layers):
                 assert lo.name == ln.name
-                assert lo.inputs == ln.inputs
-                assert lo.size == ln.size
+                assert lo._input_shapes == ln._input_shapes
             for po, pn in zip(net.params, exp.network.params):
                 assert po.name == pn.name
                 assert np.allclose(po.get_value(), pn.get_value())

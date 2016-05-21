@@ -398,7 +398,7 @@ class Network(object):
             h.update(str(s).encode('utf-8'))
         h = hashlib.md5()
         for l in self.layers:
-            add('{}{}{}'.format(l.__class__.__name__, l.name, l.size))
+            add('{}{}{}'.format(l.__class__.__name__, l.name, l.output_shape))
         for l in self.losses:
             add('{}{}'.format(l.__class__.__name__, l.weight))
         for r in regularizers:

@@ -416,7 +416,7 @@ class Classifier(feedforward.Classifier):
             rng = np.random.RandomState(rng)
         offset = len(labels)
         batch = max(2, streams)
-        inputs = np.zeros((batch, offset + steps, self.layers[0].size), 'f')
+        inputs = np.zeros((batch, offset + steps, self.layers[0].output_size), 'f')
         inputs[:, np.arange(offset), labels] = 1
         for i in range(offset, offset + steps):
             chars = []

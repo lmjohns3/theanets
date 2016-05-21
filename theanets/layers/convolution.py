@@ -43,31 +43,17 @@ class Convolution(base.Layer):
         super(Convolution, self).__init__(**kwargs)
 
     def log(self):
-        inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
-                           for n, l in self._resolved_inputs.items())
+        inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
         logging.info('layer %s "%s" %s %s %s filters %s%s from %s',
                      self.__class__.__name__,
                      self.name,
-                     self.shape,
+                     self.output_shape,
                      getattr(self.activate, 'name', self.activate),
                      self.border_mode,
                      'x'.join(str(i) for i in self.filter_size),
                      ''.join('+{}'.format(i) for i in self.stride),
                      inputs)
         logging.info('learnable parameters: %d', self.log_params())
-
-    def resolve(self, layers):
-        layer, name = self._only_layer_with_name(layers, self.inputs[0])
-        self._resolved_inputs[name] = layer
-        image = np.array(layer.shape)[:-1]
-        kernel = np.array(self.filter_size)
-        result = image
-        if self.border_mode == 'full':
-            result = image + kernel - 1
-        if self.border_mode == 'valid':
-            result = image - kernel + 1
-        self.shape = tuple(result) + (self.size, )
-        self.inputs = (name, )
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.
@@ -85,7 +71,7 @@ class Convolution(base.Layer):
             Fraction of weights to set to zero. Defaults to 0.
         '''
         nin = self.input_size
-        nout = self.size
+        nout = self.output_size
         mean = self.kwargs.get(
             'mean_{}'.format(name),
             self.kwargs.get('mean', mean))
@@ -135,23 +121,33 @@ class Conv1(Convolution):
             stride=(1, stride),
             border_mode=border_mode,
             **kwargs)
-        if len(self.shape) == 3 and self.shape[0] is None:
-            self.shape = self.shape[1:]
 
     def setup(self):
         self.add_conv_weights('w')
-        self.add_bias('b', self.size)
+        self.add_bias('b', self.output_size)
+
+    def resolve_outputs(self):
+        if self.input_shape is None or self.input_shape[0] is None:
+            return super(Conv1, self).resolve_outputs()
+        image = np.array(self.input_shape[:-1])
+        kernel = np.array(self.filter_size)
+        result = image
+        if self.border_mode == 'full':
+            result = image + kernel - 1
+        if self.border_mode == 'valid':
+            result = image - kernel + 1
+        self._output_shapes['out'] = tuple(result) + (self.kwargs['size'], )
 
     def transform(self, inputs):
         # input is:     (batch, time, input)
         # conv2d wants: (batch, input, 1, time)
-        x = self._only_input(inputs).dimshuffle(0, 2, 'x', 1)
+        x = inputs[self.input_name].dimshuffle(0, 2, 'x', 1)
 
         pre = TT.nnet.conv.conv2d(
             x,
             self.find('w'),
             image_shape=(None, self.input_size, 1, None),
-            filter_shape=(self.size, self.input_size) + self.filter_size,
+            filter_shape=(self.output_size, self.input_size) + self.filter_size,
             border_mode=self.border_mode,
             subsample=self.stride,
         ).dimshuffle(0, 3, 1, 2)[:, :, :, 0] + self.find('b')
@@ -182,18 +178,31 @@ class Conv2(Convolution):
 
     def setup(self):
         self.add_conv_weights('w')
-        self.add_bias('b', self.size)
+        self.add_bias('b', self.output_size)
+
+    def resolve_outputs(self):
+        shape = self.input_shape
+        if shape is None or shape[0] is None or shape[1] is None:
+            return super(Conv2, self).resolve_outputs()
+        image = np.array(shape[:-1])
+        kernel = np.array(self.filter_size)
+        result = image
+        if self.border_mode == 'full':
+            result = image + kernel - 1
+        if self.border_mode == 'valid':
+            result = image - kernel + 1
+        self._output_shapes['out'] = tuple(result) + (self.kwargs['size'], )
 
     def transform(self, inputs):
         # input is:     (batch, width, height, input)
         # conv2d wants: (batch, input, width, height)
-        x = self._only_input(inputs).dimshuffle(0, 3, 1, 2)
+        x = inputs[self.input_name].dimshuffle(0, 3, 1, 2)
 
         pre = TT.nnet.conv.conv2d(
             x,
             self.find('w'),
             image_shape=(None, self.input_size, None, None),
-            filter_shape=(self.size, self.input_size) + self.filter_size,
+            filter_shape=(self.output_size, self.input_size) + self.filter_size,
             border_mode=self.border_mode,
             subsample=self.stride,
         ).dimshuffle(0, 2, 3, 1) + self.find('b')
@@ -215,7 +224,7 @@ class Pool1(Pooling):
     def transform(self, inputs):
         # input is:     (batch, time, input)
         # conv2d wants: (batch, input, time, 1)
-        x = self._only_input(inputs).dimshuffle(0, 2, 1, 'x')
+        x = inputs[self.input_name].dimshuffle(0, 2, 1, 'x')
 
         pre = TT.signal.downsample.max_pool_2d(
             x, self.pool_size, st=self.stride, mode=self.mode,
@@ -233,7 +242,7 @@ class Pool2(Pooling):
     def transform(self, inputs):
         # input is:     (batch, width, height, input)
         # conv2d wants: (batch, input, width, height)
-        x = self._only_input(inputs).dimshuffle(0, 3, 1, 2)
+        x = inputs[self.input_name].dimshuffle(0, 3, 1, 2)
 
         pre = TT.signal.downsample.max_pool_2d(
             x, self.pool_size, st=self.stride, mode=self.mode,

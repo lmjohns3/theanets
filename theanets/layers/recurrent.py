@@ -72,12 +72,11 @@ class Recurrent(base.Layer):
     def __init__(self, h_0=None, **kwargs):
         super(Recurrent, self).__init__(**kwargs)
         self.h_0 = h_0
-        if len(self.shape) == 1:
-            self.shape = (None, self.shape[0])
 
-    def resolve(self, layers):
-        super(Recurrent, self).resolve(layers)
-        self.h_0 = self._resolve(self.h_0, layers)
+    def resolve_inputs(self, layers):
+        super(Recurrent, self).resolve_inputs(layers)
+        if self.h_0:
+            self.h_0, _ = self._resolve_shape(self.h_0, layers)
 
     def add_weights(self, name, nin, nout, mean=0, std=0, sparsity=0, radius=0,
                     diagonal=0):
@@ -113,7 +112,7 @@ class Recurrent(base.Layer):
             'radius_{}'.format(name), self.kwargs.get('radius', radius))
         d = self.kwargs.get(
             'diagonal_{}'.format(name), self.kwargs.get('diagonal', diagonal))
-        if nin == self.size and nout % nin == 0:
+        if nin == self.output_size and nout % nin == 0:
             arr = np.concatenate([
                 util.random_matrix(nin, nin, mean, std, sparsity=s, radius=r,
                                    diagonal=d, rng=self.rng)
@@ -121,16 +120,6 @@ class Recurrent(base.Layer):
         else:
             arr = util.random_matrix(nin, nout, mean, std, sparsity=s, rng=self.rng)
         self._params.append(theano.shared(arr, name=self._fmt(name)))
-
-    def _resolve(self, value, layers):
-        if value is None or ':' in value:
-            return value
-        try:
-            layer = [l for l in layers if l.name == value][0]
-        except:
-            raise util.ConfigurationError(
-                'layer "{}" cannot resolve input "{}"'.format(self.name, value))
-        return layer.output_name
 
     def _scan(self, inputs, outputs, name='scan', step=None, constants=None):
         '''Helper method for defining a basic loop in theano.
@@ -172,7 +161,7 @@ class Recurrent(base.Layer):
                 continue
             if isinstance(x, int) or ndim == 0:
                 init.append(TT.repeat(theano.shared(
-                    np.zeros((1, self.size), util.FLOAT),
+                    np.zeros((1, self.output_size), util.FLOAT),
                     name=self._fmt('init{}'.format(i))), x, axis=0))
                 continue
             raise ValueError('cannot handle input {} for scan!'.format(x))
@@ -194,7 +183,7 @@ class Recurrent(base.Layer):
         dist : {'uniform', 'log'}, optional
             Distribution of rate values. Defaults to ``'uniform'``.
         size : int, optional
-            Number of rates to create. Defaults to ``self.size``.
+            Number of rates to create. Defaults to ``self.output_size``.
         eps : float, optional
             A "buffer" preventing rate values from getting too close to 0 or 1.
             Defaults to 1e-4.
@@ -205,7 +194,7 @@ class Recurrent(base.Layer):
             A vector of rate parameters for certain types of recurrent layers.
         '''
         if size is None:
-            size = self.size
+            size = self.output_size
         if dist == 'uniform':
             z = np.random.uniform(eps, 1 - eps, size=size).astype(util.FLOAT)
             return theano.shared(z, name=self._fmt('rate'))
@@ -253,14 +242,14 @@ class RNN(Recurrent):
     '''
 
     def setup(self):
-        self.add_weights('xh', self.input_size, self.size)
-        self.add_weights('hh', self.size, self.size)
-        self.add_bias('b', self.size)
+        self.add_weights('xh', self.input_size, self.output_size)
+        self.add_weights('hh', self.output_size, self.output_size)
+        self.add_bias('b', self.output_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        i = self._only_input(inputs).dimshuffle(1, 0, 2)
+        i = inputs[self.input_name].dimshuffle(1, 0, 2)
         x = TT.dot(i, self.find('xh')) + self.find('b')
 
         init = inputs.get(self.h_0, x.shape[1])
@@ -352,21 +341,21 @@ class RRNN(Recurrent):
     def __init__(self, rate='matrix', **kwargs):
         super(RRNN, self).__init__(**kwargs)
         self._rate = rate.lower().strip()
-        self._rates = self._create_rates(self._rate)
 
     def setup(self):
-        self.add_weights('xh', self.input_size, self.size)
-        self.add_weights('hh', self.size, self.size)
-        self.add_bias('b', self.size)
+        self.add_weights('xh', self.input_size, self.output_size)
+        self.add_weights('hh', self.output_size, self.output_size)
+        self.add_bias('b', self.output_size)
         if self._rate == 'vector' or self._rate == 'matrix':
-            self.add_bias('r', self.size)
+            self.add_bias('r', self.output_size)
             if self._rate == 'matrix':
-                self.add_weights('xr', self.input_size, self.size)
+                self.add_weights('xr', self.input_size, self.output_size)
+        self._rates = self._create_rates(self._rate)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
 
         step = self._step_static
         arrays = [TT.dot(x, self.find('xh')) + self.find('b')]
@@ -465,16 +454,16 @@ class MRNN(Recurrent):
         super(MRNN, self).__init__(**kwargs)
 
     def setup(self):
-        self.add_weights('xh', self.input_size, self.size)
+        self.add_weights('xh', self.input_size, self.output_size)
         self.add_weights('xf', self.input_size, self.factors)
-        self.add_weights('hf', self.size, self.factors)
-        self.add_weights('fh', self.factors, self.size)
-        self.add_bias('b', self.size)
+        self.add_weights('hf', self.output_size, self.factors)
+        self.add_weights('fh', self.factors, self.output_size)
+        self.add_bias('b', self.output_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
         h = TT.dot(x, self.find('xh')) + self.find('b')
         f = TT.dot(x, self.find('xf'))
 
@@ -591,23 +580,24 @@ class LSTM(Recurrent):
         super(LSTM, self).__init__(**kwargs)
         self.c_0 = c_0
 
-    def resolve(self, layers):
-        super(LSTM, self).resolve(layers)
-        self.c_0 = self._resolve(self.c_0, layers)
+    def resolve_inputs(self, layers):
+        super(LSTM, self).resolve_inputs(layers)
+        if self.c_0:
+            self.c_0, _ = self._resolve_shape(self.c_0, layers)
 
     def setup(self):
-        self.add_weights('xh', self.input_size, 4 * self.size)
-        self.add_weights('hh', self.size, 4 * self.size)
-        self.add_bias('b', 4 * self.size, mean=2)
+        self.add_weights('xh', self.input_size, 4 * self.output_size)
+        self.add_weights('hh', self.output_size, 4 * self.output_size)
+        self.add_bias('b', 4 * self.output_size, mean=2)
         # the three "peephole" weight matrices are always diagonal.
-        self.add_bias('ci', self.size)
-        self.add_bias('cf', self.size)
-        self.add_bias('co', self.size)
+        self.add_bias('ci', self.output_size)
+        self.add_bias('cf', self.output_size)
+        self.add_bias('co', self.output_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
 
         (o, c), updates = self._scan(
             [TT.dot(x, self.find('xh')) + self.find('b')],
@@ -622,7 +612,7 @@ class LSTM(Recurrent):
 
     def _step(self, x_t, h_tm1, c_tm1):
         def split(z):
-            n = self.size
+            n = self.output_size
             return z[:, 0*n:1*n], z[:, 1*n:2*n], z[:, 2*n:3*n], z[:, 3*n:4*n]
         xi, xf, xc, xo = split(x_t + TT.dot(h_tm1, self.find('hh')))
         i_t = TT.nnet.sigmoid(xi + c_tm1 * self.find('ci'))
@@ -694,23 +684,23 @@ class GRU(Recurrent):
     '''
 
     def setup(self):
-        self.add_weights('hh', self.size, self.size)
-        self.add_weights('hr', self.size, self.size)
-        self.add_weights('hz', self.size, self.size)
-        self.add_weights('w', self.input_size, 3 * self.size)
-        self.add_bias('b', 3 * self.size)
+        self.add_weights('hh', self.output_size, self.output_size)
+        self.add_weights('hr', self.output_size, self.output_size)
+        self.add_weights('hz', self.output_size, self.output_size)
+        self.add_weights('w', self.input_size, 3 * self.output_size)
+        self.add_bias('b', 3 * self.output_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
 
         hrz = TT.dot(x, self.find('w')) + self.find('b')
 
         (p, h, r, o), updates = self._scan(
-            [hrz[:, :, :self.size],
-             hrz[:, :, self.size:-self.size],
-             hrz[:, :, -self.size:]],
+            [hrz[:, :, :self.output_size],
+             hrz[:, :, self.output_size:-self.output_size],
+             hrz[:, :, -self.output_size:]],
             [None, None, None, inputs.get(self.h_0, x.shape[1])])
 
         # output is:  (time, batch, output)
@@ -806,17 +796,19 @@ class Clockwork(RNN):
     def __init__(self, periods, **kwargs):
         super(Clockwork, self).__init__(**kwargs)
         self.periods = np.asarray(sorted(periods))
-        if self.size % len(self.periods):
+
+    def bind(self, *args, **kwargs):
+        super(Clockwork, self).bind(*args, **kwargs)
+        if self.output_size % len(self.periods) != 0:
             raise util.ConfigurationError(
-                '{}: size {} is not a multiple of number of periods {}'.format(
-                    self.name, self.size, self.periods))
+                'clockwork layer "{}": size {} is not a multiple of periods {}'
+                .format(self.name, self.output_size, self.periods))
 
     def setup(self):
         super(Clockwork, self).setup()
-
-        n = self.size // len(self.periods)
-        mask = np.zeros((self.size, self.size), util.FLOAT)
-        period = np.zeros((self.size, ), 'i')
+        n = self.output_size // len(self.periods)
+        mask = np.zeros((self.output_size, self.output_size), util.FLOAT)
+        period = np.zeros((self.output_size, ), 'i')
         for i, T in enumerate(self.periods):
             # see https://github.com/lmjohns3/theanets/issues/125
             mask[i*n:, i*n:(i+1)*n] = 1
@@ -825,12 +817,11 @@ class Clockwork(RNN):
         self._period = theano.shared(period, name='period')
 
     def log(self):
-        inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
-                           for n, l in self._resolved_inputs.items())
+        inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
         logging.info('layer %s "%s" %s %s [T %s] from %s',
                      self.__class__.__name__,
                      self.name,
-                     self.shape,
+                     self.output_shape,
                      getattr(self.activate, 'name', self.activate),
                      ' '.join(str(T) for T in self.periods),
                      inputs)
@@ -903,19 +894,19 @@ class MUT1(Recurrent):
     '''
 
     def setup(self):
-        self.add_weights('xh', self.input_size, self.size)
-        self.add_weights('xr', self.input_size, self.size)
-        self.add_weights('xz', self.input_size, self.size)
-        self.add_weights('hh', self.size, self.size)
-        self.add_weights('hr', self.size, self.size)
-        self.add_bias('bh', self.size)
-        self.add_bias('br', self.size)
-        self.add_bias('bz', self.size)
+        self.add_weights('xh', self.input_size, self.output_size)
+        self.add_weights('xr', self.input_size, self.output_size)
+        self.add_weights('xz', self.input_size, self.output_size)
+        self.add_weights('hh', self.output_size, self.output_size)
+        self.add_weights('hr', self.output_size, self.output_size)
+        self.add_bias('bh', self.output_size)
+        self.add_bias('br', self.output_size)
+        self.add_bias('bz', self.output_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
         z = TT.nnet.sigmoid(TT.dot(x, self.find('xz')) + self.find('bz'))
 
         (p, h, o), updates = self._scan(
@@ -998,32 +989,33 @@ class SCRN(Recurrent):
     def __init__(self, rate='vector', s_0=None, context_size=None, **kwargs):
         super(SCRN, self).__init__(**kwargs)
         self.context_size = context_size
-        if self.context_size is None:
-            self.context_size = int(1 + np.sqrt(self.size))
-        if isinstance(self.context_size, float):
-            self.context_size = int(self.context_size * self.size)
         self._rate = rate.lower().strip()
-        self._rates = self._create_rates(self._rate, self.context_size)
         self.s_0 = s_0
 
-    def resolve(self, layers):
-        super(SCRN, self).resolve(layers)
-        self.s_0 = self._resolve(self.s_0, layers)
+    def resolve_inputs(self, layers):
+        super(SCRN, self).resolve_inputs(layers)
+        if self.s_0:
+            self.s_0, _ = self._resolve_shape(self.s_0, layers)
 
     def setup(self):
-        self.add_weights('w', self.input_size, 2 * self.size)
-        self.add_weights('sh', self.size, self.size)
-        self.add_weights('hh', self.size, self.size)
-        self.add_weights('ho', self.size, self.size)
-        self.add_weights('so', self.size, self.size)
-        self.add_bias('b', self.size)
+        self.add_weights('w', self.input_size, 2 * self.output_size)
+        self.add_weights('sh', self.output_size, self.output_size)
+        self.add_weights('hh', self.output_size, self.output_size)
+        self.add_weights('ho', self.output_size, self.output_size)
+        self.add_weights('so', self.output_size, self.output_size)
+        self.add_bias('b', self.output_size)
         if self._rate == 'vector':
-            self.add_bias('r', self.size)
+            self.add_bias('r', self.output_size)
+        if self.context_size is None:
+            self.context_size = int(1 + np.sqrt(self.output_size))
+        if isinstance(self.context_size, float):
+            self.context_size = int(self.context_size * self.output_size)
+        self._rates = self._create_rates(self._rate, self.context_size)
 
     def transform(self, inputs):
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
-        x = self._only_input(inputs).dimshuffle(1, 0, 2)
+        x = inputs[self.input_name].dimshuffle(1, 0, 2)
 
         r = self._rates
         if self._rate == 'vector':
@@ -1032,7 +1024,7 @@ class SCRN(Recurrent):
         xs = TT.dot(x, self.find('w'))
 
         (p, _, s), updates = self._scan(
-            [xs[:, :, :self.size], xs[:, :, self.size:]],
+            [xs[:, :, :self.output_size], xs[:, :, self.output_size:]],
             [None,
              inputs.get(self.h_0, x.shape[1]),
              inputs.get(self.s_0, x.shape[1])],
@@ -1108,24 +1100,23 @@ class Bidirectional(base.Layer):
             return base.Layer.build(
                 worker,
                 direction=direction,
-                shape=(None, size // 2),
+                size=size // 2,
                 name='{}_{}'.format(name, suffix),
                 **kwargs)
 
         self.worker = worker
         self.forward = make('fw', 'forward')
         self.backward = make('bw', 'backward')
-        super(Bidirectional, self).__init__(shape=(None, size), name=name, **kwargs)
+        super(Bidirectional, self).__init__(size=size, name=name, **kwargs)
 
     @property
     def params(self):
-        '''A list of all learnable parameters in this layer.'''
         return self.forward.params + self.backward.params
 
     def bind(self, *args, **kwargs):
-        super(Bidirectional, self).bind(*args, **kwargs)
         self.forward.bind(*args, **kwargs)
         self.backward.bind(*args, **kwargs)
+        super(Bidirectional, self).bind(*args, **kwargs)
 
     def transform(self, inputs):
         fout, fupd = self.forward.transform(inputs)

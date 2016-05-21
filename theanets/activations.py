@@ -198,9 +198,8 @@ class Prelu(Activation):
 
     def __init__(self, *args, **kwargs):
         super(Prelu, self).__init__(*args, **kwargs)
-        self.leak = theano.shared(
-            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
-            name=self.layer._fmt('leak'))
+        arr = self.layer.rng.randn(self.layer.output_size).astype(util.FLOAT)
+        self.leak = theano.shared(0.1 * abs(arr), name=self.layer._fmt('leak'))
         self.params.append(self.leak)
 
     def __call__(self, x):
@@ -228,13 +227,11 @@ class LGrelu(Activation):
 
     def __init__(self, *args, **kwargs):
         super(LGrelu, self).__init__(*args, **kwargs)
-        self.gain = theano.shared(
-            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
-            name=self.layer._fmt('gain'))
+        arr = self.layer.rng.randn(self.layer.output_size).astype(util.FLOAT)
+        self.gain = theano.shared(0.1 * abs(arr), name=self.layer._fmt('gain'))
         self.params.append(self.gain)
-        self.leak = theano.shared(
-            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
-            name=self.layer._fmt('leak'))
+        arr = self.layer.rng.randn(self.layer.output_size).astype(util.FLOAT)
+        self.leak = theano.shared(0.1 * abs(arr), name=self.layer._fmt('leak'))
         self.params.append(self.leak)
 
     def __call__(self, x):
@@ -260,9 +257,8 @@ class Elu(Activation):
 
     def __init__(self, *args, **kwargs):
         super(Elu, self).__init__(*args, **kwargs)
-        self.gain = theano.shared(
-            0.1 * abs(self.layer.rng.randn(self.layer.size).astype(util.FLOAT)),
-            name=self.layer._fmt('gain'))
+        arr = self.layer.rng.randn(self.layer.output_size).astype(util.FLOAT)
+        self.gain = theano.shared(0.1 * abs(arr), name=self.layer._fmt('gain'))
         self.params.append(self.gain)
 
     def __call__(self, x):
@@ -320,11 +316,11 @@ class Maxout(Activation):
 
         self.pieces = kwargs['pieces']
 
-        m = self.layer.rng.randn(self.layer.size, self.pieces).astype(util.FLOAT)
+        m = self.layer.rng.randn(self.layer.output_size, self.pieces).astype(util.FLOAT)
         self.slope = theano.shared(m, name=self.layer._fmt('slope'))
         self.params.append(self.slope)
 
-        b = self.layer.rng.randn(self.layer.size, self.pieces).astype(util.FLOAT)
+        b = self.layer.rng.randn(self.layer.output_size, self.pieces).astype(util.FLOAT)
         self.intercept = theano.shared(b, name=self.layer._fmt('intercept'))
         self.params.append(self.intercept)
 

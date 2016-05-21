@@ -95,12 +95,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
     ----------
     name : str
         Name of this layer.
-    shape : tuple of int and/or None
-        Shape of outputs from this layer. ``None`` is used to represent
-        "unknown" or "variable-size" dimensions. Note that this tuple does not
-        include the batch; i.e., this is the shape of a single output.
-    inputs : tuple of str
-        Name(s) of input(s) to this layer.
     activate : callable
         The activation function to use on this layer's outputs.
     kwargs : dict
@@ -109,40 +103,30 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     _count = 0
 
-    def __init__(self, size=None, shape=None, inputs=(), name=None, **kwargs):
+    def __init__(self, name=None, **kwargs):
         super(Layer, self).__init__()
-
-        self.shape = shape
-        if size is not None:
-            if shape is not None:
-                raise util.ConfigurationError('cannot specify both size and shape!')
-            self.shape = (size, )
-
-        self.kwargs = kwargs
-        self._params = []
-
-        if isinstance(inputs, (tuple, list)):
-            self.inputs = tuple(inputs)
-        else:
-            self.inputs = (inputs, )
-        self._resolved_inputs = {}
 
         Layer._count += 1
         self.name = name or '{}{}'.format(
             self.__class__.__name__.lower(), Layer._count)
 
+        self.kwargs = kwargs
         self.rng = kwargs.get('rng', kwargs.get('nrng'))
         if self.rng is None or isinstance(self.rng, int):
             self.rng = np.random.RandomState(self.rng)
 
-        self.activate = activations.build(kwargs.get('activation', 'relu'), self)
+        self._params = []
+        self._input_shapes = {}
+        self._output_shapes = {}
 
-    @property
-    def size(self):
-        '''Number of "neurons" in this layer.'''
-        if self.shape is None:
-            raise util.ConfigurationError('{}: undefined shape'.format(self.name))
-        return self.shape[-1]
+        inputs = kwargs.get('inputs', ())
+        if not isinstance(inputs, (tuple, list)):
+            inputs = (inputs, )
+        for input in inputs:
+            if isinstance(input, Layer):
+                self._input_shapes[input.output_name] = input
+            else:
+                self._input_shapes[input] = None
 
     @property
     def params(self):
@@ -150,22 +134,46 @@ class Layer(util.Registrar(str('Base'), (), {})):
         return self._params + getattr(self.activate, 'params', [])
 
     @property
+    def input_name(self):
+        '''Name of layer input (for layers with one input).'''
+        if len(self._input_shapes) != 1:
+            raise util.ConfigurationError(
+                'expected one input for layer "{}", got {}'
+                .format(self.name, self._input_shapes))
+        return list(self._input_shapes)[0]
+
+    @property
+    def input_shape(self):
+        '''Shape of layer input (for layers with one input).'''
+        return self._input_shapes[self.input_name]
+
+    @property
+    def input_size(self):
+        '''Size of layer input (for layers with one input).'''
+        shape = self.input_shape
+        if shape is None:
+            raise util.ConfigurationError(
+                'undefined input size for layer "{}"'.format(self.name))
+        return shape[-1]
+
+    @property
     def output_name(self):
         '''Full name of the default output for this layer.'''
         return self.full_name('out')
 
     @property
-    def input_shape(self):
-        '''Shape of layer input (for layers with one input).'''
-        if len(self.inputs) != 1:
-            raise util.ConfigurationError(
-                'expected one input, got {}'.format(self.inputs))
-        return self._resolved_inputs[self.inputs[0]].shape
+    def output_shape(self):
+        '''Shape of default output from this layer.'''
+        return self._output_shapes['out']
 
     @property
-    def input_size(self):
-        '''Size of layer input (for layers with one input).'''
-        return self.input_shape[-1]
+    def output_size(self):
+        '''Number of "neurons" in this layer's default output.'''
+        shape = self.output_shape
+        if shape is None:
+            raise util.ConfigurationError(
+                'undefined output size for layer "{}"'.format(self.name))
+        return shape[-1]
 
     def full_name(self, name):
         '''Return a fully-scoped name for the given layer output.
@@ -251,14 +259,20 @@ class Layer(util.Registrar(str('Base'), (), {})):
             If an input cannot be resolved.
         '''
         if reset:
-            self._resolved_inputs = {}
-        self.resolve(graph.layers)
+            for k in self._input_shapes:
+                self._input_shapes[k] = None
+            for k in self._output_shapes:
+                self._output_shapes[k] = None
+        self.resolve_inputs(graph.layers)
+        self.resolve_outputs()
+        self.activate = activations.build(
+            self.kwargs.get('activation', 'relu'), self)
         if initialize:
             self.setup()
         self.log()
 
-    def resolve(self, layers):
-        '''Resolve the names of inputs for this layer into layer objects.
+    def resolve_inputs(self, layers):
+        '''Resolve the names of inputs for this layer into shape tuples.
 
         Parameters
         ----------
@@ -270,12 +284,35 @@ class Layer(util.Registrar(str('Base'), (), {})):
         theanets.util.ConfigurationError :
             If an input cannot be resolved.
         '''
-        keys = []
-        for name in self.inputs:
-            layer, full = self._only_layer_with_name(layers, name)
-            self._resolved_inputs[full] = layer
-            keys.append(full)
-        self.inputs = tuple(keys)
+        resolved = {}
+        for name, shape in self._input_shapes.items():
+            if shape is None:
+                name, shape = self._resolve_shape(name, layers)
+            resolved[name] = shape
+        self._input_shapes = resolved
+
+    def resolve_outputs(self):
+        '''Resolve the names of outputs for this layer into shape tuples.'''
+        input_shape = None
+        for i, shape in enumerate(self._input_shapes.values()):
+            if i == 0:
+                input_shape = shape
+            if len(input_shape) != len(shape) or any(
+                    a is not None and b is not None and a != b
+                    for a, b in zip(input_shape[:-1], shape[:-1])):
+                raise util.ConfigurationError(
+                    'layer "{}" incompatible input shapes {}'
+                    .format(self.name, self._input_shapes))
+        size = self.kwargs.get('size')
+        shape = self.kwargs.get('shape')
+        if shape is not None:
+            pass
+        elif size is not None:
+            shape = tuple(input_shape[:-1]) + (size, )
+        else:
+            raise util.ConfigurationError(
+                'layer "{}" does not specify a size'.format(self.name))
+        self._output_shapes['out'] = shape
 
     def setup(self):
         '''Set up the parameters and initial values for this layer.'''
@@ -283,12 +320,11 @@ class Layer(util.Registrar(str('Base'), (), {})):
 
     def log(self):
         '''Log some information about this layer.'''
-        inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
-                           for n, l in self._resolved_inputs.items())
+        inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
         logging.info('layer %s "%s" %s %s from %s',
                      self.__class__.__name__,
                      self.name,
-                     self.shape,
+                     self.output_shape,
                      getattr(self.activate, 'name', self.activate),
                      inputs)
         logging.info('learnable parameters: %d', self.log_params())
@@ -308,19 +344,35 @@ class Layer(util.Registrar(str('Base'), (), {})):
             string = '{}.' + string
         return string.format(self.name)
 
-    def _only_input(self, inputs):
-        '''Helper method to retrieve our layer's sole input expression.'''
-        assert len(self.inputs) == 1
-        return inputs[self.inputs[0]]
+    def _resolve_shape(self, name, layers):
+        '''Given a list of layers, find the layer output with the given name.
 
-    def _only_layer_with_name(self, layers, name):
-        '''Given a list of layers, find the one layer with the given name.'''
+        Parameters
+        ----------
+        name : str
+            Name of a layer to resolve.
+        layers : list of :class:`theanets.layers.base.Layer`
+            A list of layers to search in.
+
+        Raises
+        ------
+        util.ConfigurationError :
+            If there is no such layer, or if there are more than one.
+
+        Returns
+        -------
+        name : str
+            The fully-scoped name of the desired output.
+        shape : tuple of None and/or int
+            The shape of the named output.
+        '''
         matches = [l for l in layers if name.split(':')[0] == l.name]
         if len(matches) != 1:
             raise util.ConfigurationError(
-                'layer "{}" cannot resolve input "{}" using {}'
+                'layer "{}" cannot resolve "{}" using {}'
                 .format(self.name, name, [l.name for l in layers]))
-        return matches[0], name if ':' in name else matches[0].output_name
+        name = name if ':' in name else matches[0].output_name
+        return name, matches[0]._output_shapes[name.split(':')[1]]
 
     def find(self, key):
         '''Get a shared variable for a parameter by name.
@@ -416,8 +468,6 @@ class Layer(util.Registrar(str('Base'), (), {})):
         spec.update(
             form=self.__class__.__name__.lower(),
             name=self.name,
-            shape=self.shape,
-            inputs=self.inputs,
             activation=self.kwargs.get('activation', 'relu'),
         )
         return spec
@@ -465,12 +515,18 @@ class Input(Layer):
         if isinstance(sparse, util.basestring) and sparse.lower() == 'csc':
             assert ndim == 2, 'Theano only supports sparse arrays with 2 dims'
             self.input = SS.csc_matrix('input')
-        kwargs.setdefault('activation', 'linear')
+        kwargs['activation'] = 'linear'
         super(Input, self).__init__(name=name, **kwargs)
+
+    def resolve_inputs(self, layers):
+        pass
+
+    def resolve_outputs(self):
+        self._output_shapes['out'] = tuple(self.kwargs['shape'])
 
     def log(self):
         logging.info('layer %s "%s" %s',
-                     self.__class__.__name__, self.name, self.shape)
+                     self.__class__.__name__, self.name, self.output_shape)
 
     def transform(self, inputs):
         return self.input, []
@@ -492,8 +548,20 @@ class Product(Layer):
 
     __extra_registration_keys__ = ['prod']
 
+    def resolve_outputs(self):
+        template = None
+        for i, shape in enumerate(self._input_shapes.values()):
+            if i == 0:
+                template = shape
+            if shape is None or len(template) != len(shape) or \
+               any(t != s for t, s in zip(template, shape)):
+                raise util.ConfigurationError(
+                    'incompatible inputs for product layer "{}": {}'
+                    .format(self.name, self._input_shapes))
+        self._output_shapes['out'] = template
+
     def transform(self, inputs):
-        return dict(out=np.prod([inputs[k] for k in self.inputs])), []
+        return dict(out=np.prod([inputs[k] for k in self._input_shapes])), []
 
 
 class Flatten(Layer):
@@ -518,14 +586,24 @@ class Flatten(Layer):
 
     __extra_registration_keys__ = ['flat']
 
-    def resolve(self, layers):
-        layer, name = self._only_layer_with_name(layers, self.inputs[0])
-        self._resolved_inputs[name] = layer
-        self.shape = (np.prod(layer.shape), )
-        self.inputs = (name, )
+    def resolve_outputs(self):
+        try:
+            computed_size = np.prod(self.input_shape)
+        except:
+            computed_size = None
+        specified_size = self.kwargs.get('size')
+        if specified_size and specified_size != computed_size:
+            raise util.ConfigurationError(
+                'flatten layer "{}" size ({},) does not match input {}'
+                .format(self.name, computed_size, self.input_shape))
+        if computed_size is None:
+            raise util.ConfigurationError(
+                'cannot compute size of flatten layer "{}" from input {}'
+                .format(self.name, self.input_shape))
+        self._output_shapes['out'] = (computed_size, )
 
     def transform(self, inputs):
-        x = self._only_input(inputs)
+        x = inputs[self.input_name]
         return dict(out=x.reshape([x.shape[0], -1])), []
 
 
@@ -547,9 +625,23 @@ class Concatenate(Layer):
 
     __extra_registration_keys__ = ['concat']
 
+    def resolve_outputs(self):
+        template = None
+        sizes = []
+        for i, shape in enumerate(self._input_shapes.values()):
+            if i == 0:
+                template = shape
+            if shape is None or len(template) != len(shape) or \
+               any(t != s for t, s in zip(template[:-1], shape[:-1])):
+                raise util.ConfigurationError(
+                    'incompatible inputs for concatenate layer "{}": {}'
+                    .format(self.name, self._input_shapes))
+            sizes.append(shape[-1])
+        self._output_shapes['out'] = template[:-1] + (sum(sizes), )
+
     def transform(self, inputs):
         # using axis=-1 doesn't work with concatenate!
-        tensors = [inputs[k] for k in self.inputs]
+        tensors = [inputs[k] for k in self._input_shapes]
         out = TT.concatenate(tensors, axis=tensors[0].ndim - 1)
         return dict(out=out), []
 
@@ -588,6 +680,26 @@ class Reshape(Layer):
         The desired shape of the output "vectors" for this layer.
     '''
 
+    def resolve_outputs(self):
+        shape = self.kwargs.get('shape')
+        if not isinstance(shape, (tuple, list)):
+            raise util.ConfigurationError(
+                'product layer "{}" has invalid shape {}'.format(self.name, shape))
+        self._output_shapes['out'] = tuple(shape)
+        try:
+            source = np.prod(self.input_shape)
+            target = np.prod(shape)
+        except TypeError:
+            pass
+        if not source or not target:
+            logging.info('product layer "{}" has incomplete shape info, '
+                         'we will run anyway and hope for the best'
+                         .format(self.name))
+        elif source != target:
+            raise util.ConfigurationError(
+                'incompatible shapes for product layer "{}": input '
+                '{} <> output {}'.format(self.name, self.input_shape, shape))
+
     def transform(self, inputs):
-        x = self._only_input(inputs)
-        return dict(out=x.reshape([x.shape[0]] + self.shape)), []
+        x = inputs[self.input_name]
+        return dict(out=x.reshape([x.shape[0]] + self.output_shape)), []

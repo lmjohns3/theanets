@@ -60,24 +60,6 @@ class Feedforward(base.Layer):
     __extra_registration_keys__ = ['ff']
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty list of updates to apply from this layer.
-        '''
         def _dot(x, y):
             if isinstance(x, SS.SparseVariable):
                 return SS.structured_dot(x, y)
@@ -92,7 +74,6 @@ class Feedforward(base.Layer):
         return dict(pre=pre, out=self.activate(pre)), []
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         for name, layer in self._resolved_inputs.items():
             label = 'w' if len(self.inputs) == 1 else 'w_{}'.format(name)
             self.add_weights(label, layer.size, self.size)
@@ -163,24 +144,6 @@ class Tied(base.Layer):
         super(Tied, self).__init__(**kwargs)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of updates.
-        '''
         x = self._only_input(inputs)
         pre = TT.dot(x, self.partner.find('w').T) + self.find('b')
         return dict(pre=pre, out=self.activate(pre)), []
@@ -200,12 +163,10 @@ class Tied(base.Layer):
         self.shape = self.partner.input_shape
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         # this layer does not create a weight matrix!
         self.add_bias('b', self.size)
 
     def log(self):
-        '''Log some information about this layer.'''
         inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" (tied to "%s") %s %s from %s',
@@ -218,13 +179,6 @@ class Tied(base.Layer):
         logging.info('learnable parameters: %d', self.log_params())
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(Tied, self).to_spec()
         spec['partner'] = self.partner.name
         return spec

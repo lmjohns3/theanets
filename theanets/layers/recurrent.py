@@ -76,7 +76,6 @@ class Recurrent(base.Layer):
             self.shape = (None, self.shape[0])
 
     def resolve(self, layers):
-        '''Resolve the names of inputs for this layer.'''
         super(Recurrent, self).resolve(layers)
         self.h_0 = self._resolve(self.h_0, layers)
 
@@ -124,25 +123,6 @@ class Recurrent(base.Layer):
         self._params.append(theano.shared(arr, name=self._fmt(name)))
 
     def _resolve(self, value, layers):
-        '''Helper for resolving the name of one input to a full name.
-
-        Parameters
-        ----------
-        value : str or None
-            Name of the attribute to resolve
-        layers : list of :class:`Layer <theanets.layers.base.Layer>`
-            A list of the layers that are available for resolving inputs.
-
-        Raises
-        ------
-        theanets.util.ConfigurationError :
-            If an input cannot be resolved.
-
-        Returns
-        -------
-        name : str or None
-            A fully-scoped input name, or ``None`` if ``value`` was ``None``.
-        '''
         if value is None or ':' in value:
             return value
         try:
@@ -235,13 +215,6 @@ class Recurrent(base.Layer):
         return None
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(Recurrent, self).to_spec()
         spec.update(h_0=self.h_0)
         return spec
@@ -280,13 +253,11 @@ class RNN(Recurrent):
     '''
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         i = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -384,7 +355,6 @@ class RRNN(Recurrent):
         self._rates = self._create_rates(self._rate)
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('hh', self.size, self.size)
         self.add_bias('b', self.size)
@@ -394,7 +364,6 @@ class RRNN(Recurrent):
                 self.add_weights('xr', self.input_size, self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -496,7 +465,6 @@ class MRNN(Recurrent):
         super(MRNN, self).__init__(**kwargs)
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('xf', self.input_size, self.factors)
         self.add_weights('hf', self.size, self.factors)
@@ -504,7 +472,6 @@ class MRNN(Recurrent):
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -525,13 +492,6 @@ class MRNN(Recurrent):
         return [pre, self.activate(pre)]
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(MRNN, self).to_spec()
         spec['factors'] = self.factors
         return spec
@@ -632,12 +592,10 @@ class LSTM(Recurrent):
         self.c_0 = c_0
 
     def resolve(self, layers):
-        '''Resolve the names of inputs for this layer.'''
         super(LSTM, self).resolve(layers)
         self.c_0 = self._resolve(self.c_0, layers)
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, 4 * self.size)
         self.add_weights('hh', self.size, 4 * self.size)
         self.add_bias('b', 4 * self.size, mean=2)
@@ -647,7 +605,6 @@ class LSTM(Recurrent):
         self.add_bias('co', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -676,13 +633,6 @@ class LSTM(Recurrent):
         return [h_t, c_t]
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(LSTM, self).to_spec()
         spec.update(c_0=self.c_0)
         return spec
@@ -744,7 +694,6 @@ class GRU(Recurrent):
     '''
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('hh', self.size, self.size)
         self.add_weights('hr', self.size, self.size)
         self.add_weights('hz', self.size, self.size)
@@ -752,7 +701,6 @@ class GRU(Recurrent):
         self.add_bias('b', 3 * self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -864,7 +812,6 @@ class Clockwork(RNN):
                     self.name, self.size, self.periods))
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         super(Clockwork, self).setup()
 
         n = self.size // len(self.periods)
@@ -878,7 +825,6 @@ class Clockwork(RNN):
         self._period = theano.shared(period, name='period')
 
     def log(self):
-        '''Log some information about this layer.'''
         inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" %s %s [T %s] from %s',
@@ -896,13 +842,6 @@ class Clockwork(RNN):
         return [pre_t, self.activate(pre_t)]
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(Clockwork, self).to_spec()
         spec['periods'] = tuple(self.periods)
         return spec
@@ -964,7 +903,6 @@ class MUT1(Recurrent):
     '''
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('xh', self.input_size, self.size)
         self.add_weights('xr', self.input_size, self.size)
         self.add_weights('xz', self.input_size, self.size)
@@ -975,7 +913,6 @@ class MUT1(Recurrent):
         self.add_bias('bz', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -1070,12 +1007,10 @@ class SCRN(Recurrent):
         self.s_0 = s_0
 
     def resolve(self, layers):
-        '''Resolve the names of inputs for this layer.'''
         super(SCRN, self).resolve(layers)
         self.s_0 = self._resolve(self.s_0, layers)
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_weights('w', self.input_size, 2 * self.size)
         self.add_weights('sh', self.size, self.size)
         self.add_weights('hh', self.size, self.size)
@@ -1086,7 +1021,6 @@ class SCRN(Recurrent):
             self.add_bias('r', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         # input is:   (batch, time, input)
         # scan wants: (time, batch, input)
         x = self._only_input(inputs).dimshuffle(1, 0, 2)
@@ -1121,13 +1055,6 @@ class SCRN(Recurrent):
         return [p, self.activate(p), s]
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(SCRN, self).to_spec()
         spec.update(s_0=self.s_0, context_size=self.context_size)
         return spec
@@ -1201,7 +1128,6 @@ class Bidirectional(base.Layer):
         self.backward.bind(*args, **kwargs)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.'''
         fout, fupd = self.forward.transform(inputs)
         bout, bupd = self.backward.transform(inputs)
         outputs = dict(out=TT.concatenate([fout['out'], bout['out']], axis=2))
@@ -1216,13 +1142,6 @@ class Bidirectional(base.Layer):
         return outputs, fupd + bupd
 
     def to_spec(self):
-        '''Create a specification dictionary for this layer.
-
-        Returns
-        -------
-        spec : dict
-            A dictionary specifying the configuration of this layer.
-        '''
         spec = super(Bidirectional, self).to_spec()
         spec['worker'] = self.worker
         return spec

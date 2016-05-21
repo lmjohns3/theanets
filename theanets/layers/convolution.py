@@ -43,7 +43,6 @@ class Convolution(base.Layer):
         super(Convolution, self).__init__(**kwargs)
 
     def log(self):
-        '''Log some information about this layer.'''
         inputs = ', '.join('"{0}" {1.shape}'.format(n, l)
                            for n, l in self._resolved_inputs.items())
         logging.info('layer %s "%s" %s %s %s filters %s%s from %s',
@@ -140,29 +139,10 @@ class Conv1(Convolution):
             self.shape = self.shape[1:]
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_conv_weights('w')
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a Theano function.
-        '''
         # input is:     (batch, time, input)
         # conv2d wants: (batch, input, 1, time)
         x = self._only_input(inputs).dimshuffle(0, 2, 'x', 1)
@@ -201,29 +181,10 @@ class Conv2(Convolution):
     '''
 
     def setup(self):
-        '''Set up the parameters and initial values for this layer.'''
         self.add_conv_weights('w')
         self.add_bias('b', self.size)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a Theano function.
-        '''
         # input is:     (batch, width, height, input)
         # conv2d wants: (batch, input, width, height)
         x = self._only_input(inputs).dimshuffle(0, 3, 1, 2)
@@ -252,24 +213,6 @@ class Pool1(Pooling):
     '''
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a Theano function.
-        '''
         # input is:     (batch, time, input)
         # conv2d wants: (batch, input, time, 1)
         x = self._only_input(inputs).dimshuffle(0, 2, 1, 'x')
@@ -288,24 +231,6 @@ class Pool2(Pooling):
     '''
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            A sequence of updates to apply inside a Theano function.
-        '''
         # input is:     (batch, width, height, input)
         # conv2d wants: (batch, input, width, height)
         x = self._only_input(inputs).dimshuffle(0, 3, 1, 2)

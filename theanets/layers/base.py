@@ -469,26 +469,10 @@ class Input(Layer):
         super(Input, self).__init__(name=name, **kwargs)
 
     def log(self):
-        '''Log some information about this layer.'''
         logging.info('layer %s "%s" %s',
                      self.__class__.__name__, self.name, self.shape)
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        output : Theano expression
-            The output for this layer is the same as the input.
-        updates : list
-            An empty updates list.
-        '''
         return self.input, []
 
 
@@ -509,24 +493,6 @@ class Product(Layer):
     __extra_registration_keys__ = ['prod']
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of updates.
-        '''
         return dict(out=np.prod([inputs[k] for k in self.inputs])), []
 
 
@@ -553,42 +519,12 @@ class Flatten(Layer):
     __extra_registration_keys__ = ['flat']
 
     def resolve(self, layers):
-        '''Resolve the names of inputs for this layer into layer objects.
-
-        Parameters
-        ----------
-        layers : list of :class:`Layer`
-            A list of the layers that are available for resolving inputs.
-
-        Raises
-        ------
-        theanets.util.ConfigurationError :
-            If an input cannot be resolved.
-        '''
         layer, name = self._only_layer_with_name(layers, self.inputs[0])
         self._resolved_inputs[name] = layer
         self.shape = (np.prod(layer.shape), )
         self.inputs = (name, )
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of updates.
-        '''
         x = self._only_input(inputs)
         return dict(out=x.reshape([x.shape[0], -1])), []
 
@@ -612,24 +548,6 @@ class Concatenate(Layer):
     __extra_registration_keys__ = ['concat']
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of updates.
-        '''
         # using axis=-1 doesn't work with concatenate!
         tensors = [inputs[k] for k in self.inputs]
         out = TT.concatenate(tensors, axis=tensors[0].ndim - 1)
@@ -671,23 +589,5 @@ class Reshape(Layer):
     '''
 
     def transform(self, inputs):
-        '''Transform the inputs for this layer into an output for the layer.
-
-        Parameters
-        ----------
-        inputs : dict of Theano expressions
-            Symbolic inputs to this layer, given as a dictionary mapping string
-            names to Theano expressions. See :func:`Layer.connect`.
-
-        Returns
-        -------
-        outputs : dict of Theano expressions
-            A map from string output names to Theano expressions for the outputs
-            from this layer. This layer type generates a "pre" output that gives
-            the unit activity before applying the layer's activation function,
-            and an "out" output that gives the post-activation output.
-        updates : list of update pairs
-            An empty sequence of updates.
-        '''
         x = self._only_input(inputs)
         return dict(out=x.reshape([x.shape[0]] + self.shape)), []

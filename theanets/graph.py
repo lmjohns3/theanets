@@ -606,25 +606,34 @@ class Network(object):
         else:
             handle = filename_or_handle
         pickle.dump(self, handle, -1)
-        handle.close()
+        if isinstance(filename_or_handle, util.basestring):
+            handle.close()
         logging.info('%s: saved model', filename_or_handle)
 
     @classmethod
-    def load(cls, filename):
+    def load(cls, filename_or_handle):
         '''Load a saved network from disk.
 
         Parameters
         ----------
-        filename : str
-            Load the state of a network from a pickle file at the named path. If
-            this name ends in ".gz" then the input will automatically be
-            gunzipped; otherwise the input will be treated as a "raw" pickle.
+        filename_or_handle : str or file handle
+            Load the state of this network from a pickle file. If this parameter
+            is a string, it names the file where the pickle will be saved. If it
+            is a file-like object, this object will be used for reading the
+            pickle. If the filename ends in ".gz" then the output will
+            automatically be gunzipped.
         '''
-        opener = gzip.open if filename.lower().endswith('.gz') else open
-        handle = opener(filename, 'rb')
+        assert not isinstance(cls, Network), \
+            'cannot load an instance! say instead: net = Network.load(source)'
+        if isinstance(filename_or_handle, util.basestring):
+            opener = gzip.open if filename_or_handle.lower().endswith('.gz') else open
+            handle = opener(filename_or_handle, 'rb')
+        else:
+            handle = filename_or_handle
         model = pickle.load(handle)
-        handle.close()
-        logging.info('%s: loaded model', filename)
+        if isinstance(filename_or_handle, util.basestring):
+            handle.close()
+        logging.info('%s: loaded model', filename_or_handle)
         return model
 
     def loss(self, **kwargs):

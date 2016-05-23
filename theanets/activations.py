@@ -107,15 +107,9 @@ def build(name, layer, **kwargs):
     if isinstance(name, Activation):
         return name
 
-    def compose(a, b):
-        def c(z): return b(a(z))
-        c.name = '%s(%s)' % (b.name, a.name)
-        c.params = getattr(b, 'params', []) + getattr(a, 'params', [])
-        return c
-
     if '+' in name:
         return functools.reduce(
-            compose, (build(n, layer, **kwargs) for n in name.split('+')))
+            Compose, (build(n, layer, **kwargs) for n in name.split('+')))
 
     act = COMMON.get(name)
     if act is not None:
@@ -171,6 +165,21 @@ class Activation(util.Registrar(str('Base'), (), {})):
             function.
         '''
         raise NotImplementedError
+
+
+class Compose(Activation):
+    r'''Compose two activation functions.'''
+
+    def __init__(self, f, g):
+        self.f = f
+        self.g = g
+        self.name = '{}({})'.format(g.name, f.name)
+        self.layer = None
+        self.kwargs = {}
+        self.params = getattr(g, 'params', []) + getattr(f, 'params', [])
+
+    def __call__(self, x):
+        return self.g(self.f(x))
 
 
 class Prelu(Activation):

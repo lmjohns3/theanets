@@ -1,5 +1,6 @@
 from __future__ import division
 
+import io
 import numpy as np
 import pytest
 import theanets
@@ -68,6 +69,16 @@ def test_build_composed():
     assert callable(a)
     assert a.name == 'norm:z(relu)', a.name
     assert a.params == []
+
+
+def test_save_load_composed():
+    model = theanets.Network([3, (4, 'relu+norm:z')])
+    handle = io.BytesIO()
+    model.save(handle)
+    handle.seek(0)
+    second = theanets.Network.load(handle)
+    assert second.layers[1].activate.f.name == model.layers[1].activate.f.name
+    assert second.layers[1].activate.g.name == model.layers[1].activate.g.name
 
 
 @pytest.mark.parametrize('activation, expected', [

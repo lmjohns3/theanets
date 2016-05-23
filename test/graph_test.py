@@ -82,10 +82,14 @@ class TestNetwork:
         dict(form='ff'),
         dict(form='tied'),
         dict(form='tied', partner='hello'),
+        dict(form='ff', inputs=('a', 'b')),
     ])
-    def test_add_layer_bind_errors(self, spec):
+    def test_add_layer_errors(self, spec):
         with pytest.raises(theanets.util.ConfigurationError):
-            theanets.Network([3, spec, 4])
+            theanets.Network([dict(form='input', name='a', shape=(3, 5)),
+                              dict(form='input', name='b', shape=(4, 3)),
+                              spec,
+                              4])
 
     def test_updates(self):
         model = theanets.Regressor((15, 13))

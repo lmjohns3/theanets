@@ -283,12 +283,14 @@ class Network(object):
             treated as a number of minutes to wait between savings. If it is an
             int, it is treated as the number of training epochs to wait between
             savings. Defaults to 0.
-        save_progress : str, optional
+        save_progress : str or file handle, optional
             If this is not None, and ``save_progress`` is nonzero, then save the
-            model periodically during training. This parameter gives the full
-            path of a file to save the model. If this name contains a "{}"
-            format specifier, it will be filled with the integer Unix timestamp
-            at the time the model is saved. Defaults to None.
+            model periodically during training. This parameter gives either (a)
+            the full path of a file to save the model, or (b) a file-like object
+            where the model should be saved. If it is a string and the given
+            name contains a "{}" format specifier, it will be filled with the
+            integer Unix timestamp at the time the model is saved. Defaults to
+            None, which does not save models.
 
         Yields
         ------
@@ -345,7 +347,7 @@ class Network(object):
 
         # set up check to save model ...
         def needs_saving(elapsed, iteration):
-            if not save_progress:
+            if save_progress is None:
                 return False
             if isinstance(save_every, float):
                 return elapsed > 60 * save_every
@@ -359,7 +361,10 @@ class Network(object):
             yield monitors
             now = time.time()
             if i and needs_saving(now - start, i):
-                self.save(save_progress.format(int(now)))
+                filename_or_handle = save_progress
+                if isinstance(filename_or_handle, util.basestring):
+                    filename_or_handle = save_progress.format(int(now))
+                self.save(filename_or_handle)
                 start = now
 
     def train(self, *args, **kwargs):
@@ -583,21 +588,26 @@ class Network(object):
         self._graphs = {}
         self._functions = {}
 
-    def save(self, filename):
+    def save(self, filename_or_handle):
         '''Save the state of this network to a pickle file on disk.
 
         Parameters
         ----------
-        filename : str
-            Save the state of this network to a pickle file at the named path.
-            If this name ends in ".gz" then the output will automatically be
-            gzipped; otherwise the output will be a "raw" pickle.
+        filename_or_handle : str or file handle
+            Save the state of this network to a pickle file. If this parameter
+            is a string, it names the file where the pickle will be saved. If it
+            is a file-like object, this object will be used for writing the
+            pickle. If the filename ends in ".gz" then the output will
+            automatically be gzipped.
         '''
-        opener = gzip.open if filename.lower().endswith('.gz') else open
-        handle = opener(filename, 'wb')
+        if isinstance(filename_or_handle, util.basestring):
+            opener = gzip.open if filename_or_handle.lower().endswith('.gz') else open
+            handle = opener(filename_or_handle, 'wb')
+        else:
+            handle = filename_or_handle
         pickle.dump(self, handle, -1)
         handle.close()
-        logging.info('%s: saved model', filename)
+        logging.info('%s: saved model', filename_or_handle)
 
     @classmethod
     def load(cls, filename):

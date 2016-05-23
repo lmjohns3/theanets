@@ -684,7 +684,7 @@ class Reshape(Layer):
         shape = self.kwargs.get('shape')
         if not isinstance(shape, (tuple, list)):
             raise util.ConfigurationError(
-                'product layer "{}" has invalid shape {}'.format(self.name, shape))
+                'reshape layer "{}" has invalid shape {}'.format(self.name, shape))
         self._output_shapes['out'] = tuple(shape)
         try:
             source = np.prod(self.input_shape)
@@ -692,12 +692,12 @@ class Reshape(Layer):
         except TypeError:
             pass
         if not source or not target:
-            logging.info('product layer "{}" has incomplete shape info, '
+            logging.info('reshape layer "{}" has incomplete shape info, '
                          'we will run anyway and hope for the best'
                          .format(self.name))
         elif source != target:
             raise util.ConfigurationError(
-                'incompatible shapes for product layer "{}": input '
+                'incompatible shapes for reshape layer "{}": input '
                 '{} <> output {}'.format(self.name, self.input_shape, shape))
 
     def transform(self, inputs):

@@ -10,19 +10,16 @@ specific to neural networks, often taking advantage of the layered structure of
 many common network architectures.
 '''
 
-import climate
 import downhill
 import itertools
 import numpy as np
 
 from . import layers
-
-logging = climate.get_logger(__name__)
+from . import util
 
 
 class DownhillTrainer(object):
-    '''Wrapper for using trainers from ``downhill``.
-    '''
+    '''Wrapper for using trainers from ``downhill``.'''
 
     def __init__(self, algo, network):
         self.algo = algo
@@ -143,7 +140,7 @@ class SampleTrainer(object):
             shape = param.get_value(borrow=True).shape
             if len(shape) == 2 and shape[1] == odim:
                 arr = np.vstack(SampleTrainer.reservoir(samples, shape[0], rng))
-                logging.info('setting %s: %s', param.name, shape)
+                util.log('setting {}: {}', param.name, shape)
                 param.set_value(arr / np.sqrt((arr * arr).sum(axis=1))[:, None])
 
         # set input (encoding) weights on the network.
@@ -153,7 +150,7 @@ class SampleTrainer(object):
                 shape = param.get_value(borrow=True).shape
                 if len(shape) == 2 and shape[0] == idim:
                     arr = np.vstack(SampleTrainer.reservoir(samples, shape[1], rng)).T
-                    logging.info('setting %s: %s', param.name, shape)
+                    util.log('setting {}: {}', param.name, shape)
                     param.set_value(arr / np.sqrt((arr * arr).sum(axis=0)))
                     samples = ifci(self.network.feed_forward(
                         first(t))[i-1] for t in train)
@@ -253,8 +250,8 @@ class SupervisedPretrainer(object):
                     size=original[-1].output_size,
                     activation=original[-1].kwargs['activation']))
                 net.layers = original[:i+1] + tail
-            logging.info('layerwise: training %s',
-                         ' -> '.join(l.name for l in net.layers))
+            util.log('layerwise: training {}',
+                     ' -> '.join(l.name for l in net.layers))
             [l.bind(net, initialize=False) for l in net.layers]
             [l.setup() for l in tail]
             net.losses[0].output_name = net.layers[-1].output_name
@@ -322,7 +319,7 @@ class UnsupervisedPretrainer(object):
         layers_.append(dict(
             form='tied', partner=layers_[1]['name'], activation='linear'))
 
-        logging.info('creating shadow network')
+        util.log('creating shadow network')
         ae = feedforward.Autoencoder(layers=layers_)
 
         # train the autoencoder using the supervised layerwise pretrainer.
@@ -334,7 +331,7 @@ class UnsupervisedPretrainer(object):
         for param in ae.params:
             l, p = param.name.split('.')
             if l in original_layer_names:
-                logging.info('copying pretrained parameter %s', param.name)
+                util.log('copying pretrained parameter {}', param.name)
                 self.network.find(l, p).set_value(param.get_value())
 
-        logging.info('completed unsupervised pretraining')
+        util.log('completed unsupervised pretraining')

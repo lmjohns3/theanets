@@ -18,13 +18,9 @@ parameters. The other layer models fall somewhere in the middle but tend only to
 match the dominant frequency in the target wave.
 '''
 
-import climate
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
-
-climate.enable_default_logging()
 
 COLORS = ['#d62728', '#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e',
           '#e377c2', '#8c564b', '#bcbd22', '#7f7f7f', '#17becf']
@@ -59,16 +55,13 @@ for i, layer in enumerate((
         dict(form='rnn', activation='linear', diagonal=0.5),
         dict(form='rnn', activation='relu', diagonal=0.5),
         dict(form='rrnn', activation='relu', rate='vector', diagonal=0.5),
-        dict(form='scrn', activation='linear'),
         dict(form='scrn', activation='elu'),
         dict(form='gru', activation='relu'),
-        dict(form='gru', activation='elu'),
         dict(form='lstm', activation='tanh'),
-        dict(form='clockwork', activation='elu', periods=(1, 4, 16, 64)),
         dict(form='clockwork', activation='linear', periods=(1, 4, 16, 64)))):
     name = '{form}+{activation}'.format(**layer)
     layer['size'] = 64
-    logging.info('training %s model', name)
+    theanets.log('training {} model', name)
     net = theanets.recurrent.Regressor([1, layer, 1])
     losses = []
     for tm, _ in net.itertrain([ZERO, WAVES],

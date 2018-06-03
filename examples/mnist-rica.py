@@ -1,15 +1,10 @@
 #!/usr/bin/env python
 
-import climate
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
 
 from utils import load_mnist, plot_layers, plot_images
-
-logging = climate.get_logger('mnist-rica')
-
-climate.enable_default_logging()
 
 
 class WeightInverse(theanets.Regularizer):
@@ -27,7 +22,7 @@ m = train.mean(axis=0)
 train -= m
 valid -= m
 
-logging.info('computing whitening transform')
+theanets.log('computing whitening transform')
 vals, vecs = np.linalg.eigh(np.dot(train.T, train) / len(train))
 vals = vals[::-1]
 vecs = vecs[:, ::-1]

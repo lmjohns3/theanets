@@ -5,25 +5,23 @@
 This example shows one way to train a single-layer autoencoder model using the
 handwritten MNIST digits.
 
-This example also shows the use of climate command-line arguments.
+This example also shows the use of command-line arguments.
 '''
 
-import climate
+import click
 import matplotlib.pyplot as plt
 import theanets
 
 from utils import load_mnist, plot_layers, plot_images
 
-g = climate.add_group('MNIST Example')
-g.add_argument('--features', type=int, default=8, metavar='N',
-               help='train a model using N^2 hidden-layer features')
-
-
-def main(args):
+@click.command()
+@click.option('--features', default=16, type=int, metavar='N',
+              help='Train a model with NxN hidden features.')
+def main(features):
     # load up the MNIST digit dataset.
     train, valid, _ = load_mnist()
 
-    net = theanets.Autoencoder([784, args.features ** 2, 784])
+    net = theanets.Autoencoder([784, features ** 2, 784])
     net.train(train, valid,
               train_batches=100,
               input_noise=0.1,
@@ -44,4 +42,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    climate.call(main)
+    main()

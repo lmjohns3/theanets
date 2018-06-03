@@ -4,15 +4,12 @@
 
 from __future__ import division
 
-import climate
 import numpy as np
 import theano
 import theano.tensor as TT
 
 from . import base
 from .. import util
-
-logging = climate.get_logger(__name__)
 
 __all__ = [
     'Bidirectional',
@@ -265,6 +262,70 @@ class RNN(Recurrent):
     def _step(self, _, x_t, __, h_tm1):
         pre = x_t + TT.dot(h_tm1, self.find('hh'))
         return [pre, self.activate(pre)]
+
+
+class BCRNN(RNN):
+    r'''Blocked cascading recurrent network layer.
+
+    Notes
+    -----
+
+    In a vanilla RNN the output from the layer at the previous time step is
+    incorporated into the input of the layer at the current time step:
+
+    .. math::
+       h_t = \sigma(x_t W_{xh} + h_{t-1} W_{hh} + b)
+
+    where :math:`\sigma(\cdot)` is the :ref:`activation function <activations>`
+    of the layer, and the subscript represents the time step of the data being
+    processed.
+
+    A blocked cascading RNN (BCRNN) adopts the same update equation but *masks*
+    the elements of :math:`W_{hh}` in a block-triangular fashion.
+
+    *Parameters*
+
+    - ``b`` --- bias
+    - ``xh`` --- matrix connecting inputs to hiddens
+    - ``hh`` --- matrix connecting hiddens to hiddens
+
+    *Outputs*
+
+    - ``out`` --- the post-activation state of the layer
+    - ``pre`` --- the pre-activation state of the layer
+    '''
+
+    def __init__(self, num_modules, **kwargs):
+        super(BCRNN, self).__init__(**kwargs)
+        self.num_modules = num_modules
+
+    def bind(self, *args, **kwargs):
+        super(BCRNN, self).bind(*args, **kwargs)
+        if self.output_size % self.num_modules != 0:
+            raise util.ConfigurationError(
+                'layer "{}": size {} is not a multiple of num_modules {}'
+                .format(self.name, self.output_size, self.num_modules))
+
+    def setup(self):
+        super(BCRNN, self).setup()
+        n = self.output_size // self.num_modules
+        mask = np.zeros((self.output_size, self.output_size), 'f')
+        rates = np.zeros((self.output_size, ), 'f')
+        for i, r in enumerate(1 - np.logspace(-1e-4, -6, self.num_modules)):
+            mask[i*n:, i*n:(i+1)*n] = 1
+            rates[i*n:(i+1)*n] = r
+        self._mask = theano.shared(mask, name='mask')
+        self._rates = theano.shared(rates, name='rates')
+
+    def _step(self, _, x_t, pre_tm1, h_tm1):
+        pre_t = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)
+        pre = self._rates * pre_tm1 + (1 - self._rates) * pre_t
+        return [pre, self.activate(pre)]
+
+    def to_spec(self):
+        spec = super(BCRNN, self).to_spec()
+        spec['num_modules'] = self.num_modules
+        return spec
 
 
 class RRNN(Recurrent):
@@ -818,14 +879,12 @@ class Clockwork(RNN):
 
     def log(self):
         inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
-        logging.info('layer %s "%s" %s %s [T %s] from %s',
-                     self.__class__.__name__,
-                     self.name,
-                     self.output_shape,
-                     getattr(self.activate, 'name', self.activate),
-                     ' '.join(str(T) for T in self.periods),
-                     inputs)
-        logging.info('learnable parameters: %d', self.log_params())
+        util.log('layer {0.__class__.__name__} "{0.name}" {0.output_shape} '
+                 '{1} [T {2}] from {3}', self,
+                 getattr(self.activate, 'name', self.activate),
+                 ' '.join(str(T) for T in self.periods),
+                 inputs)
+        util.log('learnable parameters: {}', self.log_params())
 
     def _step(self, t, x_t, pre_tm1, h_tm1):
         pre = x_t + TT.dot(h_tm1, self.find('hh') * self._mask)

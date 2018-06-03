@@ -2,7 +2,6 @@
 
 r'''This module contains a base class for modeling computation graphs.'''
 
-import climate
 import downhill
 import gzip
 import hashlib
@@ -17,8 +16,6 @@ from . import losses
 from . import regularizers
 from . import trainer
 from . import util
-
-logging = climate.get_logger(__name__)
 
 
 class Network(object):
@@ -429,7 +426,7 @@ class Network(object):
         '''
         key = self._hash(regularizers)
         if key not in self._graphs:
-            logging.info('building computation graph')
+            util.log('building computation graph')
             for loss in self.losses:
                 loss.log()
             for reg in regularizers:
@@ -527,7 +524,7 @@ class Network(object):
         if key not in self._functions:
             outputs, updates = self.build_graph(regs)
             labels, exprs = list(outputs.keys()), list(outputs.values())
-            logging.info('compiling feed_forward function')
+            util.log('compiling feed_forward function')
             self._functions[key] = (labels, theano.function(
                 self.inputs, exprs, updates=updates))
         labels, f = self._functions[key]
@@ -608,7 +605,7 @@ class Network(object):
         pickle.dump(self, handle, -1)
         if isinstance(filename_or_handle, util.basestring):
             handle.close()
-        logging.info('%s: saved model', filename_or_handle)
+        util.log('saved model to {}', filename_or_handle)
 
     @classmethod
     def load(cls, filename_or_handle):
@@ -633,7 +630,7 @@ class Network(object):
         model = pickle.load(handle)
         if isinstance(filename_or_handle, util.basestring):
             handle.close()
-        logging.info('%s: loaded model', filename_or_handle)
+        util.log('loaded model from {}', filename_or_handle)
         return model
 
     def loss(self, **kwargs):

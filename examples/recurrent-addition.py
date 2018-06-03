@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
-import climate
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rng
 import theanets
-
-climate.enable_default_logging()
 
 BATCH_SIZE = 32
 STEPS = 20
@@ -28,7 +24,7 @@ def examples():
     return np.concatenate([x, y], axis=2).astype('f'), z.astype('f'), weight
 
 src, tgt, wgt = examples()
-logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, wgt.shape)
+theanets.log('data batches: {} -> {} @ {}', src.shape, tgt.shape, wgt.shape)
 
 e = theanets.Experiment(
     theanets.recurrent.Regressor,

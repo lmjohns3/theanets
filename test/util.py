@@ -1,9 +1,6 @@
 '''Helper code for theanets unit tests.'''
 
-import climate
 import numpy as np
-
-climate.enable_default_logging()
 
 np.random.seed(13)
 

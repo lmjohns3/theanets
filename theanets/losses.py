@@ -2,13 +2,10 @@
 
 '''These loss functions are available for neural network models.'''
 
-import climate
 import numpy as np
 import theano.tensor as TT
 
 from . import util
-
-logging = climate.get_logger(__name__)
 
 
 class Loss(util.Registrar(str('Base'), (), {})):
@@ -63,8 +60,8 @@ class Loss(util.Registrar(str('Base'), (), {})):
 
     def log(self):
         '''Log some diagnostic info about this loss.'''
-        logging.info('using loss: %s * %s (output %s)',
-                     self.weight, self.__class__.__name__, self.output_name)
+        util.log('using loss: {0.weight} * {0.__class__.__name__} '
+                 '(output {0.output_name})', self)
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.
@@ -261,9 +258,8 @@ class GaussianLogLikelihood(Loss):
 
     def log(self):
         '''Log some diagnostic info about this loss.'''
-        logging.info('using loss: %s * %s (mean %s, covar %s)',
-                     self.weight, self.__class__.__name__,
-                     self.mean_name, self.covar_name)
+        util.log('using loss: {0.weight} * {0.__class__.__name__} '
+                 '(mean {0.mean_name}, covar {0.covar_name})', self)
 
     def __call__(self, outputs):
         '''Construct the computation graph for this loss function.

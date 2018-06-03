@@ -1,5 +1,3 @@
-import climate
-import pickle
 import gzip
 import numpy as np
 import os
@@ -12,12 +10,7 @@ import urllib
 try:
     import matplotlib.pyplot as plt
 except ImportError:
-    logging.critical('please install matplotlib to run the examples!')
-    raise
-
-logging = climate.get_logger(__name__)
-
-climate.enable_default_logging()
+    raise RuntimeError('please install matplotlib to run the examples!')
 
 DATASETS = os.path.join(tempfile.gettempdir(), 'theanets-datasets')
 
@@ -27,7 +20,7 @@ def find(dataset, url):
     fn = os.path.join(DATASETS, dataset)
     dn = os.path.dirname(fn)
     if not os.path.exists(dn):
-        logging.info('creating dataset directory: %s', dn)
+        print('creating dataset directory: %s', dn)
         os.makedirs(dn)
     if not os.path.exists(fn):
         if sys.version_info < (3, ):
@@ -60,7 +53,7 @@ def load_mnist(flatten=True, labels=False):
 def load_cifar(flatten=True, labels=False):
     '''Load the CIFAR10 image dataset.'''
     def extract(name):
-        logging.info('extracting data from %s', name)
+        print('extracting data from {}'.format(name))
         h = tar.extractfile(name)
         if sys.version_info < (3, ):
             d = pickle.load(h)

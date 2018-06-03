@@ -1,10 +1,7 @@
-import climate
 import numpy as np
 import sklearn.datasets
 import sklearn.metrics
 import theanets
-
-climate.enable_default_logging()
 
 samples, labels = sklearn.datasets.make_classification(
     n_samples=10000,
@@ -38,11 +35,11 @@ net = theanets.Classifier(
 net.train(train, valid)
 
 truth = valid[1]
-print('# of true 1s:', truth.sum())
+theanets.log('# of true 1s: {}', truth.sum())
 
 guess = net.predict(valid[0])
-print('# of predicted 1s:', guess.sum())
+theanets.log('# of predicted 1s: {}', guess.sum())
 
 cm = sklearn.metrics.confusion_matrix(truth, guess)
-print('confusion matrix (true class = rows, predicted class = cols):')
-print(cm)
+theanets.log('confusion matrix (true class = rows, predicted class = cols):')
+theanets.log(str(cm))

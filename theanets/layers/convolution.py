@@ -4,15 +4,12 @@
 
 from __future__ import division
 
-import climate
 import numpy as np
 import theano
 import theano.tensor as TT
 
 from . import base
 from .. import util
-
-logging = climate.get_logger(__name__)
 
 __all__ = [
     'Conv1',
@@ -44,16 +41,14 @@ class Convolution(base.Layer):
 
     def log(self):
         inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
-        logging.info('layer %s "%s" %s %s %s filters %s%s from %s',
-                     self.__class__.__name__,
-                     self.name,
-                     self.output_shape,
-                     getattr(self.activate, 'name', self.activate),
-                     self.border_mode,
-                     'x'.join(str(i) for i in self.filter_size),
-                     ''.join('+{}'.format(i) for i in self.stride),
-                     inputs)
-        logging.info('learnable parameters: %d', self.log_params())
+        util.log('layer {0.__class__.__name__} "{0.name}" '
+                 '{0.output_shape} {1} {0.border_mode} '
+                 'filters {2}{3} from {4}', self,
+                 getattr(self.activate, 'name', self.activate),
+                 'x'.join(str(i) for i in self.filter_size),
+                 ''.join('+{}'.format(i) for i in self.stride),
+                 inputs)
+        util.log('learnable parameters: {}', self.log_params())
 
     def add_conv_weights(self, name, mean=0, std=None, sparsity=0):
         '''Add a convolutional weight array to this layer's parameters.
@@ -143,7 +138,7 @@ class Conv1(Convolution):
         # conv2d wants: (batch, input, 1, time)
         x = inputs[self.input_name].dimshuffle(0, 2, 'x', 1)
 
-        pre = TT.nnet.conv.conv2d(
+        pre = TT.nnet.conv2d(
             x,
             self.find('w'),
             image_shape=(None, self.input_size, 1, None),
@@ -198,7 +193,7 @@ class Conv2(Convolution):
         # conv2d wants: (batch, input, width, height)
         x = inputs[self.input_name].dimshuffle(0, 3, 1, 2)
 
-        pre = TT.nnet.conv.conv2d(
+        pre = TT.nnet.conv2d(
             x,
             self.find('w'),
             image_shape=(None, self.input_size, None, None),

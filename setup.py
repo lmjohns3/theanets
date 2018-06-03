@@ -7,8 +7,8 @@ setuptools.setup(
     name='theanets',
     version='0.8.0pre',
     packages=setuptools.find_packages(),
-    author='Leif Johnson',
-    author_email='leif@lmjohns3.com',
+    author='lmjohns3',
+    author_email='theanets@googlegroups.com',
     description='Feedforward and recurrent neural nets using Theano',
     long_description=open(README).read(),
     license='MIT',
@@ -22,7 +22,7 @@ setuptools.setup(
               'classifier '
               'theano '
               ),
-    install_requires=['climate', 'downhill', 'theano',
+    install_requires=['click', 'downhill', 'theano',
                       # TODO(leif): remove when theano is fixed.
                       'nose-parameterized'],
     classifiers=[

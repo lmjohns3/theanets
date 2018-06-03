@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-import climate
-import logging
 import numpy.random as rng
 import theanets
-
-climate.enable_default_logging()
 
 TIME = 10
 BATCH_SIZE = 32
@@ -20,6 +16,6 @@ def generate():
     return [rng.randn(TIME, BATCH_SIZE, 3).astype('f')]
 
 batch = generate()
-logging.info('data batches: %s', batch[0].shape)
+theanets.log('data batches: {}', batch[0].shape)
 
 e.train(generate)

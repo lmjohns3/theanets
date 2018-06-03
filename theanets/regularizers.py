@@ -11,7 +11,6 @@ on the hidden unit activations, or units can randomly be dropped out (set to
 zero) while running the model.
 '''
 
-import climate
 import fnmatch
 import theano.tensor as TT
 
@@ -19,8 +18,6 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 from . import layers
 from . import util
-
-logging = climate.get_logger(__name__)
 
 
 def from_kwargs(graph, **kwargs):
@@ -150,14 +147,14 @@ class Regularizer(util.Registrar(str('Base'), (), {})):
         overall loss for a model.
     '''
 
-    def __init__(self, pattern=None, weight=0.):
+    def __init__(self, pattern='*', weight=0.):
         self.pattern = pattern
         self.weight = weight
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s * %s(%s)',
-                     self.weight, self.__class__.__name__, self.pattern)
+        util.log('regularizer: {0.weight} * '
+                 '{0.__class__.__name__}({0.pattern})', self)
 
     def modify_graph(self, outputs):
         '''Modify the outputs of a particular layer in the computation graph.
@@ -256,7 +253,7 @@ class WeightL2(Regularizer):
     __extra_registration_keys__ = ['weight_l2', 'weight_decay']
 
     def loss(self, layers, outputs):
-        matches = util.params_matching(layers, self.pattern or '*')
+        matches = util.params_matching(layers, self.pattern)
         variables = [var for _, var in matches if var.ndim > 1]
         if not variables:
             return 0
@@ -319,7 +316,7 @@ class WeightL1(Regularizer):
     __extra_registration_keys__ = ['weight_l1', 'weight_sparsity']
 
     def loss(self, layers, outputs):
-        matches = util.params_matching(layers, self.pattern or '*')
+        matches = util.params_matching(layers, self.pattern)
         variables = [var for _, var in matches if var.ndim > 1]
         if not variables:
             return 0
@@ -387,7 +384,9 @@ class HiddenL1(Regularizer):
     __extra_registration_keys__ = ['hidden_l1', 'hidden_sparsity']
 
     def loss(self, layers, outputs):
-        pattern = self.pattern or [l.output_name for l in layers[1:-1]]
+        pattern = self.pattern
+        if pattern == '*':
+            pattern = [l.output_name for l in layers[1:-1]]
         matches = util.outputs_matching(outputs, pattern)
         hiddens = [expr for _, expr in matches]
         if not hiddens:
@@ -450,8 +449,6 @@ class RecurrentNorm(Regularizer):
     __extra_registration_keys__ = ['recurrent_norm']
 
     def loss(self, layers, outputs):
-        if self.pattern is None:
-            raise util.ConfigurationError('RecurrentNorm requires a pattern!')
         matches = util.outputs_matching(outputs, self.pattern)
         hiddens = [expr for _, expr in matches]
         if not hiddens:
@@ -515,8 +512,6 @@ class RecurrentState(Regularizer):
     __extra_registration_keys__ = ['recurrent_state']
 
     def loss(self, layers, outputs):
-        if self.pattern is None:
-            raise util.ConfigurationError('RecurrentNorm requires a pattern!')
         matches = util.outputs_matching(outputs, self.pattern)
         hiddens = [expr for _, expr in matches]
         if not hiddens:
@@ -602,12 +597,14 @@ class Contractive(Regularizer):
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s * %s(%s wrt %s)',
-                     self.weight, self.__class__.__name__,
-                     self.pattern, self.wrt)
+        util.log('regularizer: {0.weight} * '
+                 '{0.__class__.__name__}({0.pattern} wrt '
+                 '{0.wrt})', self)
 
     def loss(self, layer_list, outputs):
-        pattern = self.pattern or [l.output_name for l in layer_list[1:-1]]
+        pattern = self.pattern
+        if pattern == '*':
+            pattern = [l.output_name for l in layer_list[1:-1]]
         targets = [expr for _, expr in util.outputs_matching(outputs, pattern)]
         if not targets:
             return 0
@@ -705,8 +702,8 @@ class GaussianNoise(Regularizer):
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s * %s(%s)',
-                     self.weight, self.__class__.__name__, self.pattern)
+        util.log('regularizer: {0.weight} * '
+                 '{0.__class__.__name__}({0.pattern})', self)
 
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):
@@ -800,8 +797,8 @@ class BernoulliDropout(Regularizer):
 
     def log(self):
         '''Log some diagnostic info about this regularizer.'''
-        logging.info('regularizer: %s(%s) ~ B(%s)',
-                     self.__class__.__name__, self.pattern, self.weight)
+        util.log('regularizer: {0.__class__.__name__}({0.pattern}) ~ '
+                 'B({0.weight})', self)
 
     def modify_graph(self, outputs):
         for name, expr in list(util.outputs_matching(outputs, self.pattern)):

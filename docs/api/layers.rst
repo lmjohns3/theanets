@@ -206,7 +206,7 @@ feedforward layer but did not want to include a bias term:
           return TT.dot(inputs, self.find('w'))
 
       def setup(self):
-          self.add_weights('w', nin=self.input_size, nout=self.size)
+          self.add_weights('w', nin=self.input_size, nout=self.output_size)
 
 Once you've set up your new layer class, it will automatically be registered and
 available in :func:`theanets.Layer.build <theanets.layers.base.Layer.build>`

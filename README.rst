@@ -54,12 +54,9 @@ and (d) evaluate the model:
 
 .. code:: python
 
-  import climate
   import theanets
   from sklearn.datasets import make_classification
   from sklearn.metrics import confusion_matrix
-
-  climate.enable_default_logging()
 
   # Create a classification dataset.
   X, y = make_classification(

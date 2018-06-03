@@ -4,7 +4,6 @@
 
 from __future__ import division
 
-import climate
 import numpy as np
 import theano
 import theano.sparse as SS
@@ -12,8 +11,6 @@ import theano.tensor as TT
 
 from .. import activations
 from .. import util
-
-logging = climate.get_logger(__name__)
 
 __all__ = [
     'Concatenate',
@@ -321,20 +318,16 @@ class Layer(util.Registrar(str('Base'), (), {})):
     def log(self):
         '''Log some information about this layer.'''
         inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
-        logging.info('layer %s "%s" %s %s from %s',
-                     self.__class__.__name__,
-                     self.name,
-                     self.output_shape,
-                     getattr(self.activate, 'name', self.activate),
-                     inputs)
-        logging.info('learnable parameters: %d', self.log_params())
+        util.log('layer {0.__class__.__name__} "{0.name}" {0.output_shape} {1} from {2}',
+                 self, getattr(self.activate, 'name', self.activate), inputs)
+        util.log('learnable parameters: {}', self.log_params())
 
     def log_params(self):
         '''Log information about this layer's parameters.'''
         total = 0
         for p in self.params:
             shape = p.get_value().shape
-            logging.info('parameter "%s" %s', p.name, shape)
+            util.log('parameter "{}" {}', p.name, shape)
             total += np.prod(shape)
         return total
 
@@ -525,8 +518,7 @@ class Input(Layer):
         self._output_shapes['out'] = tuple(self.kwargs['shape'])
 
     def log(self):
-        logging.info('layer %s "%s" %s',
-                     self.__class__.__name__, self.name, self.output_shape)
+        util.log('layer {0.__class__.__name__} "{0.name}" {0.output_shape}', self)
 
     def transform(self, inputs):
         return self.input, []
@@ -692,9 +684,8 @@ class Reshape(Layer):
         except TypeError:
             pass
         if not source or not target:
-            logging.info('reshape layer "{}" has incomplete shape info, '
-                         'we will run anyway and hope for the best'
-                         .format(self.name))
+            util.log('reshape layer "{}" has incomplete shape info, '
+                     'we will run anyway and hope for the best', self.name)
         elif source != target:
             raise util.ConfigurationError(
                 'incompatible shapes for reshape layer "{}": input '

@@ -4,15 +4,12 @@ r'''Feedforward layers for neural network computation graphs.'''
 
 from __future__ import division
 
-import climate
 import numpy as np
 import theano.sparse as SS
 import theano.tensor as TT
 
 from . import base
 from .. import util
-
-logging = climate.get_logger(__name__)
 
 __all__ = [
     'Classifier',
@@ -169,14 +166,10 @@ class Tied(base.Layer):
 
     def log(self):
         inputs = ', '.join('"{0}" {1}'.format(*ns) for ns in self._input_shapes.items())
-        logging.info('layer %s "%s" (tied to "%s") %s %s from %s',
-                     self.__class__.__name__,
-                     self.name,
-                     self.partner.name,
-                     self.output_shape,
-                     getattr(self.activate, 'name', self.activate),
-                     inputs)
-        logging.info('learnable parameters: %d', self.log_params())
+        util.log('layer {0.__class__.__name__} "{0.name}" '
+                 '(tied to "{0.partner.name}") {0.output_shape} {1} from {2}',
+                 self, getattr(self.activate, 'name', self.activate), inputs)
+        util.log('learnable parameters: {}', self.log_params())
 
     def to_spec(self):
         spec = super(Tied, self).to_spec()

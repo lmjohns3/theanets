@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import climate
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
 
 import utils
-
-climate.enable_default_logging()
 
 COLORS = ['#d62728', '#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e',
           '#e377c2', '#8c564b', '#bcbd22', '#7f7f7f', '#17becf']
@@ -19,12 +16,13 @@ with open(utils.find('moby.txt', URL)) as handle:
 
 seed = text.encode(text.text[200000:200010])
 for i, layer in enumerate((
-        dict(form='rnn', activation='sigmoid'),
+        dict(form='rnn', activation='sigmoid', diagonal=0.99),
         dict(form='gru', activation='sigmoid'),
-        dict(form='scrn', activation='linear'),
+        dict(form='scrn', activation='sigmoid'),
+        dict(form='bcrnn', activation='sigmoid', num_modules=5),
         dict(form='lstm'),
         dict(form='mrnn', activation='sigmoid', factors=len(text.alpha)),
-        dict(form='clockwork', activation='linear', periods=(1, 2, 4, 8, 16)))):
+        dict(form='clockwork', activation='sigmoid', periods=(1, 2, 4, 8, 16)))):
     losses = []
     layer.update(size=100)
     net = theanets.recurrent.Classifier([
@@ -33,8 +31,9 @@ for i, layer in enumerate((
                                min_improvement=0.99,
                                validate_every=50,
                                patience=0,
-                               algo='rmsprop',
-                               learning_rate=0.0001):
+                               algo='adam',
+                               max_gradient_norm=1,
+                               learning_rate=0.01):
         if np.isnan(tm['loss']):
             break
         print('{}|{} ({:.1f}%)'.format(

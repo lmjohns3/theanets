@@ -1,26 +1,18 @@
 #!/usr/bin/env python
 
-import climate
+import click
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
 
 from utils import load_cifar, plot_layers, plot_images
 
-logging = climate.get_logger('cifar')
-
-g = climate.add_group('CIFAR Example')
-g.add_argument('--features', type=int, default=0, metavar='N',
-               help='train a model using N^2 hidden-layer features')
-
-
-K = 655  # this retains 99% of the variance in the cifar images.
-
+K = 655  # this value of K retains 99% of the variance in the cifar images.
 
 def pca(dataset):
     mean = dataset[:3000].mean(axis=0)
 
-    logging.info('computing whitening transform')
+    theanets.log('computing whitening transform')
     x = dataset[:3000] - mean
     vals, vecs = np.linalg.eigh(np.dot(x.T, x) / len(x))
     vals = vals[::-1]
@@ -38,12 +30,15 @@ def pca(dataset):
     return whiten, color
 
 
-def main(args):
+@click.command()
+@click.option('--features', default=None, type=int, metavar='N',
+              help='Train a model with NxN hidden features.')
+def main(features):
     train, valid, _ = load_cifar()
 
-    whiten, color = pca(train)
+    whiten, color = pca(train[0])
 
-    feat = args.features or int(np.sqrt(2 * K))
+    feat = features or int(np.sqrt(2 * K))
     n = theanets.Autoencoder([K, feat ** 2, K])
     n.train(whiten(train), whiten(valid), input_noise=1, train_batches=313)
 
@@ -62,4 +57,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    climate.call(main)
+    main()

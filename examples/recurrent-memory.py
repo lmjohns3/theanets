@@ -16,13 +16,9 @@ configuration can easily be changed to test the performance of different
 layer types (or even multilayer architectures).
 '''
 
-import climate
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import theanets
-
-climate.enable_default_logging()
 
 TIME = 10  # Total numer of time steps.
 BITS = 3   # Number of steps to remember/reproduce.
@@ -47,7 +43,7 @@ def generate():
     return s, t, mask
 
 src, tgt, msk = generate()
-logging.info('data batches: %s -> %s @ %s', src.shape, tgt.shape, msk.shape)
+theanets.log('data batches: {} -> {} @ {}', src.shape, tgt.shape, msk.shape)
 
 
 # Create a new recurrent regression model and train it up.

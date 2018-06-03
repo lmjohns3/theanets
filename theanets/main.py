@@ -4,13 +4,10 @@ The code here wraps the most common tasks involved in creating and, especially,
 training a neural network model.
 '''
 
-import climate
 import os
 
 from . import graph
 from . import util
-
-logging = climate.get_logger(__name__)
 
 
 class Experiment:

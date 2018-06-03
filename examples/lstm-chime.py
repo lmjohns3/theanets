@@ -12,7 +12,6 @@ validation set. Clearly overtraining is a critical issue here.
 This example only works with Python 2 at the moment.
 '''
 
-import climate
 import io
 import numpy as np
 import theanets
@@ -22,10 +21,6 @@ import tempfile
 import urllib
 import zipfile
 
-logging = climate.get_logger('lstm-chime')
-
-climate.enable_default_logging()
-
 BATCH_SIZE = 32
 TRAIN_NC = os.path.join(tempfile.gettempdir(), 'chime1_train.nc')
 VALID_NC = os.path.join(tempfile.gettempdir(), 'chime1_valid.nc')
@@ -33,7 +28,7 @@ ZIPURL = 'https://github.com/craffel/lstm_benchmarks/archive/master.zip'
 
 # If needed, get the data files from https://github.com/craffel/lstm_benchmarks.
 if not os.path.isfile(TRAIN_NC) or not os.path.isfile(VALID_NC):
-    logging.info('attempting data copy from url: %s', ZIPURL)
+    theanets.log('attempting data copy from url: {}', ZIPURL)
     z = zipfile.ZipFile(io.BytesIO(urllib.urlopen(ZIPURL).read()))
     with open(TRAIN_NC, 'wb') as savefile:
         savefile.write(z.read('lstm_benchmarks-master/data/train_1_speaker.nc'))

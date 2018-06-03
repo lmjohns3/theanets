@@ -88,7 +88,8 @@ class Text(object):
                 char for char, count in
                 collections.Counter(text).items()
                 if char != unknown and count >= min_count)))
-        self.text = re.sub(r'[^{}]'.format(re.escape(self.alpha)), unknown, text)
+        self.text = re.sub(
+            r'[^{}]'.format(re.escape(self.alpha)), unknown, text)
         assert unknown not in self.alpha
         self._rev_index = unknown + self.alpha
         self._fwd_index = dict(zip(self._rev_index, range(1 + len(self.alpha))))
